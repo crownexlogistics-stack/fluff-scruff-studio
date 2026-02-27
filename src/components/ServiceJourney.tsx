@@ -64,13 +64,6 @@ export function ServiceJourney({ services, onSelectService }: ServiceJourneyProp
                     className="w-full text-left group"
                   >
                     <div className="bg-card rounded-3xl border border-border p-6 sm:p-8 transition-all duration-300 hover:shadow-lg hover:shadow-accent/10 hover:border-accent/20">
-                      {/* Service number with paw */}
-                      <div className="flex items-center gap-2 mb-3">
-                        <PawPrint className="h-3.5 w-3.5 text-accent/50" />
-                        <span className="text-accent/60 font-body text-xs tracking-[0.3em] uppercase">
-                          Step 0{index + 1}
-                        </span>
-                      </div>
                       <h3 className="text-2xl sm:text-3xl font-heading text-foreground mb-3 group-hover:text-accent transition-colors duration-300">
                         {service.title}
                       </h3>
