@@ -14,6 +14,7 @@ interface ReviewsData {
   name: string;
   rating: number;
   totalReviews: number;
+  placeId: string;
   reviews: Review[];
 }
 
@@ -83,10 +84,9 @@ export function GoogleReviews() {
     return null;
   }
 
-  // Show top 3 reviews (5-star first)
-  const topReviews = data.reviews
-    .sort((a, b) => b.rating - a.rating)
-    .slice(0, 3);
+  // Show only 5-star reviews
+  const fiveStarReviews = data.reviews.filter((r) => r.rating === 5);
+  const googleMapsUrl = `https://search.google.com/local/reviews?placeid=${data.placeId}`;
 
   return (
     <section id="about" className="py-16 sm:py-20 bg-white">
@@ -101,7 +101,12 @@ export function GoogleReviews() {
           <h2 className="text-3xl sm:text-4xl font-heading text-foreground mb-4">
             We treat them like our own
           </h2>
-          <div className="flex items-center justify-center gap-3">
+          <a
+            href={googleMapsUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-3 hover:opacity-80 transition-opacity"
+          >
             <div className="flex gap-1">
               {[1, 2, 3, 4, 5].map((star) => (
                 <Star
@@ -115,18 +120,21 @@ export function GoogleReviews() {
               ))}
             </div>
             <span className="font-heading text-2xl text-foreground">{data.rating}</span>
-            <span className="text-muted-foreground font-body text-sm">
+            <span className="text-muted-foreground font-body text-sm underline decoration-accent/30">
               ({data.totalReviews} reviews on Google)
             </span>
-          </div>
+          </a>
         </div>
 
         {/* Review cards */}
-        <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-          {topReviews.map((review, index) => (
-            <div
+        <div className="flex gap-5 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-hide md:grid md:grid-cols-3 lg:grid-cols-5 md:overflow-visible md:pb-0">
+          {fiveStarReviews.map((review, index) => (
+            <a
               key={index}
-              className="relative p-6 rounded-3xl bg-warm-light/50 border border-accent/10 hover:shadow-lg hover:shadow-accent/5 transition-all"
+              href={googleMapsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="relative flex-shrink-0 w-72 md:w-auto snap-start p-6 rounded-3xl bg-warm-light/50 border border-accent/10 hover:shadow-lg hover:shadow-accent/5 transition-all group"
             >
               <Quote className="h-8 w-8 text-accent/15 absolute top-5 right-5" />
               <StarRating rating={review.rating} />
@@ -149,7 +157,7 @@ export function GoogleReviews() {
                   <p className="text-xs text-muted-foreground">{review.relativeTime}</p>
                 </div>
               </div>
-            </div>
+            </a>
           ))}
         </div>
       </div>
