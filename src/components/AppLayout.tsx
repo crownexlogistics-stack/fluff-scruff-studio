@@ -11,10 +11,10 @@ export function AppLayout({ children }: AppLayoutProps) {
       <div className="min-h-screen flex w-full">
         <AppSidebar />
         <div className="flex-1 flex flex-col min-w-0">
-          <header className="h-14 flex items-center border-b px-4 bg-card">
-            <SidebarTrigger className="mr-4" />
+          <header className="glass sticky top-0 z-40 h-14 flex items-center border-b border-border/50 px-4">
+            <SidebarTrigger className="mr-4 h-12 w-12 rounded-2xl" />
           </header>
-          <main className="flex-1 p-6 overflow-auto">
+          <main className="flex-1 p-4 md:p-6 overflow-auto">
             {children}
           </main>
         </div>

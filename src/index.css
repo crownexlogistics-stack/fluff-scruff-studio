@@ -2,84 +2,89 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Playfair+Display:wght@600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=DM+Serif+Display&display=swap');
 
 @layer base {
   :root {
-    --background: 40 33% 97%;
-    --foreground: 30 10% 15%;
+    --background: 0 0% 97.6%;
+    --foreground: 220 30% 18%;
 
-    --card: 40 30% 99%;
-    --card-foreground: 30 10% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 220 30% 18%;
 
-    --popover: 40 30% 99%;
-    --popover-foreground: 30 10% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 30% 18%;
 
-    --primary: 30 65% 48%;
-    --primary-foreground: 40 33% 97%;
+    --primary: 220 45% 22%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 35 30% 90%;
-    --secondary-foreground: 30 10% 25%;
+    --secondary: 15 45% 80%;
+    --secondary-foreground: 220 30% 18%;
 
-    --muted: 35 20% 93%;
-    --muted-foreground: 30 8% 50%;
+    --muted: 220 15% 94%;
+    --muted-foreground: 220 10% 50%;
 
-    --accent: 25 80% 55%;
-    --accent-foreground: 40 33% 97%;
+    --accent: 15 55% 65%;
+    --accent-foreground: 0 0% 100%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 35 20% 88%;
-    --input: 35 20% 88%;
-    --ring: 30 65% 48%;
+    --border: 220 15% 90%;
+    --input: 220 15% 90%;
+    --ring: 15 55% 65%;
 
-    --radius: 0.625rem;
+    --radius: 1.5rem;
 
-    --sidebar-background: 30 15% 12%;
-    --sidebar-foreground: 35 20% 85%;
-    --sidebar-primary: 30 65% 55%;
-    --sidebar-primary-foreground: 40 33% 97%;
-    --sidebar-accent: 30 15% 18%;
-    --sidebar-accent-foreground: 35 25% 90%;
-    --sidebar-border: 30 10% 20%;
-    --sidebar-ring: 30 65% 48%;
+    --sidebar-background: 220 40% 16%;
+    --sidebar-foreground: 220 15% 85%;
+    --sidebar-primary: 15 55% 65%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 35% 22%;
+    --sidebar-accent-foreground: 220 15% 90%;
+    --sidebar-border: 220 30% 24%;
+    --sidebar-ring: 15 55% 65%;
 
     --success: 145 60% 40%;
     --success-foreground: 0 0% 100%;
 
-    --font-heading: 'Playfair Display', serif;
-    --font-body: 'DM Sans', sans-serif;
+    --rose-gold: 15 55% 65%;
+    --rose-gold-light: 15 60% 85%;
+    --navy: 220 45% 22%;
+    --navy-light: 220 35% 35%;
+
+    --font-heading: 'DM Serif Display', serif;
+    --font-body: 'Inter', sans-serif;
   }
 
   .dark {
-    --background: 30 15% 10%;
-    --foreground: 35 20% 90%;
-    --card: 30 15% 13%;
-    --card-foreground: 35 20% 90%;
-    --popover: 30 15% 13%;
-    --popover-foreground: 35 20% 90%;
-    --primary: 30 65% 55%;
-    --primary-foreground: 30 15% 10%;
-    --secondary: 30 10% 20%;
-    --secondary-foreground: 35 20% 85%;
-    --muted: 30 10% 18%;
-    --muted-foreground: 30 8% 55%;
-    --accent: 25 80% 55%;
-    --accent-foreground: 30 15% 10%;
+    --background: 220 30% 8%;
+    --foreground: 220 10% 92%;
+    --card: 220 30% 11%;
+    --card-foreground: 220 10% 92%;
+    --popover: 220 30% 11%;
+    --popover-foreground: 220 10% 92%;
+    --primary: 15 55% 65%;
+    --primary-foreground: 220 30% 8%;
+    --secondary: 220 20% 18%;
+    --secondary-foreground: 220 10% 85%;
+    --muted: 220 20% 15%;
+    --muted-foreground: 220 10% 55%;
+    --accent: 15 55% 65%;
+    --accent-foreground: 220 30% 8%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 100%;
-    --border: 30 10% 22%;
-    --input: 30 10% 22%;
-    --ring: 30 65% 55%;
-    --sidebar-background: 30 15% 8%;
-    --sidebar-foreground: 35 20% 85%;
-    --sidebar-primary: 30 65% 55%;
-    --sidebar-primary-foreground: 40 33% 97%;
-    --sidebar-accent: 30 15% 14%;
-    --sidebar-accent-foreground: 35 25% 90%;
-    --sidebar-border: 30 10% 16%;
-    --sidebar-ring: 30 65% 55%;
+    --border: 220 20% 20%;
+    --input: 220 20% 20%;
+    --ring: 15 55% 65%;
+    --sidebar-background: 220 35% 6%;
+    --sidebar-foreground: 220 15% 85%;
+    --sidebar-primary: 15 55% 65%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 30% 14%;
+    --sidebar-accent-foreground: 220 15% 90%;
+    --sidebar-border: 220 25% 16%;
+    --sidebar-ring: 15 55% 65%;
   }
 }
 
@@ -103,5 +108,26 @@
   }
   .font-body {
     font-family: var(--font-body);
+  }
+  .glass {
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    background: rgba(255, 255, 255, 0.72);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+  }
+  .glass-dark {
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    background: rgba(30, 40, 60, 0.75);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .gradient-rose {
+    background: linear-gradient(135deg, hsl(15 55% 65%), hsl(25 60% 72%));
+  }
+  .gradient-navy {
+    background: linear-gradient(135deg, hsl(220 45% 22%), hsl(220 35% 32%));
+  }
+  .touch-target {
+    min-height: 48px;
   }
 }
