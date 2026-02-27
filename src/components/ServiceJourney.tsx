@@ -42,7 +42,7 @@ export function ServiceJourney({ services, onSelectService }: ServiceJourneyProp
             >
               <div className="relative bg-card rounded-3xl overflow-hidden border border-border transition-all duration-300 hover:shadow-xl hover:shadow-accent/10 hover:border-accent/20">
                 {/* Image */}
-                <div className="relative">
+                <div className="relative overflow-hidden">
                   <img
                     src={service.image}
                     alt={service.title}
@@ -50,7 +50,7 @@ export function ServiceJourney({ services, onSelectService }: ServiceJourneyProp
                     style={service.imagePosition ? { objectPosition: service.imagePosition } : undefined}
                   />
                   {/* Gradient fade into card */}
-                  <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-card to-transparent" />
+                  <div className="absolute inset-x-0 -bottom-px h-28 bg-gradient-to-t from-card via-card/60 to-transparent" />
                 </div>
 
                 {/* Text */}
