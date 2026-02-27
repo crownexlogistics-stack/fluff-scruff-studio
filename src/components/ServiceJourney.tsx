@@ -27,7 +27,7 @@ export function ServiceJourney({ services, onSelectService }: ServiceJourneyProp
             The Grooming Journey
           </h2>
           <p className="text-muted-foreground font-body mt-3 max-w-md mx-auto">
-            From first bath to final bow-tie — every visit is an adventure! 🎀
+            From first bath to final bow-tie — every visit is an adventure.
           </p>
           <div className="w-12 h-[2px] bg-accent/40 mx-auto mt-5 rounded-full" />
         </div>
