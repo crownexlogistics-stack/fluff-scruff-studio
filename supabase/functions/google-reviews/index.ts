@@ -54,6 +54,7 @@ serve(async (req) => {
       name: result.name,
       rating: result.rating,
       totalReviews: result.user_ratings_total,
+      placeId,
       reviews: (result.reviews || []).map((r: any) => ({
         authorName: r.author_name,
         rating: r.rating,
