@@ -38,34 +38,35 @@ const CustomerHome = () => {
       {/* Hero Section — image first, text below */}
       <section className="relative overflow-hidden">
         {/* Full-width hero image */}
-        <div className="relative w-full h-[50vh] sm:h-[60vh] md:h-[70vh]">
+        <div className="relative w-full h-[55vh] sm:h-[65vh] md:h-[75vh]">
           <img
             src={heroDog}
             alt="Beautifully groomed dog at Fluff & Scruff studio"
             className="w-full h-full object-cover object-center"
           />
-          {/* Bottom gradient fade */}
-          <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-background to-transparent" />
+          {/* Luxurious multi-layer gradient fade */}
+          <div className="absolute inset-x-0 bottom-0 h-60 bg-gradient-to-t from-background via-background/80 to-transparent" />
         </div>
 
-        {/* Text overlay sitting on the fade */}
-        <div className="relative -mt-28 z-10 max-w-2xl mx-auto px-6 text-center space-y-5 pb-10">
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-heading text-primary leading-tight">
-            Fluff and Scruff Studio
+        {/* Premium text overlay */}
+        <div className="relative -mt-44 z-10 max-w-2xl mx-auto px-6 text-center pb-14">
+          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-heading text-primary leading-[1.1] tracking-tight drop-shadow-sm">
+            Fluff &amp; Scruff Studio
           </h1>
-          <p className="text-lg text-muted-foreground font-body max-w-md mx-auto">
+          <div className="w-16 h-[2px] gradient-rose mx-auto mt-5 mb-4 rounded-full" />
+          <p className="text-base sm:text-lg text-muted-foreground font-body max-w-sm mx-auto leading-relaxed tracking-wide">
             Where every pup leaves looking and feeling their best.
           </p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          <div className="flex flex-col sm:flex-row gap-3 justify-center mt-8">
             <button
               onClick={() => setActiveService("Full Groom")}
-              className="gradient-rose text-white font-semibold font-body text-base px-8 py-3.5 rounded-full hover:opacity-90 transition-opacity shadow-lg shadow-accent/20"
+              className="gradient-rose text-white font-semibold font-body text-base px-10 py-4 rounded-full hover:opacity-90 transition-all shadow-xl shadow-accent/25 hover:shadow-2xl hover:shadow-accent/30 hover:-translate-y-0.5"
             >
               Book an Appointment
             </button>
             <a
               href="tel:+441234567890"
-              className="flex items-center justify-center gap-2 border border-border bg-card text-foreground font-semibold font-body text-base px-8 py-3.5 rounded-full hover:bg-muted transition-colors"
+              className="flex items-center justify-center gap-2 border-2 border-primary/15 bg-card/80 backdrop-blur-sm text-foreground font-semibold font-body text-base px-10 py-4 rounded-full hover:border-primary/30 hover:bg-card transition-all"
             >
               <Phone className="h-4 w-4" />
               Call Us
