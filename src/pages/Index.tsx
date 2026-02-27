@@ -1,10 +1,23 @@
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dog, Scissors, Users, Calendar } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { Dog, Scissors, Users, Calendar, Mail } from "lucide-react";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 const Index = () => {
+  const sendTest = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke("send-test-email");
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: () => toast.success("Test email sent to info@fluffandscruff.co.uk"),
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const { data: breedCount } = useQuery({
     queryKey: ["breeds-count"],
     queryFn: async () => {
@@ -47,9 +60,19 @@ const Index = () => {
   return (
     <AppLayout>
       <div className="space-y-8">
-        <div>
-          <h1 className="text-3xl font-heading font-bold">Dashboard</h1>
-          <p className="text-muted-foreground mt-1">Welcome to Fluff & Scruff Studio</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-heading font-bold">Dashboard</h1>
+            <p className="text-muted-foreground mt-1">Welcome to Fluff & Scruff Studio</p>
+          </div>
+          <Button
+            variant="outline"
+            onClick={() => sendTest.mutate()}
+            disabled={sendTest.isPending}
+          >
+            <Mail className="h-4 w-4 mr-2" />
+            {sendTest.isPending ? "Sending…" : "Send Test Email"}
+          </Button>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

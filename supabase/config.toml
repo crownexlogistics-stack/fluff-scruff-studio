@@ -2,3 +2,6 @@ project_id = "pkshffylgauatrcidqqj"
 
 [functions.send-contract-email]
 verify_jwt = false
+
+[functions.send-test-email]
+verify_jwt = false
