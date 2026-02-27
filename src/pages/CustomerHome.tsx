@@ -35,54 +35,42 @@ const CustomerHome = () => {
         </div>
       </nav>
 
-      {/* Hero Section */}
-      <section className="relative overflow-hidden bg-muted">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          <div className="grid md:grid-cols-2 gap-8 items-center min-h-[480px] md:min-h-[540px]">
-            {/* Text side */}
-            <div className="py-12 md:py-16 space-y-6 text-center md:text-left">
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-heading text-primary leading-tight">
-                Fluff and Scruff
-              </h1>
-              <p className="text-lg text-muted-foreground font-body max-w-md mx-auto md:mx-0">
-                Dog Grooming Studio — where every pup leaves looking and feeling their best.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-3 justify-center md:justify-start">
-                <button
-                  onClick={() => setActiveService("Full Groom")}
-                  className="gradient-rose text-white font-semibold font-body text-base px-8 py-3.5 rounded-full hover:opacity-90 transition-opacity shadow-lg shadow-accent/20"
-                >
-                  Book an Appointment
-                </button>
-                <a
-                  href="tel:+441234567890"
-                  className="flex items-center justify-center gap-2 border border-border text-foreground font-semibold font-body text-base px-8 py-3.5 rounded-full hover:bg-muted transition-colors"
-                >
-                  <Phone className="h-4 w-4" />
-                  Call Us
-                </a>
-              </div>
-            </div>
-            {/* Image side */}
-            <div className="relative hidden md:block h-full">
-              <img
-                src={heroDog}
-                alt="Beautifully groomed dog at Fluff & Scruff studio"
-                className="absolute inset-0 w-full h-full object-cover object-center"
-              />
-              {/* Left edge fade into the background */}
-              <div className="absolute inset-0 bg-gradient-to-r from-muted via-transparent to-transparent w-32" />
-            </div>
-          </div>
-        </div>
-        {/* Mobile hero image */}
-        <div className="md:hidden relative h-72 -mt-4">
+      {/* Hero Section — image first, text below */}
+      <section className="relative overflow-hidden">
+        {/* Full-width hero image */}
+        <div className="relative w-full h-[50vh] sm:h-[60vh] md:h-[70vh]">
           <img
             src={heroDog}
-            alt="Beautifully groomed dog"
-            className="w-full h-full object-cover object-top"
+            alt="Beautifully groomed dog at Fluff & Scruff studio"
+            className="w-full h-full object-cover object-center"
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-muted via-transparent to-transparent h-20" />
+          {/* Bottom gradient fade */}
+          <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-background to-transparent" />
+        </div>
+
+        {/* Text overlay sitting on the fade */}
+        <div className="relative -mt-28 z-10 max-w-2xl mx-auto px-6 text-center space-y-5 pb-10">
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-heading text-primary leading-tight">
+            Fluff and Scruff
+          </h1>
+          <p className="text-lg text-muted-foreground font-body max-w-md mx-auto">
+            Dog Grooming Studio — where every pup leaves looking and feeling their best.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <button
+              onClick={() => setActiveService("Full Groom")}
+              className="gradient-rose text-white font-semibold font-body text-base px-8 py-3.5 rounded-full hover:opacity-90 transition-opacity shadow-lg shadow-accent/20"
+            >
+              Book an Appointment
+            </button>
+            <a
+              href="tel:+441234567890"
+              className="flex items-center justify-center gap-2 border border-border bg-card text-foreground font-semibold font-body text-base px-8 py-3.5 rounded-full hover:bg-muted transition-colors"
+            >
+              <Phone className="h-4 w-4" />
+              Call Us
+            </a>
+          </div>
         </div>
       </section>
 
