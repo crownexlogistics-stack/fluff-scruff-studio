@@ -1,4 +1,4 @@
-import { Scissors, ChevronRight, PawPrint } from "lucide-react";
+import { ChevronRight, PawPrint } from "lucide-react";
 
 interface ServiceJourneyProps {
   services: {
@@ -33,65 +33,41 @@ export function ServiceJourney({ services, onSelectService }: ServiceJourneyProp
         </div>
 
         {/* Journey Items */}
-        <div className="relative">
-          {/* Warm vertical path */}
-          <div className="absolute left-[28%] sm:left-[30%] top-0 bottom-0 w-px hidden md:block">
-            <div className="w-full h-full bg-gradient-to-b from-transparent via-accent/25 to-transparent" />
-          </div>
-
-          {services.map((service, index) => (
-            <div key={service.title}>
-              {/* Service Item */}
-              <div className="relative flex flex-col md:flex-row items-center gap-6 md:gap-10">
-                {/* Photo Side — Left */}
-                <div className="w-full md:w-[55%] relative">
-                  <div className="relative rounded-3xl overflow-hidden shadow-xl shadow-accent/10 group">
-                    <img
-                      src={service.image}
-                      alt={service.title}
-                      className="w-full aspect-[4/3] object-cover group-hover:scale-105 transition-transform duration-700"
-                      style={service.imagePosition ? { objectPosition: service.imagePosition } : undefined}
-                    />
-                    {/* Warm overlay on hover */}
-                    <div className="absolute inset-0 bg-accent/0 group-hover:bg-accent/5 transition-colors duration-500" />
-                  </div>
+        <div className="grid sm:grid-cols-2 gap-8 max-w-4xl mx-auto">
+          {services.map((service) => (
+            <button
+              key={service.title}
+              onClick={() => onSelectService(service.title)}
+              className="text-left group"
+            >
+              <div className="relative bg-card rounded-3xl overflow-hidden border border-border transition-all duration-300 hover:shadow-xl hover:shadow-accent/10 hover:border-accent/20">
+                {/* Image */}
+                <div className="relative">
+                  <img
+                    src={service.image}
+                    alt={service.title}
+                    className="w-full aspect-[4/3] object-cover group-hover:scale-105 transition-transform duration-700"
+                    style={service.imagePosition ? { objectPosition: service.imagePosition } : undefined}
+                  />
+                  {/* Gradient fade into card */}
+                  <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-card to-transparent" />
                 </div>
 
-                {/* Card — Right */}
-                <div className="w-full md:w-[45%]">
-                  <button
-                    onClick={() => onSelectService(service.title)}
-                    className="w-full text-left group"
-                  >
-                    <div className="bg-card rounded-3xl border border-border p-6 sm:p-8 transition-all duration-300 hover:shadow-lg hover:shadow-accent/10 hover:border-accent/20">
-                      <h3 className="text-2xl sm:text-3xl font-heading text-foreground mb-3 group-hover:text-accent transition-colors duration-300">
-                        {service.title}
-                      </h3>
-                      <p className="text-muted-foreground font-body text-sm sm:text-base leading-relaxed mb-5">
-                        {service.subtitle}
-                      </p>
-                      <div className="flex items-center gap-2 text-accent font-body text-sm font-semibold group-hover:gap-3 transition-all duration-300">
-                        Book this treat
-                        <ChevronRight className="h-4 w-4" />
-                      </div>
-                    </div>
-                  </button>
+                {/* Text */}
+                <div className="px-6 pb-6 pt-2 sm:px-8 sm:pb-8">
+                  <h3 className="text-2xl font-heading text-foreground mb-2 group-hover:text-accent transition-colors duration-300">
+                    {service.title}
+                  </h3>
+                  <p className="text-muted-foreground font-body text-sm leading-relaxed mb-4">
+                    {service.subtitle}
+                  </p>
+                  <div className="flex items-center gap-2 text-accent font-body text-sm font-semibold group-hover:gap-3 transition-all duration-300">
+                    Book this treat
+                    <ChevronRight className="h-4 w-4" />
+                  </div>
                 </div>
               </div>
-
-              {/* Scissors Divider with paw prints */}
-              {index < services.length - 1 && (
-                <div className="flex items-center justify-center my-10 sm:my-14">
-                  <div className="h-px w-10 bg-gradient-to-r from-transparent to-accent/20" />
-                  <PawPrint className="h-3 w-3 text-accent/30 mx-1" />
-                  <div className="mx-3 flex items-center justify-center h-10 w-10 rounded-full border border-accent/20 bg-warm-light/50">
-                    <Scissors className="h-4 w-4 text-accent/60 rotate-90" />
-                  </div>
-                  <PawPrint className="h-3 w-3 text-accent/30 mx-1" />
-                  <div className="h-px w-10 bg-gradient-to-l from-transparent to-accent/20" />
-                </div>
-              )}
-            </div>
+            </button>
           ))}
         </div>
       </div>
