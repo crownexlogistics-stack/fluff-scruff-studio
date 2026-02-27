@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Scissors, Sparkles, SmilePlus, Dog, Phone, MapPin, Clock } from "lucide-react";
+import logo from "@/assets/logo-transparent.png";
 import { ServiceTile } from "@/components/ServiceTile";
 import { BookingFlow } from "@/components/BookingFlow";
 
@@ -16,11 +17,8 @@ const CustomerHome = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Glass Nav */}
-      <nav className="glass sticky top-0 z-40 px-4 py-3 flex items-center justify-between border-b border-border/30">
-        <div>
-          <h1 className="text-xl font-heading leading-tight">Fluff & Scruff</h1>
-          <p className="text-[11px] text-muted-foreground tracking-wide uppercase font-body">Studio</p>
-        </div>
+      <nav className="glass sticky top-0 z-40 px-4 py-2 flex items-center justify-between border-b border-border/30">
+        <img src={logo} alt="Fluff & Scruff Grooming Studio" className="h-12 w-auto" />
         <a
           href="tel:+441234567890"
           className="flex h-12 w-12 items-center justify-center rounded-2xl bg-muted active:scale-95 transition-transform"
@@ -31,8 +29,8 @@ const CustomerHome = () => {
 
       <div className="max-w-lg mx-auto px-4 py-6 space-y-8">
         {/* Hero */}
-        <section className="text-center space-y-2 py-4">
-          <h2 className="text-3xl font-heading">Welcome</h2>
+        <section className="text-center space-y-3 py-4">
+          <img src={logo} alt="Fluff & Scruff" className="h-28 w-auto mx-auto" />
           <p className="text-muted-foreground text-sm font-body max-w-xs mx-auto">
             Professional dog grooming with love. Book your pup's next pamper session.
           </p>
@@ -69,7 +67,7 @@ const CustomerHome = () => {
               </div>
               <div>
                 <p className="font-semibold font-body text-sm">Location</p>
-                <p className="text-sm text-muted-foreground mt-0.5">Fluff & Scruff Studio, UK</p>
+                <p className="text-sm text-muted-foreground mt-0.5">138 Hillview Avenue, Hornchurch RM11 2DL</p>
               </div>
             </div>
             <div className="rounded-xl border border-border bg-card p-5 flex items-start gap-4">
