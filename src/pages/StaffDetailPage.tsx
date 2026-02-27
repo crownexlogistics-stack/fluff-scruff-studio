@@ -156,10 +156,16 @@ const StaffDetailPage = () => {
 
   const sendForSignatureMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("staff").update({ contract_status: "sent" }).eq("id", id!);
-      if (error) throw error;
+      if (!staff?.email) {
+        throw new Error("Please add an email address for this staff member before sending.");
+      }
+      const signingUrl = `${window.location.origin}/contract/sign/${id}`;
+      const { error: fnError } = await supabase.functions.invoke("send-contract-email", {
+        body: { staff_id: id, type: "send_for_signature", signing_url: signingUrl },
+      });
+      if (fnError) throw fnError;
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["staff", id] }); toast.success("Contract sent for signature"); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["staff", id] }); toast.success("Contract emailed to " + staff?.email); },
     onError: (e: Error) => toast.error(e.message),
   });
 

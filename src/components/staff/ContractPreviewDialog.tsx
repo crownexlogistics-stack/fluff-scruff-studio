@@ -9,6 +9,8 @@ interface StaffMember {
   is_self_employed: boolean;
   start_date: string | null;
   contract_status: string;
+  signed_at: string | null;
+  signed_ip: string | null;
 }
 
 interface Props {
@@ -193,10 +195,24 @@ export function ContractContent({ staff }: { staff: StaffMember }) {
             <p className="text-xs text-muted-foreground">
               Contractor: {staff.name}
             </p>
-            <div className="border-b border-dashed h-8" />
-            <p className="text-xs text-muted-foreground">
-              Date: _______________
-            </p>
+            {staff.contract_status === "signed" && staff.signed_at ? (
+              <>
+                <p className="text-lg italic font-serif text-foreground">{staff.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  Date: {format(new Date(staff.signed_at), "PPP")}
+                </p>
+                {staff.signed_ip && (
+                  <p className="text-xs text-muted-foreground">IP: {staff.signed_ip}</p>
+                )}
+              </>
+            ) : (
+              <>
+                <div className="border-b border-dashed h-8" />
+                <p className="text-xs text-muted-foreground">
+                  Date: _______________
+                </p>
+              </>
+            )}
           </div>
         </div>
       </div>
