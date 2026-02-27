@@ -13,10 +13,10 @@ const CustomerHome = () => {
   const [activeService, setActiveService] = useState<string | null>(null);
 
   const services = [
-    { title: "Full Groom", subtitle: "The ultimate pamper session — wash, dry, cut & style. Your pup leaves looking like a supermodel! 🐩", image: serviceFullGroom },
-    { title: "Puppy Special", subtitle: "A gentle, fun first grooming experience. We go at their pace with loads of treats & cuddles! 🐶", image: servicePuppy, imagePosition: "center 55%" },
-    { title: "Teeth Cleaning", subtitle: "Goodbye stinky breath! Fresh gums and pearly whites for your best friend. ✨", image: serviceTeeth },
-    { title: "Nail Clipping", subtitle: "Quick, painless trim so those tippy-taps stay happy and healthy! 🐾", image: serviceNails },
+    { title: "Full Groom", subtitle: "The ultimate pamper session — wash, dry, cut & style. Your pup leaves looking like a supermodel.", image: serviceFullGroom },
+    { title: "Puppy Special", subtitle: "A gentle, fun first grooming experience. We go at their pace with loads of treats & cuddles.", image: servicePuppy, imagePosition: "center 55%" },
+    { title: "Teeth Cleaning", subtitle: "Fresh gums and pearly whites for your best friend. Say goodbye to bad breath.", image: serviceTeeth },
+    { title: "Nail Clipping", subtitle: "Quick, painless trim so those tippy-taps stay happy and healthy.", image: serviceNails },
   ];
 
   return (
@@ -34,7 +34,7 @@ const CustomerHome = () => {
             onClick={() => setActiveService("Full Groom")}
             className="bg-accent text-accent-foreground font-semibold font-body text-sm px-5 py-2.5 rounded-full hover:opacity-90 transition-all shadow-md shadow-accent/20"
           >
-            Book Now 🐾
+            Book Now
           </button>
         </div>
       </nav>
@@ -64,14 +64,14 @@ const CustomerHome = () => {
           </h1>
           <div className="w-16 h-[2px] bg-accent/40 mx-auto mt-5 mb-4 rounded-full" />
           <p className="text-base sm:text-lg text-muted-foreground font-body max-w-sm mx-auto leading-relaxed">
-            Where every pup leaves looking <em>and feeling</em> their absolute best. Tail wags guaranteed! 🐕
+            Where every pup leaves looking <em>and feeling</em> their absolute best.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center mt-8">
             <button
               onClick={() => setActiveService("Full Groom")}
               className="bg-accent text-accent-foreground font-semibold font-body text-base px-10 py-4 rounded-full hover:opacity-90 transition-all shadow-lg shadow-accent/20 hover:shadow-xl hover:shadow-accent/25 hover:-translate-y-0.5"
             >
-              Book an Appointment 🐾
+              Book an Appointment
             </button>
             <a
               href="tel:+441234567890"
@@ -106,7 +106,7 @@ const CustomerHome = () => {
               <div className="flex h-14 w-14 mx-auto items-center justify-center rounded-2xl bg-accent/10 mb-4">
                 <Star className="h-7 w-7 text-accent" />
               </div>
-              <h3 className="font-heading text-xl text-foreground mb-2">5-Star Rated ⭐</h3>
+              <h3 className="font-heading text-xl text-foreground mb-2">5-Star Rated</h3>
               <p className="text-sm text-muted-foreground font-body">
                 Trusted by hundreds of dog owners across Hornchurch. Our reviews speak for themselves!
               </p>
@@ -115,7 +115,7 @@ const CustomerHome = () => {
               <div className="flex h-14 w-14 mx-auto items-center justify-center rounded-2xl bg-accent/10 mb-4">
                 <Scissors className="h-7 w-7 text-accent" />
               </div>
-              <h3 className="font-heading text-xl text-foreground mb-2">Expert Groomers ✂️</h3>
+              <h3 className="font-heading text-xl text-foreground mb-2">Expert Groomers</h3>
               <p className="text-sm text-muted-foreground font-body">
                 Fully qualified pros who treat every dog with patience, love, and the perfect amount of treats.
               </p>
@@ -124,7 +124,7 @@ const CustomerHome = () => {
               <div className="flex h-14 w-14 mx-auto items-center justify-center rounded-2xl bg-accent/10 mb-4">
                 <Sparkles className="h-7 w-7 text-accent" />
               </div>
-              <h3 className="font-heading text-xl text-foreground mb-2">Premium Products 🧴</h3>
+              <h3 className="font-heading text-xl text-foreground mb-2">Premium Products</h3>
               <p className="text-sm text-muted-foreground font-body">
                 Only the best shampoos, conditioners and tools. Because your fur baby deserves luxury!
               </p>
@@ -138,7 +138,7 @@ const CustomerHome = () => {
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-12">
             <PawPrint className="h-6 w-6 text-accent mx-auto mb-3" />
-            <h2 className="text-3xl sm:text-4xl font-heading text-foreground mb-3">Come Say Woof! 🐕</h2>
+            <h2 className="text-3xl sm:text-4xl font-heading text-foreground mb-3">Come Say Hello</h2>
             <p className="text-muted-foreground font-body">We'd love to meet you and your pup!</p>
           </div>
           <div className="grid sm:grid-cols-2 gap-5 max-w-2xl mx-auto">
@@ -174,13 +174,13 @@ const CustomerHome = () => {
           </div>
           <h2 className="text-3xl sm:text-4xl font-heading">Ready for a Pamper Day?</h2>
           <p className="text-accent-foreground/80 font-body text-lg">
-            Give your dog the spa day they deserve. Book online in seconds — tail wags included! 🐾
+            Give your dog the spa day they deserve. Book online in seconds.
           </p>
           <button
             onClick={() => setActiveService("Full Groom")}
             className="bg-white text-foreground font-semibold font-body text-base px-10 py-4 rounded-full hover:bg-white/90 transition-colors shadow-lg"
           >
-            Book Now 🐶
+            Book Now
           </button>
         </div>
       </section>
@@ -201,7 +201,7 @@ const CustomerHome = () => {
               </a>
             </div>
             <p className="text-xs text-background/40 font-body">
-              © {new Date().getFullYear()} Fluff & Scruff Studio · Made with 🐾
+              © {new Date().getFullYear()} Fluff & Scruff Studio
             </p>
           </div>
         </div>
