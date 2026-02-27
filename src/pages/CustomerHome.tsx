@@ -41,9 +41,6 @@ const CustomerHome = () => {
           <div className="grid md:grid-cols-2 gap-8 items-center min-h-[480px] md:min-h-[540px]">
             {/* Text side */}
             <div className="py-12 md:py-16 space-y-6 text-center md:text-left">
-              <div className="inline-block bg-accent/10 text-accent font-semibold font-body text-xs px-3 py-1.5 rounded-full uppercase tracking-wider">
-                Professional Dog Grooming
-              </div>
               <h1 className="text-4xl sm:text-5xl lg:text-6xl font-heading text-primary leading-tight">
                 Fluff and Scruff
               </h1>
@@ -89,14 +86,6 @@ const CustomerHome = () => {
         </div>
       </section>
 
-      {/* Promo Banner */}
-      <section className="bg-primary text-primary-foreground py-3">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 text-center">
-          <p className="font-body text-sm font-medium">
-            🎉 <strong>£5 Off</strong> any smooth haired breed — <button onClick={() => setActiveService("Full Groom")} className="underline hover:no-underline">Book now</button>
-          </p>
-        </div>
-      </section>
 
       {/* Services */}
       <section id="services" className="py-16 sm:py-20">
