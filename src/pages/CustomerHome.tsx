@@ -14,7 +14,7 @@ const CustomerHome = () => {
 
   const services = [
     { title: "Full Groom", subtitle: "Complete wash, dry, cut & style for your furry friend.", image: serviceFullGroom },
-    { title: "Puppy Special", subtitle: "A gentle first-time grooming experience for puppies.", image: servicePuppy },
+    { title: "Puppy Special", subtitle: "A gentle first-time grooming experience for puppies.", image: servicePuppy, imagePosition: "center 35%" },
     { title: "Teeth Cleaning", subtitle: "Fresh breath and healthy gums for a happy dog.", image: serviceTeeth },
     { title: "Nail Clipping", subtitle: "Quick, painless trim to keep paws in top shape.", image: serviceNails },
   ];
@@ -97,6 +97,7 @@ const CustomerHome = () => {
                 subtitle={s.subtitle}
                 image={s.image}
                 reverse={i % 2 === 1}
+                imagePosition={s.imagePosition}
                 onClick={() => setActiveService(s.title)}
               />
             ))}

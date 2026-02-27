@@ -7,9 +7,10 @@ interface ServiceTileProps {
   image: string;
   onClick: () => void;
   reverse?: boolean;
+  imagePosition?: string;
 }
 
-export function ServiceTile({ title, subtitle, image, onClick, reverse = false }: ServiceTileProps) {
+export function ServiceTile({ title, subtitle, image, onClick, reverse = false, imagePosition }: ServiceTileProps) {
   return (
     <button
       onClick={onClick}
@@ -26,6 +27,7 @@ export function ServiceTile({ title, subtitle, image, onClick, reverse = false }
           src={image}
           alt={title}
           className="w-full h-full object-cover aspect-square group-hover:scale-105 transition-transform duration-500"
+          style={imagePosition ? { objectPosition: imagePosition } : undefined}
         />
       </div>
       {/* Text half */}
