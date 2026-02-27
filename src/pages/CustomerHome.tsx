@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { Scissors, Sparkles, SmilePlus, Dog, Phone, MapPin, Clock } from "lucide-react";
+import { Scissors, Sparkles, SmilePlus, Dog, Phone, MapPin, Clock, ChevronRight } from "lucide-react";
 import logo from "@/assets/logo-transparent.png";
+import heroDog from "@/assets/hero-dog.jpg";
 import { ServiceTile } from "@/components/ServiceTile";
 import { BookingFlow } from "@/components/BookingFlow";
 
@@ -15,32 +16,45 @@ const CustomerHome = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Glass Nav */}
-      <nav className="glass sticky top-0 z-40 px-4 py-2 flex items-center justify-between border-b border-border/30">
-        <img src={logo} alt="Fluff & Scruff Grooming Studio" className="h-12 w-auto" />
-        <a
-          href="tel:+441234567890"
-          className="flex h-12 w-12 items-center justify-center rounded-2xl bg-muted active:scale-95 transition-transform"
-        >
-          <Phone className="h-5 w-5 text-foreground" />
-        </a>
+    <div className="min-h-screen bg-[hsl(0,0%,7%)] text-white">
+      {/* Floating Nav */}
+      <nav className="fixed top-0 left-0 right-0 z-50 px-5 pt-3">
+        <div className="glass-dark rounded-2xl px-4 py-2.5 flex items-center justify-between max-w-lg mx-auto">
+          <img src={logo} alt="Fluff & Scruff" className="h-10 w-auto brightness-0 invert opacity-90" />
+          <a
+            href="tel:+441234567890"
+            className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/10 active:scale-95 transition-transform"
+          >
+            <Phone className="h-4.5 w-4.5 text-white/80" />
+          </a>
+        </div>
       </nav>
 
-      <div className="max-w-lg mx-auto px-4 py-6 space-y-8">
-        {/* Hero */}
-        <section className="text-center space-y-3 py-4">
-          <img src={logo} alt="Fluff & Scruff" className="h-28 w-auto mx-auto" />
-          <p className="text-muted-foreground text-sm font-body max-w-xs mx-auto">
+      {/* Hero with gradient mask */}
+      <section className="relative h-[75vh] overflow-hidden">
+        <img
+          src={heroDog}
+          alt="Beautiful dog"
+          className="absolute inset-0 w-full h-full object-cover object-top"
+        />
+        {/* Gradient mask fading into background */}
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent via-40% to-[hsl(0,0%,7%)]" />
+        
+        {/* Text overlay on the shadowed bottom */}
+        <div className="absolute bottom-0 left-0 right-0 px-6 pb-8 max-w-lg mx-auto">
+          <img src={logo} alt="Fluff & Scruff" className="h-16 w-auto brightness-0 invert mb-3" />
+          <p className="text-white/60 text-sm font-body leading-relaxed max-w-xs">
             Professional dog grooming with love. Book your pup's next pamper session.
           </p>
-        </section>
+        </div>
+      </section>
 
+      <div className="max-w-lg mx-auto px-5 pb-12 space-y-10 -mt-2">
         {/* Services */}
-        <section className="space-y-3">
-          <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground font-body">
+        <section className="space-y-4">
+          <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-white/40 font-body">
             Our Services
-          </h3>
+          </h2>
           <div className="grid grid-cols-1 gap-3">
             {services.map((s) => (
               <ServiceTile
@@ -56,41 +70,51 @@ const CustomerHome = () => {
         </section>
 
         {/* Info Cards */}
-        <section className="space-y-3">
-          <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground font-body">
+        <section className="space-y-4">
+          <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-white/40 font-body">
             Visit Us
-          </h3>
+          </h2>
           <div className="grid grid-cols-1 gap-3">
-            <div className="rounded-xl border border-border bg-card p-5 flex items-start gap-4">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-muted">
-                <MapPin className="h-5 w-5 text-muted-foreground" />
+            <div className="glass-dark rounded-2xl p-5 flex items-start gap-4">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/10">
+                <MapPin className="h-5 w-5 text-rose-gold" />
               </div>
               <div>
-                <p className="font-semibold font-body text-sm">Location</p>
-                <p className="text-sm text-muted-foreground mt-0.5">138 Hillview Avenue, Hornchurch RM11 2DL</p>
+                <p className="font-semibold font-body text-sm text-white/90">Location</p>
+                <p className="text-sm text-white/50 mt-0.5">138 Hillview Avenue, Hornchurch RM11 2DL</p>
               </div>
             </div>
-            <div className="rounded-xl border border-border bg-card p-5 flex items-start gap-4">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-muted">
-                <Clock className="h-5 w-5 text-muted-foreground" />
+            <div className="glass-dark rounded-2xl p-5 flex items-start gap-4">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/10">
+                <Clock className="h-5 w-5 text-rose-gold" />
               </div>
               <div>
-                <p className="font-semibold font-body text-sm">Opening Hours</p>
-                <p className="text-sm text-muted-foreground mt-0.5">Mon–Sat · 9:00am – 5:00pm</p>
+                <p className="font-semibold font-body text-sm text-white/90">Opening Hours</p>
+                <p className="text-sm text-white/50 mt-0.5">Mon–Sat · 9:00am – 5:00pm</p>
               </div>
             </div>
           </div>
         </section>
 
+        {/* CTA */}
+        <section className="pt-2">
+          <button
+            onClick={() => setActiveService("Grooming")}
+            className="w-full touch-target gradient-rose text-white font-semibold font-body rounded-2xl py-4 text-base active:scale-[0.97] transition-transform shadow-lg shadow-rose-gold/25"
+          >
+            Book Now
+          </button>
+        </section>
+
         {/* Footer */}
-        <footer className="text-center py-6 border-t border-border">
-          <p className="text-xs text-muted-foreground font-body">
+        <footer className="text-center pt-4 pb-2">
+          <p className="text-xs text-white/25 font-body">
             © {new Date().getFullYear()} Fluff & Scruff Studio. All rights reserved.
           </p>
         </footer>
       </div>
 
-      {/* Booking Flow Overlay */}
+      {/* Booking Flow */}
       {activeService && (
         <BookingFlow
           service={activeService}

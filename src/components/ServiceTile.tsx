@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { ChevronRight } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 interface ServiceTileProps {
@@ -14,24 +15,26 @@ export function ServiceTile({ title, subtitle, icon: Icon, onClick, gradient = "
     <button
       onClick={onClick}
       className={cn(
-        "w-full touch-target rounded-xl p-6 text-left transition-all duration-300",
-        "active:scale-[0.97] hover:shadow-lg",
+        "w-full touch-target rounded-2xl p-5 text-left transition-all duration-300",
+        "active:scale-[0.97] hover:brightness-110",
         "flex items-center gap-4",
-        gradient === "rose"
-          ? "gradient-rose text-accent-foreground shadow-md shadow-rose-gold/20"
-          : "gradient-navy text-primary-foreground shadow-md shadow-navy/20"
+        "glass-dark"
       )}
     >
       <div className={cn(
-        "flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl",
-        gradient === "rose" ? "bg-white/25" : "bg-white/15"
+        "flex h-13 w-13 shrink-0 items-center justify-center rounded-xl",
+        gradient === "rose" ? "bg-rose-gold/15" : "bg-navy-light/30"
       )}>
-        <Icon className="h-7 w-7" />
+        <Icon className={cn(
+          "h-6 w-6",
+          gradient === "rose" ? "text-rose-gold" : "text-navy-light"
+        )} />
       </div>
-      <div>
-        <h3 className="text-lg font-semibold font-body">{title}</h3>
-        <p className="text-sm opacity-80 mt-0.5">{subtitle}</p>
+      <div className="flex-1 min-w-0">
+        <h3 className="text-[15px] font-semibold font-body text-white/90">{title}</h3>
+        <p className="text-sm text-white/45 mt-0.5">{subtitle}</p>
       </div>
+      <ChevronRight className="h-4 w-4 text-white/20 shrink-0" />
     </button>
   );
 }
