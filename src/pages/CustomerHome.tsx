@@ -51,10 +51,10 @@ const CustomerHome = () => {
         {/* Text overlay sitting on the fade */}
         <div className="relative -mt-28 z-10 max-w-2xl mx-auto px-6 text-center space-y-5 pb-10">
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-heading text-primary leading-tight">
-            Fluff and Scruff
+            Fluff and Scruff Studio
           </h1>
           <p className="text-lg text-muted-foreground font-body max-w-md mx-auto">
-            Dog Grooming Studio — where every pup leaves looking and feeling their best.
+            Where every pup leaves looking and feeling their best.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <button
