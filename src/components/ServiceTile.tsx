@@ -15,26 +15,25 @@ export function ServiceTile({ title, subtitle, icon: Icon, onClick, gradient = "
     <button
       onClick={onClick}
       className={cn(
-        "w-full touch-target rounded-2xl p-5 text-left transition-all duration-300",
-        "active:scale-[0.97] hover:brightness-110",
-        "flex items-center gap-4",
-        "glass-dark"
+        "w-full rounded-2xl p-6 text-left transition-all duration-200",
+        "bg-card border border-border hover:border-accent hover:shadow-lg hover:shadow-accent/10",
+        "active:scale-[0.98] group"
       )}
     >
       <div className={cn(
-        "flex h-13 w-13 shrink-0 items-center justify-center rounded-xl",
-        gradient === "rose" ? "bg-rose-gold/15" : "bg-navy-light/30"
+        "flex h-14 w-14 items-center justify-center rounded-2xl mb-4",
+        gradient === "rose" ? "bg-accent/10" : "bg-primary/10"
       )}>
         <Icon className={cn(
           "h-6 w-6",
-          gradient === "rose" ? "text-rose-gold" : "text-navy-light"
+          gradient === "rose" ? "text-accent" : "text-primary"
         )} />
       </div>
-      <div className="flex-1 min-w-0">
-        <h3 className="text-[15px] font-semibold font-body text-white/90">{title}</h3>
-        <p className="text-sm text-white/45 mt-0.5">{subtitle}</p>
+      <h3 className="text-base font-semibold font-body text-foreground mb-1">{title}</h3>
+      <p className="text-sm text-muted-foreground">{subtitle}</p>
+      <div className="mt-4 flex items-center gap-1 text-sm font-medium text-accent opacity-0 group-hover:opacity-100 transition-opacity">
+        Book now <ChevronRight className="h-4 w-4" />
       </div>
-      <ChevronRight className="h-4 w-4 text-white/20 shrink-0" />
     </button>
   );
 }
