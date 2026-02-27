@@ -182,6 +182,8 @@ export type Database = {
           contact_number: string | null
           contract_status: string
           created_at: string
+          description: string | null
+          email: string | null
           id: string
           is_self_employed: boolean
           name: string
@@ -193,6 +195,8 @@ export type Database = {
           contact_number?: string | null
           contract_status?: string
           created_at?: string
+          description?: string | null
+          email?: string | null
           id?: string
           is_self_employed?: boolean
           name: string
@@ -204,6 +208,8 @@ export type Database = {
           contact_number?: string | null
           contract_status?: string
           created_at?: string
+          description?: string | null
+          email?: string | null
           id?: string
           is_self_employed?: boolean
           name?: string
@@ -212,6 +218,80 @@ export type Database = {
           start_date?: string | null
         }
         Relationships: []
+      }
+      staff_availability: {
+        Row: {
+          created_at: string
+          day_of_week: number
+          end_time: string
+          id: string
+          is_available: boolean
+          staff_id: string
+          start_time: string
+        }
+        Insert: {
+          created_at?: string
+          day_of_week: number
+          end_time?: string
+          id?: string
+          is_available?: boolean
+          staff_id: string
+          start_time?: string
+        }
+        Update: {
+          created_at?: string
+          day_of_week?: number
+          end_time?: string
+          id?: string
+          is_available?: boolean
+          staff_id?: string
+          start_time?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_availability_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff_services: {
+        Row: {
+          created_at: string
+          id: string
+          service_id: string
+          staff_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          service_id: string
+          staff_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          service_id?: string
+          staff_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_services_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_services_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
