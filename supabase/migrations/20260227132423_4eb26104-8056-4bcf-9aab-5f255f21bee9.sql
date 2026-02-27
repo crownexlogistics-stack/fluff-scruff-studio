@@ -1,0 +1,1 @@
+ALTER TABLE public.staff ADD COLUMN signed_ip text;

@@ -315,9 +315,10 @@ const StaffDetailPage = () => {
                   </div>
 
                   {staff.signed_at && (
-                    <p className="text-xs text-muted-foreground">
-                      Signed {format(new Date(staff.signed_at), "PPP 'at' p")}
-                    </p>
+                    <div className="text-xs text-muted-foreground space-y-0.5">
+                      <p>Signed {format(new Date(staff.signed_at), "PPP 'at' p")}</p>
+                      {(staff as any).signed_ip && <p>IP: {(staff as any).signed_ip}</p>}
+                    </div>
                   )}
 
                   <div className="flex flex-col gap-2">

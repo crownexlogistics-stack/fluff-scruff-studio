@@ -17,82 +17,204 @@ interface Props {
   onOpenChange: (open: boolean) => void;
 }
 
-export function ContractPreviewDialog({ staff, open, onOpenChange }: Props) {
-  const commissionRate = "50%";
-  const studioRate = "50%";
-  const nonOwnCustomerRate = "40%";
-  const nonOwnStudioRate = "60%";
-  const today = format(new Date(), "PPP");
+export function ContractContent({ staff }: { staff: StaffMember }) {
+  const startDateFormatted = staff.start_date
+    ? format(new Date(staff.start_date), "PPP")
+    : "_______________";
 
+  return (
+    <div className="space-y-5 text-sm leading-relaxed">
+      <div className="text-center space-y-1 pb-4 border-b">
+        <p className="text-xs text-muted-foreground">138 Hillview Avenue,</p>
+        <p className="text-xs text-muted-foreground">Hornchurch</p>
+        <p className="text-xs text-muted-foreground">RM11 2DL</p>
+      </div>
+
+      <h2 className="font-heading text-lg font-bold text-center">
+        Contract for Self-Employed Dog Groomer
+      </h2>
+
+      <p>
+        This contract ("Contract") is entered into between{" "}
+        <strong>Fluff and Scruff Studio</strong>, located at 138 Hillview Ave,
+        Hornchurch RM11 2DL and <strong>{staff.name}</strong> ("Contractor") for
+        the provision of dog grooming services under the following terms and
+        conditions:
+      </p>
+
+      <div className="space-y-2">
+        <h3 className="font-heading font-semibold">1. Engagement of Services</h3>
+        <p>
+          The Contractor agrees to provide dog grooming services to the Company
+          on a self-employed basis.
+        </p>
+      </div>
+
+      <div className="space-y-2">
+        <h3 className="font-heading font-semibold">2. Term</h3>
+        <p>
+          This Contract shall commence on <strong>{startDateFormatted}</strong>{" "}
+          and shall be considered a temporary (probationary) agreement for the
+          first two months. At the end of this period, an evaluation of the
+          contractor's job performance, contribution to Fluff and Scruff Studio,
+          and compatibility with Fluff and Scruff's Values and Code of Conduct
+          will be conducted. The contract will only become permanent upon
+          successful completion of this evaluation.
+        </p>
+      </div>
+
+      <div className="space-y-2">
+        <h3 className="font-heading font-semibold">3. Scope of Work</h3>
+        <p>
+          The Contractor shall perform dog grooming services as agreed upon
+          between the parties. Any changes to the scope of work must be agreed
+          upon in writing by both parties.
+        </p>
+      </div>
+
+      <div className="space-y-2">
+        <h3 className="font-heading font-semibold">4. Compensation</h3>
+        <p>
+          The Contractor shall receive <strong>40%</strong> of the revenue
+          generated from dog grooming services provided by the Contractor.
+          Payment shall be made upon submission of an invoice by the Contractor.
+        </p>
+        <p>
+          The compensation rate of 40% is subject to review and potential
+          adjustment at the time of contract renewal, which occurs every two (2)
+          years. Any adjustments to the percentage may be based on factors such
+          as the Contractor's tenure with Fluff and Scruff Studio and the level
+          of expertise or experience gained during the term of the contract.
+        </p>
+      </div>
+
+      <div className="space-y-2">
+        <h3 className="font-heading font-semibold">
+          5. Taxes and Insurance
+        </h3>
+        <p>
+          The Contractor acknowledges and agrees that they are responsible for
+          the payment of their own taxes and National Insurance contributions.
+          The Company shall provide appropriate insurance coverage.
+        </p>
+      </div>
+
+      <div className="space-y-2">
+        <h3 className="font-heading font-semibold">6. Confidentiality</h3>
+        <p>
+          The Contractor shall maintain the confidentiality of any proprietary or
+          confidential information belonging to the Company and shall not
+          disclose such information to any third party.
+        </p>
+      </div>
+
+      <div className="space-y-2">
+        <h3 className="font-heading font-semibold">
+          7. Intellectual Property
+        </h3>
+        <p>
+          Any intellectual property created by the Contractor in the course of
+          providing the dog grooming services shall belong to the Company.
+        </p>
+      </div>
+
+      <div className="space-y-2">
+        <h3 className="font-heading font-semibold">8. Termination</h3>
+        <p>
+          Either party may terminate this Contract by providing 30 days written
+          notice to the other party. In the event of termination, the Contractor
+          shall be compensated for any outstanding dog grooming services provided
+          up to the date of termination.
+        </p>
+        <p>
+          In the event of the termination of this contract, the contractor
+          agrees that they will not solicit or take with them any clients or
+          customers that they have met or worked with during their time with
+          Fluff and Scruff Studio to another salon or grooming service for a
+          period of <strong>36 months</strong> following the termination of this
+          contract.
+        </p>
+      </div>
+
+      <div className="space-y-2">
+        <h3 className="font-heading font-semibold">
+          9. Independent Contractor Status
+        </h3>
+        <p>
+          The Contractor acknowledges and agrees that they are an independent
+          contractor and not an employee of the Company. The Contractor shall not
+          be entitled to any benefits provided to employees of the Company.
+        </p>
+      </div>
+
+      <div className="space-y-2">
+        <h3 className="font-heading font-semibold">
+          10. Health and Safety
+        </h3>
+        <p>
+          The Contractor acknowledges that they have undergone appropriate health
+          and safety training and agrees to comply with all health and safety
+          regulations and policies established by Fluff and Scruff Studio. This
+          includes but is not limited to maintaining a safe working environment,
+          following proper grooming procedures to prevent injury to themselves
+          and pets, and reporting any health and safety concerns to the Company
+          promptly.
+        </p>
+      </div>
+
+      <div className="space-y-2">
+        <h3 className="font-heading font-semibold">
+          11. Renewal of Contract
+        </h3>
+        <p>
+          This Contract shall automatically renew every two years unless
+          terminated by either party in accordance with Clause 8. Prior to the
+          expiration of each term, both parties shall review the terms of this
+          Contract and negotiate any necessary amendments or changes in writing.
+          The Contractor acknowledges and agrees to the automatic renewal
+          provision of this Contract.
+        </p>
+      </div>
+
+      <div className="pt-6 space-y-6 border-t">
+        <p className="font-heading font-semibold">Fluff and Scruff Studio</p>
+        <div className="grid grid-cols-2 gap-8">
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground">By:</p>
+            <div className="border-b border-dashed h-8" />
+            <p className="text-xs text-muted-foreground">
+              Date: _______________
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Signature: _______________
+            </p>
+          </div>
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground">
+              Contractor: {staff.name}
+            </p>
+            <div className="border-b border-dashed h-8" />
+            <p className="text-xs text-muted-foreground">
+              Date: _______________
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function ContractPreviewDialog({ staff, open, onOpenChange }: Props) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl max-h-[85vh]">
         <DialogHeader>
-          <DialogTitle className="font-heading">Self-Employed Groomer Contract</DialogTitle>
+          <DialogTitle className="font-heading">
+            Self-Employed Groomer Contract
+          </DialogTitle>
         </DialogHeader>
         <ScrollArea className="max-h-[65vh] pr-4">
-          <div className="space-y-4 text-sm leading-relaxed">
-            <div className="text-center space-y-1 pb-4 border-b">
-              <h2 className="font-heading text-lg font-bold">Fluff & Scruff Studio</h2>
-              <p className="text-muted-foreground">Self-Employed Groomer Agreement</p>
-              <p className="text-xs text-muted-foreground">Generated: {today}</p>
-            </div>
-
-            <div className="space-y-1">
-              <p><strong>Contractor:</strong> {staff.name}</p>
-              <p><strong>Role:</strong> {staff.role}</p>
-              {staff.start_date && <p><strong>Start Date:</strong> {format(new Date(staff.start_date), "PPP")}</p>}
-            </div>
-
-            <div className="space-y-2">
-              <h3 className="font-heading font-semibold">1. Nature of Relationship</h3>
-              <p>This agreement is between Fluff & Scruff Studio ("the Studio") and {staff.name} ("the Groomer") operating as a self-employed contractor. The Groomer is not an employee of the Studio and is responsible for their own tax and National Insurance contributions.</p>
-            </div>
-
-            <div className="space-y-2">
-              <h3 className="font-heading font-semibold">2. Commission Structure</h3>
-              <p>The Groomer's pay shall be calculated as follows:</p>
-              <ul className="list-disc pl-5 space-y-1">
-                <li><strong>Groomer's Own Customers:</strong> The Groomer shall receive {commissionRate} of the total service price. The Studio retains {studioRate}.</li>
-                <li><strong>Studio Customers:</strong> The Groomer shall receive {nonOwnCustomerRate} of the total service price. The Studio retains {nonOwnStudioRate}.</li>
-              </ul>
-            </div>
-
-            <div className="space-y-2">
-              <h3 className="font-heading font-semibold">3. Deposits</h3>
-              <p>A deposit of 60% of the total booking price is required from all customers at the time of booking. Deposits are non-refundable unless cancelled with 48 hours notice.</p>
-            </div>
-
-            <div className="space-y-2">
-              <h3 className="font-heading font-semibold">4. Working Arrangements</h3>
-              <p>The Groomer shall use the Studio's premises and equipment as agreed. The Groomer is responsible for maintaining their own grooming tools and professional standards.</p>
-            </div>
-
-            <div className="space-y-2">
-              <h3 className="font-heading font-semibold">5. Insurance & Liability</h3>
-              <p>The Groomer must hold their own professional liability insurance and provide proof of coverage to the Studio upon request.</p>
-            </div>
-
-            <div className="space-y-2">
-              <h3 className="font-heading font-semibold">6. Termination</h3>
-              <p>Either party may terminate this agreement with 30 days written notice. Outstanding payments will be settled within 14 days of termination.</p>
-            </div>
-
-            <div className="pt-6 space-y-6 border-t">
-              <div className="grid grid-cols-2 gap-8">
-                <div className="space-y-2">
-                  <p className="text-xs text-muted-foreground">Studio Representative</p>
-                  <div className="border-b border-dashed h-8" />
-                  <p className="text-xs text-muted-foreground">Date: _______________</p>
-                </div>
-                <div className="space-y-2">
-                  <p className="text-xs text-muted-foreground">Groomer: {staff.name}</p>
-                  <div className="border-b border-dashed h-8" />
-                  <p className="text-xs text-muted-foreground">Date: _______________</p>
-                </div>
-              </div>
-            </div>
-          </div>
+          <ContractContent staff={staff} />
         </ScrollArea>
       </DialogContent>
     </Dialog>

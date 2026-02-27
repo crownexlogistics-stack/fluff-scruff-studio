@@ -6,15 +6,18 @@ import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { CheckCircle2, Scissors } from "lucide-react";
+import { CheckCircle2, Scissors, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
+import { ContractContent } from "@/components/staff/ContractPreviewDialog";
 
 const ContractSignPage = () => {
   const { staffId } = useParams<{ staffId: string }>();
   const queryClient = useQueryClient();
-  const [confirmed, setConfirmed] = useState(false);
+  const [signatureName, setSignatureName] = useState("");
 
   const { data: staff, isLoading } = useQuery({
     queryKey: ["staff", staffId],
@@ -28,9 +31,18 @@ const ContractSignPage = () => {
 
   const signMutation = useMutation({
     mutationFn: async () => {
+      // Fetch IP address
+      let ip = "unknown";
+      try {
+        const res = await fetch("https://api.ipify.org?format=json");
+        const json = await res.json();
+        ip = json.ip;
+      } catch { /* fallback */ }
+
       const { error } = await supabase.from("staff").update({
         contract_status: "signed",
         signed_at: new Date().toISOString(),
+        signed_ip: ip,
       }).eq("id", staffId!);
       if (error) throw error;
     },
@@ -72,6 +84,8 @@ const ContractSignPage = () => {
     );
   }
 
+  const nameMatches = signatureName.trim().toLowerCase() === staff.name.trim().toLowerCase();
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -94,7 +108,8 @@ const ContractSignPage = () => {
               <CheckCircle2 className="h-16 w-16 text-success mx-auto" />
               <h2 className="font-heading text-2xl font-bold">Contract Signed</h2>
               <p className="text-muted-foreground">
-                Signed by {staff.name} on {staff.signed_at ? format(new Date(staff.signed_at), "PPP 'at' p") : "—"}
+                Signed by {staff.name} on{" "}
+                {staff.signed_at ? format(new Date(staff.signed_at), "PPP 'at' p") : "—"}
               </p>
             </CardContent>
           </Card>
@@ -102,57 +117,15 @@ const ContractSignPage = () => {
           <>
             <div className="flex items-center justify-between">
               <h2 className="font-heading text-xl font-semibold">Your Contract</h2>
-              <Badge variant="secondary" className="bg-primary/15 text-primary">Awaiting Signature</Badge>
+              <Badge variant="secondary" className="bg-primary/15 text-primary">
+                Awaiting Signature
+              </Badge>
             </div>
 
             <Card>
               <CardContent className="p-6">
                 <ScrollArea className="max-h-[50vh] pr-4">
-                  <div className="space-y-4 text-sm leading-relaxed">
-                    <div className="text-center space-y-1 pb-4 border-b">
-                      <h2 className="font-heading text-lg font-bold">Fluff & Scruff Studio</h2>
-                      <p className="text-muted-foreground">Self-Employed Groomer Agreement</p>
-                    </div>
-
-                    <div className="space-y-1">
-                      <p><strong>Contractor:</strong> {staff.name}</p>
-                      <p><strong>Role:</strong> {staff.role}</p>
-                      {staff.start_date && <p><strong>Start Date:</strong> {format(new Date(staff.start_date), "PPP")}</p>}
-                    </div>
-
-                    <div className="space-y-2">
-                      <h3 className="font-heading font-semibold">1. Nature of Relationship</h3>
-                      <p>This agreement is between Fluff & Scruff Studio ("the Studio") and {staff.name} ("the Groomer") operating as a self-employed contractor.</p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <h3 className="font-heading font-semibold">2. Commission Structure</h3>
-                      <ul className="list-disc pl-5 space-y-1">
-                        <li><strong>Groomer's Own Customers:</strong> 50% of total service price.</li>
-                        <li><strong>Studio Customers:</strong> 40% of total service price.</li>
-                      </ul>
-                    </div>
-
-                    <div className="space-y-2">
-                      <h3 className="font-heading font-semibold">3. Deposits</h3>
-                      <p>A 60% deposit is required from all customers at booking.</p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <h3 className="font-heading font-semibold">4. Working Arrangements</h3>
-                      <p>The Groomer shall use the Studio's premises and equipment as agreed.</p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <h3 className="font-heading font-semibold">5. Insurance & Liability</h3>
-                      <p>The Groomer must hold their own professional liability insurance.</p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <h3 className="font-heading font-semibold">6. Termination</h3>
-                      <p>Either party may terminate with 30 days written notice.</p>
-                    </div>
-                  </div>
+                  <ContractContent staff={staff} />
                 </ScrollArea>
               </CardContent>
             </Card>
@@ -161,15 +134,41 @@ const ContractSignPage = () => {
 
             <Card>
               <CardContent className="p-6 space-y-4">
-                <h3 className="font-heading font-semibold">Sign Contract</h3>
-                <label className="flex items-start gap-3 cursor-pointer">
-                  <input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} className="mt-1 h-4 w-4 rounded border-input accent-primary" />
-                  <span className="text-sm">I, <strong>{staff.name}</strong>, have read and agree to the terms outlined in this self-employed groomer agreement with Fluff & Scruff Studio.</span>
-                </label>
-                <Button className="w-full" size="lg" disabled={!confirmed || signMutation.isPending} onClick={() => signMutation.mutate()}>
+                <h3 className="font-heading font-semibold text-lg">Digital Signature</h3>
+                <p className="text-sm text-muted-foreground">
+                  By typing your full name below and clicking "Sign Agreement", you confirm that you
+                  have read and agree to all terms outlined in the contract above.
+                </p>
+
+                <div className="space-y-2">
+                  <Label htmlFor="sig-name">Full Name</Label>
+                  <Input
+                    id="sig-name"
+                    placeholder={`Type "${staff.name}" to sign`}
+                    value={signatureName}
+                    onChange={(e) => setSignatureName(e.target.value)}
+                  />
+                  {signatureName.length > 0 && !nameMatches && (
+                    <p className="text-xs text-destructive flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" />
+                      Name must match "{staff.name}"
+                    </p>
+                  )}
+                </div>
+
+                <Button
+                  className="w-full"
+                  size="lg"
+                  disabled={!nameMatches || signMutation.isPending}
+                  onClick={() => signMutation.mutate()}
+                >
                   <CheckCircle2 className="mr-2 h-5 w-5" />
-                  {signMutation.isPending ? "Signing..." : "Sign Contract"}
+                  {signMutation.isPending ? "Signing..." : "Sign Agreement"}
                 </Button>
+
+                <p className="text-xs text-muted-foreground text-center">
+                  Your signature timestamp and IP address will be recorded for verification purposes.
+                </p>
               </CardContent>
             </Card>
           </>
