@@ -98,7 +98,12 @@ const CustomerHome = () => {
             <p className="text-muted-foreground font-body">We'd love to meet you and your pup!</p>
           </div>
           <div className="grid sm:grid-cols-2 gap-5 max-w-2xl mx-auto">
-            <div className="bg-card rounded-3xl border border-border p-6 flex items-start gap-4 hover:shadow-lg hover:shadow-accent/5 transition-all">
+            <a
+              href="https://www.google.com/maps/place/138+Hillview+Ave,+Hornchurch+RM11+2DL"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-card rounded-3xl border border-border p-6 flex items-start gap-4 hover:shadow-lg hover:shadow-accent/5 transition-all cursor-pointer no-underline"
+            >
               <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-accent/10">
                 <MapPin className="h-5 w-5 text-accent" />
               </div>
@@ -106,7 +111,7 @@ const CustomerHome = () => {
                 <h3 className="font-semibold font-body text-foreground mb-1">Find Us</h3>
                 <p className="text-sm text-muted-foreground">138 Hillview Avenue, Hornchurch RM11 2DL</p>
               </div>
-            </div>
+            </a>
             <div className="bg-card rounded-3xl border border-border p-6 flex items-start gap-4 hover:shadow-lg hover:shadow-accent/5 transition-all">
               <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-accent/10">
                 <Clock className="h-5 w-5 text-accent" />
@@ -116,6 +121,18 @@ const CustomerHome = () => {
                 <p className="text-sm text-muted-foreground">Tue – Sat · 10:00am – 5:00pm</p>
               </div>
             </div>
+          </div>
+          {/* Embedded Google Map */}
+          <div className="max-w-2xl mx-auto mt-6 rounded-3xl overflow-hidden border border-border shadow-sm">
+            <iframe
+              title="Fluff & Scruff Studio location"
+              src="https://maps.google.com/maps?q=138+Hillview+Ave,+Hornchurch+RM11+2DL,+UK&output=embed"
+              width="100%"
+              height="280"
+              style={{ border: 0 }}
+              allowFullScreen
+              loading="lazy"
+            />
           </div>
         </div>
       </section>
