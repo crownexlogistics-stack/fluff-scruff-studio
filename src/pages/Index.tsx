@@ -1,7 +1,11 @@
 import { useState } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dog, Scissors, Users, Calendar, Mail, Sparkles, SmilePlus } from "lucide-react";
+import { Dog, Scissors, Users, Calendar, Mail } from "lucide-react";
+import serviceFullGroom from "@/assets/service-full-groom.jpg";
+import servicePuppy from "@/assets/service-puppy.jpg";
+import serviceTeeth from "@/assets/service-teeth.jpg";
+import serviceNails from "@/assets/service-nails.jpg";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -63,10 +67,10 @@ const Index = () => {
   ];
 
   const services = [
-    { title: "Grooming", subtitle: "Full groom or bath & brush", icon: Scissors, gradient: "rose" as const },
-    { title: "Puppy Special", subtitle: "Gentle first-time groom", icon: Sparkles, gradient: "navy" as const },
-    { title: "Teeth Cleaning", subtitle: "Fresh breath & healthy gums", icon: SmilePlus, gradient: "rose" as const },
-    { title: "Nail Clipping", subtitle: "Quick & painless trim", icon: Dog, gradient: "navy" as const },
+    { title: "Grooming", subtitle: "Full groom or bath & brush", image: serviceFullGroom },
+    { title: "Puppy Special", subtitle: "Gentle first-time groom", image: servicePuppy },
+    { title: "Teeth Cleaning", subtitle: "Fresh breath & healthy gums", image: serviceTeeth },
+    { title: "Nail Clipping", subtitle: "Quick & painless trim", image: serviceNails },
   ];
 
   return (
@@ -95,13 +99,13 @@ const Index = () => {
             Our Services
           </h2>
           <div className="grid grid-cols-1 gap-3">
-            {services.map((s) => (
+            {services.map((s, i) => (
               <ServiceTile
                 key={s.title}
                 title={s.title}
                 subtitle={s.subtitle}
-                icon={s.icon}
-                gradient={s.gradient}
+                image={s.image}
+                reverse={i % 2 === 1}
                 onClick={() => setActiveService(s.title)}
               />
             ))}

@@ -1,7 +1,11 @@
 import { useState } from "react";
-import { Scissors, Sparkles, SmilePlus, Dog, Phone, MapPin, Clock, Instagram, Facebook, Star } from "lucide-react";
+import { Phone, MapPin, Clock, Instagram, Facebook, Star, Scissors, Sparkles } from "lucide-react";
 import logo from "@/assets/logo-transparent.png";
 import heroDog from "@/assets/hero-dog.jpg";
+import serviceFullGroom from "@/assets/service-full-groom.jpg";
+import servicePuppy from "@/assets/service-puppy.jpg";
+import serviceTeeth from "@/assets/service-teeth.jpg";
+import serviceNails from "@/assets/service-nails.jpg";
 import { ServiceTile } from "@/components/ServiceTile";
 import { BookingFlow } from "@/components/BookingFlow";
 
@@ -9,10 +13,10 @@ const CustomerHome = () => {
   const [activeService, setActiveService] = useState<string | null>(null);
 
   const services = [
-    { title: "Full Groom", subtitle: "Complete wash, dry, cut & style", icon: Scissors, gradient: "rose" as const },
-    { title: "Puppy Special", subtitle: "Gentle first-time groom experience", icon: Sparkles, gradient: "navy" as const },
-    { title: "Teeth Cleaning", subtitle: "Fresh breath & healthy gums", icon: SmilePlus, gradient: "rose" as const },
-    { title: "Nail Clipping", subtitle: "Quick & painless trim", icon: Dog, gradient: "navy" as const },
+    { title: "Full Groom", subtitle: "Complete wash, dry, cut & style for your furry friend.", image: serviceFullGroom },
+    { title: "Puppy Special", subtitle: "A gentle first-time grooming experience for puppies.", image: servicePuppy },
+    { title: "Teeth Cleaning", subtitle: "Fresh breath and healthy gums for a happy dog.", image: serviceTeeth },
+    { title: "Nail Clipping", subtitle: "Quick, painless trim to keep paws in top shape.", image: serviceNails },
   ];
 
   return (
@@ -85,14 +89,14 @@ const CustomerHome = () => {
               From full grooms to puppy specials, we keep your furry friends looking fabulous.
             </p>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            {services.map((s) => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            {services.map((s, i) => (
               <ServiceTile
                 key={s.title}
                 title={s.title}
                 subtitle={s.subtitle}
-                icon={s.icon}
-                gradient={s.gradient}
+                image={s.image}
+                reverse={i % 2 === 1}
                 onClick={() => setActiveService(s.title)}
               />
             ))}

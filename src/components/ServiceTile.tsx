@@ -1,38 +1,40 @@
 import { cn } from "@/lib/utils";
 import { ChevronRight } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
 
 interface ServiceTileProps {
   title: string;
   subtitle: string;
-  icon: LucideIcon;
+  image: string;
   onClick: () => void;
-  gradient?: "rose" | "navy";
+  reverse?: boolean;
 }
 
-export function ServiceTile({ title, subtitle, icon: Icon, onClick, gradient = "rose" }: ServiceTileProps) {
+export function ServiceTile({ title, subtitle, image, onClick, reverse = false }: ServiceTileProps) {
   return (
     <button
       onClick={onClick}
       className={cn(
-        "w-full rounded-2xl p-6 text-left transition-all duration-200",
-        "bg-card border border-border hover:border-accent hover:shadow-lg hover:shadow-accent/10",
-        "active:scale-[0.98] group"
+        "w-full rounded-2xl overflow-hidden transition-all duration-300",
+        "bg-card border border-border hover:border-accent/40 hover:shadow-xl hover:shadow-accent/10",
+        "active:scale-[0.99] group flex",
+        reverse ? "flex-row-reverse" : "flex-row"
       )}
     >
-      <div className={cn(
-        "flex h-14 w-14 items-center justify-center rounded-2xl mb-4",
-        gradient === "rose" ? "bg-accent/10" : "bg-primary/10"
-      )}>
-        <Icon className={cn(
-          "h-6 w-6",
-          gradient === "rose" ? "text-accent" : "text-primary"
-        )} />
+      {/* Image half */}
+      <div className="w-1/2 relative overflow-hidden">
+        <img
+          src={image}
+          alt={title}
+          className="w-full h-full object-cover aspect-square group-hover:scale-105 transition-transform duration-500"
+        />
       </div>
-      <h3 className="text-base font-semibold font-body text-foreground mb-1">{title}</h3>
-      <p className="text-sm text-muted-foreground">{subtitle}</p>
-      <div className="mt-4 flex items-center gap-1 text-sm font-medium text-accent opacity-0 group-hover:opacity-100 transition-opacity">
-        Book now <ChevronRight className="h-4 w-4" />
+      {/* Text half */}
+      <div className="w-1/2 p-5 sm:p-6 flex flex-col justify-center">
+        <h3 className="text-lg sm:text-xl font-heading text-primary mb-1.5">{title}</h3>
+        <p className="text-sm text-muted-foreground font-body leading-relaxed">{subtitle}</p>
+        <div className="mt-4 flex items-center gap-1 text-sm font-semibold font-body text-accent group-hover:gap-2 transition-all">
+          Book now <ChevronRight className="h-4 w-4" />
+        </div>
       </div>
     </button>
   );
