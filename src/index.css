@@ -6,85 +6,85 @@
 
 @layer base {
   :root {
-    --background: 0 0% 97.6%;
-    --foreground: 220 30% 18%;
+    --background: 240 5% 96%;
+    --foreground: 220 15% 20%;
 
     --card: 0 0% 100%;
-    --card-foreground: 220 30% 18%;
+    --card-foreground: 220 15% 20%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 220 30% 18%;
+    --popover-foreground: 220 15% 20%;
 
-    --primary: 220 45% 22%;
+    --primary: 220 10% 25%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 15 45% 80%;
-    --secondary-foreground: 220 30% 18%;
+    --secondary: 240 4% 91%;
+    --secondary-foreground: 220 15% 20%;
 
-    --muted: 220 15% 94%;
-    --muted-foreground: 220 10% 50%;
+    --muted: 240 5% 93%;
+    --muted-foreground: 220 8% 50%;
 
-    --accent: 15 55% 65%;
+    --accent: 220 10% 35%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 15% 90%;
-    --input: 220 15% 90%;
-    --ring: 15 55% 65%;
+    --border: 240 5% 88%;
+    --input: 240 5% 88%;
+    --ring: 220 10% 35%;
 
     --radius: 1.5rem;
 
-    --sidebar-background: 220 40% 16%;
-    --sidebar-foreground: 220 15% 85%;
-    --sidebar-primary: 15 55% 65%;
+    --sidebar-background: 220 12% 18%;
+    --sidebar-foreground: 220 10% 85%;
+    --sidebar-primary: 220 10% 35%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 35% 22%;
-    --sidebar-accent-foreground: 220 15% 90%;
-    --sidebar-border: 220 30% 24%;
-    --sidebar-ring: 15 55% 65%;
+    --sidebar-accent: 220 10% 24%;
+    --sidebar-accent-foreground: 220 10% 90%;
+    --sidebar-border: 220 10% 26%;
+    --sidebar-ring: 220 10% 35%;
 
     --success: 145 60% 40%;
     --success-foreground: 0 0% 100%;
 
-    --rose-gold: 15 55% 65%;
-    --rose-gold-light: 15 60% 85%;
-    --navy: 220 45% 22%;
-    --navy-light: 220 35% 35%;
+    --charcoal: 220 10% 25%;
+    --charcoal-light: 220 8% 45%;
+    --silver: 240 5% 96%;
+    --silver-dark: 240 4% 88%;
 
     --font-heading: 'DM Serif Display', serif;
     --font-body: 'Inter', sans-serif;
   }
 
   .dark {
-    --background: 220 30% 8%;
-    --foreground: 220 10% 92%;
-    --card: 220 30% 11%;
-    --card-foreground: 220 10% 92%;
-    --popover: 220 30% 11%;
-    --popover-foreground: 220 10% 92%;
-    --primary: 15 55% 65%;
-    --primary-foreground: 220 30% 8%;
-    --secondary: 220 20% 18%;
-    --secondary-foreground: 220 10% 85%;
-    --muted: 220 20% 15%;
-    --muted-foreground: 220 10% 55%;
-    --accent: 15 55% 65%;
-    --accent-foreground: 220 30% 8%;
+    --background: 220 12% 10%;
+    --foreground: 220 5% 92%;
+    --card: 220 12% 14%;
+    --card-foreground: 220 5% 92%;
+    --popover: 220 12% 14%;
+    --popover-foreground: 220 5% 92%;
+    --primary: 0 0% 100%;
+    --primary-foreground: 220 12% 10%;
+    --secondary: 220 10% 18%;
+    --secondary-foreground: 220 5% 85%;
+    --muted: 220 10% 16%;
+    --muted-foreground: 220 5% 55%;
+    --accent: 220 8% 45%;
+    --accent-foreground: 0 0% 100%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 100%;
-    --border: 220 20% 20%;
-    --input: 220 20% 20%;
-    --ring: 15 55% 65%;
-    --sidebar-background: 220 35% 6%;
-    --sidebar-foreground: 220 15% 85%;
-    --sidebar-primary: 15 55% 65%;
+    --border: 220 10% 22%;
+    --input: 220 10% 22%;
+    --ring: 220 8% 45%;
+    --sidebar-background: 220 12% 7%;
+    --sidebar-foreground: 220 5% 85%;
+    --sidebar-primary: 220 8% 45%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 30% 14%;
-    --sidebar-accent-foreground: 220 15% 90%;
-    --sidebar-border: 220 25% 16%;
-    --sidebar-ring: 15 55% 65%;
+    --sidebar-accent: 220 10% 16%;
+    --sidebar-accent-foreground: 220 5% 90%;
+    --sidebar-border: 220 10% 18%;
+    --sidebar-ring: 220 8% 45%;
   }
 }
 
@@ -121,11 +121,17 @@
     background: rgba(255, 255, 255, 0.06);
     border: 1px solid rgba(255, 255, 255, 0.08);
   }
+  .gradient-charcoal {
+    background: linear-gradient(135deg, hsl(220 10% 25%), hsl(220 8% 35%));
+  }
+  .gradient-silver {
+    background: linear-gradient(135deg, hsl(240 5% 96%), hsl(240 4% 91%));
+  }
   .gradient-rose {
-    background: linear-gradient(135deg, hsl(15 55% 65%), hsl(25 60% 72%));
+    background: linear-gradient(135deg, hsl(220 10% 25%), hsl(220 8% 40%));
   }
   .gradient-navy {
-    background: linear-gradient(135deg, hsl(220 45% 22%), hsl(220 35% 32%));
+    background: linear-gradient(135deg, hsl(220 12% 18%), hsl(220 10% 26%));
   }
   .touch-target {
     min-height: 48px;
