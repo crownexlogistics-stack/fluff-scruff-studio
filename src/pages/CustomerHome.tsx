@@ -6,7 +6,7 @@ import serviceFullGroom from "@/assets/service-full-groom.jpg";
 import servicePuppy from "@/assets/service-puppy.jpg";
 import serviceTeeth from "@/assets/service-teeth.jpg";
 import serviceNails from "@/assets/service-nails.jpg";
-import { ServiceTile } from "@/components/ServiceTile";
+import { ServiceJourney } from "@/components/ServiceJourney";
 import { BookingFlow } from "@/components/BookingFlow";
 
 const CustomerHome = () => {
@@ -80,30 +80,11 @@ const CustomerHome = () => {
       </section>
 
 
-      {/* Services */}
-      <section id="services" className="py-16 sm:py-20">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl sm:text-4xl font-heading text-primary mb-3">Our Services</h2>
-            <p className="text-muted-foreground font-body max-w-lg mx-auto">
-              From full grooms to puppy specials, we keep your furry friends looking fabulous.
-            </p>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            {services.map((s, i) => (
-              <ServiceTile
-                key={s.title}
-                title={s.title}
-                subtitle={s.subtitle}
-                image={s.image}
-                reverse={i % 2 === 1}
-                imagePosition={s.imagePosition}
-                onClick={() => setActiveService(s.title)}
-              />
-            ))}
-          </div>
-        </div>
-      </section>
+      {/* Services Journey */}
+      <ServiceJourney
+        services={services}
+        onSelectService={(title) => setActiveService(title)}
+      />
 
       {/* About / Trust Section */}
       <section id="about" className="py-16 sm:py-20 bg-muted/50">
