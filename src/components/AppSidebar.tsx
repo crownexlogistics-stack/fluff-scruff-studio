@@ -1,4 +1,5 @@
 import { Dog, Scissors, Users, Calendar, LayoutDashboard, DollarSign } from "lucide-react";
+import logo from "@/assets/logo-transparent.png";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import {
@@ -30,9 +31,7 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-sidebar-primary flex items-center justify-center">
-            <Scissors className="h-5 w-5 text-sidebar-primary-foreground" />
-          </div>
+          <img src={logo} alt="Fluff & Scruff" className="h-10 w-auto brightness-0 invert opacity-90" />
           {!collapsed && (
             <div>
               <h1 className="font-heading text-lg font-bold text-sidebar-primary-foreground leading-tight">
