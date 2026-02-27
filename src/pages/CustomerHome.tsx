@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Phone, MapPin, Clock, Instagram, Facebook, Star, Scissors, Sparkles, Heart, PawPrint } from "lucide-react";
+import { Phone, MapPin, Clock, Instagram, Facebook, PawPrint } from "lucide-react";
 import logo from "@/assets/logo-transparent.png";
 import heroDog from "@/assets/hero-shop.jpg";
 import serviceFullGroom from "@/assets/service-full-groom.jpg";
@@ -7,6 +7,7 @@ import servicePuppy from "@/assets/service-puppy.jpg";
 import serviceTeeth from "@/assets/service-teeth.jpg";
 import serviceNails from "@/assets/service-nails.jpg";
 import { ServiceJourney } from "@/components/ServiceJourney";
+import { GoogleReviews } from "@/components/GoogleReviews";
 import { BookingFlow } from "@/components/BookingFlow";
 
 const CustomerHome = () => {
@@ -85,48 +86,8 @@ const CustomerHome = () => {
         onSelectService={(title) => setActiveService(title)}
       />
 
-      {/* About / Trust Section */}
-      <section id="about" className="py-16 sm:py-20 bg-white">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-12">
-            <p className="text-accent font-body text-sm uppercase tracking-[0.25em] mb-3 flex items-center justify-center gap-2">
-              <Heart className="h-4 w-4 fill-accent" />
-              Why Dog Parents Love Us
-              <Heart className="h-4 w-4 fill-accent" />
-            </p>
-            <h2 className="text-3xl sm:text-4xl font-heading text-foreground">We treat them like our own</h2>
-          </div>
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="text-center p-6 rounded-3xl bg-warm-light/50 border border-accent/10">
-              <div className="flex h-14 w-14 mx-auto items-center justify-center rounded-2xl bg-accent/10 mb-4">
-                <Star className="h-7 w-7 text-accent" />
-              </div>
-              <h3 className="font-heading text-xl text-foreground mb-2">5-Star Rated</h3>
-              <p className="text-sm text-muted-foreground font-body">
-                Trusted by hundreds of dog owners across Hornchurch. Our reviews speak for themselves!
-              </p>
-            </div>
-            <div className="text-center p-6 rounded-3xl bg-warm-light/50 border border-accent/10">
-              <div className="flex h-14 w-14 mx-auto items-center justify-center rounded-2xl bg-accent/10 mb-4">
-                <Scissors className="h-7 w-7 text-accent" />
-              </div>
-              <h3 className="font-heading text-xl text-foreground mb-2">Expert Groomers</h3>
-              <p className="text-sm text-muted-foreground font-body">
-                Fully qualified pros who treat every dog with patience, love, and the perfect amount of treats.
-              </p>
-            </div>
-            <div className="text-center p-6 rounded-3xl bg-warm-light/50 border border-accent/10">
-              <div className="flex h-14 w-14 mx-auto items-center justify-center rounded-2xl bg-accent/10 mb-4">
-                <Sparkles className="h-7 w-7 text-accent" />
-              </div>
-              <h3 className="font-heading text-xl text-foreground mb-2">Premium Products</h3>
-              <p className="text-sm text-muted-foreground font-body">
-                Only the best shampoos, conditioners and tools. Because your fur baby deserves luxury!
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* Google Reviews */}
+      <GoogleReviews />
 
       {/* Contact / Info */}
       <section id="contact" className="py-16 sm:py-20">
