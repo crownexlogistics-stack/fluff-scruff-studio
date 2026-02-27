@@ -54,11 +54,6 @@ const CustomerHome = () => {
 
         {/* Hero text */}
         <div className="relative -mt-44 z-10 max-w-2xl mx-auto px-6 text-center pb-14">
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <PawPrint className="h-5 w-5 text-accent" />
-            <span className="text-sm font-body font-medium text-accent tracking-wide uppercase">Hornchurch's Favourite Groomers</span>
-            <PawPrint className="h-5 w-5 text-accent" />
-          </div>
           <h1 className="text-5xl sm:text-6xl lg:text-7xl font-heading text-foreground leading-[1.1] tracking-tight">
             Fluff &amp; Scruff Studio
           </h1>
