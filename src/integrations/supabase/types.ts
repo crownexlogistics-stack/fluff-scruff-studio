@@ -179,25 +179,37 @@ export type Database = {
       }
       staff: {
         Row: {
+          contact_number: string | null
+          contract_status: string
           created_at: string
           id: string
           is_self_employed: boolean
           name: string
           role: string
+          signed_at: string | null
+          start_date: string | null
         }
         Insert: {
+          contact_number?: string | null
+          contract_status?: string
           created_at?: string
           id?: string
           is_self_employed?: boolean
           name: string
           role: string
+          signed_at?: string | null
+          start_date?: string | null
         }
         Update: {
+          contact_number?: string | null
+          contract_status?: string
           created_at?: string
           id?: string
           is_self_employed?: boolean
           name?: string
           role?: string
+          signed_at?: string | null
+          start_date?: string | null
         }
         Relationships: []
       }

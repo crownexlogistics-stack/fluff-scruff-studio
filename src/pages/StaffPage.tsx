@@ -6,20 +6,23 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { StaffProfileDialog } from "@/components/staff/StaffProfileDialog";
 
 interface StaffForm { name: string; role: string; is_self_employed: boolean; }
 const emptyForm: StaffForm = { name: "", role: "", is_self_employed: false };
 
 const StaffPage = () => {
   const queryClient = useQueryClient();
-  const [open, setOpen] = useState(false);
-  const [editId, setEditId] = useState<string | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
   const [form, setForm] = useState<StaffForm>(emptyForm);
+  const [selectedStaff, setSelectedStaff] = useState<any>(null);
+  const [profileOpen, setProfileOpen] = useState(false);
 
   const { data: staff, isLoading } = useQuery({
     queryKey: ["staff"],
@@ -35,16 +38,7 @@ const StaffPage = () => {
       const { error } = await supabase.from("staff").insert(s);
       if (error) throw error;
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["staff"] }); toast.success("Staff added"); closeDialog(); },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: async ({ id, s }: { id: string; s: StaffForm }) => {
-      const { error } = await supabase.from("staff").update(s).eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["staff"] }); toast.success("Staff updated"); closeDialog(); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["staff"] }); toast.success("Staff added"); setAddOpen(false); setForm(emptyForm); },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -57,13 +51,18 @@ const StaffPage = () => {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const closeDialog = () => { setOpen(false); setEditId(null); setForm(emptyForm); };
-  const openEdit = (s: any) => { setEditId(s.id); setForm({ name: s.name, role: s.role, is_self_employed: s.is_self_employed }); setOpen(true); };
-
   const handleSubmit = () => {
     if (!form.name.trim() || !form.role.trim()) { toast.error("Name and role required"); return; }
-    editId ? updateMutation.mutate({ id: editId, s: form }) : addMutation.mutate(form);
+    addMutation.mutate(form);
   };
+
+  const openProfile = (s: any) => { setSelectedStaff(s); setProfileOpen(true); };
+
+  const statusColor = (status: string) => ({
+    draft: "bg-muted text-muted-foreground",
+    sent: "bg-primary/15 text-primary",
+    signed: "bg-success/15 text-success",
+  }[status] || "bg-muted text-muted-foreground");
 
   return (
     <AppLayout>
@@ -73,12 +72,12 @@ const StaffPage = () => {
             <h1 className="text-3xl font-heading font-bold">Staff</h1>
             <p className="text-muted-foreground mt-1">Manage your grooming team</p>
           </div>
-          <Dialog open={open} onOpenChange={(v) => { if (!v) closeDialog(); else setOpen(true); }}>
+          <Dialog open={addOpen} onOpenChange={setAddOpen}>
             <DialogTrigger asChild>
-              <Button onClick={() => { setForm(emptyForm); setEditId(null); }}><Plus className="mr-2 h-4 w-4" /> Add Staff</Button>
+              <Button onClick={() => setForm(emptyForm)}><Plus className="mr-2 h-4 w-4" /> Add Staff</Button>
             </DialogTrigger>
             <DialogContent>
-              <DialogHeader><DialogTitle className="font-heading">{editId ? "Edit Staff" : "Add Staff"}</DialogTitle></DialogHeader>
+              <DialogHeader><DialogTitle className="font-heading">Add Staff</DialogTitle></DialogHeader>
               <div className="space-y-4 py-2">
                 <div className="space-y-2"><Label>Name</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Full name" /></div>
                 <div className="space-y-2"><Label>Role</Label><Input value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} placeholder="e.g. Senior Groomer" /></div>
@@ -88,8 +87,8 @@ const StaffPage = () => {
                 </div>
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={closeDialog}>Cancel</Button>
-                <Button onClick={handleSubmit}>{editId ? "Save" : "Add"}</Button>
+                <Button variant="outline" onClick={() => setAddOpen(false)}>Cancel</Button>
+                <Button onClick={handleSubmit}>Add</Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -103,25 +102,30 @@ const StaffPage = () => {
                   <TableHead>Name</TableHead>
                   <TableHead>Role</TableHead>
                   <TableHead>Self-Employed</TableHead>
-                  <TableHead className="w-24">Actions</TableHead>
+                  <TableHead>Contract</TableHead>
+                  <TableHead className="w-16">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
-                  <TableRow><TableCell colSpan={4} className="text-center py-8 text-muted-foreground">Loading...</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Loading...</TableCell></TableRow>
                 ) : staff?.length === 0 ? (
-                  <TableRow><TableCell colSpan={4} className="text-center py-8 text-muted-foreground">No staff yet.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No staff yet.</TableCell></TableRow>
                 ) : (
                   staff?.map((s) => (
-                    <TableRow key={s.id}>
+                    <TableRow key={s.id} className="cursor-pointer hover:bg-muted/50" onClick={() => openProfile(s)}>
                       <TableCell className="font-medium">{s.name}</TableCell>
                       <TableCell>{s.role}</TableCell>
                       <TableCell>{s.is_self_employed ? <span className="text-success font-medium">Yes</span> : "No"}</TableCell>
                       <TableCell>
-                        <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" onClick={() => openEdit(s)}><Pencil className="h-4 w-4" /></Button>
-                          <Button variant="ghost" size="icon" onClick={() => deleteMutation.mutate(s.id)} className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
-                        </div>
+                        <Badge variant="secondary" className={`text-xs capitalize ${statusColor(s.contract_status)}`}>
+                          {s.contract_status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); deleteMutation.mutate(s.id); }} className="text-destructive hover:text-destructive">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))
@@ -131,6 +135,8 @@ const StaffPage = () => {
           </CardContent>
         </Card>
       </div>
+
+      <StaffProfileDialog staff={selectedStaff} open={profileOpen} onOpenChange={(v) => { setProfileOpen(v); if (!v) setSelectedStaff(null); }} />
     </AppLayout>
   );
 };
