@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Phone, MapPin, Clock, Instagram, Facebook, Star, Scissors, Sparkles, Heart, PawPrint } from "lucide-react";
 import logo from "@/assets/logo-transparent.png";
-import heroDog from "@/assets/hero-dog.jpg";
+import heroDog from "@/assets/hero-shop.jpg";
 import serviceFullGroom from "@/assets/service-full-groom.jpg";
 import servicePuppy from "@/assets/service-puppy.jpg";
 import serviceTeeth from "@/assets/service-teeth.jpg";
