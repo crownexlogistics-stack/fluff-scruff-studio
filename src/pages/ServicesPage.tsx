@@ -4,6 +4,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
@@ -36,6 +38,18 @@ const ServicesPage = () => {
       if (error) throw error;
       return data;
     },
+  });
+
+  const toggleActive = useMutation({
+    mutationFn: async ({ id, is_active }: { id: string; is_active: boolean }) => {
+      const { error } = await supabase.from("services").update({ is_active }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["services"] });
+      toast.success("Service updated");
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const upsertPrice = useMutation({
@@ -79,7 +93,7 @@ const ServicesPage = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="sticky left-0 bg-card z-10">Service</TableHead>
+                    <TableHead className="sticky left-0 bg-card z-10">Offering Now</TableHead>
                     {breeds?.map((breed) => (
                       <TableHead key={breed.id} className="text-center min-w-[120px]">
                         <div>{breed.name}</div>
@@ -90,10 +104,18 @@ const ServicesPage = () => {
                 </TableHeader>
                 <TableBody>
                   {services?.map((service) => (
-                    <TableRow key={service.id}>
+                    <TableRow key={service.id} className={!service.is_active ? "opacity-50" : ""}>
                       <TableCell className="font-medium sticky left-0 bg-card z-10">
-                        <div>{service.name}</div>
-                        <div className="text-xs text-muted-foreground">{service.description}</div>
+                        <div className="flex items-center gap-3">
+                          <Switch
+                            checked={service.is_active}
+                            onCheckedChange={(v) => toggleActive.mutate({ id: service.id, is_active: v })}
+                          />
+                          <div>
+                            <div>{service.name}</div>
+                            <div className="text-xs text-muted-foreground">{service.description}</div>
+                          </div>
+                        </div>
                       </TableCell>
                       {breeds?.map((breed) => (
                         <TableCell key={breed.id} className="text-center">

@@ -364,11 +364,11 @@ const StaffDetailPage = () => {
                 <CardTitle className="font-heading text-lg flex items-center gap-2"><Scissors className="h-5 w-5 text-primary" /> Assigned Services</CardTitle>
               </CardHeader>
               <CardContent>
-                {!allServices || allServices.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No services created yet. Add services in the Services page first.</p>
+                {!allServices || allServices.filter((s) => s.is_active).length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No active services. Enable services in the Services page first.</p>
                 ) : (
                   <div className="space-y-2">
-                    {allServices.map((svc) => (
+                    {allServices.filter((s) => s.is_active).map((svc) => (
                       <label key={svc.id} className="flex items-center gap-3 rounded-lg border px-3 py-2.5 cursor-pointer hover:bg-muted/50 transition-colors">
                         <Checkbox checked={assignedServiceIds.includes(svc.id)} onCheckedChange={() => toggleService(svc.id)} />
                         <div>
