@@ -45,6 +45,14 @@ const ContractSignPage = () => {
         signed_ip: ip,
       }).eq("id", staffId!);
       if (error) throw error;
+
+      // Send confirmation emails
+      try {
+        const contractUrl = `${window.location.origin}/contract/sign/${staffId}`;
+        await supabase.functions.invoke("send-contract-email", {
+          body: { staff_id: staffId, type: "signed_confirmation", signing_url: contractUrl },
+        });
+      } catch { /* non-blocking */ }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["staff", staffId] });

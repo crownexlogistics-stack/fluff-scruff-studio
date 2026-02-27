@@ -1,1 +1,4 @@
 project_id = "pkshffylgauatrcidqqj"
+
+[functions.send-contract-email]
+verify_jwt = false

@@ -24,6 +24,7 @@ interface StaffMember {
   start_date: string | null;
   contract_status: string;
   signed_at: string | null;
+  signed_ip: string | null;
   contact_number: string | null;
   created_at: string;
 }
