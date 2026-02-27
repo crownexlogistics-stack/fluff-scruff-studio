@@ -38,9 +38,9 @@ export function ServiceJourney({ services, onSelectService }: ServiceJourneyProp
             <button
               key={service.title}
               onClick={() => onSelectService(service.title)}
-              className="text-left group"
+              className="text-left group active:scale-[0.97] transition-transform duration-200"
             >
-              <div className="relative bg-card rounded-3xl overflow-hidden border border-border transition-all duration-300 hover:shadow-xl hover:shadow-accent/10 hover:border-accent/20">
+              <div className="relative bg-card rounded-3xl overflow-hidden border border-border/60 transition-all duration-300 hover:shadow-lg hover:shadow-black/[0.04] hover:border-border shadow-sm shadow-black/[0.02]">
                 {/* Image */}
                 <div className="relative overflow-hidden">
                   <img
@@ -61,7 +61,7 @@ export function ServiceJourney({ services, onSelectService }: ServiceJourneyProp
                   <p className="text-muted-foreground font-body text-sm leading-relaxed mb-4">
                     {service.subtitle}
                   </p>
-                  <div className="flex items-center gap-2 text-accent font-body text-sm font-semibold group-hover:gap-3 transition-all duration-300">
+                  <div className="flex items-center gap-2 text-charcoal font-body text-sm font-semibold group-hover:gap-3 transition-all duration-300">
                     Book this treat
                     <ChevronRight className="h-4 w-4" />
                   </div>

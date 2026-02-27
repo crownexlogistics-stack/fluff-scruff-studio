@@ -23,7 +23,7 @@ const CustomerHome = () => {
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Navigation */}
-      <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-border">
+      <nav className="sticky top-0 z-50 glass border-b border-border/50">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <img src={logo} alt="Fluff & Scruff" className="h-12 w-auto" />
           <div className="hidden sm:flex items-center gap-8 text-sm font-medium font-body">
@@ -33,7 +33,7 @@ const CustomerHome = () => {
           </div>
           <button
             onClick={() => setActiveService("Full Groom")}
-            className="bg-accent text-accent-foreground font-semibold font-body text-sm px-5 py-2.5 rounded-full hover:opacity-90 transition-all shadow-md shadow-accent/20"
+            className="bg-charcoal text-primary-foreground font-semibold font-body text-sm px-5 py-2.5 rounded-full hover:opacity-90 transition-all shadow-md shadow-charcoal/20"
           >
             Book Now
           </button>
@@ -65,7 +65,7 @@ const CustomerHome = () => {
           <div className="flex flex-col sm:flex-row gap-3 justify-center mt-8">
             <button
               onClick={() => setActiveService("Full Groom")}
-              className="bg-accent text-accent-foreground font-semibold font-body text-base px-10 py-4 rounded-full hover:opacity-90 transition-all shadow-lg shadow-accent/20 hover:shadow-xl hover:shadow-accent/25 hover:-translate-y-0.5"
+              className="bg-charcoal text-primary-foreground font-semibold font-body text-base px-10 py-4 rounded-full hover:opacity-90 transition-all shadow-lg shadow-charcoal/20 hover:shadow-xl hover:shadow-charcoal/25 hover:-translate-y-0.5"
             >
               Book an Appointment
             </button>
@@ -102,7 +102,7 @@ const CustomerHome = () => {
               href="https://www.google.com/maps/place/138+Hillview+Ave,+Hornchurch+RM11+2DL"
               target="_blank"
               rel="noopener noreferrer"
-              className="bg-card rounded-3xl border border-border p-6 flex items-start gap-4 hover:shadow-lg hover:shadow-accent/5 transition-all cursor-pointer no-underline"
+              className="bg-card rounded-3xl border border-border/60 p-6 flex items-start gap-4 hover:shadow-lg hover:shadow-black/[0.04] transition-all cursor-pointer no-underline shadow-sm shadow-black/[0.02]"
             >
               <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-accent/10">
                 <MapPin className="h-5 w-5 text-accent" />
@@ -112,7 +112,7 @@ const CustomerHome = () => {
                 <p className="text-sm text-muted-foreground">138 Hillview Avenue, Hornchurch RM11 2DL</p>
               </div>
             </a>
-            <div className="bg-card rounded-3xl border border-border p-6 flex items-start gap-4 hover:shadow-lg hover:shadow-accent/5 transition-all">
+            <div className="bg-card rounded-3xl border border-border/60 p-6 flex items-start gap-4 hover:shadow-lg hover:shadow-black/[0.04] transition-all shadow-sm shadow-black/[0.02]">
               <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-accent/10">
                 <Clock className="h-5 w-5 text-accent" />
               </div>
@@ -151,7 +151,7 @@ const CustomerHome = () => {
           </p>
           <button
             onClick={() => setActiveService("Full Groom")}
-            className="bg-white text-foreground font-semibold font-body text-base px-10 py-4 rounded-full hover:bg-white/90 transition-colors shadow-lg"
+            className="bg-white text-charcoal font-semibold font-body text-base px-10 py-4 rounded-full hover:bg-white/90 transition-colors shadow-lg"
           >
             Book Now
           </button>
