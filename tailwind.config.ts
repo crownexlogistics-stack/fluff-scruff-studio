@@ -69,6 +69,12 @@ export default {
         "charcoal-light": "hsl(var(--charcoal-light))",
         silver: "hsl(var(--silver))",
         "silver-dark": "hsl(var(--silver-dark))",
+        warm: {
+          DEFAULT: "hsl(var(--warm))",
+          foreground: "hsl(var(--warm-foreground))",
+          light: "hsl(var(--warm-light))",
+        },
+        paw: "hsl(var(--paw))",
       },
       borderRadius: {
         lg: "var(--radius)",
