@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,17 +13,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Label } from "@/components/ui/label";
 import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { StaffProfileDialog } from "@/components/staff/StaffProfileDialog";
 
 interface StaffForm { name: string; role: string; is_self_employed: boolean; }
 const emptyForm: StaffForm = { name: "", role: "", is_self_employed: false };
 
 const StaffPage = () => {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [addOpen, setAddOpen] = useState(false);
   const [form, setForm] = useState<StaffForm>(emptyForm);
-  const [selectedStaff, setSelectedStaff] = useState<any>(null);
-  const [profileOpen, setProfileOpen] = useState(false);
 
   const { data: staff, isLoading } = useQuery({
     queryKey: ["staff"],
@@ -55,8 +54,6 @@ const StaffPage = () => {
     if (!form.name.trim() || !form.role.trim()) { toast.error("Name and role required"); return; }
     addMutation.mutate(form);
   };
-
-  const openProfile = (s: any) => { setSelectedStaff(s); setProfileOpen(true); };
 
   const statusColor = (status: string) => ({
     draft: "bg-muted text-muted-foreground",
@@ -113,7 +110,7 @@ const StaffPage = () => {
                   <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No staff yet.</TableCell></TableRow>
                 ) : (
                   staff?.map((s) => (
-                    <TableRow key={s.id} className="cursor-pointer hover:bg-muted/50" onClick={() => openProfile(s)}>
+                    <TableRow key={s.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/staff/${s.id}`)}>
                       <TableCell className="font-medium">{s.name}</TableCell>
                       <TableCell>{s.role}</TableCell>
                       <TableCell>{s.is_self_employed ? <span className="text-success font-medium">Yes</span> : "No"}</TableCell>
@@ -135,8 +132,6 @@ const StaffPage = () => {
           </CardContent>
         </Card>
       </div>
-
-      <StaffProfileDialog staff={selectedStaff} open={profileOpen} onOpenChange={(v) => { setProfileOpen(v); if (!v) setSelectedStaff(null); }} />
     </AppLayout>
   );
 };
