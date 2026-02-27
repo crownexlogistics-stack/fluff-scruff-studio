@@ -1,0 +1,1 @@
+ALTER TABLE public.services ADD COLUMN is_active boolean NOT NULL DEFAULT true;
