@@ -149,10 +149,10 @@ const CustomerHome = () => {
               <img src={logo} alt="Fluff & Scruff" className="h-10 w-auto brightness-0 invert" />
             </div>
             <div className="flex items-center gap-4">
-              <a href="https://www.instagram.com/fluffandscruff_studio/" target="_blank" rel="noopener noreferrer" className="flex h-10 w-10 items-center justify-center rounded-full bg-background/10 hover:bg-accent/30 transition-colors">
+              <a href="https://www.instagram.com/fluffandscruff.studio/?hl=en" target="_blank" rel="noopener noreferrer" className="flex h-10 w-10 items-center justify-center rounded-full bg-background/10 hover:bg-accent/30 transition-colors">
                 <Instagram className="h-5 w-5" />
               </a>
-              <a href="https://www.facebook.com/fluffandscruffstudio" target="_blank" rel="noopener noreferrer" className="flex h-10 w-10 items-center justify-center rounded-full bg-background/10 hover:bg-accent/30 transition-colors">
+              <a href="https://www.facebook.com/p/FluffScruff-studio-61553637233998/" target="_blank" rel="noopener noreferrer" className="flex h-10 w-10 items-center justify-center rounded-full bg-background/10 hover:bg-accent/30 transition-colors">
                 <Facebook className="h-5 w-5" />
               </a>
             </div>
