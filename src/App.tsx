@@ -9,6 +9,7 @@ import BreedsPage from "./pages/BreedsPage";
 import ServicesPage from "./pages/ServicesPage";
 import StaffPage from "./pages/StaffPage";
 import StaffDetailPage from "./pages/StaffDetailPage";
+import WorkSchedulePage from "./pages/WorkSchedulePage";
 import BookingsPage from "./pages/BookingsPage";
 import ContractSignPage from "./pages/ContractSignPage";
 import AuthPage from "./pages/AuthPage";
@@ -47,6 +48,7 @@ const App = () => (
           <Route path="/services" element={<ProtectedRoute allowedRoles={["manager", "director"]}><ServicesPage /></ProtectedRoute>} />
           <Route path="/staff" element={<ProtectedRoute allowedRoles={["manager", "director"]}><StaffPage /></ProtectedRoute>} />
           <Route path="/staff/:id" element={<ProtectedRoute allowedRoles={["manager", "director"]}><StaffDetailPage /></ProtectedRoute>} />
+          <Route path="/staff/schedule" element={<ProtectedRoute allowedRoles={["manager", "director"]}><WorkSchedulePage /></ProtectedRoute>} />
           <Route path="/bookings" element={<ProtectedRoute allowedRoles={["manager", "director"]}><BookingsPage /></ProtectedRoute>} />
 
           <Route path="*" element={<NotFound />} />
