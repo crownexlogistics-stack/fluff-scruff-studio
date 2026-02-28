@@ -299,7 +299,7 @@ const StaffDetailPage = () => {
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar mode="single" selected={form.date_of_birth ?? undefined} onSelect={(d) => setForm({ ...form, date_of_birth: d ?? null })} initialFocus className="p-3 pointer-events-auto" captionLayout="dropdown-buttons" fromYear={1950} toYear={2010} />
+                      <Calendar mode="single" selected={form.date_of_birth ?? undefined} onSelect={(d) => setForm({ ...form, date_of_birth: d ?? null })} initialFocus className="p-3 pointer-events-auto" captionLayout="dropdown" fromYear={1950} toYear={2010} />
                     </PopoverContent>
                   </Popover>
                 </div>
@@ -429,47 +429,48 @@ const StaffDetailPage = () => {
               </CardContent>
             </Card>
 
-            {/* HR Notes - Director only */}
-            {isDirector && (
-              <Card>
-                <CardHeader className="pb-4">
-                  <CardTitle className="font-heading text-lg flex items-center gap-2"><StickyNote className="h-5 w-5 text-primary" /> HR Notes</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Textarea
-                      value={newNote}
-                      onChange={(e) => setNewNote(e.target.value)}
-                      placeholder="Add a confidential HR note..."
-                      rows={3}
-                    />
-                    <Button
-                      size="sm"
-                      onClick={() => { if (newNote.trim()) addNoteMutation.mutate(newNote.trim()); }}
-                      disabled={!newNote.trim() || addNoteMutation.isPending}
-                    >
-                      Add Note
-                    </Button>
-                  </div>
-
-                  {staffNotes && staffNotes.length > 0 && (
-                    <div className="space-y-3 pt-2">
-                      <Separator />
-                      {staffNotes.map((n: any) => (
-                        <div key={n.id} className="rounded-lg border bg-muted/30 p-3 space-y-1">
-                          <p className="text-sm">{n.note}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {format(new Date(n.created_at), "dd MMM yyyy 'at' HH:mm")}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
           </div>
         </div>
+
+        {/* HR Notes - Director only - Full width */}
+        {isDirector && (
+          <Card>
+            <CardHeader className="pb-4">
+              <CardTitle className="font-heading text-lg flex items-center gap-2"><StickyNote className="h-5 w-5 text-primary" /> HR Notes</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Textarea
+                  value={newNote}
+                  onChange={(e) => setNewNote(e.target.value)}
+                  placeholder="Add a confidential HR note..."
+                  rows={3}
+                />
+                <Button
+                  size="sm"
+                  onClick={() => { if (newNote.trim()) addNoteMutation.mutate(newNote.trim()); }}
+                  disabled={!newNote.trim() || addNoteMutation.isPending}
+                >
+                  Add Note
+                </Button>
+              </div>
+
+              {staffNotes && staffNotes.length > 0 && (
+                <div className="space-y-3 pt-2">
+                  <Separator />
+                  {staffNotes.map((n: any) => (
+                    <div key={n.id} className="rounded-lg border bg-muted/30 p-3 space-y-1">
+                      <p className="text-sm">{n.note}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {format(new Date(n.created_at), "dd MMM yyyy 'at' HH:mm")}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       <ContractPreviewDialog staff={staff} open={contractOpen} onOpenChange={setContractOpen} />
