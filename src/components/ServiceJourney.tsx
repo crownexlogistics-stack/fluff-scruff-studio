@@ -43,7 +43,7 @@ export function ServiceJourney({ services, onSelectService }: ServiceJourneyProp
                 <div className="relative bg-card rounded-3xl overflow-hidden border border-border/40 transition-[box-shadow,border-color,transform] duration-500 hover:shadow-xl hover:shadow-black/[0.06] hover:border-border/60 hover:-translate-y-1 shadow-md shadow-black/[0.03]">
                 {/* Image */}
                 <div className="relative overflow-hidden bg-card">
-                  <div className="relative transform-gpu will-change-transform transition-transform duration-700 group-hover:scale-[1.04]">
+                  <div className="relative origin-top transform-gpu will-change-transform transition-transform duration-700 group-hover:scale-[1.04]">
                     <img
                       src={service.image}
                       alt={service.title}
@@ -53,15 +53,15 @@ export function ServiceJourney({ services, onSelectService }: ServiceJourneyProp
                         backfaceVisibility: "hidden",
                       }}
                     />
-                    {/* Gradient fade into card */}
-                    <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-card via-card/80 to-transparent pointer-events-none" />
-                    {/* Anti-flicker seam guard */}
-                    <div className="absolute inset-x-0 bottom-0 h-[2px] bg-card pointer-events-none" />
                   </div>
+                  {/* Gradient fade into card */}
+                  <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-card via-card/80 to-transparent pointer-events-none" />
+                  {/* Anti-flicker seam guard fixed outside transform */}
+                  <div className="absolute inset-x-0 bottom-0 h-[3px] bg-card pointer-events-none" />
                 </div>
 
                 {/* Text */}
-                <div className="px-6 pb-6 pt-2 sm:px-8 sm:pb-8">
+                <div className="relative z-10 -mt-px bg-card px-6 pb-6 pt-2 sm:px-8 sm:pb-8">
                   <h3 className="text-2xl font-heading text-foreground mb-2 group-hover:text-accent transition-colors duration-300">
                     {service.title}
                   </h3>
