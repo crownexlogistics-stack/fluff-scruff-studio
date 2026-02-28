@@ -6,8 +6,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
-import { Shield, UserCheck, User } from "lucide-react";
-import type { AppRole } from "@/hooks/useUserRole";
+import { Shield, UserCheck, User, Crown } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { useUserRole, type AppRole } from "@/hooks/useUserRole";
 
 interface UserWithRole {
   user_id: string;
@@ -17,12 +18,14 @@ interface UserWithRole {
 }
 
 const roleIcons: Record<AppRole, React.ReactNode> = {
+  director: <Crown className="h-3.5 w-3.5" />,
   manager: <Shield className="h-3.5 w-3.5" />,
   groomer: <UserCheck className="h-3.5 w-3.5" />,
   customer: <User className="h-3.5 w-3.5" />,
 };
 
 const roleColors: Record<AppRole, string> = {
+  director: "bg-destructive/10 text-destructive border-destructive/20",
   manager: "bg-primary/10 text-primary border-primary/20",
   groomer: "bg-accent/10 text-accent-foreground border-accent/20",
   customer: "bg-muted text-muted-foreground border-border",
@@ -126,6 +129,7 @@ const AdminUsersPage = () => {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
+                          <SelectItem value="director">Director</SelectItem>
                           <SelectItem value="manager">Manager</SelectItem>
                           <SelectItem value="groomer">Groomer</SelectItem>
                           <SelectItem value="customer">Customer</SelectItem>

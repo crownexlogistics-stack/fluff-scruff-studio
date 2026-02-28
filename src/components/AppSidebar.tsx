@@ -1,7 +1,8 @@
-import { Dog, Scissors, Users, Calendar, LayoutDashboard, DollarSign } from "lucide-react";
+import { Dog, Scissors, Users, Calendar, LayoutDashboard, Crown } from "lucide-react";
 import logo from "@/assets/logo-transparent.png";
 import { NavLink } from "@/components/NavLink";
-import { useLocation } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import { useUserRole } from "@/hooks/useUserRole";
 import {
   Sidebar,
   SidebarContent,
@@ -15,18 +16,27 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 
-const navItems = [
+const baseNavItems = [
   { title: "Dashboard", url: "/admin", icon: LayoutDashboard },
   { title: "Breeds", url: "/breeds", icon: Dog },
   { title: "Services", url: "/services", icon: Scissors },
   { title: "Staff", url: "/staff", icon: Users },
   { title: "Bookings", url: "/bookings", icon: Calendar },
-  { title: "Users", url: "/admin/users", icon: Users },
+];
+
+const directorOnlyItems = [
+  { title: "Users", url: "/admin/users", icon: Crown },
 ];
 
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
+  const { user } = useAuth();
+  const { role } = useUserRole(user?.id);
+
+  const navItems = role === "director"
+    ? [...baseNavItems, ...directorOnlyItems]
+    : baseNavItems;
 
   return (
     <Sidebar collapsible="icon">

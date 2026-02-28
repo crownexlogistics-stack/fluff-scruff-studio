@@ -38,7 +38,7 @@ const CustomerHome = () => {
             {user && role === "customer" && (
               <Link to="/my-pets" className="text-muted-foreground hover:text-foreground transition-colors">My Pets</Link>
             )}
-            {user && role === "manager" && (
+            {user && (role === "manager" || role === "director") && (
               <Link to="/admin" className="text-muted-foreground hover:text-foreground transition-colors">Dashboard</Link>
             )}
             {user && role === "groomer" && (
