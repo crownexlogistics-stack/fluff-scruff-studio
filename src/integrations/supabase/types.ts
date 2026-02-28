@@ -100,22 +100,31 @@ export type Database = {
         Row: {
           base_notes: string | null
           created_at: string
+          duration_minutes: number
           id: string
           name: string
+          price_bath_brush: number
+          price_full_groom: number
           size_category: string
         }
         Insert: {
           base_notes?: string | null
           created_at?: string
+          duration_minutes?: number
           id?: string
           name: string
+          price_bath_brush?: number
+          price_full_groom?: number
           size_category: string
         }
         Update: {
           base_notes?: string | null
           created_at?: string
+          duration_minutes?: number
           id?: string
           name?: string
+          price_bath_brush?: number
+          price_full_groom?: number
           size_category?: string
         }
         Relationships: []
