@@ -2,7 +2,7 @@ import {
   Dog, Users, Calendar, LayoutDashboard, Crown,
   UserPlus, CalendarClock, ChevronDown, Megaphone,
   UsersRound, BarChart3, Tags, Search, Facebook, Mail,
-  LogOut,
+  LogOut, Sparkles,
 } from "lucide-react";
 import logo from "@/assets/logo-transparent.png";
 import { NavLink } from "@/components/NavLink";
@@ -30,6 +30,7 @@ import {
 const mainNavItems = [
   { title: "Dashboard", url: "/admin", icon: LayoutDashboard },
   { title: "Bookings", url: "/bookings", icon: Calendar },
+  { title: "Add-Ons", url: "/add-ons", icon: Sparkles },
 ];
 
 const directorNavItems = [
