@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Phone, MapPin, Clock, Instagram, Facebook, PawPrint, LogIn, LogOut, User } from "lucide-react";
+import { Phone, MapPin, Clock, Instagram, Facebook, PawPrint, LogIn, LogOut } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Link } from "react-router-dom";
@@ -18,6 +18,8 @@ const CustomerHome = () => {
   const { role } = useUserRole(user?.id);
   const [activeService, setActiveService] = useState<string | null>(null);
 
+  const isStaff = role === "manager" || role === "director" || role === "groomer";
+
   const services = [
     { title: "Full Groom", subtitle: "The ultimate pamper session — wash, dry, cut & style. Your pup leaves looking like a supermodel.", image: serviceFullGroom },
     { title: "Puppy Special", subtitle: "A gentle, fun first grooming experience. We go at their pace with loads of treats & cuddles.", image: servicePuppy, imagePosition: "center 55%" },
@@ -28,43 +30,48 @@ const CustomerHome = () => {
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Navigation */}
-      <nav className="sticky top-0 z-50 glass border-b border-border/50">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <img src={logo} alt="Fluff & Scruff" className="h-12 w-auto" />
-          <div className="hidden sm:flex items-center gap-8 text-sm font-medium font-body">
-            <a href="#services" className="text-muted-foreground hover:text-foreground transition-colors">Services</a>
-            <a href="#about" className="text-muted-foreground hover:text-foreground transition-colors">About</a>
-            <a href="#contact" className="text-muted-foreground hover:text-foreground transition-colors">Contact</a>
+      <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-border/30 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-18 flex items-center justify-between" style={{ height: '4.5rem' }}>
+          <img src={logo} alt="Fluff & Scruff" className="h-14 w-auto" />
+          <div className="hidden sm:flex items-center gap-10 text-sm font-medium font-body">
+            <a href="#services" className="relative text-muted-foreground hover:text-foreground transition-colors duration-300 after:absolute after:left-0 after:bottom-[-4px] after:h-[2px] after:w-0 after:bg-accent after:transition-all after:duration-300 hover:after:w-full">Services</a>
+            <a href="#about" className="relative text-muted-foreground hover:text-foreground transition-colors duration-300 after:absolute after:left-0 after:bottom-[-4px] after:h-[2px] after:w-0 after:bg-accent after:transition-all after:duration-300 hover:after:w-full">About</a>
+            <a href="#contact" className="relative text-muted-foreground hover:text-foreground transition-colors duration-300 after:absolute after:left-0 after:bottom-[-4px] after:h-[2px] after:w-0 after:bg-accent after:transition-all after:duration-300 hover:after:w-full">Contact</a>
             {user && role === "customer" && (
-              <Link to="/my-pets" className="text-muted-foreground hover:text-foreground transition-colors">My Pets</Link>
+              <Link to="/my-pets" className="relative text-muted-foreground hover:text-foreground transition-colors duration-300 after:absolute after:left-0 after:bottom-[-4px] after:h-[2px] after:w-0 after:bg-accent after:transition-all after:duration-300 hover:after:w-full">My Pets</Link>
             )}
             {user && (role === "manager" || role === "director") && (
-              <Link to="/admin" className="text-muted-foreground hover:text-foreground transition-colors">Dashboard</Link>
+              <Link to="/admin" className="relative text-muted-foreground hover:text-foreground transition-colors duration-300 after:absolute after:left-0 after:bottom-[-4px] after:h-[2px] after:w-0 after:bg-accent after:transition-all after:duration-300 hover:after:w-full">Dashboard</Link>
             )}
             {user && role === "groomer" && (
-              <Link to="/portal" className="text-muted-foreground hover:text-foreground transition-colors">My Schedule</Link>
+              <Link to="/portal" className="relative text-muted-foreground hover:text-foreground transition-colors duration-300 after:absolute after:left-0 after:bottom-[-4px] after:h-[2px] after:w-0 after:bg-accent after:transition-all after:duration-300 hover:after:w-full">My Schedule</Link>
             )}
           </div>
           <div className="flex items-center gap-3">
             <button
               onClick={() => setActiveService("Full Groom")}
-              className="bg-charcoal text-primary-foreground font-semibold font-body text-sm px-5 py-2.5 rounded-full hover:opacity-90 transition-all shadow-md shadow-charcoal/20"
+              className="bg-charcoal text-primary-foreground font-semibold font-body text-sm px-6 py-2.5 rounded-full hover:opacity-90 transition-all duration-300 shadow-md shadow-charcoal/15 hover:shadow-lg hover:shadow-charcoal/20"
             >
               Book Now
             </button>
+            {/* Only show auth controls for staff or logged-in customers */}
             {user ? (
-              <button
-                onClick={async () => { await signOut(); }}
-                className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors font-body"
-              >
-                <LogOut className="h-4 w-4" /> Sign Out
-              </button>
+              isStaff || role === "customer" ? (
+                <button
+                  onClick={async () => { await signOut(); }}
+                  className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors duration-300 font-body"
+                >
+                  <LogOut className="h-4 w-4" /> Sign Out
+                </button>
+              ) : null
             ) : (
+              /* Hide sign-in from public — only show a subtle link */
               <Link
                 to="/auth"
-                className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors font-body"
+                className="text-muted-foreground/40 hover:text-muted-foreground transition-colors duration-300"
+                aria-label="Staff login"
               >
-                <LogIn className="h-4 w-4" /> Sign In
+                <LogIn className="h-4 w-4" />
               </Link>
             )}
           </div>
@@ -73,36 +80,39 @@ const CustomerHome = () => {
 
       {/* Hero Section */}
       <section className="relative overflow-hidden">
-        <div className="relative w-full h-[55vh] sm:h-[65vh] md:h-[75vh]">
+        <div className="relative w-full h-[58vh] sm:h-[68vh] md:h-[78vh]">
           <img
             src={heroDog}
             alt="Beautifully groomed dog at Fluff & Scruff studio"
-            className="w-full h-full object-cover object-center"
+            className="w-full h-full object-cover object-center brightness-[1.08]"
           />
-          <div className="absolute inset-x-0 bottom-0 h-72 bg-gradient-to-t from-background via-background/85 to-transparent" />
-          <div className="absolute inset-y-0 left-0 w-32 bg-gradient-to-r from-background/30 to-transparent" />
-          <div className="absolute inset-y-0 right-0 w-32 bg-gradient-to-l from-background/30 to-transparent" />
+          {/* Softer overlays — reduced opacity for richer image */}
+          <div className="absolute inset-x-0 bottom-0 h-80 bg-gradient-to-t from-background via-background/70 to-transparent" />
+          <div className="absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-background/15 to-transparent" />
+          <div className="absolute inset-y-0 right-0 w-24 bg-gradient-to-l from-background/15 to-transparent" />
         </div>
 
-        {/* Hero text */}
-        <div className="relative -mt-44 z-10 max-w-2xl mx-auto px-6 text-center pb-14">
-          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-heading text-foreground leading-[1.1] tracking-tight">
+        {/* Hero text — larger, more dominant */}
+        <div className="relative -mt-52 z-10 max-w-2xl mx-auto px-6 text-center pb-16">
+          <h1 className="text-6xl sm:text-7xl lg:text-8xl font-heading text-foreground leading-[1.05] tracking-tight drop-shadow-[0_2px_4px_rgba(0,0,0,0.08)]">
             Fluff &amp; Scruff Studio
           </h1>
-          <div className="w-16 h-[2px] bg-accent/40 mx-auto mt-5 mb-4 rounded-full" />
+          <div className="w-20 h-[2px] bg-accent/50 mx-auto mt-6 mb-5 rounded-full" />
           <p className="text-base sm:text-lg text-muted-foreground font-body max-w-sm mx-auto leading-relaxed">
             Where every pup leaves looking <em>and feeling</em> their absolute best.
           </p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center mt-8">
+          <div className="flex flex-col sm:flex-row gap-4 justify-center mt-10">
             <button
               onClick={() => setActiveService("Full Groom")}
-              className="bg-charcoal text-primary-foreground font-semibold font-body text-base px-10 py-4 rounded-full hover:opacity-90 transition-all shadow-lg shadow-charcoal/20 hover:shadow-xl hover:shadow-charcoal/25 hover:-translate-y-0.5"
+              className="bg-charcoal text-primary-foreground font-semibold font-body text-base px-12 py-4.5 rounded-full hover:opacity-90 transition-all duration-300 shadow-lg shadow-charcoal/15 hover:shadow-xl hover:shadow-charcoal/20 hover:-translate-y-0.5"
+              style={{ paddingTop: '1.125rem', paddingBottom: '1.125rem' }}
             >
               Book an Appointment
             </button>
             <a
               href="tel:+441234567890"
-              className="flex items-center justify-center gap-2 border-2 border-foreground/10 bg-white/60 backdrop-blur-sm text-foreground font-semibold font-body text-base px-10 py-4 rounded-full hover:border-foreground/20 hover:bg-white transition-all"
+              className="flex items-center justify-center gap-2 border-2 border-foreground/8 bg-white/70 backdrop-blur-sm text-foreground font-semibold font-body text-base px-12 rounded-full hover:border-foreground/15 hover:bg-white/90 transition-all duration-300"
+              style={{ paddingTop: '1.125rem', paddingBottom: '1.125rem' }}
             >
               <Phone className="h-4 w-4" />
               Call Us
@@ -121,40 +131,40 @@ const CustomerHome = () => {
       <GoogleReviews />
 
       {/* Contact / Info */}
-      <section id="contact" className="py-16 sm:py-20">
+      <section id="contact" className="py-20 sm:py-28">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-12">
+          <div className="text-center mb-14">
             <PawPrint className="h-6 w-6 text-accent mx-auto mb-3" />
-            <h2 className="text-3xl sm:text-4xl font-heading text-foreground mb-3">Come Say Hello</h2>
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-heading text-foreground mb-3">Come Say Hello</h2>
             <p className="text-muted-foreground font-body">We'd love to meet you and your pup!</p>
           </div>
-          <div className="grid sm:grid-cols-2 gap-5 max-w-2xl mx-auto">
+          <div className="grid sm:grid-cols-2 gap-6 max-w-2xl mx-auto">
             <a
               href="https://www.google.com/maps/place/138+Hillview+Ave,+Hornchurch+RM11+2DL"
               target="_blank"
               rel="noopener noreferrer"
-              className="bg-card rounded-3xl border border-border/60 p-6 flex items-start gap-4 hover:shadow-lg hover:shadow-black/[0.04] transition-all cursor-pointer no-underline shadow-sm shadow-black/[0.02]"
+              className="bg-card rounded-3xl border border-border/50 p-7 flex items-start gap-4 hover:shadow-xl hover:shadow-black/[0.04] hover:-translate-y-0.5 transition-all duration-300 cursor-pointer no-underline shadow-sm shadow-black/[0.02]"
             >
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-accent/10">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-accent/8">
                 <MapPin className="h-5 w-5 text-accent" />
               </div>
               <div>
                 <h3 className="font-semibold font-body text-foreground mb-1">Find Us</h3>
-                <p className="text-sm text-muted-foreground">138 Hillview Avenue, Hornchurch RM11 2DL</p>
+                <p className="text-sm text-muted-foreground leading-relaxed">138 Hillview Avenue, Hornchurch RM11 2DL</p>
               </div>
             </a>
-            <div className="bg-card rounded-3xl border border-border/60 p-6 flex items-start gap-4 hover:shadow-lg hover:shadow-black/[0.04] transition-all shadow-sm shadow-black/[0.02]">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-accent/10">
+            <div className="bg-card rounded-3xl border border-border/50 p-7 flex items-start gap-4 hover:shadow-xl hover:shadow-black/[0.04] hover:-translate-y-0.5 transition-all duration-300 shadow-sm shadow-black/[0.02]">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-accent/8">
                 <Clock className="h-5 w-5 text-accent" />
               </div>
               <div>
                 <h3 className="font-semibold font-body text-foreground mb-1">Opening Hours</h3>
-                <p className="text-sm text-muted-foreground">Tue – Sat · 10:00am – 5:00pm</p>
+                <p className="text-sm text-muted-foreground leading-relaxed">Tue – Sat · 10:00am – 5:00pm</p>
               </div>
             </div>
           </div>
           {/* Embedded Google Map */}
-          <div className="max-w-2xl mx-auto mt-6 rounded-3xl overflow-hidden border border-border shadow-sm">
+          <div className="max-w-2xl mx-auto mt-8 rounded-3xl overflow-hidden border border-border/50 shadow-sm shadow-black/[0.02]">
             <iframe
               title="Fluff & Scruff Studio location"
               src="https://maps.google.com/maps?q=138+Hillview+Ave,+Hornchurch+RM11+2DL,+UK&output=embed"
@@ -168,21 +178,23 @@ const CustomerHome = () => {
         </div>
       </section>
 
-      {/* CTA Banner */}
-      <section className="py-16 sm:py-20 bg-gradient-to-br from-accent to-paw text-accent-foreground">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 text-center space-y-6">
-          <div className="flex justify-center gap-2">
-            <PawPrint className="h-6 w-6 opacity-60" />
-            <PawPrint className="h-5 w-5 opacity-40" />
-            <PawPrint className="h-6 w-6 opacity-60" />
+      {/* CTA Banner — refined gradient with texture */}
+      <section className="py-20 sm:py-28 relative overflow-hidden" style={{ background: 'linear-gradient(135deg, hsl(24 75% 55%), hsl(28 80% 58%), hsl(20 70% 52%))' }}>
+        {/* Subtle texture overlay */}
+        <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: 'radial-gradient(circle at 20% 50%, rgba(255,255,255,0.3) 0%, transparent 50%), radial-gradient(circle at 80% 50%, rgba(0,0,0,0.1) 0%, transparent 50%)' }} />
+        <div className="relative max-w-3xl mx-auto px-4 sm:px-6 text-center space-y-8">
+          <div className="flex justify-center gap-3">
+            <PawPrint className="h-6 w-6 opacity-50" />
+            <PawPrint className="h-5 w-5 opacity-30" />
+            <PawPrint className="h-6 w-6 opacity-50" />
           </div>
-          <h2 className="text-3xl sm:text-4xl font-heading">Ready for a Pamper Day?</h2>
-          <p className="text-accent-foreground/80 font-body text-lg">
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-heading text-white">Ready for a Pamper Day?</h2>
+          <p className="text-white/85 font-body text-lg max-w-md mx-auto leading-relaxed">
             Give your dog the spa day they deserve. Book online in seconds.
           </p>
           <button
             onClick={() => setActiveService("Full Groom")}
-            className="bg-white text-charcoal font-semibold font-body text-base px-10 py-4 rounded-full hover:bg-white/90 transition-colors shadow-lg"
+            className="bg-white text-charcoal font-semibold font-body text-base px-12 py-5 rounded-full hover:bg-white/95 transition-all duration-300 shadow-xl shadow-black/10 hover:shadow-2xl hover:shadow-black/15 hover:-translate-y-0.5"
           >
             Book Now
           </button>
@@ -190,17 +202,17 @@ const CustomerHome = () => {
       </section>
 
       {/* Footer */}
-      <footer className="bg-foreground text-background py-10">
+      <footer className="bg-foreground text-background py-12">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
             <div className="flex items-center gap-3">
               <img src={logo} alt="Fluff & Scruff" className="h-10 w-auto brightness-0 invert" />
             </div>
             <div className="flex items-center gap-4">
-              <a href="https://www.instagram.com/fluffandscruff.studio/?hl=en" target="_blank" rel="noopener noreferrer" className="flex h-10 w-10 items-center justify-center rounded-full bg-background/10 hover:bg-accent/30 transition-colors">
+              <a href="https://www.instagram.com/fluffandscruff.studio/?hl=en" target="_blank" rel="noopener noreferrer" className="flex h-10 w-10 items-center justify-center rounded-full bg-background/10 hover:bg-accent/30 transition-colors duration-300">
                 <Instagram className="h-5 w-5" />
               </a>
-              <a href="https://www.facebook.com/p/FluffScruff-studio-61553637233998/" target="_blank" rel="noopener noreferrer" className="flex h-10 w-10 items-center justify-center rounded-full bg-background/10 hover:bg-accent/30 transition-colors">
+              <a href="https://www.facebook.com/p/FluffScruff-studio-61553637233998/" target="_blank" rel="noopener noreferrer" className="flex h-10 w-10 items-center justify-center rounded-full bg-background/10 hover:bg-accent/30 transition-colors duration-300">
                 <Facebook className="h-5 w-5" />
               </a>
             </div>
