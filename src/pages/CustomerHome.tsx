@@ -138,8 +138,6 @@ const CustomerHome = () => {
         </div>
       </section>
 
-      {/* Trust Strip — social proof near top */}
-      <TrustStrip />
 
       {/* Services Journey */}
       <ServiceJourney
