@@ -245,6 +245,7 @@ export type Database = {
           contact_number: string | null
           contract_status: string
           created_at: string
+          date_of_birth: string | null
           description: string | null
           email: string | null
           id: string
@@ -260,6 +261,7 @@ export type Database = {
           contact_number?: string | null
           contract_status?: string
           created_at?: string
+          date_of_birth?: string | null
           description?: string | null
           email?: string | null
           id?: string
@@ -275,6 +277,7 @@ export type Database = {
           contact_number?: string | null
           contract_status?: string
           created_at?: string
+          date_of_birth?: string | null
           description?: string | null
           email?: string | null
           id?: string
@@ -318,6 +321,38 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "staff_availability_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff_notes: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          note: string
+          staff_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          note: string
+          staff_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          note?: string
+          staff_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_notes_staff_id_fkey"
             columns: ["staff_id"]
             isOneToOne: false
             referencedRelation: "staff"

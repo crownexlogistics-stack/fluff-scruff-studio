@@ -15,7 +15,10 @@ import { Switch } from "@/components/ui/switch";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ArrowLeft, CalendarIcon, Save, FileText, Send, CheckCircle2, User, Clock, Scissors } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ArrowLeft, CalendarIcon, Save, FileText, Send, CheckCircle2, User, Clock, Scissors, StickyNote, Cake } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { useUserRole } from "@/hooks/useUserRole";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { ContractPreviewDialog } from "@/components/staff/ContractPreviewDialog";
@@ -27,10 +30,14 @@ const StaffDetailPage = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [contractOpen, setContractOpen] = useState(false);
+  const [newNote, setNewNote] = useState("");
+  const { user } = useAuth();
+  const { role: currentUserRole } = useUserRole(user?.id);
+  const isDirector = currentUserRole === "director";
 
   // Basic form state
   const [form, setForm] = useState({
-    name: "", role: "", email: "", contact_number: "", description: "", is_self_employed: false, start_date: null as Date | null,
+    name: "", role: "", email: "", contact_number: "", is_self_employed: false, start_date: null as Date | null, date_of_birth: null as Date | null,
   });
 
   // Availability state: array of 7 days
@@ -84,13 +91,34 @@ const StaffDetailPage = () => {
     },
   });
 
+  // Fetch HR notes (director only)
+  const { data: staffNotes } = useQuery({
+    queryKey: ["staff_notes", id],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("staff_notes" as any).select("*").eq("staff_id", id!).order("created_at", { ascending: false });
+      if (error) throw error;
+      return data as any[];
+    },
+    enabled: !!id && isDirector,
+  });
+
+  const addNoteMutation = useMutation({
+    mutationFn: async (note: string) => {
+      const { error } = await supabase.from("staff_notes" as any).insert({ staff_id: id!, note, created_by: user!.id } as any);
+      if (error) throw error;
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["staff_notes", id] }); setNewNote(""); toast.success("Note added"); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   // Populate form when data loads
   useEffect(() => {
     if (staff) {
       setForm({
         name: staff.name, role: staff.role, email: staff.email || "",
-        contact_number: staff.contact_number || "", description: staff.description || "",
+        contact_number: staff.contact_number || "",
         is_self_employed: staff.is_self_employed, start_date: staff.start_date ? new Date(staff.start_date) : null,
+        date_of_birth: (staff as any).date_of_birth ? new Date((staff as any).date_of_birth) : null,
       });
     }
   }, [staff]);
@@ -117,10 +145,11 @@ const StaffDetailPage = () => {
     mutationFn: async () => {
       const { error } = await supabase.from("staff").update({
         name: form.name, role: form.role, email: form.email || null,
-        contact_number: form.contact_number || null, description: form.description || null,
+        contact_number: form.contact_number || null,
         is_self_employed: form.is_self_employed,
         start_date: form.start_date ? format(form.start_date, "yyyy-MM-dd") : null,
-      }).eq("id", id!);
+        date_of_birth: form.date_of_birth ? format(form.date_of_birth, "yyyy-MM-dd") : null,
+      } as any).eq("id", id!);
       if (error) throw error;
     },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["staff", id] }); toast.success("Details saved"); },
@@ -239,7 +268,15 @@ const StaffDetailPage = () => {
                   </div>
                   <div className="space-y-2">
                     <Label>Role</Label>
-                    <Input value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} />
+                    <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
+                      <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Groomer">Groomer</SelectItem>
+                        <SelectItem value="Manager">Manager</SelectItem>
+                        <SelectItem value="Volunteer">Volunteer</SelectItem>
+                        <SelectItem value="Work Placement">Work Placement</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
@@ -253,8 +290,18 @@ const StaffDetailPage = () => {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>Description</Label>
-                  <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Brief bio or notes about this team member..." rows={3} />
+                  <Label className="flex items-center gap-2"><Cake className="h-4 w-4" /> Date of Birth</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !form.date_of_birth && "text-muted-foreground")}>
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {form.date_of_birth ? format(form.date_of_birth, "PPP") : "Pick a date"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar mode="single" selected={form.date_of_birth ?? undefined} onSelect={(d) => setForm({ ...form, date_of_birth: d ?? null })} initialFocus className="p-3 pointer-events-auto" captionLayout="dropdown-buttons" fromYear={1950} toYear={2010} />
+                    </PopoverContent>
+                  </Popover>
                 </div>
                 <div className="flex items-center justify-between pt-2">
                   <Label>Self-Employed Contractor</Label>
@@ -381,6 +428,46 @@ const StaffDetailPage = () => {
                 )}
               </CardContent>
             </Card>
+
+            {/* HR Notes - Director only */}
+            {isDirector && (
+              <Card>
+                <CardHeader className="pb-4">
+                  <CardTitle className="font-heading text-lg flex items-center gap-2"><StickyNote className="h-5 w-5 text-primary" /> HR Notes</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Textarea
+                      value={newNote}
+                      onChange={(e) => setNewNote(e.target.value)}
+                      placeholder="Add a confidential HR note..."
+                      rows={3}
+                    />
+                    <Button
+                      size="sm"
+                      onClick={() => { if (newNote.trim()) addNoteMutation.mutate(newNote.trim()); }}
+                      disabled={!newNote.trim() || addNoteMutation.isPending}
+                    >
+                      Add Note
+                    </Button>
+                  </div>
+
+                  {staffNotes && staffNotes.length > 0 && (
+                    <div className="space-y-3 pt-2">
+                      <Separator />
+                      {staffNotes.map((n: any) => (
+                        <div key={n.id} className="rounded-lg border bg-muted/30 p-3 space-y-1">
+                          <p className="text-sm">{n.note}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {format(new Date(n.created_at), "dd MMM yyyy 'at' HH:mm")}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
       </div>
