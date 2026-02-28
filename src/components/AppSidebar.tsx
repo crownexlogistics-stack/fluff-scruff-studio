@@ -1,6 +1,7 @@
 import {
   Dog, Scissors, Users, Calendar, LayoutDashboard, Crown,
   UserPlus, CalendarClock, ChevronDown, Megaphone,
+  UsersRound, BarChart3, Tags, Search, Facebook, Mail,
 } from "lucide-react";
 import logo from "@/assets/logo-transparent.png";
 import { NavLink } from "@/components/NavLink";
@@ -34,7 +35,15 @@ const mainNavItems = [
 const hrSubItems = [
   { title: "Manage Staff", url: "/staff", icon: UserPlus },
   { title: "Work Schedule", url: "/staff/schedule", icon: CalendarClock },
-  { title: "Marketing", url: "/marketing", icon: Megaphone },
+];
+
+const marketingSubItems = [
+  { title: "Customers", url: "/marketing/customers", icon: UsersRound },
+  { title: "Booking Analytics", url: "/marketing/analytics", icon: BarChart3 },
+  { title: "Discounts", url: "/marketing/discounts", icon: Tags },
+  { title: "SEO", url: "/marketing/seo", icon: Search },
+  { title: "Social Campaigns", url: "/marketing/social", icon: Facebook },
+  { title: "Email Marketing", url: "/marketing/email", icon: Mail },
 ];
 
 const directorOnlyItems = [
@@ -127,7 +136,42 @@ export function AppSidebar() {
           </Collapsible>
         </SidebarGroup>
 
-        {/* Director-only */}
+        {/* Marketing Section */}
+        <SidebarGroup>
+          <Collapsible defaultOpen className="group/mkt">
+            <SidebarGroupLabel className="text-sidebar-foreground/50 text-xs uppercase tracking-wider p-0">
+              <CollapsibleTrigger className="flex w-full items-center justify-between px-2 py-1.5 hover:bg-sidebar-accent/30 rounded-md transition-colors">
+                <span className="flex items-center gap-2">
+                  <Megaphone className="h-3.5 w-3.5" />
+                  {!collapsed && "Marketing"}
+                </span>
+                {!collapsed && (
+                  <ChevronDown className="h-3.5 w-3.5 transition-transform group-data-[state=open]/mkt:rotate-180" />
+                )}
+              </CollapsibleTrigger>
+            </SidebarGroupLabel>
+            <CollapsibleContent>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {marketingSubItems.map((item) => (
+                    <SidebarMenuItem key={item.title}>
+                      <SidebarMenuButton asChild>
+                        <NavLink
+                          to={item.url}
+                          className="hover:bg-sidebar-accent/50 transition-colors pl-6"
+                          activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
+                        >
+                          <item.icon className="mr-2 h-4 w-4" />
+                          {!collapsed && <span>{item.title}</span>}
+                        </NavLink>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </CollapsibleContent>
+          </Collapsible>
+        </SidebarGroup>
         {role === "director" && (
           <SidebarGroup>
             <SidebarGroupLabel className="text-sidebar-foreground/50 text-xs uppercase tracking-wider">
