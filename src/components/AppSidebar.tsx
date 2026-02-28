@@ -29,9 +29,12 @@ import {
 
 const mainNavItems = [
   { title: "Dashboard", url: "/admin", icon: LayoutDashboard },
-  { title: "Breeds", url: "/breeds", icon: Dog },
   { title: "Services", url: "/services", icon: Scissors },
   { title: "Bookings", url: "/bookings", icon: Calendar },
+];
+
+const directorNavItems = [
+  { title: "Breeds", url: "/breeds", icon: Dog },
 ];
 
 const hrSubItems = [
@@ -88,6 +91,20 @@ export function AppSidebar() {
                     <NavLink
                       to={item.url}
                       end={item.url === "/admin"}
+                      className="hover:bg-sidebar-accent/50 transition-colors"
+                      activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
+                    >
+                      <item.icon className="mr-2 h-4 w-4" />
+                      {!collapsed && <span>{item.title}</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+              {role === "director" && directorNavItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild>
+                    <NavLink
+                      to={item.url}
                       className="hover:bg-sidebar-accent/50 transition-colors"
                       activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
                     >
