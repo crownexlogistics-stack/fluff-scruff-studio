@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Phone, MapPin, Clock, Instagram, Facebook, PawPrint, LogIn, LogOut } from "lucide-react";
+import { Phone, MapPin, Clock, Instagram, Facebook, PawPrint, LogIn, LogOut, Star } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Link } from "react-router-dom";
@@ -31,9 +31,9 @@ const CustomerHome = () => {
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Navigation */}
-      <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-border/30 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-18 flex items-center justify-between" style={{ height: '4.5rem' }}>
-          <img src={logo} alt="Fluff & Scruff" className="h-14 w-auto" />
+      <nav className="sticky top-0 z-50 bg-white/75 backdrop-blur-2xl border-b border-border/20 shadow-[0_1px_8px_rgba(0,0,0,0.06)]">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-center justify-between" style={{ height: '4rem' }}>
+          <img src={logo} alt="Fluff & Scruff" className="h-12 sm:h-14 w-auto" />
           <div className="hidden sm:flex items-center gap-10 text-sm font-medium font-body">
             <a href="#services" className="relative text-muted-foreground hover:text-foreground transition-colors duration-300 after:absolute after:left-0 after:bottom-[-4px] after:h-[2px] after:w-0 after:bg-accent after:transition-all after:duration-300 hover:after:w-full">Services</a>
             <a href="#about" className="relative text-muted-foreground hover:text-foreground transition-colors duration-300 after:absolute after:left-0 after:bottom-[-4px] after:h-[2px] after:w-0 after:bg-accent after:transition-all after:duration-300 hover:after:w-full">About</a>
@@ -51,7 +51,8 @@ const CustomerHome = () => {
           <div className="flex items-center gap-3">
             <button
               onClick={() => setActiveService("Full Groom")}
-              className="bg-charcoal text-primary-foreground font-semibold font-body text-sm px-6 py-2.5 rounded-full hover:opacity-90 transition-all duration-300 shadow-md shadow-charcoal/15 hover:shadow-lg hover:shadow-charcoal/20"
+              className="text-primary-foreground font-semibold font-body text-sm px-6 py-2.5 rounded-full transition-all duration-300 shadow-md shadow-charcoal/15 hover:shadow-lg hover:shadow-charcoal/20 active:scale-[0.96]"
+              style={{ background: 'linear-gradient(135deg, hsl(220 10% 22%), hsl(220 10% 30%))' }}
             >
               Book Now
             </button>
@@ -81,39 +82,54 @@ const CustomerHome = () => {
 
       {/* Hero Section */}
       <section className="relative overflow-hidden">
-        <div className="relative w-full h-[58vh] sm:h-[68vh] md:h-[78vh]">
+        <div className="relative w-full h-[48vh] sm:h-[62vh] md:h-[78vh]">
           <img
             src={heroDog}
             alt="Beautifully groomed dog at Fluff & Scruff studio"
             className="w-full h-full object-cover object-center brightness-[1.08]"
           />
-          {/* Softer overlays — reduced opacity for richer image */}
-          <div className="absolute inset-x-0 bottom-0 h-80 bg-gradient-to-t from-background via-background/70 to-transparent" />
-          <div className="absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-background/15 to-transparent" />
-          <div className="absolute inset-y-0 right-0 w-24 bg-gradient-to-l from-background/15 to-transparent" />
+          {/* Overlays — reduced for richer image on mobile */}
+          <div className="absolute inset-x-0 bottom-0 h-64 sm:h-80 bg-gradient-to-t from-background via-background/60 to-transparent" />
+          <div className="absolute inset-y-0 left-0 w-16 sm:w-24 bg-gradient-to-r from-background/10 to-transparent" />
+          <div className="absolute inset-y-0 right-0 w-16 sm:w-24 bg-gradient-to-l from-background/10 to-transparent" />
         </div>
 
-        {/* Hero text — larger, more dominant */}
-        <div className="relative -mt-52 z-10 max-w-2xl mx-auto px-6 text-center pb-16">
-          <h1 className="text-6xl sm:text-7xl lg:text-8xl font-heading text-foreground leading-[1.05] tracking-tight drop-shadow-[0_2px_4px_rgba(0,0,0,0.08)]">
+        {/* Hero text */}
+        <div className="relative -mt-44 sm:-mt-52 z-10 max-w-2xl mx-auto px-5 sm:px-6 text-center pb-6 sm:pb-16">
+          <h1 className="text-[2.75rem] sm:text-7xl lg:text-8xl font-heading text-foreground leading-[1.08] tracking-tight drop-shadow-[0_2px_8px_rgba(0,0,0,0.12)]">
             Fluff &amp; Scruff Studio
           </h1>
-          <div className="w-20 h-[2px] bg-accent/50 mx-auto mt-6 mb-5 rounded-full" />
-          <p className="text-base sm:text-lg text-muted-foreground font-body max-w-sm mx-auto leading-relaxed">
+          <div className="w-16 sm:w-20 h-[2px] bg-accent/50 mx-auto mt-4 sm:mt-6 mb-3 sm:mb-5 rounded-full" />
+          <p className="text-[0.9rem] sm:text-lg text-muted-foreground font-body max-w-sm mx-auto leading-relaxed">
             Where every pup leaves looking <em>and feeling</em> their absolute best.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center mt-10">
+          {/* Inline trust line */}
+          <div className="flex items-center justify-center gap-1.5 mt-3">
+            <div className="flex gap-0.5">
+              {[1,2,3,4,5].map(s => (
+                <Star key={s} className="h-3.5 w-3.5 text-accent fill-accent" />
+              ))}
+            </div>
+            <span className="text-xs font-body font-medium text-muted-foreground">
+              4.9 from 69+ Google reviews
+            </span>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center mt-7 sm:mt-10">
             <button
               onClick={() => setActiveService("Full Groom")}
-              className="bg-charcoal text-primary-foreground font-semibold font-body text-base px-12 py-4.5 rounded-full hover:opacity-90 transition-all duration-300 shadow-lg shadow-charcoal/15 hover:shadow-xl hover:shadow-charcoal/20 hover:-translate-y-0.5"
-              style={{ paddingTop: '1.125rem', paddingBottom: '1.125rem' }}
+              className="font-semibold font-body text-base px-12 rounded-full text-primary-foreground transition-all duration-300 shadow-lg shadow-charcoal/20 hover:shadow-xl hover:shadow-charcoal/25 hover:-translate-y-0.5 active:scale-[0.97] active:shadow-md"
+              style={{
+                paddingTop: '1.1rem',
+                paddingBottom: '1.1rem',
+                background: 'linear-gradient(135deg, hsl(220 10% 22%), hsl(220 10% 30%))',
+              }}
             >
               Book an Appointment
             </button>
             <a
               href="tel:+441234567890"
-              className="flex items-center justify-center gap-2 border-2 border-foreground/8 bg-white/70 backdrop-blur-sm text-foreground font-semibold font-body text-base px-12 rounded-full hover:border-foreground/15 hover:bg-white/90 transition-all duration-300"
-              style={{ paddingTop: '1.125rem', paddingBottom: '1.125rem' }}
+              className="flex items-center justify-center gap-2 border-2 border-foreground/8 bg-white/70 backdrop-blur-sm text-foreground font-semibold font-body text-base px-12 rounded-full hover:border-foreground/15 hover:bg-white/90 transition-all duration-300 active:scale-[0.97]"
+              style={{ paddingTop: '0.9rem', paddingBottom: '0.9rem' }}
             >
               <Phone className="h-4 w-4" />
               Call Us
@@ -140,7 +156,7 @@ const CustomerHome = () => {
       <GoogleReviews />
 
       {/* Contact / Info */}
-      <section id="contact" className="py-24 sm:py-32">
+      <section id="contact" className="py-16 sm:py-24 lg:py-32">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-16">
             <PawPrint className="h-6 w-6 text-accent mx-auto mb-3" />
@@ -188,7 +204,7 @@ const CustomerHome = () => {
       </section>
 
       {/* CTA Banner — refined gradient with texture */}
-      <section className="py-24 sm:py-32 relative overflow-hidden" style={{ background: 'linear-gradient(135deg, hsl(24 75% 55%), hsl(28 80% 58%), hsl(20 70% 52%))' }}>
+      <section className="py-16 sm:py-24 lg:py-32 relative overflow-hidden" style={{ background: 'linear-gradient(135deg, hsl(24 75% 55%), hsl(28 80% 58%), hsl(20 70% 52%))' }}>
         {/* Subtle texture overlay */}
         <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: 'radial-gradient(circle at 20% 50%, rgba(255,255,255,0.3) 0%, transparent 50%), radial-gradient(circle at 80% 50%, rgba(0,0,0,0.1) 0%, transparent 50%)' }} />
         <div className="relative max-w-3xl mx-auto px-4 sm:px-6 text-center space-y-8">
