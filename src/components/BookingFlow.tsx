@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from "react";
-import { ArrowLeft, Search, Dog, ChevronRight, PawPrint, Save, Move, Sparkles, Check } from "lucide-react";
+import { ArrowLeft, Search, Dog, ChevronRight, PawPrint, Save, Move, Sparkles, Check, ChevronLeft } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
@@ -10,7 +10,7 @@ import serviceFullGroomSub from "@/assets/service-full-groom-sub.jpg";
 
 const ADJUST_MODE = false;
 
-type Step = "sub-service" | "breed" | "calendar" | "guest-details" | null;
+type Step = "sub-service" | "breed" | "calendar" | "addons" | "guest-details" | null;
 
 interface BookingFlowProps {
   service: string;
@@ -32,11 +32,6 @@ const subServices = [
   },
 ];
 
-const ADD_ONS = [
-  { label: "VIP Treatment", price: 12, icon: Sparkles },
-  { label: "De-shedding", price: 10, icon: Dog },
-];
-
 function formatDuration(mins: number) {
   const h = Math.floor(mins / 60);
   const m = mins % 60;
@@ -50,6 +45,19 @@ function parsePosition(pos: string) {
   return { x: parseFloat(parts[0]), y: parseFloat(parts[1]) };
 }
 
+// Calendar helpers
+function getDaysInMonth(year: number, month: number) {
+  return new Date(year, month + 1, 0).getDate();
+}
+
+function getFirstDayOfMonth(year: number, month: number) {
+  const d = new Date(year, month, 1).getDay();
+  return d === 0 ? 6 : d - 1; // Monday=0
+}
+
+const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
 export function BookingFlow({ service, onClose }: BookingFlowProps) {
   const [step, setStep] = useState<Step>(service === "Grooming" ? "sub-service" : "breed");
   const [selectedSub, setSelectedSub] = useState<string | null>(null);
@@ -61,15 +69,16 @@ export function BookingFlow({ service, onClose }: BookingFlowProps) {
   const [guestForm, setGuestForm] = useState({ name: "", phone: "", email: "", dogName: "" });
   const queryClient = useQueryClient();
 
+  // Calendar month state
+  const today = new Date();
+  const [calMonth, setCalMonth] = useState(today.getMonth());
+  const [calYear, setCalYear] = useState(today.getFullYear());
+
   // Load saved positions from DB
   const { data: savedPositions } = useQuery({
     queryKey: ["site_config", "sub_service_images"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("site_config")
-        .select("value")
-        .eq("key", "sub_service_images")
-        .single();
+      const { data, error } = await supabase.from("site_config").select("value").eq("key", "sub_service_images").single();
       if (error) return null;
       return data?.value as Record<string, string> | null;
     },
@@ -94,9 +103,7 @@ export function BookingFlow({ service, onClose }: BookingFlowProps) {
       subServices.forEach((s, i) => {
         value[s.label] = `${newPositions[i].x.toFixed(1)}% ${newPositions[i].y.toFixed(1)}%`;
       });
-      const { error } = await supabase
-        .from("site_config")
-        .upsert({ key: "sub_service_images", value, updated_at: new Date().toISOString() });
+      const { error } = await supabase.from("site_config").upsert({ key: "sub_service_images", value, updated_at: new Date().toISOString() });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -115,6 +122,16 @@ export function BookingFlow({ service, onClose }: BookingFlowProps) {
     },
   });
 
+  // Fetch add-ons from DB
+  const { data: dbAddOns } = useQuery({
+    queryKey: ["add_ons_active"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("add_ons").select("*").eq("is_active", true).order("created_at");
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const filteredBreeds = breedSearch.length > 0
     ? breeds?.filter((b) => b.name.toLowerCase().includes(breedSearch.toLowerCase()))
     : breeds;
@@ -123,9 +140,9 @@ export function BookingFlow({ service, onClose }: BookingFlowProps) {
   const breedPrice = selectedBreed
     ? (serviceType === "Bath & Brush" ? selectedBreed.price_bath_brush : selectedBreed.price_full_groom)
     : 0;
-  const addOnsTotal = selectedAddOns.reduce((sum, label) => {
-    const addon = ADD_ONS.find(a => a.label === label);
-    return sum + (addon?.price ?? 0);
+  const addOnsTotal = selectedAddOns.reduce((sum, id) => {
+    const addon = dbAddOns?.find(a => a.id === id);
+    return sum + (addon ? Number(addon.price) : 0);
   }, 0);
   const totalPrice = breedPrice + addOnsTotal;
 
@@ -142,8 +159,8 @@ export function BookingFlow({ service, onClose }: BookingFlowProps) {
     setStep("calendar");
   };
 
-  const toggleAddOn = (label: string) => {
-    setSelectedAddOns(prev => prev.includes(label) ? prev.filter(a => a !== label) : [...prev, label]);
+  const toggleAddOn = (id: string) => {
+    setSelectedAddOns(prev => prev.includes(id) ? prev.filter(a => a !== id) : [...prev, id]);
   };
 
   const handleGuestSubmit = async () => {
@@ -175,7 +192,10 @@ export function BookingFlow({ service, onClose }: BookingFlowProps) {
 
   const goBack = useCallback(() => {
     if (step === "guest-details") {
+      setStep("addons");
+    } else if (step === "addons") {
       setStep("calendar");
+      setSelectedTime(null);
     } else if (step === "calendar") {
       setStep("breed");
     } else if (step === "breed" && service === "Grooming") {
@@ -186,7 +206,7 @@ export function BookingFlow({ service, onClose }: BookingFlowProps) {
     }
   }, [step, service, onClose]);
 
-  // Generate time slots based on duration
+  // Generate time slots
   const generateTimeSlots = () => {
     const slots: string[] = [];
     const durationMins = selectedBreed?.duration_minutes ?? 60;
@@ -203,44 +223,77 @@ export function BookingFlow({ service, onClose }: BookingFlowProps) {
     return slots;
   };
 
-  // Generate next 14 days
-  const generateDates = () => {
-    const dates: Date[] = [];
-    const today = new Date();
-    for (let i = 1; i <= 14; i++) {
-      const d = new Date(today);
-      d.setDate(today.getDate() + i);
-      if (d.getDay() !== 0) dates.push(d); // skip Sunday
-    }
-    return dates;
+  // Calendar: check if a date is selectable (not in the past, not Sunday)
+  const isDateSelectable = (day: number) => {
+    const d = new Date(calYear, calMonth, day);
+    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    if (d <= todayStart) return false;
+    if (d.getDay() === 0) return false; // Sunday
+    return true;
+  };
+
+  const formatSelectedDate = (dateStr: string) => {
+    const d = new Date(dateStr + "T00:00:00");
+    return d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
+  };
+
+  const handleDateClick = (day: number) => {
+    if (!isDateSelectable(day)) return;
+    const dateStr = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    setSelectedDate(dateStr);
+    setSelectedTime(null);
+  };
+
+  const handleTimeClick = (time: string) => {
+    setSelectedTime(time);
+    // Transition to add-ons step
+    setTimeout(() => setStep("addons"), 300);
+  };
+
+  const prevMonth = () => {
+    if (calMonth === 0) { setCalMonth(11); setCalYear(y => y - 1); }
+    else setCalMonth(m => m - 1);
+  };
+
+  const nextMonth = () => {
+    if (calMonth === 11) { setCalMonth(0); setCalYear(y => y + 1); }
+    else setCalMonth(m => m + 1);
+  };
+
+  const canGoPrev = calYear > today.getFullYear() || (calYear === today.getFullYear() && calMonth > today.getMonth());
+
+  // Build calendar grid
+  const daysInMonth = getDaysInMonth(calYear, calMonth);
+  const firstDay = getFirstDayOfMonth(calYear, calMonth);
+  const calendarDays: (number | null)[] = [];
+  for (let i = 0; i < firstDay; i++) calendarDays.push(null);
+  for (let d = 1; d <= daysInMonth; d++) calendarDays.push(d);
+
+  const selectedDay = selectedDate ? parseInt(selectedDate.split("-")[2]) : null;
+
+  const getAddonIcon = (iconName: string | null) => {
+    if (iconName === "Dog") return Dog;
+    return Sparkles;
   };
 
   return (
     <div className="fixed inset-0 z-50 bg-background animate-slide-up flex flex-col">
       {/* Header */}
       <div className="glass sticky top-0 z-10 px-4 py-3 flex items-center gap-3 safe-area-top">
-        <button
-          onClick={goBack}
-          className="flex h-12 w-12 items-center justify-center rounded-2xl bg-muted active:scale-95 transition-transform touch-target"
-        >
+        <button onClick={goBack} className="flex h-12 w-12 items-center justify-center rounded-2xl bg-muted active:scale-95 transition-transform touch-target">
           <ArrowLeft className="h-5 w-5" />
         </button>
         <div className="flex-1">
           <h2 className="text-lg font-semibold font-body">
-            {step === "sub-service" ? service : step === "guest-details" ? "Your Details" : selectedSub ?? service}
+            {step === "sub-service" ? service : step === "guest-details" ? "Your Details" : step === "addons" ? "Extras" : selectedSub ?? service}
           </h2>
           <p className="text-xs text-muted-foreground">
-            {step === "sub-service" ? "Choose your style" : step === "breed" ? "Select breed" : step === "calendar" ? "Pick a slot" : "Almost done!"}
+            {step === "sub-service" ? "Choose your style" : step === "breed" ? "Select breed" : step === "calendar" ? "Pick a date & time" : step === "addons" ? "Add the finishing touches" : "Almost done!"}
           </p>
         </div>
         {ADJUST_MODE && step === "sub-service" && (
-          <button
-            onClick={() => saveMutation.mutate(adjustPositions)}
-            disabled={saveMutation.isPending}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-accent text-accent-foreground text-sm font-semibold active:scale-95 transition-transform"
-          >
-            <Save className="h-4 w-4" />
-            {saveMutation.isPending ? "Saving…" : "Save"}
+          <button onClick={() => saveMutation.mutate(adjustPositions)} disabled={saveMutation.isPending} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-accent text-accent-foreground text-sm font-semibold active:scale-95 transition-transform">
+            <Save className="h-4 w-4" /> {saveMutation.isPending ? "Saving…" : "Save"}
           </button>
         )}
       </div>
@@ -261,9 +314,7 @@ export function BookingFlow({ service, onClose }: BookingFlowProps) {
                 <p className="text-accent font-body text-xs uppercase tracking-[0.25em]">Grooming</p>
                 <PawPrint className="h-4 w-4 text-accent" />
               </div>
-              <h2 className="text-2xl sm:text-4xl font-heading text-foreground leading-tight">
-                What type of groom?
-              </h2>
+              <h2 className="text-2xl sm:text-4xl font-heading text-foreground leading-tight">What type of groom?</h2>
               <div className="w-10 h-[2px] bg-accent/40 mx-auto mt-4 rounded-full" />
             </div>
             <div className="grid sm:grid-cols-2 gap-5 sm:gap-8 max-w-4xl mx-auto">
@@ -305,7 +356,6 @@ export function BookingFlow({ service, onClose }: BookingFlowProps) {
         {/* Breed search */}
         {step === "breed" && (
           <div className="flex-1 flex flex-col animate-fade-in">
-            {/* Hero area */}
             <div className="flex-1 flex flex-col items-center justify-center px-6 pt-12 pb-4 text-center">
               <div className="flex items-center justify-center w-20 h-20 rounded-full bg-accent/10 mb-6">
                 <PawPrint className="h-9 w-9 text-accent" />
@@ -317,45 +367,25 @@ export function BookingFlow({ service, onClose }: BookingFlowProps) {
                 Start typing your dog's breed below and we'll find the perfect match
               </p>
             </div>
-
-            {/* Search area pinned toward bottom */}
             <div className="px-5 pb-8 relative">
               <div className="relative">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground z-10" />
-                <Input
-                  placeholder="e.g. Cockapoo, Labrador…"
-                  value={breedSearch}
-                  onChange={(e) => setBreedsSearch(e.target.value)}
-                  className="pl-12 h-14 rounded-2xl text-base shadow-lg shadow-black/[0.04] border-border/60 focus:border-accent"
-                  autoFocus
-                />
+                <Input placeholder="e.g. Cockapoo, Labrador…" value={breedSearch} onChange={(e) => setBreedsSearch(e.target.value)} className="pl-12 h-14 rounded-2xl text-base shadow-lg shadow-black/[0.04] border-border/60 focus:border-accent" autoFocus />
               </div>
-
-              {/* Dropdown results — only show when typing */}
               {breedSearch.length > 0 && (
                 <div className="absolute left-5 right-5 mt-2 bg-card border border-border rounded-2xl shadow-xl shadow-black/[0.08] max-h-64 overflow-y-auto z-20 animate-fade-in">
                   {filteredBreeds?.map((breed) => (
-                    <button
-                      key={breed.id}
-                      onClick={() => handleBreedSelect(breed)}
-                      className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-muted/50 transition-colors first:rounded-t-2xl last:rounded-b-2xl border-b border-border/30 last:border-0"
-                    >
+                    <button key={breed.id} onClick={() => handleBreedSelect(breed)} className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-muted/50 transition-colors first:rounded-t-2xl last:rounded-b-2xl border-b border-border/30 last:border-0">
                       <Dog className="h-4 w-4 text-muted-foreground shrink-0" />
                       <span className="font-body text-sm truncate flex-1">{breed.name}</span>
                     </button>
                   ))}
-
                   {filteredBreeds?.length === 0 && (
                     <div className="px-4 py-4 text-center text-sm text-muted-foreground">
                       No breeds match "<span className="font-medium text-foreground">{breedSearch}</span>"
                     </div>
                   )}
-
-                  {/* Not Listed always at the bottom of dropdown */}
-                  <button
-                    onClick={() => handleBreedSelect(null)}
-                    className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-accent/5 transition-colors rounded-b-2xl border-t border-border/30"
-                  >
+                  <button onClick={() => handleBreedSelect(null)} className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-accent/5 transition-colors rounded-b-2xl border-t border-border/30">
                     <PawPrint className="h-4 w-4 text-accent shrink-0" />
                     <span className="font-body text-sm text-accent font-medium">Not Listed — my breed isn't here</span>
                   </button>
@@ -365,115 +395,186 @@ export function BookingFlow({ service, onClose }: BookingFlowProps) {
           </div>
         )}
 
-        {/* Calendar + add-ons */}
+        {/* Calendar + time slots — inspired by the screenshot */}
         {step === "calendar" && (
-          <div className="px-4 py-6 space-y-6 animate-fade-in">
-            {/* Selected breed summary */}
-            <div className="rounded-xl bg-muted/50 p-4 flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">{serviceType}</p>
-                <p className="font-heading font-semibold">{selectedBreed?.name ?? "Breed Not Listed"}</p>
-                {selectedBreed && <p className="text-xs text-muted-foreground">{formatDuration(selectedBreed.duration_minutes)}</p>}
-              </div>
-              <p className="text-xl font-bold text-accent">£{totalPrice}</p>
+          <div className="px-4 sm:px-6 py-8 animate-fade-in">
+            {/* Title */}
+            <div className="mb-8">
+              <h2 className="text-2xl sm:text-3xl font-heading text-foreground leading-tight">Schedule your service</h2>
+              <p className="text-muted-foreground font-body text-sm mt-2">
+                Check out our availability and book the date and time that works for you
+              </p>
             </div>
 
-            {/* Date selection */}
-            <div>
-              <h3 className="font-heading font-semibold mb-3">Choose a date</h3>
-              <div className="flex gap-2 overflow-x-auto pb-2">
-                {generateDates().map((date) => {
-                  const dateStr = date.toISOString().split('T')[0];
-                  const isSelected = selectedDate === dateStr;
-                  return (
-                    <button
-                      key={dateStr}
-                      onClick={() => { setSelectedDate(dateStr); setSelectedTime(null); }}
-                      className={`flex-shrink-0 flex flex-col items-center px-4 py-3 rounded-xl border transition-all ${isSelected ? 'border-accent bg-accent/10 text-accent' : 'border-border bg-card hover:border-accent/50'}`}
-                    >
-                      <span className="text-xs font-medium uppercase">{date.toLocaleDateString('en-GB', { weekday: 'short' })}</span>
-                      <span className="text-lg font-bold">{date.getDate()}</span>
-                      <span className="text-xs text-muted-foreground">{date.toLocaleDateString('en-GB', { month: 'short' })}</span>
-                    </button>
-                  );
-                })}
+            {/* Breed summary pill */}
+            <div className="rounded-2xl bg-muted/50 border border-border/40 p-3 px-4 flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent/10">
+                  <PawPrint className="h-4 w-4 text-accent" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-foreground">{serviceType}</p>
+                  <p className="text-xs text-muted-foreground">{selectedBreed?.name ?? "Breed Not Listed"}{selectedBreed ? ` • ${formatDuration(selectedBreed.duration_minutes)}` : ""}</p>
+                </div>
               </div>
+              <p className="text-lg font-bold text-accent">£{breedPrice}</p>
             </div>
 
-            {/* Time slots */}
-            {selectedDate && (
-              <div className="animate-fade-in">
-                <h3 className="font-heading font-semibold mb-3">Choose a time</h3>
-                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                  {generateTimeSlots().map((time) => {
-                    const isSelected = selectedTime === time;
+            <div className="flex flex-col lg:flex-row gap-6 lg:gap-10">
+              {/* Calendar */}
+              <div className="flex-1 max-w-md">
+                <div className="flex items-center justify-between mb-1">
+                  <h3 className="font-heading font-semibold text-foreground text-lg">Select a Date and Time</h3>
+                </div>
+                <div className="h-[2px] bg-accent/60 rounded-full mb-5" />
+
+                {/* Month nav */}
+                <div className="flex items-center justify-between mb-5">
+                  <button onClick={prevMonth} disabled={!canGoPrev} className={`flex h-9 w-9 items-center justify-center rounded-full transition-colors ${canGoPrev ? 'hover:bg-muted active:scale-95' : 'opacity-30 cursor-not-allowed'}`}>
+                    <ChevronLeft className="h-5 w-5" />
+                  </button>
+                  <span className="font-heading text-lg text-foreground">{MONTH_NAMES[calMonth]} {calYear}</span>
+                  <button onClick={nextMonth} className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-muted active:scale-95 transition-colors">
+                    <ChevronRight className="h-5 w-5" />
+                  </button>
+                </div>
+
+                {/* Weekday headers */}
+                <div className="grid grid-cols-7 mb-2">
+                  {WEEKDAYS.map(d => (
+                    <div key={d} className="text-center text-xs font-medium text-muted-foreground py-1">{d}</div>
+                  ))}
+                </div>
+
+                {/* Days grid */}
+                <div className="grid grid-cols-7 gap-y-1">
+                  {calendarDays.map((day, i) => {
+                    if (day === null) return <div key={`e-${i}`} />;
+                    const selectable = isDateSelectable(day);
+                    const isSelected = selectedDay === day && calMonth === parseInt((selectedDate ?? "").split("-")[1] || "0") - 1 && calYear === parseInt((selectedDate ?? "").split("-")[0] || "0");
+
                     return (
                       <button
-                        key={time}
-                        onClick={() => setSelectedTime(time)}
-                        className={`py-3 rounded-xl border text-sm font-medium transition-all ${isSelected ? 'border-accent bg-accent text-accent-foreground' : 'border-border bg-card hover:border-accent/50'}`}
+                        key={day}
+                        onClick={() => handleDateClick(day)}
+                        disabled={!selectable}
+                        className={`relative flex flex-col items-center justify-center h-11 w-full rounded-full text-sm font-medium transition-all duration-200
+                          ${isSelected
+                            ? 'bg-primary text-primary-foreground shadow-md scale-105'
+                            : selectable
+                              ? 'hover:bg-accent/10 text-foreground cursor-pointer'
+                              : 'text-muted-foreground/40 cursor-not-allowed'
+                          }`}
                       >
-                        {time}
+                        {day}
+                        {selectable && !isSelected && (
+                          <span className="absolute bottom-1 w-1 h-1 rounded-full bg-accent" />
+                        )}
                       </button>
                     );
                   })}
                 </div>
               </div>
-            )}
 
-            {/* Add-ons — shown after date+time selected */}
-            {selectedDate && selectedTime && (
-              <div className="animate-fade-in space-y-3">
-                <h3 className="font-heading font-semibold">Add extras</h3>
-                {ADD_ONS.map((addon) => {
-                  const isSelected = selectedAddOns.includes(addon.label);
+              {/* Time slots — appear when a date is selected */}
+              {selectedDate && (
+                <div className="flex-1 max-w-sm animate-fade-in">
+                  <h3 className="font-heading font-semibold text-foreground text-base mb-4">
+                    Availability for {formatSelectedDate(selectedDate)}
+                  </h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    {generateTimeSlots().map((time) => {
+                      const isSelected = selectedTime === time;
+                      return (
+                        <button
+                          key={time}
+                          onClick={() => handleTimeClick(time)}
+                          className={`py-3.5 px-4 rounded-full border text-sm font-semibold transition-all duration-200
+                            ${isSelected
+                              ? 'bg-primary text-primary-foreground border-primary shadow-md scale-[1.03]'
+                              : 'border-border bg-card hover:border-foreground/30 hover:shadow-sm text-foreground'
+                            }`}
+                        >
+                          {time}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Add-ons step */}
+        {step === "addons" && (
+          <div className="px-4 sm:px-6 py-8 space-y-6 animate-fade-in max-w-lg mx-auto">
+            {/* Summary pill */}
+            <div className="rounded-2xl bg-muted/50 border border-border/40 p-4">
+              <div className="flex justify-between items-center mb-1">
+                <p className="font-heading font-semibold text-foreground">{serviceType}</p>
+                <p className="text-xl font-bold text-accent">£{totalPrice}</p>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {selectedBreed?.name ?? "Breed Not Listed"} • {formatSelectedDate(selectedDate!)} at {selectedTime}
+              </p>
+            </div>
+
+            {/* Add-ons */}
+            <div>
+              <h3 className="font-heading font-semibold text-foreground text-lg mb-1">Add the finishing touches</h3>
+              <p className="text-sm text-muted-foreground mb-4">Make it extra special for your pup</p>
+              <div className="space-y-3">
+                {dbAddOns?.map((addon) => {
+                  const isSelected = selectedAddOns.includes(addon.id);
+                  const Icon = getAddonIcon(addon.icon);
                   return (
                     <button
-                      key={addon.label}
-                      onClick={() => toggleAddOn(addon.label)}
-                      className={`w-full flex items-center gap-4 rounded-xl border p-4 text-left transition-all ${isSelected ? 'border-accent bg-accent/10' : 'border-border bg-card hover:border-accent/50'}`}
+                      key={addon.id}
+                      onClick={() => toggleAddOn(addon.id)}
+                      className={`w-full flex items-center gap-4 rounded-2xl border p-4 text-left transition-all duration-200 ${isSelected ? 'border-accent bg-accent/10 shadow-sm' : 'border-border bg-card hover:border-accent/50 hover:shadow-sm'}`}
                     >
-                      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${isSelected ? 'bg-accent text-accent-foreground' : 'bg-muted'}`}>
-                        {isSelected ? <Check className="h-5 w-5" /> : <addon.icon className="h-5 w-5 text-muted-foreground" />}
+                      <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-colors ${isSelected ? 'bg-accent text-accent-foreground' : 'bg-muted'}`}>
+                        {isSelected ? <Check className="h-5 w-5" /> : <Icon className="h-5 w-5 text-muted-foreground" />}
                       </div>
                       <div className="flex-1">
-                        <p className="font-medium">{addon.label}</p>
+                        <p className="font-medium text-foreground">{addon.name}</p>
                       </div>
-                      <span className="font-semibold">+£{addon.price}</span>
+                      <span className="font-semibold text-foreground">+£{Number(addon.price)}</span>
                     </button>
                   );
                 })}
+                {(!dbAddOns || dbAddOns.length === 0) && (
+                  <p className="text-sm text-muted-foreground text-center py-4">No extras available right now</p>
+                )}
               </div>
-            )}
+            </div>
 
-            {/* Next button */}
-            {selectedDate && selectedTime && (
-              <div className="pt-4 animate-fade-in">
-                <Button
-                  onClick={() => setStep("guest-details")}
-                  className="w-full h-14 text-base rounded-xl"
-                  size="lg"
-                >
-                  Next — £{totalPrice}
-                </Button>
-              </div>
-            )}
+            {/* Next */}
+            <div className="pt-2">
+              <Button onClick={() => setStep("guest-details")} className="w-full h-14 text-base rounded-xl" size="lg">
+                Next — £{totalPrice}
+              </Button>
+              <button onClick={() => setStep("guest-details")} className="w-full text-center text-sm text-muted-foreground mt-3 hover:text-foreground transition-colors">
+                Skip extras
+              </button>
+            </div>
           </div>
         )}
 
         {/* Guest checkout */}
         {step === "guest-details" && (
-          <div className="px-4 py-6 space-y-6 animate-fade-in">
-            <div className="rounded-xl bg-muted/50 p-4">
+          <div className="px-4 py-6 space-y-6 animate-fade-in max-w-lg mx-auto">
+            <div className="rounded-2xl bg-muted/50 border border-border/40 p-4">
               <div className="flex justify-between items-center mb-2">
                 <p className="font-heading font-semibold">{serviceType}</p>
                 <p className="text-xl font-bold text-accent">£{totalPrice}</p>
               </div>
               <p className="text-sm text-muted-foreground">
-                {selectedBreed?.name ?? "Breed Not Listed"} • {selectedDate} at {selectedTime}
+                {selectedBreed?.name ?? "Breed Not Listed"} • {formatSelectedDate(selectedDate!)} at {selectedTime}
               </p>
               {selectedAddOns.length > 0 && (
-                <p className="text-xs text-muted-foreground mt-1">+ {selectedAddOns.join(", ")}</p>
+                <p className="text-xs text-muted-foreground mt-1">+ {selectedAddOns.map(id => dbAddOns?.find(a => a.id === id)?.name).filter(Boolean).join(", ")}</p>
               )}
             </div>
 
