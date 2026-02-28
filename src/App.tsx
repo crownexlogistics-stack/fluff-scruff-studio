@@ -45,7 +45,7 @@ const App = () => (
           {/* Manager only */}
           <Route path="/admin" element={<ProtectedRoute allowedRoles={["manager", "director"]}><AdminDashboard /></ProtectedRoute>} />
           <Route path="/admin/users" element={<ProtectedRoute allowedRoles={["director"]}><AdminUsersPage /></ProtectedRoute>} />
-          <Route path="/breeds" element={<ProtectedRoute allowedRoles={["manager", "director"]}><BreedsPage /></ProtectedRoute>} />
+          <Route path="/breeds" element={<ProtectedRoute allowedRoles={["director"]}><BreedsPage /></ProtectedRoute>} />
           <Route path="/services" element={<ProtectedRoute allowedRoles={["manager", "director"]}><ServicesPage /></ProtectedRoute>} />
           <Route path="/staff" element={<ProtectedRoute allowedRoles={["manager", "director"]}><StaffPage /></ProtectedRoute>} />
           <Route path="/staff/:id" element={<ProtectedRoute allowedRoles={["manager", "director"]}><StaffDetailPage /></ProtectedRoute>} />

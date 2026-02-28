@@ -4,9 +4,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -18,16 +17,29 @@ const SIZE_CATEGORIES = ["Small", "Medium", "Large", "Extra Large"] as const;
 interface BreedForm {
   name: string;
   size_category: string;
-  base_notes: string;
+  price_bath_brush: number;
+  price_full_groom: number;
+  duration_minutes: number;
 }
 
-const emptyForm: BreedForm = { name: "", size_category: "Medium", base_notes: "" };
+const emptyForm: BreedForm = { name: "", size_category: "Medium", price_bath_brush: 0, price_full_groom: 0, duration_minutes: 60 };
+
+function formatDuration(mins: number) {
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  if (h && m) return `${h}h ${m}m`;
+  if (h) return `${h}h`;
+  return `${m}m`;
+}
+
+const DURATION_OPTIONS = [60, 90, 120, 150, 180];
 
 const BreedsPage = () => {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<BreedForm>(emptyForm);
+  const [search, setSearch] = useState("");
 
   const { data: breeds, isLoading } = useQuery({
     queryKey: ["breeds"],
@@ -45,8 +57,7 @@ const BreedsPage = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["breeds"] });
-      queryClient.invalidateQueries({ queryKey: ["breeds-count"] });
-      toast.success("Breed added successfully");
+      toast.success("Breed added");
       closeDialog();
     },
     onError: (e: Error) => toast.error(e.message),
@@ -72,21 +83,22 @@ const BreedsPage = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["breeds"] });
-      queryClient.invalidateQueries({ queryKey: ["breeds-count"] });
       toast.success("Breed deleted");
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const closeDialog = () => {
-    setOpen(false);
-    setEditId(null);
-    setForm(emptyForm);
-  };
+  const closeDialog = () => { setOpen(false); setEditId(null); setForm(emptyForm); };
 
   const openEdit = (breed: any) => {
     setEditId(breed.id);
-    setForm({ name: breed.name, size_category: breed.size_category, base_notes: breed.base_notes ?? "" });
+    setForm({
+      name: breed.name,
+      size_category: breed.size_category,
+      price_bath_brush: breed.price_bath_brush ?? 0,
+      price_full_groom: breed.price_full_groom ?? 0,
+      duration_minutes: breed.duration_minutes ?? 60,
+    });
     setOpen(true);
   };
 
@@ -99,13 +111,15 @@ const BreedsPage = () => {
     }
   };
 
+  const filtered = breeds?.filter(b => b.name.toLowerCase().includes(search.toLowerCase()));
+
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
             <h1 className="text-3xl font-heading font-bold">Breeds</h1>
-            <p className="text-muted-foreground mt-1">Manage dog breeds and size categories</p>
+            <p className="text-muted-foreground mt-1">Manage breeds, pricing & duration — Director only</p>
           </div>
           <Dialog open={open} onOpenChange={(v) => { if (!v) closeDialog(); else setOpen(true); }}>
             <DialogTrigger asChild>
@@ -119,7 +133,7 @@ const BreedsPage = () => {
               </DialogHeader>
               <div className="space-y-4 py-2">
                 <div className="space-y-2">
-                  <Label>Name</Label>
+                  <Label>Breed Name</Label>
                   <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Cockapoo" />
                 </div>
                 <div className="space-y-2">
@@ -131,9 +145,24 @@ const BreedsPage = () => {
                     </SelectContent>
                   </Select>
                 </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Bath & Brush (£)</Label>
+                    <Input type="number" min={0} step={1} value={form.price_bath_brush} onChange={(e) => setForm({ ...form, price_bath_brush: parseFloat(e.target.value) || 0 })} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Full Groom (£)</Label>
+                    <Input type="number" min={0} step={1} value={form.price_full_groom} onChange={(e) => setForm({ ...form, price_full_groom: parseFloat(e.target.value) || 0 })} />
+                  </div>
+                </div>
                 <div className="space-y-2">
-                  <Label>Notes</Label>
-                  <Textarea value={form.base_notes} onChange={(e) => setForm({ ...form, base_notes: e.target.value })} placeholder="Base notes about this breed..." rows={3} />
+                  <Label>Duration</Label>
+                  <Select value={String(form.duration_minutes)} onValueChange={(v) => setForm({ ...form, duration_minutes: parseInt(v) })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {DURATION_OPTIONS.map((d) => <SelectItem key={d} value={String(d)}>{formatDuration(d)}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
               <DialogFooter>
@@ -146,24 +175,28 @@ const BreedsPage = () => {
           </Dialog>
         </div>
 
+        <Input placeholder="Search breeds…" value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-sm" />
+
         <Card>
-          <CardContent className="p-0">
+          <CardContent className="p-0 overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
+                  <TableHead>Breed</TableHead>
                   <TableHead>Size</TableHead>
-                  <TableHead>Notes</TableHead>
+                  <TableHead className="text-right">Bath & Brush</TableHead>
+                  <TableHead className="text-right">Full Groom</TableHead>
+                  <TableHead className="text-right">Time</TableHead>
                   <TableHead className="w-24">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
-                  <TableRow><TableCell colSpan={4} className="text-center py-8 text-muted-foreground">Loading...</TableCell></TableRow>
-                ) : breeds?.length === 0 ? (
-                  <TableRow><TableCell colSpan={4} className="text-center py-8 text-muted-foreground">No breeds yet. Add your first one!</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Loading...</TableCell></TableRow>
+                ) : filtered?.length === 0 ? (
+                  <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No breeds found.</TableCell></TableRow>
                 ) : (
-                  breeds?.map((breed) => (
+                  filtered?.map((breed) => (
                     <TableRow key={breed.id}>
                       <TableCell className="font-medium">{breed.name}</TableCell>
                       <TableCell>
@@ -171,7 +204,9 @@ const BreedsPage = () => {
                           {breed.size_category}
                         </span>
                       </TableCell>
-                      <TableCell className="text-muted-foreground max-w-xs truncate">{breed.base_notes || "—"}</TableCell>
+                      <TableCell className="text-right">£{breed.price_bath_brush}</TableCell>
+                      <TableCell className="text-right">£{breed.price_full_groom}</TableCell>
+                      <TableCell className="text-right">{formatDuration(breed.duration_minutes)}</TableCell>
                       <TableCell>
                         <div className="flex gap-1">
                           <Button variant="ghost" size="icon" onClick={() => openEdit(breed)}>
