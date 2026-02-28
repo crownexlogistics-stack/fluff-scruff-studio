@@ -325,6 +325,47 @@ export type Database = {
           },
         ]
       }
+      staff_schedule_overrides: {
+        Row: {
+          created_at: string
+          end_time: string | null
+          id: string
+          is_working: boolean
+          note: string | null
+          override_date: string
+          staff_id: string
+          start_time: string | null
+        }
+        Insert: {
+          created_at?: string
+          end_time?: string | null
+          id?: string
+          is_working?: boolean
+          note?: string | null
+          override_date: string
+          staff_id: string
+          start_time?: string | null
+        }
+        Update: {
+          created_at?: string
+          end_time?: string | null
+          id?: string
+          is_working?: boolean
+          note?: string | null
+          override_date?: string
+          staff_id?: string
+          start_time?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_schedule_overrides_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       staff_services: {
         Row: {
           created_at: string
