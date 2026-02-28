@@ -43,7 +43,6 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
     notes: "",
   });
 
-  // Sync defaults when dialog opens with new values
   useEffect(() => {
     if (open) {
       setForm(prev => ({
@@ -52,7 +51,6 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
         booking_date: dateStr || prev.booking_date,
         booking_time: timeStr,
         end_time: endTimeStr,
-        // Reset fields for fresh dialog
         ...(mode === "block" ? { notes: "" } : {
           customer_name: "", dog_name: "", customer_email: "", customer_phone: "",
           breed_id: "", service_id: "", total_price: 0, deposit_paid: 0, notes: "",
@@ -88,27 +86,28 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
     },
   });
 
-  const selectedStaffName = staff?.find(s => s.id === form.staff_id)?.name || "";
-
   const createBooking = useMutation({
     mutationFn: async () => {
       if (mode === "block") {
-        // 1. Insert schedule override
+        if (!form.notes.trim()) {
+          throw new Error("A reason is required when blocking time.");
+        }
+
         const { error } = await supabase.from("staff_schedule_overrides").insert({
           staff_id: form.staff_id,
           override_date: form.booking_date,
           start_time: form.booking_time,
           end_time: form.end_time,
           is_working: false,
-          note: form.notes || "Blocked",
+          note: form.notes.trim(),
         });
         if (error) throw error;
 
-        // 2. Auto-add HR note to staff_notes for tracking
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
           const formattedDate = format(new Date(form.booking_date), "dd MMM yyyy");
-          const hrNote = `⛔ TIME BLOCKED — ${formattedDate} from ${form.booking_time.slice(0, 5)} to ${form.end_time.slice(0, 5)}${form.notes ? ` — Reason: ${form.notes}` : ""}`;
+          const staffName = staff?.find(s => s.id === form.staff_id)?.name || "Unknown";
+          const hrNote = `⛔ TIME BLOCKED — ${formattedDate} from ${form.booking_time.slice(0, 5)} to ${form.end_time.slice(0, 5)} — Reason: ${form.notes.trim()}`;
           await supabase.from("staff_notes").insert({
             staff_id: form.staff_id,
             created_by: user.id,
@@ -144,6 +143,8 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
     onError: (e: any) => toast.error(e.message),
   });
 
+  const blockDisabled = mode === "block" && !form.notes.trim();
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
@@ -154,7 +155,6 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
         <div className="space-y-4">
           {mode === "block" ? (
             <>
-              {/* Block mode: show pre-populated info as read-only, only ask for end time & notes */}
               <div className="rounded-lg border bg-muted/30 p-3 space-y-1">
                 <p className="text-sm font-medium">
                   {defaultDate ? format(defaultDate, "EEEE, dd MMM yyyy") : ""}
@@ -166,11 +166,7 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
 
               <div className="space-y-1">
                 <Label>End Time</Label>
-                <Input
-                  type="time"
-                  value={form.end_time}
-                  onChange={(e) => setForm({ ...form, end_time: e.target.value })}
-                />
+                <Input type="time" value={form.end_time} onChange={(e) => setForm({ ...form, end_time: e.target.value })} />
               </div>
 
               <div className="space-y-1">
@@ -184,13 +180,16 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
               </div>
 
               <div className="space-y-1">
-                <Label>Reason / Notes</Label>
+                <Label>Reason / Notes <span className="text-destructive">*</span></Label>
                 <Textarea
                   value={form.notes}
                   onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                  placeholder="Why is this time being blocked?"
+                  placeholder="Why is this time being blocked? (required)"
                   rows={3}
                 />
+                {blockDisabled && form.notes === "" && (
+                  <p className="text-xs text-destructive">A reason must be provided to block time.</p>
+                )}
               </div>
 
               <p className="text-xs text-muted-foreground">
@@ -199,7 +198,6 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
             </>
           ) : (
             <>
-              {/* Appointment mode */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <Label>Date</Label>
@@ -282,7 +280,10 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={() => createBooking.mutate()} disabled={createBooking.isPending}>
+          <Button
+            onClick={() => createBooking.mutate()}
+            disabled={createBooking.isPending || blockDisabled}
+          >
             {mode === "block" ? "Block Time" : "Create Booking"}
           </Button>
         </DialogFooter>
