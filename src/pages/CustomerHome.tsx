@@ -33,7 +33,9 @@ const CustomerHome = () => {
       {/* Navigation */}
       <nav className="sticky top-0 z-50 bg-white/75 backdrop-blur-2xl border-b border-border/20 shadow-[0_1px_8px_rgba(0,0,0,0.06)]">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-center justify-between" style={{ height: '4rem' }}>
-          <img src={logo} alt="Fluff & Scruff" className="h-12 sm:h-14 w-auto" />
+          <a href="#" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="cursor-pointer">
+            <img src={logo} alt="Fluff & Scruff" className="h-12 sm:h-14 w-auto" />
+          </a>
           <div className="hidden sm:flex items-center gap-10 text-sm font-medium font-body">
             <a href="#services" className="relative text-muted-foreground hover:text-foreground transition-colors duration-300 after:absolute after:left-0 after:bottom-[-4px] after:h-[2px] after:w-0 after:bg-accent after:transition-all after:duration-300 hover:after:w-full">Services</a>
             <a href="#about" className="relative text-muted-foreground hover:text-foreground transition-colors duration-300 after:absolute after:left-0 after:bottom-[-4px] after:h-[2px] after:w-0 after:bg-accent after:transition-all after:duration-300 hover:after:w-full">About</a>
