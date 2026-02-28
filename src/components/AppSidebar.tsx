@@ -1,6 +1,6 @@
 import {
   Dog, Scissors, Users, Calendar, LayoutDashboard, Crown,
-  UserPlus, CalendarClock, ChevronDown,
+  UserPlus, CalendarClock, ChevronDown, Megaphone,
 } from "lucide-react";
 import logo from "@/assets/logo-transparent.png";
 import { NavLink } from "@/components/NavLink";
@@ -34,6 +34,7 @@ const mainNavItems = [
 const hrSubItems = [
   { title: "Manage Staff", url: "/staff", icon: UserPlus },
   { title: "Work Schedule", url: "/staff/schedule", icon: CalendarClock },
+  { title: "Marketing", url: "/marketing", icon: Megaphone },
 ];
 
 const directorOnlyItems = [
