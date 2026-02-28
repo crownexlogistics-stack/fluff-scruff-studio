@@ -1,5 +1,8 @@
 import { useState } from "react";
-import { Phone, MapPin, Clock, Instagram, Facebook, PawPrint } from "lucide-react";
+import { Phone, MapPin, Clock, Instagram, Facebook, PawPrint, LogIn, LogOut, User } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { useUserRole } from "@/hooks/useUserRole";
+import { Link } from "react-router-dom";
 import logo from "@/assets/logo-transparent.png";
 import heroDog from "@/assets/hero-shop.jpg";
 import serviceFullGroom from "@/assets/service-full-groom.jpg";
@@ -11,6 +14,8 @@ import { GoogleReviews } from "@/components/GoogleReviews";
 import { BookingFlow } from "@/components/BookingFlow";
 
 const CustomerHome = () => {
+  const { user, signOut, loading: authLoading } = useAuth();
+  const { role } = useUserRole(user?.id);
   const [activeService, setActiveService] = useState<string | null>(null);
 
   const services = [
@@ -30,13 +35,39 @@ const CustomerHome = () => {
             <a href="#services" className="text-muted-foreground hover:text-foreground transition-colors">Services</a>
             <a href="#about" className="text-muted-foreground hover:text-foreground transition-colors">About</a>
             <a href="#contact" className="text-muted-foreground hover:text-foreground transition-colors">Contact</a>
+            {user && role === "customer" && (
+              <Link to="/my-pets" className="text-muted-foreground hover:text-foreground transition-colors">My Pets</Link>
+            )}
+            {user && role === "manager" && (
+              <Link to="/admin" className="text-muted-foreground hover:text-foreground transition-colors">Dashboard</Link>
+            )}
+            {user && role === "groomer" && (
+              <Link to="/portal" className="text-muted-foreground hover:text-foreground transition-colors">My Schedule</Link>
+            )}
           </div>
-          <button
-            onClick={() => setActiveService("Full Groom")}
-            className="bg-charcoal text-primary-foreground font-semibold font-body text-sm px-5 py-2.5 rounded-full hover:opacity-90 transition-all shadow-md shadow-charcoal/20"
-          >
-            Book Now
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setActiveService("Full Groom")}
+              className="bg-charcoal text-primary-foreground font-semibold font-body text-sm px-5 py-2.5 rounded-full hover:opacity-90 transition-all shadow-md shadow-charcoal/20"
+            >
+              Book Now
+            </button>
+            {user ? (
+              <button
+                onClick={async () => { await signOut(); }}
+                className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors font-body"
+              >
+                <LogOut className="h-4 w-4" /> Sign Out
+              </button>
+            ) : (
+              <Link
+                to="/auth"
+                className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors font-body"
+              >
+                <LogIn className="h-4 w-4" /> Sign In
+              </Link>
+            )}
+          </div>
         </div>
       </nav>
 

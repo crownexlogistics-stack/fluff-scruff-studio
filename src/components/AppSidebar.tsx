@@ -21,6 +21,7 @@ const navItems = [
   { title: "Services", url: "/services", icon: Scissors },
   { title: "Staff", url: "/staff", icon: Users },
   { title: "Bookings", url: "/bookings", icon: Calendar },
+  { title: "Users", url: "/admin/users", icon: Users },
 ];
 
 export function AppSidebar() {
