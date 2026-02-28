@@ -1,5 +1,5 @@
 import {
-  Dog, Scissors, Users, Calendar, LayoutDashboard, Crown,
+  Dog, Users, Calendar, LayoutDashboard, Crown,
   UserPlus, CalendarClock, ChevronDown, Megaphone,
   UsersRound, BarChart3, Tags, Search, Facebook, Mail,
   LogOut,
@@ -29,7 +29,6 @@ import {
 
 const mainNavItems = [
   { title: "Dashboard", url: "/admin", icon: LayoutDashboard },
-  { title: "Services", url: "/services", icon: Scissors },
   { title: "Bookings", url: "/bookings", icon: Calendar },
 ];
 
