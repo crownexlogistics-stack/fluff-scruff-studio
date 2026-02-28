@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
-import { Shield, UserCheck, User, Crown } from "lucide-react";
+import { Shield, UserCheck, User, Crown, Heart, GraduationCap } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole, type AppRole } from "@/hooks/useUserRole";
 
@@ -22,6 +22,8 @@ const roleIcons: Record<AppRole, React.ReactNode> = {
   manager: <Shield className="h-3.5 w-3.5" />,
   groomer: <UserCheck className="h-3.5 w-3.5" />,
   customer: <User className="h-3.5 w-3.5" />,
+  volunteer: <Heart className="h-3.5 w-3.5" />,
+  work_placement: <GraduationCap className="h-3.5 w-3.5" />,
 };
 
 const roleColors: Record<AppRole, string> = {
@@ -29,6 +31,8 @@ const roleColors: Record<AppRole, string> = {
   manager: "bg-primary/10 text-primary border-primary/20",
   groomer: "bg-accent/10 text-accent-foreground border-accent/20",
   customer: "bg-muted text-muted-foreground border-border",
+  volunteer: "bg-success/10 text-success border-success/20",
+  work_placement: "bg-warm-light text-warm border-warm/20",
 };
 
 const AdminUsersPage = () => {
