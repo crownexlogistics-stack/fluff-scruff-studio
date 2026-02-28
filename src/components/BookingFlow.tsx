@@ -304,56 +304,63 @@ export function BookingFlow({ service, onClose }: BookingFlowProps) {
 
         {/* Breed search */}
         {step === "breed" && (
-          <div className="px-4 py-6 space-y-4 animate-fade-in">
-            <div className="relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-              <Input
-                placeholder="Search breeds…"
-                value={breedSearch}
-                onChange={(e) => setBreedsSearch(e.target.value)}
-                className="pl-12 h-14 rounded-xl text-base"
-                autoFocus
-              />
+          <div className="flex-1 flex flex-col animate-fade-in">
+            {/* Hero area */}
+            <div className="flex-1 flex flex-col items-center justify-center px-6 pt-12 pb-4 text-center">
+              <div className="flex items-center justify-center w-20 h-20 rounded-full bg-accent/10 mb-6">
+                <PawPrint className="h-9 w-9 text-accent" />
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-heading text-foreground leading-tight mb-2">
+                Tell us about your<br />four-legged friend
+              </h2>
+              <p className="text-muted-foreground font-body text-sm max-w-xs">
+                Start typing your dog's breed below and we'll find the perfect match
+              </p>
             </div>
 
-            <div className="space-y-2">
-              {filteredBreeds?.map((breed) => {
-                const price = serviceType === "Bath & Brush" ? breed.price_bath_brush : breed.price_full_groom;
-                return (
+            {/* Search area pinned toward bottom */}
+            <div className="px-5 pb-8 relative">
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground z-10" />
+                <Input
+                  placeholder="e.g. Cockapoo, Labrador…"
+                  value={breedSearch}
+                  onChange={(e) => setBreedsSearch(e.target.value)}
+                  className="pl-12 h-14 rounded-2xl text-base shadow-lg shadow-black/[0.04] border-border/60 focus:border-accent"
+                  autoFocus
+                />
+              </div>
+
+              {/* Dropdown results — only show when typing */}
+              {breedSearch.length > 0 && (
+                <div className="absolute left-5 right-5 mt-2 bg-card border border-border rounded-2xl shadow-xl shadow-black/[0.08] max-h-64 overflow-y-auto z-20 animate-fade-in">
+                  {filteredBreeds?.map((breed) => (
+                    <button
+                      key={breed.id}
+                      onClick={() => handleBreedSelect(breed)}
+                      className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-muted/50 transition-colors first:rounded-t-2xl last:rounded-b-2xl border-b border-border/30 last:border-0"
+                    >
+                      <Dog className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <span className="font-body text-sm truncate flex-1">{breed.name}</span>
+                    </button>
+                  ))}
+
+                  {filteredBreeds?.length === 0 && (
+                    <div className="px-4 py-4 text-center text-sm text-muted-foreground">
+                      No breeds match "<span className="font-medium text-foreground">{breedSearch}</span>"
+                    </div>
+                  )}
+
+                  {/* Not Listed always at the bottom of dropdown */}
                   <button
-                    key={breed.id}
-                    onClick={() => handleBreedSelect(breed)}
-                    className="w-full touch-target flex items-center gap-4 rounded-xl border border-border bg-card p-4 text-left transition-all active:scale-[0.97] hover:border-accent"
+                    onClick={() => handleBreedSelect(null)}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-accent/5 transition-colors rounded-b-2xl border-t border-border/30"
                   >
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-muted">
-                      <Dog className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-medium font-body truncate">{breed.name}</h3>
-                      <p className="text-xs text-muted-foreground">{formatDuration(breed.duration_minutes)}</p>
-                    </div>
-                    <span className="text-sm font-semibold text-accent">£{price}</span>
+                    <PawPrint className="h-4 w-4 text-accent shrink-0" />
+                    <span className="font-body text-sm text-accent font-medium">Not Listed — my breed isn't here</span>
                   </button>
-                );
-              })}
-
-              {breedSearch.length > 0 && filteredBreeds?.length === 0 && (
-                <p className="text-center text-muted-foreground py-4">No breeds match "{breedSearch}"</p>
+                </div>
               )}
-
-              {/* Not Listed option */}
-              <button
-                onClick={() => handleBreedSelect(null)}
-                className="w-full touch-target flex items-center gap-4 rounded-xl border border-dashed border-border bg-muted/30 p-4 text-left transition-all active:scale-[0.97] hover:border-accent"
-              >
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-accent/10">
-                  <PawPrint className="h-5 w-5 text-accent" />
-                </div>
-                <div>
-                  <h3 className="font-medium font-body">Not Listed</h3>
-                  <p className="text-xs text-muted-foreground">My breed isn't shown above</p>
-                </div>
-              </button>
             </div>
           </div>
         )}
