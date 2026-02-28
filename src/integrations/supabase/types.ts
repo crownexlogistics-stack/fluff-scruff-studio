@@ -239,6 +239,24 @@ export type Database = {
         }
         Relationships: []
       }
+      site_config: {
+        Row: {
+          key: string
+          updated_at: string
+          value: Json
+        }
+        Insert: {
+          key: string
+          updated_at?: string
+          value: Json
+        }
+        Update: {
+          key?: string
+          updated_at?: string
+          value?: Json
+        }
+        Relationships: []
+      }
       staff: {
         Row: {
           auth_user_id: string | null
