@@ -46,11 +46,11 @@ export function ServiceJourney({ services, onSelectService }: ServiceJourneyProp
                   <img
                     src={service.image}
                     alt={service.title}
-                    className="w-full aspect-[4/3] object-cover group-hover:scale-105 transition-transform duration-700 block"
+                    className="w-full aspect-[4/3] object-cover transition-opacity duration-500 group-hover:opacity-95 block"
                     style={service.imagePosition ? { objectPosition: service.imagePosition } : undefined}
                   />
                   {/* Gradient fade into card */}
-                  <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-card via-card/60 to-transparent pointer-events-none" />
+                  <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-card via-card/70 to-transparent pointer-events-none" />
                 </div>
 
                 {/* Text */}
