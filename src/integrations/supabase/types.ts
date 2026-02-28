@@ -28,6 +28,7 @@ export type Database = {
           id: string
           is_groomers_own_customer: boolean
           notes: string | null
+          referral_source: string | null
           service_id: string | null
           staff_id: string | null
           status: string
@@ -46,6 +47,7 @@ export type Database = {
           id?: string
           is_groomers_own_customer?: boolean
           notes?: string | null
+          referral_source?: string | null
           service_id?: string | null
           staff_id?: string | null
           status?: string
@@ -64,6 +66,7 @@ export type Database = {
           id?: string
           is_groomers_own_customer?: boolean
           notes?: string | null
+          referral_source?: string | null
           service_id?: string | null
           staff_id?: string | null
           status?: string
