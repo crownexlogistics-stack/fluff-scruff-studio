@@ -35,19 +35,19 @@ const App = () => (
           <Route path="/contract/sign/:staffId" element={<ContractSignPage />} />
 
           {/* Customer only */}
-          <Route path="/my-pets" element={<ProtectedRoute allowedRoles={["customer", "manager"]}><MyPetsPage /></ProtectedRoute>} />
+          <Route path="/my-pets" element={<ProtectedRoute allowedRoles={["customer", "manager", "director"]}><MyPetsPage /></ProtectedRoute>} />
 
           {/* Groomer only */}
           <Route path="/portal" element={<ProtectedRoute allowedRoles={["groomer"]}><GroomerPortalPage /></ProtectedRoute>} />
 
           {/* Manager only */}
-          <Route path="/admin" element={<ProtectedRoute allowedRoles={["manager"]}><AdminDashboard /></ProtectedRoute>} />
-          <Route path="/admin/users" element={<ProtectedRoute allowedRoles={["manager"]}><AdminUsersPage /></ProtectedRoute>} />
-          <Route path="/breeds" element={<ProtectedRoute allowedRoles={["manager"]}><BreedsPage /></ProtectedRoute>} />
-          <Route path="/services" element={<ProtectedRoute allowedRoles={["manager"]}><ServicesPage /></ProtectedRoute>} />
-          <Route path="/staff" element={<ProtectedRoute allowedRoles={["manager"]}><StaffPage /></ProtectedRoute>} />
-          <Route path="/staff/:id" element={<ProtectedRoute allowedRoles={["manager"]}><StaffDetailPage /></ProtectedRoute>} />
-          <Route path="/bookings" element={<ProtectedRoute allowedRoles={["manager"]}><BookingsPage /></ProtectedRoute>} />
+          <Route path="/admin" element={<ProtectedRoute allowedRoles={["manager", "director"]}><AdminDashboard /></ProtectedRoute>} />
+          <Route path="/admin/users" element={<ProtectedRoute allowedRoles={["director"]}><AdminUsersPage /></ProtectedRoute>} />
+          <Route path="/breeds" element={<ProtectedRoute allowedRoles={["manager", "director"]}><BreedsPage /></ProtectedRoute>} />
+          <Route path="/services" element={<ProtectedRoute allowedRoles={["manager", "director"]}><ServicesPage /></ProtectedRoute>} />
+          <Route path="/staff" element={<ProtectedRoute allowedRoles={["manager", "director"]}><StaffPage /></ProtectedRoute>} />
+          <Route path="/staff/:id" element={<ProtectedRoute allowedRoles={["manager", "director"]}><StaffDetailPage /></ProtectedRoute>} />
+          <Route path="/bookings" element={<ProtectedRoute allowedRoles={["manager", "director"]}><BookingsPage /></ProtectedRoute>} />
 
           <Route path="*" element={<NotFound />} />
         </Routes>
