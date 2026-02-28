@@ -12,7 +12,7 @@ interface ServiceJourneyProps {
 
 export function ServiceJourney({ services, onSelectService }: ServiceJourneyProps) {
   return (
-    <section id="services" className="relative py-20 sm:py-28 bg-background overflow-hidden">
+    <section id="services" className="relative py-24 sm:py-32 bg-background overflow-hidden">
       <div className="relative max-w-5xl mx-auto px-4 sm:px-6">
         {/* Section Header */}
         <div className="text-center mb-16 sm:mb-20">
@@ -38,9 +38,9 @@ export function ServiceJourney({ services, onSelectService }: ServiceJourneyProp
             <button
               key={service.title}
               onClick={() => onSelectService(service.title)}
-              className="text-left group active:scale-[0.97] transition-transform duration-200"
+              className="text-left group active:scale-[0.98] transition-all duration-300"
             >
-              <div className="relative bg-card rounded-3xl overflow-hidden border border-border/60 transition-all duration-300 hover:shadow-lg hover:shadow-black/[0.04] hover:border-border shadow-sm shadow-black/[0.02]">
+              <div className="relative bg-card rounded-3xl overflow-hidden border border-border/40 transition-all duration-500 hover:shadow-xl hover:shadow-black/[0.06] hover:border-border/60 hover:-translate-y-1 shadow-md shadow-black/[0.03]">
                 {/* Image */}
                 <div className="relative overflow-hidden">
                   <img
