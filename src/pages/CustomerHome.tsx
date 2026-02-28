@@ -12,6 +12,7 @@ import serviceNails from "@/assets/service-nails.jpg";
 import { ServiceJourney } from "@/components/ServiceJourney";
 import { GoogleReviews } from "@/components/GoogleReviews";
 import { BookingFlow } from "@/components/BookingFlow";
+import { TrustStrip } from "@/components/TrustStrip";
 
 const CustomerHome = () => {
   const { user, signOut, loading: authLoading } = useAuth();
@@ -121,22 +122,30 @@ const CustomerHome = () => {
         </div>
       </section>
 
+      {/* Trust Strip — social proof near top */}
+      <TrustStrip />
+
       {/* Services Journey */}
       <ServiceJourney
         services={services}
         onSelectService={(title) => setActiveService(title)}
       />
 
+      {/* Divider */}
+      <div className="max-w-xs mx-auto">
+        <div className="h-px bg-border/60" />
+      </div>
+
       {/* Google Reviews */}
       <GoogleReviews />
 
       {/* Contact / Info */}
-      <section id="contact" className="py-20 sm:py-28">
+      <section id="contact" className="py-24 sm:py-32">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-14">
+          <div className="text-center mb-16">
             <PawPrint className="h-6 w-6 text-accent mx-auto mb-3" />
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-heading text-foreground mb-3">Come Say Hello</h2>
-            <p className="text-muted-foreground font-body">We'd love to meet you and your pup!</p>
+            <p className="text-muted-foreground font-body max-w-sm mx-auto">We'd love to meet you and your pup!</p>
           </div>
           <div className="grid sm:grid-cols-2 gap-6 max-w-2xl mx-auto">
             <a
@@ -179,7 +188,7 @@ const CustomerHome = () => {
       </section>
 
       {/* CTA Banner — refined gradient with texture */}
-      <section className="py-20 sm:py-28 relative overflow-hidden" style={{ background: 'linear-gradient(135deg, hsl(24 75% 55%), hsl(28 80% 58%), hsl(20 70% 52%))' }}>
+      <section className="py-24 sm:py-32 relative overflow-hidden" style={{ background: 'linear-gradient(135deg, hsl(24 75% 55%), hsl(28 80% 58%), hsl(20 70% 52%))' }}>
         {/* Subtle texture overlay */}
         <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: 'radial-gradient(circle at 20% 50%, rgba(255,255,255,0.3) 0%, transparent 50%), radial-gradient(circle at 80% 50%, rgba(0,0,0,0.1) 0%, transparent 50%)' }} />
         <div className="relative max-w-3xl mx-auto px-4 sm:px-6 text-center space-y-8">
