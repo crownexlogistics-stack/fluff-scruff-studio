@@ -460,12 +460,23 @@ const StaffDetailPage = () => {
                   <Separator />
                   {staffNotes.map((n: any) => {
                     const isBlockNote = n.note?.startsWith("⛔");
+                    const isAmendNote = n.note?.startsWith("✏️");
+                    const isCancelNote = n.note?.startsWith("🚫");
+                    const isSystemNote = isBlockNote || isAmendNote || isCancelNote;
                     return (
                       <div key={n.id} className={cn(
                         "rounded-lg border p-3 space-y-1",
-                        isBlockNote ? "bg-destructive/10 border-destructive/30" : "bg-muted/30"
+                        isBlockNote && "bg-destructive/10 border-destructive/30",
+                        isAmendNote && "bg-amber-500/10 border-amber-500/30",
+                        isCancelNote && "bg-orange-500/10 border-orange-500/30",
+                        !isSystemNote && "bg-muted/30"
                       )}>
-                        <p className={cn("text-sm", isBlockNote && "text-destructive font-medium")}>{n.note}</p>
+                        <p className={cn(
+                          "text-sm",
+                          isBlockNote && "text-destructive font-medium",
+                          isAmendNote && "text-amber-700 dark:text-amber-400 font-medium",
+                          isCancelNote && "text-orange-700 dark:text-orange-400 font-medium"
+                        )}>{n.note}</p>
                         <p className="text-xs text-muted-foreground">
                           {format(new Date(n.created_at), "dd MMM yyyy 'at' HH:mm")}
                         </p>

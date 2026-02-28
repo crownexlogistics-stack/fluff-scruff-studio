@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from "react";
 import { AppLayout } from "@/components/AppLayout";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { startOfWeek, addWeeks, format, addDays } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -8,17 +8,21 @@ import { CalendarHeader } from "@/components/booking-calendar/CalendarHeader";
 import { WeeklyCalendar } from "@/components/booking-calendar/WeeklyCalendar";
 import { getStaffColor } from "@/components/booking-calendar/staffColors";
 import { NewBookingDialog } from "@/components/booking-calendar/NewBookingDialog";
+import { EditBlockDialog } from "@/components/booking-calendar/EditBlockDialog";
 import type { BookingData } from "@/components/booking-calendar/BookingEvent";
+import { toast } from "sonner";
 
 const BookingsPage = () => {
+  const queryClient = useQueryClient();
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState<"appointment" | "block">("appointment");
   const [dialogDefaults, setDialogDefaults] = useState<{ date?: Date; hour?: number; staffId?: string }>({});
+  const [editBlockOpen, setEditBlockOpen] = useState(false);
+  const [editingBlock, setEditingBlock] = useState<BookingData | null>(null);
 
   const weekEnd = addDays(weekStart, 6);
 
-  // Fetch staff
   const { data: staff = [] } = useQuery({
     queryKey: ["staff-list"],
     queryFn: async () => {
@@ -28,20 +32,18 @@ const BookingsPage = () => {
     },
   });
 
-  // Staff index map for color coding
   const staffIndexMap = useMemo(() => {
     const map = new Map<string, number>();
     staff.forEach((s, i) => map.set(s.name, i));
     return map;
   }, [staff]);
 
-  // Fetch bookings for the week
   const { data: bookings = [] } = useQuery({
     queryKey: ["bookings", format(weekStart, "yyyy-MM-dd")],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("bookings")
-        .select("*, breeds(name), services(name), staff(name)")
+        .select("*, breeds(name), services(name), staff(name, id)")
         .gte("booking_date", format(weekStart, "yyyy-MM-dd"))
         .lte("booking_date", format(weekEnd, "yyyy-MM-dd"))
         .order("booking_time");
@@ -49,19 +51,19 @@ const BookingsPage = () => {
       return (data || []).map((b: any) => ({
         ...b,
         staff_name: b.staff?.name ?? "Unassigned",
+        staff_id: b.staff?.id ?? b.staff_id,
         breed_name: b.breeds?.name ?? "",
         service_name: b.services?.name ?? "",
       })) as BookingData[];
     },
   });
 
-  // Fetch schedule overrides (blocked time) for the week
   const { data: overrides = [] } = useQuery({
     queryKey: ["schedule-overrides", format(weekStart, "yyyy-MM-dd")],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("staff_schedule_overrides")
-        .select("*, staff(name)")
+        .select("*, staff(name, id)")
         .gte("override_date", format(weekStart, "yyyy-MM-dd"))
         .lte("override_date", format(weekEnd, "yyyy-MM-dd"))
         .eq("is_working", false);
@@ -72,6 +74,7 @@ const BookingsPage = () => {
         dog_name: "",
         booking_date: o.override_date,
         booking_time: o.start_time || "09:00",
+        end_time: o.end_time || undefined,
         total_price: 0,
         deposit_paid: 0,
         status: "Blocked",
@@ -79,6 +82,7 @@ const BookingsPage = () => {
         customer_email: null,
         customer_phone: null,
         staff_name: o.staff?.name ?? "Unknown",
+        staff_id: o.staff?.id ?? o.staff_id,
         breed_name: "",
         service_name: "",
         is_block: true,
@@ -87,6 +91,32 @@ const BookingsPage = () => {
   });
 
   const allEvents = useMemo(() => [...bookings, ...overrides], [bookings, overrides]);
+
+  // Cancel block mutation
+  const cancelBlock = useMutation({
+    mutationFn: async (block: BookingData) => {
+      const { error } = await supabase.from("staff_schedule_overrides").delete().eq("id", block.id);
+      if (error) throw error;
+
+      // Log cancellation to HR notes
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user && block.staff_id) {
+        const formattedDate = format(new Date(block.booking_date), "dd MMM yyyy");
+        const hrNote = `🚫 BLOCK CANCELLED — ${formattedDate} ${block.booking_time.slice(0, 5)}-${block.end_time?.slice(0, 5) || "?"} — Original reason: ${block.notes || "No reason"}`;
+        await supabase.from("staff_notes").insert({
+          staff_id: block.staff_id,
+          created_by: user.id,
+          note: hrNote,
+        });
+      }
+    },
+    onSuccess: () => {
+      toast.success("Block cancelled & logged to HR notes");
+      queryClient.invalidateQueries({ queryKey: ["schedule-overrides"] });
+      queryClient.invalidateQueries({ queryKey: ["staff-notes"] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
 
   const handleBook = useCallback((date: Date, hour: number, staffId: string) => {
     setDialogMode("appointment");
@@ -100,6 +130,15 @@ const BookingsPage = () => {
     setDialogOpen(true);
   }, []);
 
+  const handleEditBlock = useCallback((block: BookingData) => {
+    setEditingBlock(block);
+    setEditBlockOpen(true);
+  }, []);
+
+  const handleCancelBlock = useCallback((block: BookingData) => {
+    cancelBlock.mutate(block);
+  }, [cancelBlock]);
+
   return (
     <AppLayout>
       <div className="space-y-4">
@@ -110,7 +149,6 @@ const BookingsPage = () => {
           onToday={() => setWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }))}
         />
 
-        {/* Staff legend */}
         <div className="flex flex-wrap gap-2">
           {staff.map((s, i) => {
             const colors = getStaffColor(i);
@@ -130,6 +168,8 @@ const BookingsPage = () => {
           staffIndexMap={staffIndexMap}
           onBook={handleBook}
           onBlock={handleBlock}
+          onEditBlock={handleEditBlock}
+          onCancelBlock={handleCancelBlock}
         />
       </div>
 
@@ -140,6 +180,12 @@ const BookingsPage = () => {
         defaultHour={dialogDefaults.hour}
         defaultStaffId={dialogDefaults.staffId}
         mode={dialogMode}
+      />
+
+      <EditBlockDialog
+        open={editBlockOpen}
+        onOpenChange={setEditBlockOpen}
+        block={editingBlock}
       />
     </AppLayout>
   );
