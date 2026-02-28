@@ -50,7 +50,7 @@ export function ServiceJourney({ services, onSelectService }: ServiceJourneyProp
                     style={service.imagePosition ? { objectPosition: service.imagePosition } : undefined}
                   />
                   {/* Gradient fade into card */}
-                  <div className="absolute inset-x-0 -bottom-px h-28 bg-gradient-to-t from-card via-card/60 to-transparent" />
+                  <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-card via-card/60 to-transparent" />
                 </div>
 
                 {/* Text */}
