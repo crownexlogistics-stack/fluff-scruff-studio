@@ -1,12 +1,10 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback } from "react";
 import { ArrowLeft, Search, Dog, ChevronRight, PawPrint } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import serviceBathBrush from "@/assets/service-bath-brush.jpg";
 import serviceFullGroomSub from "@/assets/service-full-groom-sub.jpg";
-
-const ADJUST_MODE = true; // TEMP: set false to lock positions
 
 type Step = "sub-service" | "breed" | null;
 
@@ -35,14 +33,7 @@ export function BookingFlow({ service, onClose }: BookingFlowProps) {
   const [selectedSub, setSelectedSub] = useState<string | null>(null);
   const [breedSearch, setBreedsSearch] = useState("");
 
-  // TEMP adjustment mode state
-  const [positions, setPositions] = useState(
-    subServices.map((s) => {
-      const parts = (s.imagePosition || "50% 50%").split(" ");
-      return { x: parseFloat(parts[0]), y: parseFloat(parts[1]) };
-    })
-  );
-  const dragRef = useRef<{ idx: number; startX: number; startY: number; origX: number; origY: number } | null>(null);
+  
   const { data: breeds } = useQuery({
     queryKey: ["breeds"],
     queryFn: async () => {
@@ -127,32 +118,10 @@ export function BookingFlow({ service, onClose }: BookingFlowProps) {
                         alt={opt.label}
                         className="w-full aspect-[4/3] object-cover block"
                         style={{
-                          objectPosition: ADJUST_MODE
-                            ? `${positions[subServices.indexOf(opt)].x}% ${positions[subServices.indexOf(opt)].y}%`
-                            : opt.imagePosition,
+                          objectPosition: opt.imagePosition,
                           maxHeight: '220px',
-                          cursor: ADJUST_MODE ? 'grab' : undefined,
-                          touchAction: ADJUST_MODE ? 'none' : undefined,
                         }}
-                        onPointerDown={ADJUST_MODE ? (e) => {
-                          const idx = subServices.indexOf(opt);
-                          (e.target as HTMLElement).setPointerCapture(e.pointerId);
-                          dragRef.current = { idx, startX: e.clientX, startY: e.clientY, origX: positions[idx].x, origY: positions[idx].y };
-                        } : undefined}
-                        onPointerMove={ADJUST_MODE ? (e) => {
-                          if (!dragRef.current) return;
-                          const { idx, startX, startY, origX, origY } = dragRef.current;
-                          const dx = (e.clientX - startX) * -0.15;
-                          const dy = (e.clientY - startY) * -0.15;
-                          setPositions(prev => prev.map((p, i) => i === idx ? { x: Math.min(100, Math.max(0, origX + dx)), y: Math.min(100, Math.max(0, origY + dy)) } : p));
-                        } : undefined}
-                        onPointerUp={ADJUST_MODE ? () => { dragRef.current = null; } : undefined}
                       />
-                      {ADJUST_MODE && (
-                        <div className="absolute top-2 left-2 bg-orange-500 text-white text-xs px-2 py-1 rounded-full font-mono z-20">
-                          {positions[subServices.indexOf(opt)].x.toFixed(0)}% {positions[subServices.indexOf(opt)].y.toFixed(0)}%
-                        </div>
-                      )}
                       <div className="absolute inset-x-0 bottom-0 h-24 sm:h-32 bg-gradient-to-t from-card via-card/80 to-transparent pointer-events-none" />
                     </div>
 
