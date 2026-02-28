@@ -38,15 +38,15 @@ export function ServiceJourney({ services, onSelectService }: ServiceJourneyProp
             <button
               key={service.title}
               onClick={() => onSelectService(service.title)}
-              className="text-left group active:scale-[0.98] transition-all duration-300"
+              className="text-left group transition-colors duration-300"
             >
-              <div className="relative bg-card rounded-3xl overflow-hidden border border-border/40 transition-all duration-500 hover:shadow-xl hover:shadow-black/[0.06] hover:border-border/60 hover:-translate-y-1 shadow-md shadow-black/[0.03]">
+              <div className="relative bg-card rounded-3xl overflow-hidden border border-border/40 transition-[box-shadow,border-color] duration-500 hover:shadow-xl hover:shadow-black/[0.06] hover:border-border/60 shadow-md shadow-black/[0.03]">
                 {/* Image */}
                 <div className="relative overflow-hidden bg-card">
                   <img
                     src={service.image}
                     alt={service.title}
-                    className="w-full aspect-[4/3] object-cover transition-opacity duration-500 group-hover:opacity-95 block"
+                    className="w-full aspect-[4/3] object-cover transition-none block"
                     style={service.imagePosition ? { objectPosition: service.imagePosition } : undefined}
                   />
                   {/* Gradient fade into card */}
