@@ -8,7 +8,7 @@ import serviceBathBrush from "@/assets/service-bath-brush.jpg";
 import serviceFullGroomSub from "@/assets/service-full-groom-sub.jpg";
 
 // Toggle this to reposition images, then tap Save
-const ADJUST_MODE = false;
+const ADJUST_MODE = true;
 
 type Step = "sub-service" | "breed" | null;
 
