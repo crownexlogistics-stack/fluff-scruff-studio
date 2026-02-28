@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +21,12 @@ interface NewBookingDialogProps {
 
 export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour, defaultStaffId, mode }: NewBookingDialogProps) {
   const queryClient = useQueryClient();
+
+  const dateStr = defaultDate ? format(defaultDate, "yyyy-MM-dd") : "";
+  const timeStr = defaultHour != null ? `${String(defaultHour).padStart(2, "0")}:00` : "09:00";
+  const defaultEndHour = defaultHour != null ? defaultHour + 1 : 10;
+  const endTimeStr = `${String(defaultEndHour).padStart(2, "0")}:00`;
+
   const [form, setForm] = useState({
     customer_name: "",
     dog_name: "",
@@ -29,12 +35,31 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
     breed_id: "",
     service_id: "",
     staff_id: defaultStaffId || "",
-    booking_date: defaultDate ? format(defaultDate, "yyyy-MM-dd") : "",
-    booking_time: defaultHour ? `${String(defaultHour).padStart(2, "0")}:00` : "09:00",
+    booking_date: dateStr,
+    booking_time: timeStr,
+    end_time: endTimeStr,
     total_price: 0,
     deposit_paid: 0,
     notes: "",
   });
+
+  // Sync defaults when dialog opens with new values
+  useEffect(() => {
+    if (open) {
+      setForm(prev => ({
+        ...prev,
+        staff_id: defaultStaffId || prev.staff_id,
+        booking_date: dateStr || prev.booking_date,
+        booking_time: timeStr,
+        end_time: endTimeStr,
+        // Reset fields for fresh dialog
+        ...(mode === "block" ? { notes: "" } : {
+          customer_name: "", dog_name: "", customer_email: "", customer_phone: "",
+          breed_id: "", service_id: "", total_price: 0, deposit_paid: 0, notes: "",
+        }),
+      }));
+    }
+  }, [open, defaultDate, defaultHour, defaultStaffId, mode]);
 
   const { data: staff } = useQuery({
     queryKey: ["staff-list"],
@@ -63,18 +88,33 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
     },
   });
 
+  const selectedStaffName = staff?.find(s => s.id === form.staff_id)?.name || "";
+
   const createBooking = useMutation({
     mutationFn: async () => {
       if (mode === "block") {
+        // 1. Insert schedule override
         const { error } = await supabase.from("staff_schedule_overrides").insert({
           staff_id: form.staff_id,
           override_date: form.booking_date,
           start_time: form.booking_time,
-          end_time: `${String(parseInt(form.booking_time) + 1).padStart(2, "0")}:00`,
+          end_time: form.end_time,
           is_working: false,
           note: form.notes || "Blocked",
         });
         if (error) throw error;
+
+        // 2. Auto-add HR note to staff_notes for tracking
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const formattedDate = format(new Date(form.booking_date), "dd MMM yyyy");
+          const hrNote = `⛔ TIME BLOCKED — ${formattedDate} from ${form.booking_time.slice(0, 5)} to ${form.end_time.slice(0, 5)}${form.notes ? ` — Reason: ${form.notes}` : ""}`;
+          await supabase.from("staff_notes").insert({
+            staff_id: form.staff_id,
+            created_by: user.id,
+            note: hrNote,
+          });
+        }
       } else {
         const { error } = await supabase.from("bookings").insert({
           customer_name: form.customer_name,
@@ -95,9 +135,10 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
       }
     },
     onSuccess: () => {
-      toast.success(mode === "block" ? "Time blocked" : "Booking created");
+      toast.success(mode === "block" ? "Time blocked & logged to HR notes" : "Booking created");
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
       queryClient.invalidateQueries({ queryKey: ["schedule-overrides"] });
+      queryClient.invalidateQueries({ queryKey: ["staff-notes"] });
       onOpenChange(false);
     },
     onError: (e: any) => toast.error(e.message),
@@ -111,29 +152,75 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <Label>Date</Label>
-              <Input type="date" value={form.booking_date} onChange={(e) => setForm({ ...form, booking_date: e.target.value })} />
-            </div>
-            <div className="space-y-1">
-              <Label>Time</Label>
-              <Input type="time" value={form.booking_time} onChange={(e) => setForm({ ...form, booking_time: e.target.value })} />
-            </div>
-          </div>
-
-          <div className="space-y-1">
-            <Label>Staff Member</Label>
-            <Select value={form.staff_id} onValueChange={(v) => setForm({ ...form, staff_id: v })}>
-              <SelectTrigger><SelectValue placeholder="Select staff" /></SelectTrigger>
-              <SelectContent>
-                {staff?.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {mode === "appointment" && (
+          {mode === "block" ? (
             <>
+              {/* Block mode: show pre-populated info as read-only, only ask for end time & notes */}
+              <div className="rounded-lg border bg-muted/30 p-3 space-y-1">
+                <p className="text-sm font-medium">
+                  {defaultDate ? format(defaultDate, "EEEE, dd MMM yyyy") : ""}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Starting at {form.booking_time.slice(0, 5)}
+                </p>
+              </div>
+
+              <div className="space-y-1">
+                <Label>End Time</Label>
+                <Input
+                  type="time"
+                  value={form.end_time}
+                  onChange={(e) => setForm({ ...form, end_time: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label>Staff Member</Label>
+                <Select value={form.staff_id} onValueChange={(v) => setForm({ ...form, staff_id: v })}>
+                  <SelectTrigger><SelectValue placeholder="Select staff" /></SelectTrigger>
+                  <SelectContent>
+                    {staff?.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1">
+                <Label>Reason / Notes</Label>
+                <Textarea
+                  value={form.notes}
+                  onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                  placeholder="Why is this time being blocked?"
+                  rows={3}
+                />
+              </div>
+
+              <p className="text-xs text-muted-foreground">
+                This block will be automatically logged to the staff member's HR notes for record keeping.
+              </p>
+            </>
+          ) : (
+            <>
+              {/* Appointment mode */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label>Date</Label>
+                  <Input type="date" value={form.booking_date} onChange={(e) => setForm({ ...form, booking_date: e.target.value })} />
+                </div>
+                <div className="space-y-1">
+                  <Label>Time</Label>
+                  <Input type="time" value={form.booking_time} onChange={(e) => setForm({ ...form, booking_time: e.target.value })} />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <Label>Staff Member</Label>
+                <Select value={form.staff_id} onValueChange={(v) => setForm({ ...form, staff_id: v })}>
+                  <SelectTrigger><SelectValue placeholder="Select staff" /></SelectTrigger>
+                  <SelectContent>
+                    {staff?.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <Label>Customer Name</Label>
@@ -184,13 +271,13 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
                   <Input type="number" value={form.deposit_paid} onChange={(e) => setForm({ ...form, deposit_paid: Number(e.target.value) })} />
                 </div>
               </div>
+
+              <div className="space-y-1">
+                <Label>Notes</Label>
+                <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} />
+              </div>
             </>
           )}
-
-          <div className="space-y-1">
-            <Label>Notes</Label>
-            <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} />
-          </div>
         </div>
 
         <DialogFooter>

@@ -458,14 +458,20 @@ const StaffDetailPage = () => {
               {staffNotes && staffNotes.length > 0 && (
                 <div className="space-y-3 pt-2">
                   <Separator />
-                  {staffNotes.map((n: any) => (
-                    <div key={n.id} className="rounded-lg border bg-muted/30 p-3 space-y-1">
-                      <p className="text-sm">{n.note}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {format(new Date(n.created_at), "dd MMM yyyy 'at' HH:mm")}
-                      </p>
-                    </div>
-                  ))}
+                  {staffNotes.map((n: any) => {
+                    const isBlockNote = n.note?.startsWith("⛔");
+                    return (
+                      <div key={n.id} className={cn(
+                        "rounded-lg border p-3 space-y-1",
+                        isBlockNote ? "bg-destructive/10 border-destructive/30" : "bg-muted/30"
+                      )}>
+                        <p className={cn("text-sm", isBlockNote && "text-destructive font-medium")}>{n.note}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {format(new Date(n.created_at), "dd MMM yyyy 'at' HH:mm")}
+                        </p>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
