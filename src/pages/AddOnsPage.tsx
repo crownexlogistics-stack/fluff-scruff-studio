@@ -16,9 +16,9 @@ const ICON_OPTIONS = [
 export default function AddOnsPage() {
   const queryClient = useQueryClient();
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState({ name: "", price: "", icon: "Sparkles" });
+  const [editForm, setEditForm] = useState({ name: "", price: "", icon: "Sparkles", description: "" });
   const [showAdd, setShowAdd] = useState(false);
-  const [addForm, setAddForm] = useState({ name: "", price: "", icon: "Sparkles" });
+  const [addForm, setAddForm] = useState({ name: "", price: "", icon: "Sparkles", description: "" });
 
   const { data: addOns, isLoading } = useQuery({
     queryKey: ["add_ons"],
@@ -30,12 +30,12 @@ export default function AddOnsPage() {
   });
 
   const upsertMutation = useMutation({
-    mutationFn: async (vals: { id?: string; name: string; price: number; icon: string; is_active?: boolean }) => {
+    mutationFn: async (vals: { id?: string; name: string; price: number; icon: string; description: string; is_active?: boolean }) => {
       if (vals.id) {
-        const { error } = await supabase.from("add_ons").update({ name: vals.name, price: vals.price, icon: vals.icon }).eq("id", vals.id);
+        const { error } = await supabase.from("add_ons").update({ name: vals.name, price: vals.price, icon: vals.icon, description: vals.description || null } as any).eq("id", vals.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("add_ons").insert({ name: vals.name, price: vals.price, icon: vals.icon });
+        const { error } = await supabase.from("add_ons").insert({ name: vals.name, price: vals.price, icon: vals.icon, description: vals.description || null } as any);
         if (error) throw error;
       }
     },
@@ -43,7 +43,7 @@ export default function AddOnsPage() {
       queryClient.invalidateQueries({ queryKey: ["add_ons"] });
       setEditingId(null);
       setShowAdd(false);
-      setAddForm({ name: "", price: "", icon: "Sparkles" });
+      setAddForm({ name: "", price: "", icon: "Sparkles", description: "" });
       toast.success("Saved!");
     },
     onError: () => toast.error("Failed to save"),
@@ -107,11 +107,15 @@ export default function AddOnsPage() {
                 </select>
               </div>
             </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Description (shown to customers)</label>
+              <Input value={addForm.description} onChange={e => setAddForm({ ...addForm, description: e.target.value })} placeholder="What does this include?" className="h-10" />
+            </div>
             <div className="flex gap-2 justify-end">
               <Button variant="ghost" size="sm" onClick={() => setShowAdd(false)}>
                 <X className="h-4 w-4 mr-1" /> Cancel
               </Button>
-              <Button size="sm" disabled={!addForm.name.trim() || !addForm.price} onClick={() => upsertMutation.mutate({ name: addForm.name, price: parseFloat(addForm.price), icon: addForm.icon })}>
+              <Button size="sm" disabled={!addForm.name.trim() || !addForm.price} onClick={() => upsertMutation.mutate({ name: addForm.name, price: parseFloat(addForm.price), icon: addForm.icon, description: addForm.description })}>
                 <Check className="h-4 w-4 mr-1" /> Save
               </Button>
             </div>
@@ -144,9 +148,13 @@ export default function AddOnsPage() {
                       </select>
                     </div>
                   </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground">Description (shown to customers)</label>
+                    <Input value={editForm.description} onChange={e => setEditForm({ ...editForm, description: e.target.value })} placeholder="What does this include?" className="h-10" />
+                  </div>
                   <div className="flex gap-2 justify-end">
                     <Button variant="ghost" size="sm" onClick={() => setEditingId(null)}><X className="h-4 w-4 mr-1" /> Cancel</Button>
-                    <Button size="sm" onClick={() => upsertMutation.mutate({ id: addon.id, name: editForm.name, price: parseFloat(editForm.price), icon: editForm.icon })}>
+                    <Button size="sm" onClick={() => upsertMutation.mutate({ id: addon.id, name: editForm.name, price: parseFloat(editForm.price), icon: editForm.icon, description: editForm.description })}>
                       <Check className="h-4 w-4 mr-1" /> Save
                     </Button>
                   </div>
@@ -164,7 +172,7 @@ export default function AddOnsPage() {
                   <p className="text-sm text-muted-foreground">£{Number(addon.price).toFixed(2)}</p>
                 </div>
                 <Switch checked={addon.is_active} onCheckedChange={(checked) => toggleMutation.mutate({ id: addon.id, is_active: checked })} />
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingId(addon.id); setEditForm({ name: addon.name, price: String(addon.price), icon: addon.icon ?? "Sparkles" }); }}>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingId(addon.id); setEditForm({ name: addon.name, price: String(addon.price), icon: addon.icon ?? "Sparkles", description: (addon as any).description ?? "" }); }}>
                   <Pencil className="h-4 w-4" />
                 </Button>
                 <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => { if (confirm("Delete this add-on?")) deleteMutation.mutate(addon.id); }}>

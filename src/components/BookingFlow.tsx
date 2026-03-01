@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from "react";
-import { ArrowLeft, Search, Dog, ChevronRight, PawPrint, Save, Move, Sparkles, Check, ChevronLeft, Calendar } from "lucide-react";
+import { ArrowLeft, Search, Dog, ChevronRight, PawPrint, Save, Move, Sparkles, Check, ChevronLeft, Calendar, Info, X } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
@@ -530,19 +530,29 @@ export function BookingFlow({ service, onClose }: BookingFlowProps) {
                   const isSelected = selectedAddOns.includes(addon.id);
                   const Icon = getAddonIcon(addon.icon);
                   return (
-                    <button
-                      key={addon.id}
-                      onClick={() => toggleAddOn(addon.id)}
-                      className={`w-full flex items-center gap-4 rounded-2xl border p-4 text-left transition-all duration-200 ${isSelected ? 'border-accent bg-accent/10 shadow-sm' : 'border-border bg-card hover:border-accent/50 hover:shadow-sm'}`}
-                    >
-                      <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-colors ${isSelected ? 'bg-accent text-accent-foreground' : 'bg-muted'}`}>
-                        {isSelected ? <Check className="h-5 w-5" /> : <Icon className="h-5 w-5 text-muted-foreground" />}
-                      </div>
-                      <div className="flex-1">
-                        <p className="font-medium text-foreground">{addon.name}</p>
-                      </div>
-                      <span className="font-semibold text-foreground">+£{Number(addon.price)}</span>
-                    </button>
+                    <div key={addon.id} className="relative">
+                      <button
+                        onClick={() => toggleAddOn(addon.id)}
+                        className={`w-full flex items-center gap-4 rounded-2xl border p-4 text-left transition-all duration-200 ${isSelected ? 'border-accent bg-accent/10 shadow-sm' : 'border-border bg-card hover:border-accent/50 hover:shadow-sm'}`}
+                      >
+                        <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-colors ${isSelected ? 'bg-accent text-accent-foreground' : 'bg-muted'}`}>
+                          {isSelected ? <Check className="h-5 w-5" /> : <Icon className="h-5 w-5 text-muted-foreground" />}
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-medium text-foreground">{addon.name}</p>
+                        </div>
+                        <span className="font-semibold text-foreground">+£{Number(addon.price)}</span>
+                      </button>
+                      {(addon as any).description && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); toast.info((addon as any).description, { duration: 4000 }); }}
+                          className="absolute top-3 right-3 flex h-6 w-6 items-center justify-center rounded-full bg-muted/80 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                          aria-label={`Info about ${addon.name}`}
+                        >
+                          <Info className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
                   );
                 })}
                 {(!dbAddOns || dbAddOns.length === 0) && (
@@ -554,7 +564,7 @@ export function BookingFlow({ service, onClose }: BookingFlowProps) {
             {/* Next */}
             <div className="pt-2">
               <Button onClick={() => setStep("guest-details")} className="w-full h-14 text-base rounded-xl" size="lg">
-                Next — £{totalPrice}
+                Next £{totalPrice}
               </Button>
               <button onClick={() => setStep("guest-details")} className="w-full text-center text-sm text-muted-foreground mt-3 hover:text-foreground transition-colors">
                 Skip extras
@@ -599,7 +609,7 @@ export function BookingFlow({ service, onClose }: BookingFlowProps) {
             </div>
 
             <Button onClick={handleGuestSubmit} className="w-full h-14 text-base rounded-xl" size="lg">
-              Confirm Booking — £{totalPrice}
+              Confirm Booking £{totalPrice}
             </Button>
           </div>
         )}

@@ -1,0 +1,1 @@
+ALTER TABLE public.add_ons ADD COLUMN description text;
