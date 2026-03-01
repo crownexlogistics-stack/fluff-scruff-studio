@@ -1,172 +1,133 @@
 
 
-# Role-Based Access Control (RBAC) for Fluff & Scruff
+# Customer Email System: Confirmations, Reminders & In-App Inbox
 
-## Overview
+## The Problem
 
-This plan adds three user roles -- **Manager**, **Groomer**, and **Customer** -- with distinct views and permissions. Customers can still book as guests without an account. Logged-in users see role-appropriate navigation and are redirected away from pages they shouldn't access.
+Resend requires domain verification via DNS records, and Wix won't let you add those records for `fluffandscruff.co.uk`. This blocks all outgoing emails.
+
+## The Solution
+
+Use a temporary sender address (`onboarding@resend.dev`) with `Reply-To: info@fluffandscruff.co.uk` so emails go out immediately. When customers hit reply, their message lands in your real inbox. We also store a copy of every reply in an in-app inbox visible to you and your groomers.
+
+Once you move your domain to a provider that supports custom DNS (e.g. Cloudflare, Namecheap, GoDaddy), we swap the sender back to `info@fluffandscruff.co.uk`.
 
 ---
 
-## 1. Database Changes
+## What Gets Built
 
-### Authentication setup
-- Enable Lovable Cloud authentication (email + password sign-up/login)
-- Auto-confirm will NOT be enabled (users verify email first)
+### 1. Booking Confirmation Emails
+When a customer completes a booking (from the website or when a manager creates one in the dashboard), they receive a confirmation email with:
+- Dog name, service type, date and time
+- Studio address and contact info
+- A friendly "reply to this email if you need to change anything" line
 
-### New tables and types
+### 2. Appointment Reminders (24h + 2h before)
+A scheduled job runs every 15 minutes, checks for upcoming bookings, and sends:
+- **24-hour reminder** the day before
+- **2-hour reminder** on the day
+Each booking is tracked so no duplicate emails are sent.
 
-**`app_role` enum**: `'manager'`, `'groomer'`, `'customer'`
+### 3. In-App Message Inbox
+A new "Messages" page in the dashboard where managers and groomers can see customer replies. Replies arrive via a webhook that Resend calls when someone replies.
 
-**`user_roles` table**:
+---
+
+## Technical Details
+
+### Database Changes
+
+**New `booking_emails` table** (tracks what was sent to prevent duplicates):
 | Column | Type | Notes |
 |--------|------|-------|
 | id | uuid (PK) | auto-generated |
-| user_id | uuid | references auth.users, ON DELETE CASCADE |
-| role | app_role | not null |
-| unique(user_id, role) | | prevents duplicate roles |
+| booking_id | uuid | references bookings |
+| email_type | text | 'confirmation', 'reminder_24h', 'reminder_2h' |
+| sent_at | timestamptz | when email was sent |
+| resend_id | text | Resend's email ID for tracking |
 
-**`profiles` table** (for storing display info):
-| Column | Type | Notes |
-|--------|------|-------|
-| id | uuid (PK) | references auth.users, ON DELETE CASCADE |
-| full_name | text | nullable |
-| avatar_url | text | nullable |
-| created_at | timestamptz | default now() |
-
-**`customer_pets` table** (for "My Pets" section):
+**New `customer_messages` table** (stores inbound replies):
 | Column | Type | Notes |
 |--------|------|-------|
 | id | uuid (PK) | auto-generated |
-| user_id | uuid | references auth.users, ON DELETE CASCADE |
-| pet_name | text | not null |
-| breed_id | uuid | nullable, references breeds |
-| notes | text | nullable |
-| created_at | timestamptz | default now() |
+| booking_id | uuid | nullable, linked if we can match |
+| from_email | text | sender's email |
+| from_name | text | sender's name |
+| subject | text | email subject |
+| body | text | email body |
+| is_read | boolean | default false |
+| created_at | timestamptz | when received |
 
-### Link groomers to staff records
-- Add `auth_user_id` column to the existing `staff` table (nullable uuid, references auth.users) so groomer accounts can be linked to their staff record
+RLS: managers and directors can read/update all messages; groomers can read messages linked to their bookings.
 
-### Security-definer function
-```text
-has_role(user_id, role) -> boolean
-```
-Used in all RLS policies to avoid recursive lookups.
+### Edge Functions
 
-### RLS policies
-- **user_roles**: Users can read their own roles only
-- **profiles**: Users can read/update their own profile
-- **customer_pets**: Users can CRUD their own pets
-- **bookings**: Managers see all; groomers see only their assigned bookings; customers see bookings matching their email
-- Existing tables (breeds, services, staff, etc.) remain publicly readable but only managers can write
+**`send-booking-email`** (new):
+- Accepts `booking_id` and `email_type`
+- Fetches booking details from DB
+- Sends via Resend with `from: "Fluff & Scruff Studio <onboarding@resend.dev>"` and `reply_to: "info@fluffandscruff.co.uk"`
+- Records the send in `booking_emails`
+- Called after booking creation (confirmation) and by the cron job (reminders)
 
-### Auto-create profile + default role trigger
-- On new user sign-up, a database trigger creates a `profiles` row and inserts a `customer` role into `user_roles`
-- Managers will manually promote users to `groomer` or `manager` roles via the dashboard
+**`send-reminders`** (new):
+- Called every 15 minutes by a scheduled database job (pg_cron + pg_net)
+- Finds bookings in the next 24h and 2h windows
+- Skips any that already have a matching `booking_emails` row
+- Calls `send-booking-email` for each
 
----
+**`receive-reply`** (new, public webhook):
+- Resend calls this URL when a customer replies
+- Parses the inbound email payload
+- Stores the message in `customer_messages`
+- Tries to match to a booking by the sender's email
 
-## 2. New Pages and Components
+**Updates to existing functions:**
+- `send-contract-email`: change `fromEmail` to use `onboarding@resend.dev` with `reply_to: "info@fluffandscruff.co.uk"`
+- `send-test-email`: same change
 
-### Authentication
-- **`/auth` page**: Login and sign-up forms with email/password, plus a "Forgot Password" flow
-- **`/reset-password` page**: For completing password resets
-- **`useAuth` hook**: Manages session state via `onAuthStateChange`, exposes `user`, `role`, `signOut`
-- **`useUserRole` hook**: Fetches the current user's role from `user_roles` table
-- **`ProtectedRoute` component**: Wraps routes, checks role, redirects to `/` if unauthorized
+### Frontend Changes
 
-### Manager Dashboard (existing `/admin` route, now protected)
-- All current admin pages remain as-is but wrapped in role checks
-- New "User Management" section under `/admin/users` to view all users and change their roles
-- Sidebar shows all management links (Dashboard, Breeds, Services, Staff, Bookings, Users)
+**New "Messages" page** (`/messages`):
+- List of customer replies, newest first
+- Each shows sender name, subject, body preview, timestamp, read/unread badge
+- Click to expand full message
+- Mark as read button
+- Linked booking shown if matched
 
-### Groomer Portal (`/portal`)
-- **My Schedule page**: Shows only the logged-in groomer's bookings (filtered by `staff.auth_user_id`)
-- Each booking has a "Mark as Finished" button that updates status to "Completed"
-- No revenue figures, no other groomers' data visible
-- Simplified sidebar: My Schedule only
+**Sidebar update:**
+- Add "Messages" link with unread count badge under Management section
 
-### Customer View
-- **Guest booking** continues to work exactly as today (no login required)
-- Nav bar gets a "Sign In" button (top right)
-- Logged-in customers see a "My Pets" link in the nav
-- **`/my-pets` page**: Lists their pets and booking history (matched by email)
-- Can add/edit pet profiles
+**Booking flow update:**
+- After successful booking insert in `BookingFlow.tsx`, call `send-booking-email` with type `confirmation`
+- Same for `NewBookingDialog.tsx` when manager creates a booking
 
----
+**Dashboard booking update:**
+- When a manager creates a booking via the calendar dialog, also trigger confirmation email
 
-## 3. Navigation Logic
+### Scheduled Job Setup
 
-### Customer-facing nav (top bar on `/`)
-- Not logged in: Services, About, Contact, Book Now, **Sign In**
-- Logged in as Customer: Services, About, Contact, Book Now, **My Pets**, profile avatar with sign-out
-- Logged in as Manager: same + **Dashboard** link
-- Logged in as Groomer: same + **My Schedule** link
+Enable `pg_cron` and `pg_net` extensions, then create a cron job that calls the `send-reminders` function every 15 minutes.
 
-### Admin sidebar (existing `AppSidebar`)
-- Only renders for Manager role
-- Adds "Users" link for user management
+### Resend Webhook Setup (Manual Step)
 
-### Groomer sidebar (new `GroomerSidebar`)
-- Minimal: logo + "My Schedule" + sign-out
+After the `receive-reply` function is deployed, you'll need to:
+1. Log into resend.com
+2. Go to Webhooks
+3. Add a webhook URL pointing to the `receive-reply` function
+4. Select the "email.received" event (or configure an inbound domain if available on your Resend plan)
+
+Note: Resend's inbound email feature may require a paid plan. If it's not available, replies still go to your `info@fluffandscruff.co.uk` mailbox normally; the in-app inbox would then be populated manually or via a future integration.
 
 ---
 
-## 4. Route Structure
+## Implementation Order
 
-```text
-/                    Public homepage (all users)
-/auth                Login / Sign-up
-/reset-password      Password reset completion
-/my-pets             Customer only (logged in)
-/portal              Groomer only
-/admin               Manager only
-/admin/users         Manager only (new)
-/breeds              Manager only
-/services            Manager only
-/staff               Manager only
-/staff/:id           Manager only
-/bookings            Manager only
-/contract/sign/:id   Public (existing)
-```
-
----
-
-## 5. Files to Create
-
-| File | Purpose |
-|------|---------|
-| `src/hooks/useAuth.ts` | Auth session + sign-out helper |
-| `src/hooks/useUserRole.ts` | Fetch role from user_roles |
-| `src/components/ProtectedRoute.tsx` | Role-gated route wrapper |
-| `src/pages/AuthPage.tsx` | Login / sign-up forms |
-| `src/pages/ResetPasswordPage.tsx` | Password reset form |
-| `src/pages/MyPetsPage.tsx` | Customer pet profiles + booking history |
-| `src/pages/GroomerPortalPage.tsx` | Groomer's schedule view |
-| `src/pages/AdminUsersPage.tsx` | Manager user management |
-| `src/components/GroomerLayout.tsx` | Layout with groomer sidebar |
-
-## 6. Files to Modify
-
-| File | Changes |
-|------|---------|
-| `src/App.tsx` | Add new routes, wrap admin routes with ProtectedRoute |
-| `src/pages/CustomerHome.tsx` | Add Sign In button, conditional My Pets link |
-| `src/components/AppSidebar.tsx` | Add Users nav item |
-| `src/components/AppLayout.tsx` | No structural changes needed |
-| `supabase/config.toml` | Add edge function configs if needed |
-| DB migration | Create tables, enum, trigger, RLS policies, security-definer function |
-
----
-
-## 7. Implementation Order
-
-1. Database migration (enum, tables, trigger, RLS, security-definer function)
-2. Auth hooks and ProtectedRoute component
-3. Auth page (login/signup/forgot password) + reset password page
-4. Update App.tsx routes and CustomerHome nav
-5. Manager user management page
-6. Groomer portal page with schedule + "Mark as Finished"
-7. Customer "My Pets" page with booking history
-8. Navigation updates (sidebar + top nav role-based rendering)
+1. Update existing email functions to use temporary sender + reply-to header
+2. Create `booking_emails` and `customer_messages` tables with RLS
+3. Build `send-booking-email` edge function
+4. Wire up confirmation emails in BookingFlow and NewBookingDialog
+5. Build `send-reminders` edge function + set up the cron schedule
+6. Build `receive-reply` webhook edge function
+7. Build the Messages page and add it to the sidebar
+8. Test the full flow end-to-end
 
