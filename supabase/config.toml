@@ -5,3 +5,12 @@ verify_jwt = false
 
 [functions.send-test-email]
 verify_jwt = false
+
+[functions.send-booking-email]
+verify_jwt = false
+
+[functions.send-reminders]
+verify_jwt = false
+
+[functions.receive-reply]
+verify_jwt = false

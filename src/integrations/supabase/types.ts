@@ -44,6 +44,38 @@ export type Database = {
         }
         Relationships: []
       }
+      booking_emails: {
+        Row: {
+          booking_id: string
+          email_type: string
+          id: string
+          resend_id: string | null
+          sent_at: string
+        }
+        Insert: {
+          booking_id: string
+          email_type: string
+          id?: string
+          resend_id?: string | null
+          sent_at?: string
+        }
+        Update: {
+          booking_id?: string
+          email_type?: string
+          id?: string
+          resend_id?: string | null
+          sent_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_emails_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bookings: {
         Row: {
           booking_date: string
@@ -158,6 +190,47 @@ export type Database = {
           size_category?: string
         }
         Relationships: []
+      }
+      customer_messages: {
+        Row: {
+          body: string | null
+          booking_id: string | null
+          created_at: string
+          from_email: string
+          from_name: string | null
+          id: string
+          is_read: boolean
+          subject: string | null
+        }
+        Insert: {
+          body?: string | null
+          booking_id?: string | null
+          created_at?: string
+          from_email: string
+          from_name?: string | null
+          id?: string
+          is_read?: boolean
+          subject?: string | null
+        }
+        Update: {
+          body?: string | null
+          booking_id?: string | null
+          created_at?: string
+          from_email?: string
+          from_name?: string | null
+          id?: string
+          is_read?: boolean
+          subject?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_messages_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       customer_pets: {
         Row: {

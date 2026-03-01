@@ -179,7 +179,7 @@ export function BookingFlow({ service, onClose }: BookingFlowProps) {
       return;
     }
 
-    const { error } = await supabase.from("bookings").insert({
+    const { data: insertedBooking, error } = await supabase.from("bookings").insert({
       customer_name: guestForm.name,
       customer_phone: guestForm.phone || null,
       customer_email: guestForm.email || null,
@@ -189,11 +189,18 @@ export function BookingFlow({ service, onClose }: BookingFlowProps) {
       booking_time: selectedTime!,
       total_price: totalPrice,
       status: "Pending",
-    });
+    }).select("id").single();
 
     if (error) {
       toast.error("Failed to book — please try again");
       return;
+    }
+
+    // Send confirmation email if customer provided email
+    if (guestForm.email && insertedBooking?.id) {
+      supabase.functions.invoke("send-booking-email", {
+        body: { booking_id: insertedBooking.id, email_type: "confirmation" },
+      }).catch(() => {}); // fire-and-forget
     }
 
     toast.success("Booking confirmed! We'll be in touch.");

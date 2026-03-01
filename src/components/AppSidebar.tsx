@@ -3,6 +3,7 @@ import {
   UserPlus, CalendarClock, ChevronDown, Megaphone,
   UsersRound, BarChart3, Tags, Search, Facebook, Mail,
   LogOut, Sparkles, AlertTriangle, ShieldCheck, BookOpen,
+  Inbox,
 } from "lucide-react";
 import logo from "@/assets/logo-transparent.png";
 import { NavLink } from "@/components/NavLink";
@@ -30,6 +31,7 @@ import {
 const mainNavItems = [
   { title: "Dashboard", url: "/admin", icon: LayoutDashboard },
   { title: "Bookings", url: "/bookings", icon: Calendar },
+  { title: "Messages", url: "/messages", icon: Inbox },
   { title: "Add-Ons", url: "/add-ons", icon: Sparkles },
 ];
 
