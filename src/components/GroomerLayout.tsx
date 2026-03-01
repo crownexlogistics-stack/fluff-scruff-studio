@@ -1,4 +1,4 @@
-import { CalendarDays, LogOut } from "lucide-react";
+import { CalendarDays, FileText, LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import logo from "@/assets/logo-transparent.png";
 import { useAuth } from "@/hooks/useAuth";
@@ -29,7 +29,7 @@ export function GroomerLayout({ children }: GroomerLayoutProps) {
           </div>
         </div>
 
-        <nav className="flex-1 px-3 py-4">
+        <nav className="flex-1 px-3 py-4 space-y-1">
           <a
             href="/portal"
             className="flex items-center gap-2 px-3 py-2 rounded-lg bg-sidebar-accent text-sidebar-primary font-medium text-sm"

@@ -19,6 +19,7 @@ import AdminUsersPage from "./pages/AdminUsersPage";
 import GroomerPortalPage from "./pages/GroomerPortalPage";
 import MarketingPage from "./pages/MarketingPage";
 import MyPetsPage from "./pages/MyPetsPage";
+import IncidentReportsPage from "./pages/IncidentReportsPage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import NotFound from "./pages/NotFound";
 
@@ -52,6 +53,7 @@ const App = () => (
           <Route path="/staff" element={<ProtectedRoute allowedRoles={["manager", "director"]}><StaffPage /></ProtectedRoute>} />
           <Route path="/staff/:id" element={<ProtectedRoute allowedRoles={["manager", "director"]}><StaffDetailPage /></ProtectedRoute>} />
           <Route path="/staff/schedule" element={<ProtectedRoute allowedRoles={["manager", "director"]}><WorkSchedulePage /></ProtectedRoute>} />
+          <Route path="/staff/incidents" element={<ProtectedRoute allowedRoles={["manager", "director"]}><IncidentReportsPage /></ProtectedRoute>} />
           <Route path="/bookings" element={<ProtectedRoute allowedRoles={["manager", "director"]}><BookingsPage /></ProtectedRoute>} />
           <Route path="/marketing/*" element={<ProtectedRoute allowedRoles={["manager", "director"]}><MarketingPage /></ProtectedRoute>} />
 

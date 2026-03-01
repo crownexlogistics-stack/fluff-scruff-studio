@@ -191,6 +191,123 @@ export type Database = {
           },
         ]
       }
+      incident_report_recipients: {
+        Row: {
+          created_at: string
+          has_read: boolean
+          id: string
+          notes: string | null
+          recipient_type: string
+          report_id: string
+          signed_at: string | null
+          signed_name: string | null
+          staff_id: string
+        }
+        Insert: {
+          created_at?: string
+          has_read?: boolean
+          id?: string
+          notes?: string | null
+          recipient_type?: string
+          report_id: string
+          signed_at?: string | null
+          signed_name?: string | null
+          staff_id: string
+        }
+        Update: {
+          created_at?: string
+          has_read?: boolean
+          id?: string
+          notes?: string | null
+          recipient_type?: string
+          report_id?: string
+          signed_at?: string | null
+          signed_name?: string | null
+          staff_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "incident_report_recipients_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "incident_reports"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "incident_report_recipients_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      incident_reports: {
+        Row: {
+          accident_date: string
+          accident_description: string
+          accident_location: string | null
+          accident_time: string | null
+          created_at: string
+          created_by: string
+          employer_signed_at: string | null
+          employer_signed_by: string | null
+          id: string
+          injury_description: string | null
+          person_address: string | null
+          person_name: string
+          person_occupation: string | null
+          reporter_name: string
+          reporter_occupation: string | null
+          riddor_reference: string | null
+          riddor_reportable: boolean
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          accident_date: string
+          accident_description: string
+          accident_location?: string | null
+          accident_time?: string | null
+          created_at?: string
+          created_by: string
+          employer_signed_at?: string | null
+          employer_signed_by?: string | null
+          id?: string
+          injury_description?: string | null
+          person_address?: string | null
+          person_name: string
+          person_occupation?: string | null
+          reporter_name: string
+          reporter_occupation?: string | null
+          riddor_reference?: string | null
+          riddor_reportable?: boolean
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          accident_date?: string
+          accident_description?: string
+          accident_location?: string | null
+          accident_time?: string | null
+          created_at?: string
+          created_by?: string
+          employer_signed_at?: string | null
+          employer_signed_by?: string | null
+          id?: string
+          injury_description?: string | null
+          person_address?: string | null
+          person_name?: string
+          person_occupation?: string | null
+          reporter_name?: string
+          reporter_occupation?: string | null
+          riddor_reference?: string | null
+          riddor_reportable?: boolean
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null

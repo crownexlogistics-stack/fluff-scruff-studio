@@ -2,7 +2,7 @@ import {
   Dog, Users, Calendar, LayoutDashboard, Crown,
   UserPlus, CalendarClock, ChevronDown, Megaphone,
   UsersRound, BarChart3, Tags, Search, Facebook, Mail,
-  LogOut, Sparkles,
+  LogOut, Sparkles, AlertTriangle,
 } from "lucide-react";
 import logo from "@/assets/logo-transparent.png";
 import { NavLink } from "@/components/NavLink";
@@ -40,6 +40,7 @@ const directorNavItems = [
 const hrSubItems = [
   { title: "Manage Staff", url: "/staff", icon: UserPlus },
   { title: "Work Schedule", url: "/staff/schedule", icon: CalendarClock },
+  { title: "Incident Reports", url: "/staff/incidents", icon: AlertTriangle },
 ];
 
 const marketingSubItems = [
