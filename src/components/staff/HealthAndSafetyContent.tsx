@@ -5,6 +5,7 @@ interface StaffMember {
   hs_status?: string;
   hs_signed_at?: string | null;
   hs_signed_ip?: string | null;
+  hs_signature_data?: string | null;
 }
 
 const sections = [
@@ -153,9 +154,17 @@ export function HealthAndSafetyContent({ staff }: { staff: StaffMember }) {
           <div className="space-y-2">
             {staff.hs_status === "signed" && staff.hs_signed_at ? (
               <>
-                <p className="text-lg italic font-serif text-foreground">
-                  {staff.name}
-                </p>
+                {staff.hs_signature_data ? (
+                  <img
+                    src={staff.hs_signature_data}
+                    alt="Signature"
+                    className="max-h-16 border rounded bg-white p-1"
+                  />
+                ) : (
+                  <p className="text-lg italic font-serif text-foreground">
+                    {staff.name}
+                  </p>
+                )}
                 <p className="text-xs text-muted-foreground">
                   Date: {format(new Date(staff.hs_signed_at), "PPP")}
                 </p>
