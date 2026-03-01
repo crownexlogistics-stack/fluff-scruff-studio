@@ -22,6 +22,7 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { ContractPreviewDialog } from "@/components/staff/ContractPreviewDialog";
+import CodeOfConduct from "@/components/staff/CodeOfConduct";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
@@ -431,6 +432,9 @@ const StaffDetailPage = () => {
 
           </div>
         </div>
+
+        {/* Code of Conduct */}
+        <CodeOfConduct compact />
 
         {/* HR Notes - Director only - Full width */}
         {isDirector && (

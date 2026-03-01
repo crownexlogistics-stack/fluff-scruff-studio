@@ -7,7 +7,8 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { ChevronDown, Scissors, Droplets, UtensilsCrossed, BookOpen } from "lucide-react";
+import { ChevronDown, Scissors, Droplets, UtensilsCrossed } from "lucide-react";
+import CodeOfConduct from "@/components/staff/CodeOfConduct";
 
 interface RuleFolder {
   title: string;
@@ -148,6 +149,8 @@ const RulesPage = () => {
             </Collapsible>
           ))}
         </div>
+
+        <CodeOfConduct />
       </div>
     </AppLayout>
   );
