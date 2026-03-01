@@ -84,7 +84,7 @@ serve(async (req) => {
             });
           }
         }
-      } catch { /* non-blocking */ }
+      } catch (emailErr) { console.error("Confirmation email error:", emailErr); }
 
     } else if (document_type === "health_and_safety") {
       const { error } = await supabase.from("staff").update({
