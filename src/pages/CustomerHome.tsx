@@ -97,7 +97,7 @@ const CustomerHome = () => {
         </div>
 
         {/* Hero text */}
-        <div className="relative -mt-28 sm:-mt-36 z-10 max-w-2xl mx-auto px-5 sm:px-6 text-center pb-6 sm:pb-16">
+        <div className="relative -mt-20 sm:-mt-36 z-10 max-w-2xl mx-auto px-5 sm:px-6 text-center pb-6 sm:pb-16">
           <h1 className="text-[2.75rem] sm:text-7xl lg:text-8xl font-heading text-foreground leading-[1.08] tracking-tight drop-shadow-[0_2px_8px_rgba(0,0,0,0.12)]">
             Fluff &amp; Scruff Studio
           </h1>
