@@ -329,6 +329,86 @@ export type Database = {
         }
         Relationships: []
       }
+      risk_assessment_items: {
+        Row: {
+          additional_actions: string | null
+          assessment_id: string
+          created_at: string
+          existing_controls: string
+          from_when: string | null
+          hazard: string
+          id: string
+          item_number: number
+          who_harmed: string
+          who_responsible: string | null
+        }
+        Insert: {
+          additional_actions?: string | null
+          assessment_id: string
+          created_at?: string
+          existing_controls: string
+          from_when?: string | null
+          hazard: string
+          id?: string
+          item_number: number
+          who_harmed: string
+          who_responsible?: string | null
+        }
+        Update: {
+          additional_actions?: string | null
+          assessment_id?: string
+          created_at?: string
+          existing_controls?: string
+          from_when?: string | null
+          hazard?: string
+          id?: string
+          item_number?: number
+          who_harmed?: string
+          who_responsible?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "risk_assessment_items_assessment_id_fkey"
+            columns: ["assessment_id"]
+            isOneToOne: false
+            referencedRelation: "risk_assessments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      risk_assessments: {
+        Row: {
+          assessed_by: string
+          assessment_date: string
+          company_name: string
+          created_at: string
+          created_by: string
+          id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          assessed_by: string
+          assessment_date: string
+          company_name?: string
+          created_at?: string
+          created_by: string
+          id?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          assessed_by?: string
+          assessment_date?: string
+          company_name?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       service_prices: {
         Row: {
           breed_id: string
