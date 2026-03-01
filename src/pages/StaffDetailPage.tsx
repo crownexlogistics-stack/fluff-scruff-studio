@@ -191,7 +191,7 @@ const StaffDetailPage = () => {
       if (!staff?.email) {
         throw new Error("Please add an email address for this staff member before sending.");
       }
-      const signingUrl = `${window.location.origin}/contract/sign/${id}`;
+      const signingUrl = `https://fluff-scruff-studio.lovable.app/contract/sign/${id}`;
       const { error: fnError } = await supabase.functions.invoke("send-contract-email", {
         body: { staff_id: id, type: "send_for_signature", signing_url: signingUrl },
       });

@@ -46,7 +46,7 @@ const ContractSignPage = () => {
       if (error) throw error;
 
       try {
-        const contractUrl = `${window.location.origin}/contract/sign/${staffId}`;
+        const contractUrl = `https://fluff-scruff-studio.lovable.app/contract/sign/${staffId}`;
         await supabase.functions.invoke("send-contract-email", {
           body: { staff_id: staffId, type: "signed_confirmation", signing_url: contractUrl },
         });
