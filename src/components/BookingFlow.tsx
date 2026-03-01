@@ -395,104 +395,94 @@ export function BookingFlow({ service, onClose }: BookingFlowProps) {
           </div>
         )}
 
-        {/* Calendar + time slots — inspired by the screenshot */}
+        {/* Calendar + time slots */}
         {step === "calendar" && (
-          <div className="px-4 sm:px-6 py-8 animate-fade-in">
-            {/* Title */}
-            <div className="mb-8">
-              <h2 className="text-2xl sm:text-3xl font-heading text-foreground leading-tight">Schedule your service</h2>
-              <p className="text-muted-foreground font-body text-sm mt-2">
-                Check out our availability and book the date and time that works for you
-              </p>
-            </div>
-
-            {/* Breed summary pill */}
-            <div className="rounded-2xl bg-muted/50 border border-border/40 p-3 px-4 flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent/10">
-                  <PawPrint className="h-4 w-4 text-accent" />
+          <div className="animate-fade-in max-w-lg mx-auto">
+            {/* Sticky service summary */}
+            <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-xl px-5 pt-5 pb-3">
+              <div className="rounded-2xl bg-card border border-border/40 p-4 flex items-center gap-3 shadow-sm">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-accent/10">
+                  <PawPrint className="h-5 w-5 text-accent" />
                 </div>
-                <div>
-                  <p className="text-sm font-medium text-foreground">{serviceType}</p>
-                  <p className="text-xs text-muted-foreground">{selectedBreed?.name ?? "Breed Not Listed"}{selectedBreed ? ` • ${formatDuration(selectedBreed.duration_minutes)}` : ""}</p>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-foreground font-body">{serviceType}</p>
+                  <p className="text-xs text-muted-foreground font-body truncate">{selectedBreed?.name ?? "Breed Not Listed"}{selectedBreed ? ` · ${formatDuration(selectedBreed.duration_minutes)}` : ""}</p>
                 </div>
+                <p className="text-xl font-bold text-accent font-body tabular-nums">£{breedPrice}</p>
               </div>
-              <p className="text-lg font-bold text-accent">£{breedPrice}</p>
             </div>
 
-            <div className="flex flex-col lg:flex-row gap-6 lg:gap-10">
-              {/* Calendar */}
-              <div className="flex-1 max-w-md">
-                <div className="flex items-center justify-between mb-1">
-                  <h3 className="font-heading font-semibold text-foreground text-lg">Select a Date and Time</h3>
-                </div>
-                <div className="h-[2px] bg-accent/60 rounded-full mb-5" />
+            <div className="px-5 pt-4 pb-8">
+              {/* Section heading */}
+              <h3 className="text-lg font-heading text-foreground mb-1">Pick a date</h3>
+              <p className="text-xs text-muted-foreground font-body mb-5">Closed on Sundays & Mondays</p>
 
-                {/* Month nav */}
-                <div className="flex items-center justify-between mb-5">
-                  <button onClick={prevMonth} disabled={!canGoPrev} className={`flex h-9 w-9 items-center justify-center rounded-full transition-colors ${canGoPrev ? 'hover:bg-muted active:scale-95' : 'opacity-30 cursor-not-allowed'}`}>
-                    <ChevronLeft className="h-5 w-5" />
-                  </button>
-                  <span className="font-heading text-lg text-foreground">{MONTH_NAMES[calMonth]} {calYear}</span>
-                  <button onClick={nextMonth} className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-muted active:scale-95 transition-colors">
-                    <ChevronRight className="h-5 w-5" />
-                  </button>
-                </div>
+              {/* Month navigation */}
+              <div className="flex items-center justify-between mb-4">
+                <button onClick={prevMonth} disabled={!canGoPrev} className={`flex h-10 w-10 items-center justify-center rounded-full transition-all ${canGoPrev ? 'hover:bg-muted active:scale-90' : 'opacity-20 cursor-not-allowed'}`}>
+                  <ChevronLeft className="h-5 w-5" />
+                </button>
+                <span className="font-heading text-base text-foreground">{MONTH_NAMES[calMonth]} {calYear}</span>
+                <button onClick={nextMonth} className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-muted active:scale-90 transition-all">
+                  <ChevronRight className="h-5 w-5" />
+                </button>
+              </div>
 
-                {/* Weekday headers */}
-                <div className="grid grid-cols-7 mb-2">
-                  {WEEKDAYS.map(d => (
-                    <div key={d} className="text-center text-xs font-medium text-muted-foreground py-1">{d}</div>
-                  ))}
-                </div>
+              {/* Weekday headers */}
+              <div className="grid grid-cols-7 mb-1">
+                {WEEKDAYS.map(d => (
+                  <div key={d} className="text-center text-[0.7rem] font-semibold uppercase tracking-wider text-muted-foreground/70 font-body py-2">{d}</div>
+                ))}
+              </div>
 
-                {/* Days grid */}
-                <div className="grid grid-cols-7 gap-y-1">
-                  {calendarDays.map((day, i) => {
-                    if (day === null) return <div key={`e-${i}`} />;
-                    const selectable = isDateSelectable(day);
-                    const isSelected = selectedDay === day && calMonth === parseInt((selectedDate ?? "").split("-")[1] || "0") - 1 && calYear === parseInt((selectedDate ?? "").split("-")[0] || "0");
+              {/* Days grid */}
+              <div className="grid grid-cols-7 gap-y-0.5">
+                {calendarDays.map((day, i) => {
+                  if (day === null) return <div key={`e-${i}`} />;
+                  const selectable = isDateSelectable(day);
+                  const isToday = day === today.getDate() && calMonth === today.getMonth() && calYear === today.getFullYear();
+                  const isSelected = selectedDay === day && calMonth === parseInt((selectedDate ?? "").split("-")[1] || "0") - 1 && calYear === parseInt((selectedDate ?? "").split("-")[0] || "0");
 
-                    return (
-                      <button
-                        key={day}
-                        onClick={() => handleDateClick(day)}
-                        disabled={!selectable}
-                        className={`relative flex flex-col items-center justify-center h-11 w-full rounded-full text-sm font-medium transition-all duration-200
-                          ${isSelected
-                            ? 'bg-primary text-primary-foreground shadow-md scale-105'
+                  return (
+                    <button
+                      key={day}
+                      onClick={() => handleDateClick(day)}
+                      disabled={!selectable}
+                      className={`relative flex items-center justify-center h-12 w-full rounded-2xl text-sm font-medium font-body transition-all duration-200
+                        ${isSelected
+                          ? 'bg-accent text-accent-foreground shadow-md shadow-accent/25'
+                          : isToday && selectable
+                            ? 'bg-muted text-foreground font-semibold'
                             : selectable
-                              ? 'hover:bg-accent/10 text-foreground cursor-pointer'
-                              : 'text-muted-foreground/40 cursor-not-allowed'
-                          }`}
-                      >
-                        {day}
-                        {selectable && !isSelected && (
-                          <span className="absolute bottom-1 w-1 h-1 rounded-full bg-accent" />
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
+                              ? 'hover:bg-muted/70 text-foreground active:scale-90'
+                              : 'text-muted-foreground/30 cursor-not-allowed'
+                        }`}
+                    >
+                      {day}
+                      {selectable && !isSelected && (
+                        <span className="absolute bottom-1.5 w-1 h-1 rounded-full bg-accent/60" />
+                      )}
+                    </button>
+                  );
+                })}
               </div>
 
-              {/* Time slots — appear when a date is selected */}
+              {/* Time slots — slide in when date picked */}
               {selectedDate && (
-                <div className="flex-1 max-w-sm animate-fade-in">
-                  <h3 className="font-heading font-semibold text-foreground text-base mb-4">
-                    Availability for {formatSelectedDate(selectedDate)}
-                  </h3>
-                  <div className="grid grid-cols-2 gap-3">
+                <div className="mt-8 animate-fade-in">
+                  <h3 className="text-lg font-heading text-foreground mb-1">Choose a time</h3>
+                  <p className="text-xs text-muted-foreground font-body mb-4">{formatSelectedDate(selectedDate)}</p>
+                  <div className="grid grid-cols-3 gap-2">
                     {generateTimeSlots().map((time) => {
-                      const isSelected = selectedTime === time;
+                      const isTimeSelected = selectedTime === time;
                       return (
                         <button
                           key={time}
                           onClick={() => handleTimeClick(time)}
-                          className={`py-3.5 px-4 rounded-full border text-sm font-semibold transition-all duration-200
-                            ${isSelected
-                              ? 'bg-primary text-primary-foreground border-primary shadow-md scale-[1.03]'
-                              : 'border-border bg-card hover:border-foreground/30 hover:shadow-sm text-foreground'
+                          className={`py-3 rounded-xl text-sm font-semibold font-body transition-all duration-200
+                            ${isTimeSelected
+                              ? 'bg-accent text-accent-foreground shadow-md shadow-accent/25 scale-[1.02]'
+                              : 'bg-card border border-border/50 hover:border-accent/40 hover:shadow-sm text-foreground active:scale-95'
                             }`}
                         >
                           {time}
