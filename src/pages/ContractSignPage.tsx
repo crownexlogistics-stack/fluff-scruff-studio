@@ -162,20 +162,22 @@ const ContractSignPage = () => {
 
         {/* ── Step: Contract just signed → transition to H&S ── */}
         {currentStep === "contract-done" && (
-          <Card>
-            <CardContent className="p-8 text-center space-y-4">
-              <PartyPopper className="h-16 w-16 text-primary mx-auto" />
-              <h2 className="font-heading text-2xl font-bold">Thank You, {staff.name}!</h2>
-              <p className="text-muted-foreground">
-                Your contract has been signed successfully.
-              </p>
-              <p className="text-muted-foreground">
-                There's one more document to review — the <strong>Health & Safety Policy</strong>.
-              </p>
-              <Button size="lg" onClick={() => setStep("health-safety")} className="mt-4">
-                Continue to Health & Safety
-                <ArrowRight className="ml-2 h-5 w-5" />
-              </Button>
+          <Card className="border-2 border-primary">
+            <CardContent className="p-8 text-center space-y-5">
+              <CheckCircle2 className="h-14 w-14 text-success mx-auto" />
+              <h2 className="font-heading text-2xl font-bold">Contract Signed ✓</h2>
+              <Separator />
+              <div className="bg-primary/10 rounded-xl p-6 space-y-3">
+                <ShieldCheck className="h-12 w-12 text-primary mx-auto" />
+                <h3 className="font-heading text-xl font-bold">One More Step!</h3>
+                <p className="text-muted-foreground">
+                  You also need to review and sign the <strong>Health & Safety Policy</strong> before you're all set.
+                </p>
+                <Button size="lg" onClick={() => setStep("health-safety")} className="mt-2 w-full text-base">
+                  Continue to Health & Safety Policy
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Button>
+              </div>
             </CardContent>
           </Card>
         )}
