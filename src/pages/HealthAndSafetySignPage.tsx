@@ -6,18 +6,18 @@ import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { CheckCircle2, ShieldCheck } from "lucide-react";
-import logoTransparent from "@/assets/logo-transparent.png";
+import { CheckCircle2, ShieldCheck, PartyPopper } from "lucide-react";
 import { toast } from "sonner";
 import { HealthAndSafetyContent } from "@/components/staff/HealthAndSafetyContent";
 import { SignaturePadDialog } from "@/components/staff/SignaturePadDialog";
+import logoTransparent from "@/assets/logo-transparent.png";
 
 const HealthAndSafetySignPage = () => {
   const { staffId } = useParams<{ staffId: string }>();
   const queryClient = useQueryClient();
   const [sigOpen, setSigOpen] = useState(false);
+  const [justSigned, setJustSigned] = useState(false);
 
   const { data: staff, isLoading } = useQuery({
     queryKey: ["staff", staffId],
@@ -38,18 +38,21 @@ const HealthAndSafetySignPage = () => {
         ip = json.ip;
       } catch { /* fallback */ }
 
-      const { error } = await supabase.from("staff").update({
-        hs_status: "signed",
-        hs_signed_at: new Date().toISOString(),
-        hs_signed_ip: ip,
-        hs_signature_data: signatureDataUrl,
-      } as any).eq("id", staffId!);
+      const { data, error } = await supabase.functions.invoke("sign-document", {
+        body: {
+          staff_id: staffId,
+          document_type: "health_and_safety",
+          signature_data: signatureDataUrl,
+          ip_address: ip,
+        },
+      });
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["staff", staffId] });
       setSigOpen(false);
-      toast.success("Health & Safety policy signed successfully!");
+      setJustSigned(true);
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -73,7 +76,7 @@ const HealthAndSafetySignPage = () => {
   const isSigned = (staff as any).hs_status === "signed";
   const isSent = (staff as any).hs_status === "sent";
 
-  if (!isSent && !isSigned) {
+  if (!isSent && !isSigned && !justSigned) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <Card className="max-w-md w-full">
@@ -98,16 +101,31 @@ const HealthAndSafetySignPage = () => {
       </div>
 
       <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
-        {isSigned ? (
+        {justSigned || isSigned ? (
           <Card>
             <CardContent className="p-8 text-center space-y-4">
-              <ShieldCheck className="h-16 w-16 text-success mx-auto" />
-              <h2 className="font-heading text-2xl font-bold">Health & Safety Policy Signed</h2>
-              <p className="text-muted-foreground">
-                Signed by {staff.name} on{" "}
-                {(staff as any).hs_signed_at ? format(new Date((staff as any).hs_signed_at), "PPP 'at' p") : "—"}
-              </p>
-              {(staff as any).hs_signature_data && (
+              {justSigned ? (
+                <>
+                  <PartyPopper className="h-16 w-16 text-primary mx-auto" />
+                  <h2 className="font-heading text-2xl font-bold">Thank You, {staff.name}!</h2>
+                  <p className="text-muted-foreground">
+                    The Health & Safety Policy has been signed successfully.
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    You can close this page now. If you have any questions, please contact the studio.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <ShieldCheck className="h-16 w-16 text-success mx-auto" />
+                  <h2 className="font-heading text-2xl font-bold">Health & Safety Policy Signed</h2>
+                  <p className="text-muted-foreground">
+                    Signed by {staff.name} on{" "}
+                    {(staff as any).hs_signed_at ? format(new Date((staff as any).hs_signed_at), "PPP 'at' p") : "—"}
+                  </p>
+                </>
+              )}
+              {(staff as any).hs_signature_data && !justSigned && (
                 <div className="pt-4">
                   <p className="text-xs text-muted-foreground mb-2">Signature:</p>
                   <img
@@ -130,9 +148,7 @@ const HealthAndSafetySignPage = () => {
 
             <Card>
               <CardContent className="p-6">
-                <ScrollArea className="pr-4">
-                  <HealthAndSafetyContent staff={staff} />
-                </ScrollArea>
+                <HealthAndSafetyContent staff={staff} />
               </CardContent>
             </Card>
 
