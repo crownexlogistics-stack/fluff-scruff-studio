@@ -43,7 +43,6 @@ const hrSubItems = [
   { title: "Incident Reports", url: "/staff/incidents", icon: AlertTriangle },
   { title: "Risk Assessments", url: "/staff/risk-assessments", icon: ShieldCheck },
   { title: "Room Rules", url: "/staff/rules", icon: BookOpen },
-  { title: "Room Rules", url: "/staff/rules", icon: BookOpen },
 ];
 
 const marketingSubItems = [
