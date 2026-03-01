@@ -74,6 +74,7 @@ export function BookingFlow({ service, onClose }: BookingFlowProps) {
   const [breedSearch, setBreedsSearch] = useState("");
   const [selectedBreed, setSelectedBreed] = useState<any>(null);
   const [selectedAddOns, setSelectedAddOns] = useState<string[]>([]);
+  const [infoPopup, setInfoPopup] = useState<{ name: string; description: string } | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [guestForm, setGuestForm] = useState({ name: "", phone: "", email: "", dogName: "" });
@@ -545,7 +546,7 @@ export function BookingFlow({ service, onClose }: BookingFlowProps) {
                       </button>
                       {(addon as any).description && (
                         <button
-                          onClick={(e) => { e.stopPropagation(); toast.info((addon as any).description, { duration: 4000 }); }}
+                          onClick={(e) => { e.stopPropagation(); setInfoPopup({ name: addon.name, description: (addon as any).description }); }}
                           className="absolute top-3 right-3 flex h-6 w-6 items-center justify-center rounded-full bg-muted/80 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
                           aria-label={`Info about ${addon.name}`}
                         >
@@ -573,7 +574,32 @@ export function BookingFlow({ service, onClose }: BookingFlowProps) {
           </div>
         )}
 
-        {/* Guest checkout */}
+        {/* Add-on info popup */}
+        {infoPopup && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-6" onClick={() => setInfoPopup(null)}>
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+            <div
+              className="relative bg-card rounded-2xl border border-border shadow-xl max-w-sm w-full p-6 animate-in zoom-in-95 fade-in duration-200"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                onClick={() => setInfoPopup(null)}
+                className="absolute top-3 right-3 flex h-7 w-7 items-center justify-center rounded-full bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+              <div className="flex items-center gap-3 mb-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/10 text-accent">
+                  <Info className="h-5 w-5" />
+                </div>
+                <h3 className="font-heading font-semibold text-lg text-foreground">{infoPopup.name}</h3>
+              </div>
+              <p className="text-muted-foreground leading-relaxed">{infoPopup.description}</p>
+            </div>
+          </div>
+        )}
+
+
         {step === "guest-details" && (
           <div className="px-4 py-6 space-y-6 animate-fade-in max-w-lg mx-auto">
             <div className="rounded-2xl bg-muted/50 border border-border/40 p-4">
