@@ -63,6 +63,13 @@ serve(async (req) => {
     }
 
     const adminEmail = "info@fluffandscruff.co.uk";
+    const logoUrl = "https://fluff-scruff-studio.lovable.app/logo-transparent.png";
+
+    const emailHeader = `
+      <div style="text-align: center; padding: 16px 0;">
+        <img src="${logoUrl}" alt="Fluff & Scruff Studio" style="height: 60px; width: auto;" />
+      </div>
+    `;
 
     if (type === "send_for_signature") {
       if (!staff.email) {
@@ -74,7 +81,7 @@ serve(async (req) => {
 
       await sendEmail(SENDGRID_API_KEY, [staff.email], "Your Groomer Contract from Fluff & Scruff Studio", `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
-          <h2 style="color: #1a1a1a;">Fluff & Scruff Studio</h2>
+          ${emailHeader}
           <p>Hi ${staff.name},</p>
           <p>Please click the link below to review and sign your self-employed agreement:</p>
           <p style="margin: 24px 0;">
@@ -103,10 +110,11 @@ serve(async (req) => {
         ? new Date(staff.signed_at).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
         : "Unknown";
 
-      const contractUrl = signing_url || `${supabaseUrl.replace('.supabase.co', '')}/contract/sign/${staff_id}`;
+      const contractUrl = signing_url || `https://fluff-scruff-studio.lovable.app/contract/sign/${staff_id}`;
 
       await sendEmail(SENDGRID_API_KEY, emails, `Contract Signed — ${staff.name}`, `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
+          ${emailHeader}
           <h2 style="color: #1a1a1a;">Contract Signed ✓</h2>
           <p>The self-employed groomer contract for <strong>${staff.name}</strong> has been signed.</p>
           <ul style="line-height: 2;">
@@ -124,6 +132,35 @@ serve(async (req) => {
       `);
 
       return new Response(JSON.stringify({ success: true, message: "Confirmation emails sent" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+
+    } else if (type === "send_hs_for_signature") {
+      if (!staff.email) {
+        return new Response(
+          JSON.stringify({ error: "Staff member has no email address." }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      await sendEmail(SENDGRID_API_KEY, [staff.email], "Health & Safety Policy — Fluff & Scruff Studio", `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
+          ${emailHeader}
+          <p>Hi ${staff.name},</p>
+          <p>Please click the link below to review and sign the Health & Safety Policy:</p>
+          <p style="margin: 24px 0;">
+            <a href="${signing_url}" style="background-color: #2563eb; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
+              Review & Sign Health & Safety Policy
+            </a>
+          </p>
+          <p style="color: #666;">If the button doesn't work, copy and paste this link into your browser:</p>
+          <p style="color: #2563eb; word-break: break-all;">${signing_url}</p>
+          <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
+          <p style="color: #999; font-size: 12px;">Fluff & Scruff Studio · 138 Hillview Avenue, Hornchurch RM11 2DL</p>
+        </div>
+      `);
+
+      return new Response(JSON.stringify({ success: true, message: "H&S policy sent for signature" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
