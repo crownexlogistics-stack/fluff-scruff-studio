@@ -418,9 +418,9 @@ const StaffDetailPage = () => {
                 <Separator />
 
                 <div className="space-y-2">
-                  <span className="text-sm font-medium">Signing Link</span>
+                  <span className="text-sm font-medium">Documents Signing Link</span>
                   <p className="text-xs text-muted-foreground break-all">
-                    {window.location.origin}/contract/sign/{staff.id}
+                    https://fluff-scruff-studio.lovable.app/contract/sign/{staff.id}
                   </p>
                 </div>
 
@@ -444,26 +444,12 @@ const StaffDetailPage = () => {
                     <Button size="sm" variant="outline" onClick={() => setHsOpen(true)} className="w-full justify-start">
                       <ShieldCheck className="mr-2 h-3.5 w-3.5" /> {(staff as any).hs_status === "signed" ? "View Signed Policy" : "View Policy"}
                     </Button>
-                    {((staff as any).hs_status === "pending" || !(staff as any).hs_status) && (
-                      <Button size="sm" onClick={() => sendHsForSignatureMutation.mutate()} className="w-full justify-start">
-                        <Send className="mr-2 h-3.5 w-3.5" /> Send for Signature
-                      </Button>
-                    )}
                     {(staff as any).hs_status === "signed" && (
                       <div className="flex items-center gap-2 text-success text-sm">
                         <CheckCircle2 className="h-4 w-4" /> Policy signed
                       </div>
                     )}
                   </div>
-                </div>
-
-                <Separator />
-
-                <div className="space-y-2">
-                  <span className="text-sm font-medium">H&S Signing Link</span>
-                  <p className="text-xs text-muted-foreground break-all">
-                    {window.location.origin}/hs/sign/{staff.id}
-                  </p>
                 </div>
               </CardContent>
             </Card>

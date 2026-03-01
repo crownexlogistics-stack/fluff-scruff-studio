@@ -79,14 +79,14 @@ serve(async (req) => {
         );
       }
 
-      await sendEmail(SENDGRID_API_KEY, [staff.email], "Your Groomer Contract from Fluff & Scruff Studio", `
+      await sendEmail(SENDGRID_API_KEY, [staff.email], "Your Documents from Fluff & Scruff Studio", `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
           ${emailHeader}
           <p>Hi ${staff.name},</p>
-          <p>Please click the link below to review and sign your self-employed agreement:</p>
+          <p>Please click the link below to review and sign your self-employed agreement and Health & Safety Policy:</p>
           <p style="margin: 24px 0;">
             <a href="${signing_url}" style="background-color: #2563eb; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
-              Review & Sign Contract
+              Review & Sign Documents
             </a>
           </p>
           <p style="color: #666;">If the button doesn't work, copy and paste this link into your browser:</p>
@@ -96,7 +96,7 @@ serve(async (req) => {
         </div>
       `);
 
-      await supabase.from("staff").update({ contract_status: "sent" }).eq("id", staff_id);
+      await supabase.from("staff").update({ contract_status: "sent", hs_status: "sent" }).eq("id", staff_id);
 
       return new Response(JSON.stringify({ success: true, message: "Contract sent for signature" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
