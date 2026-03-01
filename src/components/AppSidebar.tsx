@@ -2,7 +2,7 @@ import {
   Dog, Users, Calendar, LayoutDashboard, Crown,
   UserPlus, CalendarClock, ChevronDown, Megaphone,
   UsersRound, BarChart3, Tags, Search, Facebook, Mail,
-  LogOut, Sparkles, AlertTriangle, ShieldCheck,
+  LogOut, Sparkles, AlertTriangle, ShieldCheck, BookOpen,
 } from "lucide-react";
 import logo from "@/assets/logo-transparent.png";
 import { NavLink } from "@/components/NavLink";
@@ -42,6 +42,8 @@ const hrSubItems = [
   { title: "Work Schedule", url: "/staff/schedule", icon: CalendarClock },
   { title: "Incident Reports", url: "/staff/incidents", icon: AlertTriangle },
   { title: "Risk Assessments", url: "/staff/risk-assessments", icon: ShieldCheck },
+  { title: "Room Rules", url: "/staff/rules", icon: BookOpen },
+  { title: "Room Rules", url: "/staff/rules", icon: BookOpen },
 ];
 
 const marketingSubItems = [
