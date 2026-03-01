@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from "react";
-import { ArrowLeft, Search, Dog, ChevronRight, PawPrint, Save, Move, Sparkles, Check, ChevronLeft } from "lucide-react";
+import { ArrowLeft, Search, Dog, ChevronRight, PawPrint, Save, Move, Sparkles, Check, ChevronLeft, Calendar } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
@@ -45,17 +45,27 @@ function parsePosition(pos: string) {
   return { x: parseFloat(parts[0]), y: parseFloat(parts[1]) };
 }
 
-// Calendar helpers
-function getDaysInMonth(year: number, month: number) {
-  return new Date(year, month + 1, 0).getDate();
+// Week-strip helpers
+function getWeekDays(startDate: Date): Date[] {
+  const days: Date[] = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(startDate);
+    d.setDate(startDate.getDate() + i);
+    days.push(d);
+  }
+  return days;
 }
 
-function getFirstDayOfMonth(year: number, month: number) {
-  const d = new Date(year, month, 1).getDay();
-  return d === 0 ? 6 : d - 1; // Monday=0
+function getMonday(date: Date): Date {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  d.setDate(diff);
+  d.setHours(0, 0, 0, 0);
+  return d;
 }
 
-const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const WEEKDAYS_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 export function BookingFlow({ service, onClose }: BookingFlowProps) {
@@ -69,10 +79,9 @@ export function BookingFlow({ service, onClose }: BookingFlowProps) {
   const [guestForm, setGuestForm] = useState({ name: "", phone: "", email: "", dogName: "" });
   const queryClient = useQueryClient();
 
-  // Calendar month state
+  // Week-strip state
   const today = new Date();
-  const [calMonth, setCalMonth] = useState(today.getMonth());
-  const [calYear, setCalYear] = useState(today.getFullYear());
+  const [weekStart, setWeekStart] = useState(() => getMonday(today));
 
   // Load saved positions from DB
   const { data: savedPositions } = useQuery({
@@ -223,9 +232,8 @@ export function BookingFlow({ service, onClose }: BookingFlowProps) {
     return slots;
   };
 
-  // Calendar: check if a date is selectable (not in the past, not Sunday)
-  const isDateSelectable = (day: number) => {
-    const d = new Date(calYear, calMonth, day);
+  // Week-strip: check if a date is selectable (not in the past, not Sunday)
+  const isDateSelectableDate = (d: Date) => {
     const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     if (d <= todayStart) return false;
     if (d.getDay() === 0) return false; // Sunday
@@ -237,39 +245,34 @@ export function BookingFlow({ service, onClose }: BookingFlowProps) {
     return d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
   };
 
-  const handleDateClick = (day: number) => {
-    if (!isDateSelectable(day)) return;
-    const dateStr = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  const handleDateClickDate = (d: Date) => {
+    if (!isDateSelectableDate(d)) return;
+    const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     setSelectedDate(dateStr);
     setSelectedTime(null);
   };
 
   const handleTimeClick = (time: string) => {
     setSelectedTime(time);
-    // Transition to add-ons step
     setTimeout(() => setStep("addons"), 300);
   };
 
-  const prevMonth = () => {
-    if (calMonth === 0) { setCalMonth(11); setCalYear(y => y - 1); }
-    else setCalMonth(m => m - 1);
+  const prevWeek = () => {
+    const prev = new Date(weekStart);
+    prev.setDate(prev.getDate() - 7);
+    const thisMonday = getMonday(today);
+    if (prev >= thisMonday) setWeekStart(prev);
   };
 
-  const nextMonth = () => {
-    if (calMonth === 11) { setCalMonth(0); setCalYear(y => y + 1); }
-    else setCalMonth(m => m + 1);
+  const nextWeek = () => {
+    const next = new Date(weekStart);
+    next.setDate(next.getDate() + 7);
+    setWeekStart(next);
   };
 
-  const canGoPrev = calYear > today.getFullYear() || (calYear === today.getFullYear() && calMonth > today.getMonth());
-
-  // Build calendar grid
-  const daysInMonth = getDaysInMonth(calYear, calMonth);
-  const firstDay = getFirstDayOfMonth(calYear, calMonth);
-  const calendarDays: (number | null)[] = [];
-  for (let i = 0; i < firstDay; i++) calendarDays.push(null);
-  for (let d = 1; d <= daysInMonth; d++) calendarDays.push(d);
-
-  const selectedDay = selectedDate ? parseInt(selectedDate.split("-")[2]) : null;
+  const canGoPrevWeek = weekStart > getMonday(today);
+  const weekDays = getWeekDays(weekStart);
+  const weekMonth = weekDays[3]; // Use Thursday to determine the displayed month
 
   const getAddonIcon = (iconName: string | null) => {
     if (iconName === "Dog") return Dog;
@@ -413,76 +416,79 @@ export function BookingFlow({ service, onClose }: BookingFlowProps) {
             </div>
 
             <div className="px-5 pt-4 pb-8">
-              {/* Section heading */}
-              <h3 className="text-lg font-heading text-foreground mb-1">Pick a date</h3>
-              <p className="text-xs text-muted-foreground font-body mb-5">Closed on Sundays & Mondays</p>
-
-              {/* Month navigation */}
-              <div className="flex items-center justify-between mb-4">
-                <button onClick={prevMonth} disabled={!canGoPrev} className={`flex h-10 w-10 items-center justify-center rounded-full transition-all ${canGoPrev ? 'hover:bg-muted active:scale-90' : 'opacity-20 cursor-not-allowed'}`}>
-                  <ChevronLeft className="h-5 w-5" />
-                </button>
-                <span className="font-heading text-base text-foreground">{MONTH_NAMES[calMonth]} {calYear}</span>
-                <button onClick={nextMonth} className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-muted active:scale-90 transition-all">
-                  <ChevronRight className="h-5 w-5" />
-                </button>
+              {/* Week navigation header */}
+              <div className="flex items-center justify-between mb-5">
+                <div>
+                  <h3 className="text-lg font-heading text-foreground">Pick a date</h3>
+                  <p className="text-xs text-muted-foreground font-body">{MONTH_NAMES[weekMonth.getMonth()]} {weekMonth.getFullYear()}</p>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button onClick={prevWeek} disabled={!canGoPrevWeek} className={`flex h-9 w-9 items-center justify-center rounded-full transition-all ${canGoPrevWeek ? 'hover:bg-muted active:scale-90' : 'opacity-20 cursor-not-allowed'}`}>
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+                  <button onClick={nextWeek} className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-muted active:scale-90 transition-all">
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
 
-              {/* Weekday headers */}
-              <div className="grid grid-cols-7 mb-1">
-                {WEEKDAYS.map(d => (
-                  <div key={d} className="text-center text-[0.7rem] font-semibold uppercase tracking-wider text-muted-foreground/70 font-body py-2">{d}</div>
-                ))}
-              </div>
-
-              {/* Days grid */}
-              <div className="grid grid-cols-7 gap-y-0.5">
-                {calendarDays.map((day, i) => {
-                  if (day === null) return <div key={`e-${i}`} />;
-                  const selectable = isDateSelectable(day);
-                  const isToday = day === today.getDate() && calMonth === today.getMonth() && calYear === today.getFullYear();
-                  const isSelected = selectedDay === day && calMonth === parseInt((selectedDate ?? "").split("-")[1] || "0") - 1 && calYear === parseInt((selectedDate ?? "").split("-")[0] || "0");
+              {/* Horizontal week strip */}
+              <div className="grid grid-cols-7 gap-1.5">
+                {weekDays.map((d, i) => {
+                  const selectable = isDateSelectableDate(d);
+                  const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                  const isSelected = selectedDate === dateStr;
+                  const isToday = d.getDate() === today.getDate() && d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
 
                   return (
                     <button
-                      key={day}
-                      onClick={() => handleDateClick(day)}
+                      key={i}
+                      onClick={() => handleDateClickDate(d)}
                       disabled={!selectable}
-                      className={`relative flex items-center justify-center h-12 w-full rounded-2xl text-sm font-medium font-body transition-all duration-200
+                      className={`flex flex-col items-center gap-1 py-3 rounded-2xl transition-all duration-200
                         ${isSelected
-                          ? 'bg-accent text-accent-foreground shadow-md shadow-accent/25'
+                          ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20'
                           : isToday && selectable
-                            ? 'bg-muted text-foreground font-semibold'
+                            ? 'bg-accent/10 text-foreground'
                             : selectable
-                              ? 'hover:bg-muted/70 text-foreground active:scale-90'
+                              ? 'hover:bg-muted text-foreground active:scale-95'
                               : 'text-muted-foreground/30 cursor-not-allowed'
                         }`}
                     >
-                      {day}
+                      <span className={`text-[0.65rem] font-semibold uppercase tracking-wider font-body ${isSelected ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
+                        {WEEKDAYS_SHORT[i]}
+                      </span>
+                      <span className="text-lg font-semibold font-body">{d.getDate()}</span>
                       {selectable && !isSelected && (
-                        <span className="absolute bottom-1.5 w-1 h-1 rounded-full bg-accent/60" />
+                        <span className="w-1 h-1 rounded-full bg-accent/50" />
+                      )}
+                      {isSelected && (
+                        <span className="w-1 h-1 rounded-full bg-primary-foreground/60" />
                       )}
                     </button>
                   );
                 })}
               </div>
 
-              {/* Time slots — slide in when date picked */}
-              {selectedDate && (
-                <div className="mt-8 animate-fade-in">
-                  <h3 className="text-lg font-heading text-foreground mb-1">Choose a time</h3>
+              {/* Divider */}
+              <div className="h-px bg-border/60 my-6" />
+
+              {/* Time slots */}
+              {selectedDate ? (
+                <div className="animate-fade-in">
+                  <h3 className="text-base font-heading text-foreground mb-1">Available times</h3>
                   <p className="text-xs text-muted-foreground font-body mb-4">{formatSelectedDate(selectedDate)}</p>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-2 gap-2.5">
                     {generateTimeSlots().map((time) => {
                       const isTimeSelected = selectedTime === time;
                       return (
                         <button
                           key={time}
                           onClick={() => handleTimeClick(time)}
-                          className={`py-3 rounded-xl text-sm font-semibold font-body transition-all duration-200
+                          className={`py-3.5 rounded-full text-sm font-semibold font-body transition-all duration-200
                             ${isTimeSelected
-                              ? 'bg-accent text-accent-foreground shadow-md shadow-accent/25 scale-[1.02]'
-                              : 'bg-card border border-border/50 hover:border-accent/40 hover:shadow-sm text-foreground active:scale-95'
+                              ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20 scale-[1.02]'
+                              : 'bg-card border border-border/50 hover:border-foreground/20 hover:shadow-sm text-foreground active:scale-95'
                             }`}
                         >
                           {time}
@@ -490,6 +496,11 @@ export function BookingFlow({ service, onClose }: BookingFlowProps) {
                       );
                     })}
                   </div>
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <Calendar className="h-8 w-8 text-muted-foreground/30 mx-auto mb-3" />
+                  <p className="text-sm text-muted-foreground font-body">Tap a date above to see available times</p>
                 </div>
               )}
             </div>
