@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Link } from "react-router-dom";
 import logo from "@/assets/logo-transparent.png";
-import heroDog from "@/assets/hero-shop.jpg";
+import heroDog from "@/assets/shop-front.jpg";
 import serviceFullGroom from "@/assets/service-full-groom.jpg";
 import servicePuppy from "@/assets/service-puppy.jpg";
 import serviceTeeth from "@/assets/service-teeth.jpg";
