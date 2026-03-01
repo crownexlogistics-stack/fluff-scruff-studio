@@ -16,12 +16,13 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, CalendarIcon, Save, FileText, Send, CheckCircle2, User, Clock, Scissors, StickyNote, Cake } from "lucide-react";
+import { ArrowLeft, CalendarIcon, Save, FileText, Send, CheckCircle2, User, Clock, Scissors, StickyNote, Cake, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { ContractPreviewDialog } from "@/components/staff/ContractPreviewDialog";
+import { HealthAndSafetyPreviewDialog } from "@/components/staff/HealthAndSafetyPreviewDialog";
 import CodeOfConduct from "@/components/staff/CodeOfConduct";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -31,6 +32,7 @@ const StaffDetailPage = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [contractOpen, setContractOpen] = useState(false);
+  const [hsOpen, setHsOpen] = useState(false);
   const [newNote, setNewNote] = useState("");
   const { user } = useAuth();
   const { role: currentUserRole } = useUserRole(user?.id);
@@ -208,6 +210,15 @@ const StaffDetailPage = () => {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const sendHsForSignatureMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from("staff").update({ hs_status: "sent" } as any).eq("id", id!);
+      if (error) throw error;
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["staff", id] }); toast.success("Health & Safety policy sent for signature"); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const handleSaveAll = () => {
     saveBasicMutation.mutate();
     saveAvailabilityMutation.mutate();
@@ -233,6 +244,7 @@ const StaffDetailPage = () => {
   }
 
   const statusColor = { draft: "bg-muted text-muted-foreground", sent: "bg-primary/15 text-primary", signed: "bg-success/15 text-success" }[staff.contract_status] || "bg-muted text-muted-foreground";
+  const hsStatusColor = { pending: "bg-muted text-muted-foreground", sent: "bg-primary/15 text-primary", signed: "bg-success/15 text-success" }[(staff as any).hs_status] || "bg-muted text-muted-foreground";
 
   return (
     <AppLayout>
@@ -403,6 +415,48 @@ const StaffDetailPage = () => {
                     {window.location.origin}/contract/sign/{staff.id}
                   </p>
                 </div>
+
+                <Separator />
+
+                {/* Health & Safety */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">Health & Safety Policy</span>
+                    <Badge variant="secondary" className={cn("capitalize text-xs", hsStatusColor)}>{(staff as any).hs_status || "pending"}</Badge>
+                  </div>
+
+                  {(staff as any).hs_signed_at && (
+                    <div className="text-xs text-muted-foreground space-y-0.5">
+                      <p>Signed {format(new Date((staff as any).hs_signed_at), "PPP 'at' p")}</p>
+                      {(staff as any).hs_signed_ip && <p>IP: {(staff as any).hs_signed_ip}</p>}
+                    </div>
+                  )}
+
+                  <div className="flex flex-col gap-2">
+                    <Button size="sm" variant="outline" onClick={() => setHsOpen(true)} className="w-full justify-start">
+                      <ShieldCheck className="mr-2 h-3.5 w-3.5" /> {(staff as any).hs_status === "signed" ? "View Signed Policy" : "View Policy"}
+                    </Button>
+                    {((staff as any).hs_status === "pending" || !(staff as any).hs_status) && (
+                      <Button size="sm" onClick={() => sendHsForSignatureMutation.mutate()} className="w-full justify-start">
+                        <Send className="mr-2 h-3.5 w-3.5" /> Send for Signature
+                      </Button>
+                    )}
+                    {(staff as any).hs_status === "signed" && (
+                      <div className="flex items-center gap-2 text-success text-sm">
+                        <CheckCircle2 className="h-4 w-4" /> Policy signed
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div className="space-y-2">
+                  <span className="text-sm font-medium">H&S Signing Link</span>
+                  <p className="text-xs text-muted-foreground break-all">
+                    {window.location.origin}/hs/sign/{staff.id}
+                  </p>
+                </div>
               </CardContent>
             </Card>
 
@@ -495,6 +549,7 @@ const StaffDetailPage = () => {
       </div>
 
       <ContractPreviewDialog staff={staff} open={contractOpen} onOpenChange={setContractOpen} />
+      <HealthAndSafetyPreviewDialog staff={staff} open={hsOpen} onOpenChange={setHsOpen} />
     </AppLayout>
   );
 };
