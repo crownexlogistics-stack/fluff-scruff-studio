@@ -12,8 +12,8 @@ serve(async (req) => {
   }
 
   try {
-    const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-    if (!RESEND_API_KEY) throw new Error("RESEND_API_KEY is not configured");
+    const SENDGRID_API_KEY = Deno.env.get("SENDGRID_API_KEY");
+    if (!SENDGRID_API_KEY) throw new Error("SENDGRID_API_KEY is not configured");
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -129,37 +129,35 @@ serve(async (req) => {
       });
     }
 
-    // Send via Resend
-    const res = await fetch("https://api.resend.com/emails", {
+    // Send via SendGrid
+    const res = await fetch("https://api.sendgrid.com/v3/mail/send", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${RESEND_API_KEY}`,
+        Authorization: `Bearer ${SENDGRID_API_KEY}`,
       },
       body: JSON.stringify({
-        from: "Fluff & Scruff Studio <onboarding@resend.dev>",
-        reply_to: "info@fluffandscruff.co.uk",
-        to: [booking.customer_email],
+        personalizations: [{ to: [{ email: booking.customer_email }] }],
+        from: { email: "info@fluffandscruff.co.uk", name: "Fluff & Scruff Studio" },
+        reply_to: { email: "info@fluffandscruff.co.uk" },
         subject,
-        html: bodyHtml,
+        content: [{ type: "text/html", value: bodyHtml }],
       }),
     });
 
     if (!res.ok) {
       const errData = await res.text();
-      throw new Error(`Resend error: ${errData}`);
+      throw new Error(`SendGrid error: ${errData}`);
     }
-
-    const data = await res.json();
 
     // Record in booking_emails
     await supabase.from("booking_emails").insert({
       booking_id,
       email_type,
-      resend_id: data.id || null,
+      resend_id: null,
     });
 
-    return new Response(JSON.stringify({ success: true, id: data.id }), {
+    return new Response(JSON.stringify({ success: true }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
