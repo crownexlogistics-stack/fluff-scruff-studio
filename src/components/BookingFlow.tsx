@@ -19,16 +19,16 @@ interface BookingFlowProps {
 
 const subServices = [
   {
+    label: "Full Groom",
+    desc: "Everything in Bath & Brush plus a full haircut, style & nail trim. The complete pamper package, they'll strut out looking brand new.",
+    image: serviceFullGroomSub,
+    defaultPosition: "50% 40%",
+  },
+  {
     label: "Bath & Brush",
     desc: "A luxurious bath with amazing shampoos & conditioners, followed by a thorough brush-out. Your pup leaves fresh, soft & smelling incredible.",
     image: serviceBathBrush,
     defaultPosition: "50% 35%",
-  },
-  {
-    label: "Full Groom",
-    desc: "Everything in Bath & Brush plus a full haircut, style & nail trim. The complete pamper package — they'll strut out looking brand new.",
-    image: serviceFullGroomSub,
-    defaultPosition: "50% 40%",
   },
 ];
 
