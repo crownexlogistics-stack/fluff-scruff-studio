@@ -531,7 +531,7 @@ export function BookingFlow({ service, onClose }: BookingFlowProps) {
                   const isSelected = selectedAddOns.includes(addon.id);
                   const Icon = getAddonIcon(addon.icon);
                   return (
-                    <div key={addon.id} className="relative">
+                    <div key={addon.id}>
                       <button
                         onClick={() => toggleAddOn(addon.id)}
                         className={`w-full flex items-center gap-4 rounded-2xl border p-4 text-left transition-all duration-200 ${isSelected ? 'border-accent bg-accent/10 shadow-sm' : 'border-border bg-card hover:border-accent/50 hover:shadow-sm'}`}
@@ -539,20 +539,21 @@ export function BookingFlow({ service, onClose }: BookingFlowProps) {
                         <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-colors ${isSelected ? 'bg-accent text-accent-foreground' : 'bg-muted'}`}>
                           {isSelected ? <Check className="h-5 w-5" /> : <Icon className="h-5 w-5 text-muted-foreground" />}
                         </div>
-                        <div className="flex-1">
+                        <div className="flex-1 flex items-center gap-1.5">
                           <p className="font-medium text-foreground">{addon.name}</p>
+                          {(addon as any).description && (
+                            <span
+                              role="button"
+                              onClick={(e) => { e.stopPropagation(); setInfoPopup({ name: addon.name, description: (addon as any).description }); }}
+                              className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted/80 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                              aria-label={`Info about ${addon.name}`}
+                            >
+                              <Info className="h-3 w-3" />
+                            </span>
+                          )}
                         </div>
                         <span className="font-semibold text-foreground">+£{Number(addon.price)}</span>
                       </button>
-                      {(addon as any).description && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setInfoPopup({ name: addon.name, description: (addon as any).description }); }}
-                          className="absolute top-3 right-3 flex h-6 w-6 items-center justify-center rounded-full bg-muted/80 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                          aria-label={`Info about ${addon.name}`}
-                        >
-                          <Info className="h-3.5 w-3.5" />
-                        </button>
-                      )}
                     </div>
                   );
                 })}
