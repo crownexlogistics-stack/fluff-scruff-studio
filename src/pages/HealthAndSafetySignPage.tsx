@@ -8,7 +8,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { CheckCircle2, ShieldCheck, Scissors } from "lucide-react";
+import { CheckCircle2, ShieldCheck } from "lucide-react";
+import logoTransparent from "@/assets/logo-transparent.png";
 import { toast } from "sonner";
 import { HealthAndSafetyContent } from "@/components/staff/HealthAndSafetyContent";
 import { SignaturePadDialog } from "@/components/staff/SignaturePadDialog";
@@ -88,9 +89,7 @@ const HealthAndSafetySignPage = () => {
     <div className="min-h-screen bg-background">
       <div className="border-b bg-card">
         <div className="max-w-3xl mx-auto px-4 py-4 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center">
-            <Scissors className="h-5 w-5 text-primary-foreground" />
-          </div>
+          <img src={logoTransparent} alt="Fluff & Scruff Studio" className="h-10 w-10 rounded-lg object-contain" />
           <div>
             <h1 className="font-heading text-lg font-bold">Fluff & Scruff Studio</h1>
             <p className="text-xs text-muted-foreground">Health & Safety Policy — Review & Sign</p>
@@ -131,7 +130,7 @@ const HealthAndSafetySignPage = () => {
 
             <Card>
               <CardContent className="p-6">
-                <ScrollArea className="max-h-[50vh] pr-4">
+                <ScrollArea className="pr-4">
                   <HealthAndSafetyContent staff={staff} />
                 </ScrollArea>
               </CardContent>

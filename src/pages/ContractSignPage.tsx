@@ -8,7 +8,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { CheckCircle2, Scissors } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
+import logoTransparent from "@/assets/logo-transparent.png";
 import { toast } from "sonner";
 import { ContractContent } from "@/components/staff/ContractPreviewDialog";
 import { SignaturePadDialog } from "@/components/staff/SignaturePadDialog";
@@ -96,9 +97,7 @@ const ContractSignPage = () => {
       {/* Header */}
       <div className="border-b bg-card">
         <div className="max-w-3xl mx-auto px-4 py-4 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center">
-            <Scissors className="h-5 w-5 text-primary-foreground" />
-          </div>
+          <img src={logoTransparent} alt="Fluff & Scruff Studio" className="h-10 w-10 rounded-lg object-contain" />
           <div>
             <h1 className="font-heading text-lg font-bold">Fluff & Scruff Studio</h1>
             <p className="text-xs text-muted-foreground">Contract Review & Signing</p>
@@ -139,7 +138,7 @@ const ContractSignPage = () => {
 
             <Card>
               <CardContent className="p-6">
-                <ScrollArea className="max-h-[50vh] pr-4">
+                <ScrollArea className="pr-4">
                   <ContractContent staff={staff} />
                 </ScrollArea>
               </CardContent>
