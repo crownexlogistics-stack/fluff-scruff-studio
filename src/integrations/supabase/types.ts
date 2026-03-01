@@ -499,6 +499,9 @@ export type Database = {
           date_of_birth: string | null
           description: string | null
           email: string | null
+          hs_signed_at: string | null
+          hs_signed_ip: string | null
+          hs_status: string
           id: string
           is_self_employed: boolean
           name: string
@@ -515,6 +518,9 @@ export type Database = {
           date_of_birth?: string | null
           description?: string | null
           email?: string | null
+          hs_signed_at?: string | null
+          hs_signed_ip?: string | null
+          hs_status?: string
           id?: string
           is_self_employed?: boolean
           name: string
@@ -531,6 +537,9 @@ export type Database = {
           date_of_birth?: string | null
           description?: string | null
           email?: string | null
+          hs_signed_at?: string | null
+          hs_signed_ip?: string | null
+          hs_status?: string
           id?: string
           is_self_employed?: boolean
           name?: string
