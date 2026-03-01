@@ -13,6 +13,7 @@ import StaffDetailPage from "./pages/StaffDetailPage";
 import WorkSchedulePage from "./pages/WorkSchedulePage";
 import BookingsPage from "./pages/BookingsPage";
 import ContractSignPage from "./pages/ContractSignPage";
+import HealthAndSafetySignPage from "./pages/HealthAndSafetySignPage";
 import AuthPage from "./pages/AuthPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import AdminUsersPage from "./pages/AdminUsersPage";
@@ -39,6 +40,7 @@ const App = () => (
           <Route path="/auth" element={<AuthPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/contract/sign/:staffId" element={<ContractSignPage />} />
+          <Route path="/hs/sign/:staffId" element={<HealthAndSafetySignPage />} />
 
           {/* Customer only */}
           <Route path="/my-pets" element={<ProtectedRoute allowedRoles={["customer", "manager", "director"]}><MyPetsPage /></ProtectedRoute>} />

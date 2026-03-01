@@ -11,10 +11,11 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, FileText, Send, Pencil, Save, X } from "lucide-react";
+import { CalendarIcon, FileText, Send, Pencil, Save, X, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { ContractPreviewDialog } from "./ContractPreviewDialog";
+import { HealthAndSafetyPreviewDialog } from "./HealthAndSafetyPreviewDialog";
 
 interface StaffMember {
   id: string;
@@ -27,6 +28,9 @@ interface StaffMember {
   signed_ip: string | null;
   contact_number: string | null;
   created_at: string;
+  hs_status: string;
+  hs_signed_at: string | null;
+  hs_signed_ip: string | null;
 }
 
 interface Props {
@@ -40,6 +44,7 @@ export function StaffProfileDialog({ staff, open, onOpenChange }: Props) {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ name: "", role: "", is_self_employed: false, contact_number: "", start_date: null as Date | null });
   const [contractOpen, setContractOpen] = useState(false);
+  const [hsOpen, setHsOpen] = useState(false);
 
   const startEditing = () => {
     if (!staff) return;
@@ -102,11 +107,30 @@ export function StaffProfileDialog({ staff, open, onOpenChange }: Props) {
 
   if (!staff) return null;
 
+  const sendHsMutation = useMutation({
+    mutationFn: async () => {
+      if (!staff) return;
+      const { error } = await supabase.from("staff").update({ hs_status: "sent" }).eq("id", staff.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["staff"] });
+      toast.success("Health & Safety policy sent for signature");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const statusColor = {
     draft: "bg-muted text-muted-foreground",
     sent: "bg-primary/15 text-primary",
     signed: "bg-success/15 text-success",
   }[staff.contract_status] || "bg-muted text-muted-foreground";
+
+  const hsStatusColor = {
+    pending: "bg-muted text-muted-foreground",
+    sent: "bg-primary/15 text-primary",
+    signed: "bg-success/15 text-success",
+  }[staff.hs_status] || "bg-muted text-muted-foreground";
 
   return (
     <>
@@ -243,12 +267,44 @@ export function StaffProfileDialog({ staff, open, onOpenChange }: Props) {
                   ) : null}
                 </div>
               </div>
+
+              {/* Health & Safety Document */}
+              <div className="rounded-lg border p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">Health & Safety Policy</span>
+                  </div>
+                  <Badge variant="secondary" className={cn("text-xs capitalize", hsStatusColor)}>
+                    {staff.hs_status}
+                  </Badge>
+                </div>
+
+                {staff.hs_signed_at && (
+                  <p className="text-xs text-muted-foreground">
+                    Signed on {format(new Date(staff.hs_signed_at), "PPP 'at' p")}
+                  </p>
+                )}
+
+                <div className="flex gap-2 flex-wrap">
+                  <Button size="sm" variant="outline" onClick={() => setHsOpen(true)}>
+                    <ShieldCheck className="mr-1 h-3.5 w-3.5" />
+                    {staff.hs_status === "signed" ? "View Signed Policy" : "View Policy"}
+                  </Button>
+                  {staff.hs_status === "pending" && (
+                    <Button size="sm" onClick={() => sendHsMutation.mutate()}>
+                      <Send className="mr-1 h-3.5 w-3.5" /> Send for Signature
+                    </Button>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </DialogContent>
       </Dialog>
 
       <ContractPreviewDialog staff={staff} open={contractOpen} onOpenChange={setContractOpen} />
+      <HealthAndSafetyPreviewDialog staff={staff} open={hsOpen} onOpenChange={setHsOpen} />
     </>
   );
 }
