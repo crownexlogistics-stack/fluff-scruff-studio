@@ -42,7 +42,9 @@ serve(async (req) => {
     }
 
     const adminEmail = "info@fluffandscruff.co.uk";
-    const fromEmail = "Fluff & Scruff Studio <info@fluffandscruff.co.uk>";
+    // Temporary: using onboarding@resend.dev until domain is verified
+    const fromEmail = "Fluff & Scruff Studio <onboarding@resend.dev>";
+    const replyTo = "info@fluffandscruff.co.uk";
 
     if (type === "send_for_signature") {
       // Send contract signing invitation to the groomer
@@ -61,6 +63,7 @@ serve(async (req) => {
         },
         body: JSON.stringify({
           from: fromEmail,
+          reply_to: replyTo,
           to: [staff.email],
           subject: "Your Groomer Contract from Fluff & Scruff Studio",
           html: `
@@ -113,6 +116,7 @@ serve(async (req) => {
         },
         body: JSON.stringify({
           from: fromEmail,
+          reply_to: replyTo,
           to: emails,
           subject: `Contract Signed — ${staff.name}`,
           html: `

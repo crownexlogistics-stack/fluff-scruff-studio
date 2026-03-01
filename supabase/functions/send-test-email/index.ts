@@ -23,7 +23,9 @@ serve(async (req) => {
         Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: "Fluff & Scruff Studio <info@fluffandscruff.co.uk>",
+        // Temporary: using onboarding@resend.dev until domain is verified
+        from: "Fluff & Scruff Studio <onboarding@resend.dev>",
+        reply_to: "info@fluffandscruff.co.uk",
         to: ["info@fluffandscruff.co.uk"],
         subject: "✅ Test Email from Fluff & Scruff Studio",
         html: `

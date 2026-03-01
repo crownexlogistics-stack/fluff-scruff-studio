@@ -115,7 +115,7 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
           });
         }
       } else {
-        const { error } = await supabase.from("bookings").insert({
+        const { data: insertedBooking, error } = await supabase.from("bookings").insert({
           customer_name: form.customer_name,
           dog_name: form.dog_name,
           customer_email: form.customer_email || null,
@@ -129,8 +129,15 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
           deposit_paid: form.deposit_paid,
           notes: form.notes || null,
           status: "Confirmed",
-        });
+        }).select("id").single();
         if (error) throw error;
+
+        // Send confirmation email if customer has email
+        if (form.customer_email && insertedBooking?.id) {
+          supabase.functions.invoke("send-booking-email", {
+            body: { booking_id: insertedBooking.id, email_type: "confirmation" },
+          }).catch(() => {}); // fire-and-forget
+        }
       }
     },
     onSuccess: () => {
