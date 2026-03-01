@@ -5,8 +5,10 @@ import { GroomerLayout } from "@/components/GroomerLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { CalendarDays, CheckCircle, Clock, Dog } from "lucide-react";
+import { CalendarDays, CheckCircle, Clock, Dog, FileText } from "lucide-react";
 import { format } from "date-fns";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { GroomerDocuments } from "@/components/incident-reports/GroomerIncidentReview";
 
 interface Booking {
   id: string;
@@ -82,46 +84,60 @@ const GroomerPortalPage = () => {
 
   return (
     <GroomerLayout>
-      <div className="space-y-8 max-w-3xl">
+      <div className="space-y-6 max-w-3xl">
         <div>
-          <h1 className="text-2xl font-heading text-foreground">My Schedule</h1>
-          <p className="text-muted-foreground font-body text-sm mt-1">Your assigned appointments</p>
+          <h1 className="text-2xl font-heading text-foreground">My Portal</h1>
+          <p className="text-muted-foreground font-body text-sm mt-1">Your schedule and documents</p>
         </div>
 
-        {loading ? (
-          <div className="flex justify-center py-12">
-            <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
-          </div>
-        ) : bookings.length === 0 ? (
-          <div className="text-center py-16 space-y-3">
-            <CalendarDays className="h-12 w-12 text-muted-foreground/40 mx-auto" />
-            <p className="text-muted-foreground font-body">No appointments assigned to you yet.</p>
-          </div>
-        ) : (
-          <>
-            {/* Today */}
-            {todayBookings.length > 0 && (
-              <div className="space-y-3">
-                <h2 className="text-lg font-heading text-foreground flex items-center gap-2">
-                  <Clock className="h-5 w-5 text-accent" /> Today
-                </h2>
-                {todayBookings.map((b) => (
-                  <BookingCard key={b.id} booking={b} onMarkFinished={markAsFinished} />
-                ))}
-              </div>
-            )}
+        <Tabs defaultValue="schedule">
+          <TabsList>
+            <TabsTrigger value="schedule" className="gap-1.5">
+              <CalendarDays className="h-4 w-4" /> Schedule
+            </TabsTrigger>
+            <TabsTrigger value="documents" className="gap-1.5">
+              <FileText className="h-4 w-4" /> Documents
+            </TabsTrigger>
+          </TabsList>
 
-            {/* Upcoming */}
-            {upcomingBookings.length > 0 && (
-              <div className="space-y-3">
-                <h2 className="text-lg font-heading text-foreground">Upcoming</h2>
-                {upcomingBookings.map((b) => (
-                  <BookingCard key={b.id} booking={b} onMarkFinished={markAsFinished} />
-                ))}
+          <TabsContent value="schedule" className="mt-4">
+            {loading ? (
+              <div className="flex justify-center py-12">
+                <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
+              </div>
+            ) : bookings.length === 0 ? (
+              <div className="text-center py-16 space-y-3">
+                <CalendarDays className="h-12 w-12 text-muted-foreground/40 mx-auto" />
+                <p className="text-muted-foreground font-body">No appointments assigned to you yet.</p>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {todayBookings.length > 0 && (
+                  <div className="space-y-3">
+                    <h2 className="text-lg font-heading text-foreground flex items-center gap-2">
+                      <Clock className="h-5 w-5 text-accent" /> Today
+                    </h2>
+                    {todayBookings.map((b) => (
+                      <BookingCard key={b.id} booking={b} onMarkFinished={markAsFinished} />
+                    ))}
+                  </div>
+                )}
+                {upcomingBookings.length > 0 && (
+                  <div className="space-y-3">
+                    <h2 className="text-lg font-heading text-foreground">Upcoming</h2>
+                    {upcomingBookings.map((b) => (
+                      <BookingCard key={b.id} booking={b} onMarkFinished={markAsFinished} />
+                    ))}
+                  </div>
+                )}
               </div>
             )}
-          </>
-        )}
+          </TabsContent>
+
+          <TabsContent value="documents" className="mt-4">
+            <GroomerDocuments />
+          </TabsContent>
+        </Tabs>
       </div>
     </GroomerLayout>
   );
