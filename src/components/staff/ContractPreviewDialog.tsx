@@ -11,6 +11,7 @@ interface StaffMember {
   contract_status: string;
   signed_at: string | null;
   signed_ip: string | null;
+  contract_signature_data?: string | null;
 }
 
 interface Props {
@@ -197,7 +198,15 @@ export function ContractContent({ staff }: { staff: StaffMember }) {
             </p>
             {staff.contract_status === "signed" && staff.signed_at ? (
               <>
-                <p className="text-lg italic font-serif text-foreground">{staff.name}</p>
+                {(staff as any).contract_signature_data ? (
+                  <img
+                    src={(staff as any).contract_signature_data}
+                    alt="Signature"
+                    className="max-h-16 border rounded bg-white p-1"
+                  />
+                ) : (
+                  <p className="text-lg italic font-serif text-foreground">{staff.name}</p>
+                )}
                 <p className="text-xs text-muted-foreground">
                   Date: {format(new Date(staff.signed_at), "PPP")}
                 </p>

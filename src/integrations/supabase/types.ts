@@ -494,11 +494,13 @@ export type Database = {
         Row: {
           auth_user_id: string | null
           contact_number: string | null
+          contract_signature_data: string | null
           contract_status: string
           created_at: string
           date_of_birth: string | null
           description: string | null
           email: string | null
+          hs_signature_data: string | null
           hs_signed_at: string | null
           hs_signed_ip: string | null
           hs_status: string
@@ -513,11 +515,13 @@ export type Database = {
         Insert: {
           auth_user_id?: string | null
           contact_number?: string | null
+          contract_signature_data?: string | null
           contract_status?: string
           created_at?: string
           date_of_birth?: string | null
           description?: string | null
           email?: string | null
+          hs_signature_data?: string | null
           hs_signed_at?: string | null
           hs_signed_ip?: string | null
           hs_status?: string
@@ -532,11 +536,13 @@ export type Database = {
         Update: {
           auth_user_id?: string | null
           contact_number?: string | null
+          contract_signature_data?: string | null
           contract_status?: string
           created_at?: string
           date_of_birth?: string | null
           description?: string | null
           email?: string | null
+          hs_signature_data?: string | null
           hs_signed_at?: string | null
           hs_signed_ip?: string | null
           hs_status?: string

@@ -6,18 +6,17 @@ import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { CheckCircle2, Scissors, AlertCircle } from "lucide-react";
+import { CheckCircle2, Scissors } from "lucide-react";
 import { toast } from "sonner";
 import { ContractContent } from "@/components/staff/ContractPreviewDialog";
+import { SignaturePadDialog } from "@/components/staff/SignaturePadDialog";
 
 const ContractSignPage = () => {
   const { staffId } = useParams<{ staffId: string }>();
   const queryClient = useQueryClient();
-  const [signatureName, setSignatureName] = useState("");
+  const [sigOpen, setSigOpen] = useState(false);
 
   const { data: staff, isLoading } = useQuery({
     queryKey: ["staff", staffId],
@@ -30,8 +29,7 @@ const ContractSignPage = () => {
   });
 
   const signMutation = useMutation({
-    mutationFn: async () => {
-      // Fetch IP address
+    mutationFn: async (signatureDataUrl: string) => {
       let ip = "unknown";
       try {
         const res = await fetch("https://api.ipify.org?format=json");
@@ -43,10 +41,10 @@ const ContractSignPage = () => {
         contract_status: "signed",
         signed_at: new Date().toISOString(),
         signed_ip: ip,
-      }).eq("id", staffId!);
+        contract_signature_data: signatureDataUrl,
+      } as any).eq("id", staffId!);
       if (error) throw error;
 
-      // Send confirmation emails
       try {
         const contractUrl = `${window.location.origin}/contract/sign/${staffId}`;
         await supabase.functions.invoke("send-contract-email", {
@@ -56,6 +54,7 @@ const ContractSignPage = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["staff", staffId] });
+      setSigOpen(false);
       toast.success("Contract signed successfully!");
     },
     onError: (e: Error) => toast.error(e.message),
@@ -92,8 +91,6 @@ const ContractSignPage = () => {
     );
   }
 
-  const nameMatches = signatureName.trim().toLowerCase() === staff.name.trim().toLowerCase();
-
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -119,6 +116,16 @@ const ContractSignPage = () => {
                 Signed by {staff.name} on{" "}
                 {staff.signed_at ? format(new Date(staff.signed_at), "PPP 'at' p") : "—"}
               </p>
+              {(staff as any).contract_signature_data && (
+                <div className="pt-4">
+                  <p className="text-xs text-muted-foreground mb-2">Signature:</p>
+                  <img
+                    src={(staff as any).contract_signature_data}
+                    alt="Signature"
+                    className="mx-auto max-h-24 border rounded-lg bg-white p-2"
+                  />
+                </div>
+              )}
             </CardContent>
           </Card>
         ) : (
@@ -144,44 +151,35 @@ const ContractSignPage = () => {
               <CardContent className="p-6 space-y-4">
                 <h3 className="font-heading font-semibold text-lg">Digital Signature</h3>
                 <p className="text-sm text-muted-foreground">
-                  By typing your full name below and clicking "Sign Agreement", you confirm that you
-                  have read and agree to all terms outlined in the contract above.
+                  By signing below, you confirm that you have read and agree to all terms outlined
+                  in the contract above.
                 </p>
-
-                <div className="space-y-2">
-                  <Label htmlFor="sig-name">Full Name</Label>
-                  <Input
-                    id="sig-name"
-                    placeholder={`Type "${staff.name}" to sign`}
-                    value={signatureName}
-                    onChange={(e) => setSignatureName(e.target.value)}
-                  />
-                  {signatureName.length > 0 && !nameMatches && (
-                    <p className="text-xs text-destructive flex items-center gap-1">
-                      <AlertCircle className="h-3 w-3" />
-                      Name must match "{staff.name}"
-                    </p>
-                  )}
-                </div>
 
                 <Button
                   className="w-full"
                   size="lg"
-                  disabled={!nameMatches || signMutation.isPending}
-                  onClick={() => signMutation.mutate()}
+                  onClick={() => setSigOpen(true)}
                 >
                   <CheckCircle2 className="mr-2 h-5 w-5" />
-                  {signMutation.isPending ? "Signing..." : "Sign Agreement"}
+                  Open Signature Pad
                 </Button>
 
                 <p className="text-xs text-muted-foreground text-center">
-                  Your signature timestamp and IP address will be recorded for verification purposes.
+                  Your signature, timestamp, and IP address will be recorded for verification purposes.
                 </p>
               </CardContent>
             </Card>
           </>
         )}
       </div>
+
+      <SignaturePadDialog
+        open={sigOpen}
+        onOpenChange={setSigOpen}
+        onSign={(dataUrl) => signMutation.mutate(dataUrl)}
+        staffName={staff.name}
+        isPending={signMutation.isPending}
+      />
     </div>
   );
 };

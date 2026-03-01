@@ -6,18 +6,17 @@ import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { CheckCircle2, ShieldCheck, AlertCircle, Scissors } from "lucide-react";
+import { CheckCircle2, ShieldCheck, Scissors } from "lucide-react";
 import { toast } from "sonner";
 import { HealthAndSafetyContent } from "@/components/staff/HealthAndSafetyContent";
+import { SignaturePadDialog } from "@/components/staff/SignaturePadDialog";
 
 const HealthAndSafetySignPage = () => {
   const { staffId } = useParams<{ staffId: string }>();
   const queryClient = useQueryClient();
-  const [signatureName, setSignatureName] = useState("");
+  const [sigOpen, setSigOpen] = useState(false);
 
   const { data: staff, isLoading } = useQuery({
     queryKey: ["staff", staffId],
@@ -30,7 +29,7 @@ const HealthAndSafetySignPage = () => {
   });
 
   const signMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (signatureDataUrl: string) => {
       let ip = "unknown";
       try {
         const res = await fetch("https://api.ipify.org?format=json");
@@ -42,11 +41,13 @@ const HealthAndSafetySignPage = () => {
         hs_status: "signed",
         hs_signed_at: new Date().toISOString(),
         hs_signed_ip: ip,
-      }).eq("id", staffId!);
+        hs_signature_data: signatureDataUrl,
+      } as any).eq("id", staffId!);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["staff", staffId] });
+      setSigOpen(false);
       toast.success("Health & Safety policy signed successfully!");
     },
     onError: (e: Error) => toast.error(e.message),
@@ -68,8 +69,8 @@ const HealthAndSafetySignPage = () => {
     );
   }
 
-  const isSigned = staff.hs_status === "signed";
-  const isSent = staff.hs_status === "sent";
+  const isSigned = (staff as any).hs_status === "signed";
+  const isSent = (staff as any).hs_status === "sent";
 
   if (!isSent && !isSigned) {
     return (
@@ -82,8 +83,6 @@ const HealthAndSafetySignPage = () => {
       </div>
     );
   }
-
-  const nameMatches = signatureName.trim().toLowerCase() === staff.name.trim().toLowerCase();
 
   return (
     <div className="min-h-screen bg-background">
@@ -107,8 +106,18 @@ const HealthAndSafetySignPage = () => {
               <h2 className="font-heading text-2xl font-bold">Health & Safety Policy Signed</h2>
               <p className="text-muted-foreground">
                 Signed by {staff.name} on{" "}
-                {staff.hs_signed_at ? format(new Date(staff.hs_signed_at), "PPP 'at' p") : "—"}
+                {(staff as any).hs_signed_at ? format(new Date((staff as any).hs_signed_at), "PPP 'at' p") : "—"}
               </p>
+              {(staff as any).hs_signature_data && (
+                <div className="pt-4">
+                  <p className="text-xs text-muted-foreground mb-2">Signature:</p>
+                  <img
+                    src={(staff as any).hs_signature_data}
+                    alt="Signature"
+                    className="mx-auto max-h-24 border rounded-lg bg-white p-2"
+                  />
+                </div>
+              )}
             </CardContent>
           </Card>
         ) : (
@@ -134,44 +143,35 @@ const HealthAndSafetySignPage = () => {
               <CardContent className="p-6 space-y-4">
                 <h3 className="font-heading font-semibold text-lg">Digital Signature</h3>
                 <p className="text-sm text-muted-foreground">
-                  By typing your full name below and clicking "Sign Policy", you confirm that you
-                  have read, understood, and agree to comply with the Health & Safety Policy above.
+                  By signing below, you confirm that you have read, understood, and agree to comply
+                  with the Health & Safety Policy above.
                 </p>
-
-                <div className="space-y-2">
-                  <Label htmlFor="sig-name">Full Name</Label>
-                  <Input
-                    id="sig-name"
-                    placeholder={`Type "${staff.name}" to sign`}
-                    value={signatureName}
-                    onChange={(e) => setSignatureName(e.target.value)}
-                  />
-                  {signatureName.length > 0 && !nameMatches && (
-                    <p className="text-xs text-destructive flex items-center gap-1">
-                      <AlertCircle className="h-3 w-3" />
-                      Name must match "{staff.name}"
-                    </p>
-                  )}
-                </div>
 
                 <Button
                   className="w-full"
                   size="lg"
-                  disabled={!nameMatches || signMutation.isPending}
-                  onClick={() => signMutation.mutate()}
+                  onClick={() => setSigOpen(true)}
                 >
                   <CheckCircle2 className="mr-2 h-5 w-5" />
-                  {signMutation.isPending ? "Signing..." : "Sign Policy"}
+                  Open Signature Pad
                 </Button>
 
                 <p className="text-xs text-muted-foreground text-center">
-                  Your signature timestamp and IP address will be recorded for verification purposes.
+                  Your signature, timestamp, and IP address will be recorded for verification purposes.
                 </p>
               </CardContent>
             </Card>
           </>
         )}
       </div>
+
+      <SignaturePadDialog
+        open={sigOpen}
+        onOpenChange={setSigOpen}
+        onSign={(dataUrl) => signMutation.mutate(dataUrl)}
+        staffName={staff.name}
+        isPending={signMutation.isPending}
+      />
     </div>
   );
 };
