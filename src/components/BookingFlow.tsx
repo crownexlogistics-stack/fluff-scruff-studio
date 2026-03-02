@@ -1,5 +1,5 @@
-import { useState, useCallback, useRef, useEffect } from "react";
-import { ArrowLeft, Search, Dog, ChevronRight, PawPrint, Save, Move, Sparkles, Check, ChevronLeft, Calendar, Info, X, Lock } from "lucide-react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
+import { ArrowLeft, Search, Dog, ChevronRight, PawPrint, Save, Move, Sparkles, Check, ChevronLeft, Calendar, Info, X, Lock, Ticket } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -114,6 +114,10 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
   const [guestForm, setGuestForm] = useState({ name: "", phone: "", email: "", dogName: preselectedPetName || "", password: "" });
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [termsOpen, setTermsOpen] = useState(false);
+  const [couponCode, setCouponCode] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<{ id: string; code: string; discount_type: string; discount_value: number } | null>(null);
+  const [couponError, setCouponError] = useState("");
+  const [couponLoading, setCouponLoading] = useState(false);
 
   const { data: termsContent } = useQuery({
     queryKey: ["site_config", "terms_and_conditions"],
@@ -259,9 +263,71 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
     const addon = dbAddOns?.find(a => a.id === id);
     return sum + (addon ? Number(addon.price) : 0);
   }, 0);
-  const totalPrice = basePrice + addOnsTotal;
+  const subtotal = basePrice + addOnsTotal;
+  const couponDiscount = appliedCoupon
+    ? appliedCoupon.discount_type === "percentage"
+      ? Math.round(subtotal * appliedCoupon.discount_value / 100 * 100) / 100
+      : Math.min(appliedCoupon.discount_value, subtotal)
+    : 0;
+  const totalPrice = Math.max(0, subtotal - couponDiscount);
   const depositAmount = Math.round(totalPrice * 0.6 * 100) / 100;
   const remainingAmount = Math.round((totalPrice - depositAmount) * 100) / 100;
+
+  const applyCoupon = async () => {
+    if (!couponCode.trim()) return;
+    setCouponError("");
+    setCouponLoading(true);
+    try {
+      const { data: coupon, error } = await supabase
+        .from("coupons")
+        .select("*")
+        .eq("code", couponCode.trim().toUpperCase())
+        .eq("is_active", true)
+        .maybeSingle();
+      if (error) throw error;
+      if (!coupon) { setCouponError("Invalid coupon code"); return; }
+
+      const now = new Date();
+      if (coupon.start_date && new Date(coupon.start_date) > now) { setCouponError("This coupon is not active yet"); return; }
+      if (coupon.end_date && new Date(coupon.end_date) < now) { setCouponError("This coupon has expired"); return; }
+      if (coupon.max_uses && coupon.times_used >= coupon.max_uses) { setCouponError("This coupon has been fully redeemed"); return; }
+      if (coupon.min_order_amount && subtotal < Number(coupon.min_order_amount)) {
+        setCouponError(`Minimum order £${Number(coupon.min_order_amount).toFixed(2)} required`);
+        return;
+      }
+
+      // Check per-customer usage if email provided
+      if (guestForm.email && coupon.max_uses_per_customer) {
+        const { count } = await supabase
+          .from("coupon_usages")
+          .select("*", { count: "exact", head: true })
+          .eq("coupon_id", coupon.id)
+          .eq("customer_email", guestForm.email.toLowerCase());
+        if (count && count >= coupon.max_uses_per_customer) {
+          setCouponError("You've already used this coupon");
+          return;
+        }
+      }
+
+      setAppliedCoupon({
+        id: coupon.id,
+        code: coupon.code,
+        discount_type: coupon.discount_type,
+        discount_value: Number(coupon.discount_value),
+      });
+      toast.success(`Coupon "${coupon.code}" applied!`);
+    } catch {
+      setCouponError("Failed to validate coupon");
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
+  const removeCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponCode("");
+    setCouponError("");
+  };
 
   const handleSubSelect = (sub: string) => {
     setSelectedSub(sub);
@@ -345,6 +411,22 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
     if (error) {
       toast.error("Failed to book — please try again");
       return;
+    }
+
+    // Track coupon usage
+    if (appliedCoupon && insertedBooking?.id) {
+      try {
+        await supabase.from("coupon_usages").insert({
+          coupon_id: appliedCoupon.id,
+          customer_email: (guestForm.email || "guest").toLowerCase(),
+          booking_id: insertedBooking.id,
+        });
+        // Increment times_used
+        const { data: couponData } = await supabase.from("coupons").select("times_used").eq("id", appliedCoupon.id).single();
+        if (couponData) {
+          await supabase.from("coupons").update({ times_used: couponData.times_used + 1 }).eq("id", appliedCoupon.id);
+        }
+      } catch { /* ignore */ }
     }
 
     // Send confirmation email if customer provided email
@@ -486,7 +568,6 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
   }
 
   return (
-    <>
     <div className="fixed inset-0 z-50 bg-background animate-slide-up flex flex-col">
       {/* Header */}
       <div className="glass sticky top-0 z-10 px-4 py-3 flex items-center gap-3 safe-area-top">
@@ -822,6 +903,12 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
               {selectedAddOns.length > 0 && (
                 <p className="text-xs text-muted-foreground">+ {selectedAddOns.map(id => dbAddOns?.find(a => a.id === id)?.name).filter(Boolean).join(", ")}</p>
               )}
+              {appliedCoupon && couponDiscount > 0 && (
+                <div className="flex justify-between items-center text-sm text-accent">
+                  <span>Coupon ({appliedCoupon.code})</span>
+                  <span>-£{couponDiscount.toFixed(2)}</span>
+                </div>
+              )}
               <div className="border-t border-border/40 pt-3 space-y-1.5">
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-muted-foreground">You pay today (60% deposit)</span>
@@ -875,6 +962,48 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
                 <Label className="text-sm font-medium">Phone</Label>
                 <Input value={guestForm.phone} onChange={(e) => setGuestForm({ ...guestForm, phone: e.target.value })} placeholder="07xxx xxxxxx" type="tel" className="h-12 rounded-xl" />
               </div>
+
+            {/* Coupon Code */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Have a coupon code?</Label>
+              {appliedCoupon ? (
+                <div className="flex items-center gap-2 rounded-xl border border-accent/30 bg-accent/5 p-3">
+                  <Ticket className="h-4 w-4 text-accent shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-foreground">
+                      <code className="font-mono">{appliedCoupon.code}</code>
+                      {" - "}
+                      {appliedCoupon.discount_type === "percentage"
+                        ? `${appliedCoupon.discount_value}% off`
+                        : `£${appliedCoupon.discount_value.toFixed(2)} off`}
+                    </p>
+                    <p className="text-xs text-accent">You save £{couponDiscount.toFixed(2)}</p>
+                  </div>
+                  <button onClick={removeCoupon} className="text-muted-foreground hover:text-foreground p-1">
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <Input
+                    value={couponCode}
+                    onChange={(e) => { setCouponCode(e.target.value.toUpperCase()); setCouponError(""); }}
+                    placeholder="Enter code"
+                    className="h-12 rounded-xl font-mono uppercase flex-1"
+                    maxLength={20}
+                    onKeyDown={(e) => e.key === "Enter" && applyCoupon()}
+                  />
+                  <Button
+                    variant="outline"
+                    onClick={applyCoupon}
+                    disabled={couponLoading || !couponCode.trim()}
+                    className="h-12 rounded-xl px-6"
+                  >
+                    {couponLoading ? "..." : "Apply"}
+                  </Button>
+                </div>
+              )}
+              {couponError && <p className="text-xs text-destructive">{couponError}</p>}
             </div>
 
             <label className="flex items-start gap-3 cursor-pointer group">
@@ -897,31 +1026,30 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
             </label>
 
             <Button onClick={handleGuestSubmit} disabled={!acceptedTerms} className="w-full h-14 text-base rounded-xl" size="lg">
-              {isNewCustomer ? `Create Account & Pay Deposit £${depositAmount.toFixed(2)}` : `Create & Pay Deposit £${depositAmount.toFixed(2)}`}
+              {isNewCustomer ? `Create Account & Pay Deposit` : `Create & Pay Deposit`} £{depositAmount.toFixed(2)}
             </Button>
           </div>
         )}
+
+        {/* Terms Dialog */}
+        <Dialog open={termsOpen} onOpenChange={setTermsOpen}>
+          <DialogContent className="max-w-lg max-h-[85vh] flex flex-col">
+            <DialogHeader>
+              <DialogTitle className="font-heading">Terms &amp; Conditions</DialogTitle>
+            </DialogHeader>
+            <ScrollArea className="flex-1 max-h-[60vh] pr-4">
+              <div
+                className="prose prose-sm max-w-none text-muted-foreground"
+                dangerouslySetInnerHTML={{ __html: termsContent ?? "" }}
+              />
+            </ScrollArea>
+            <div className="pt-4 border-t">
+              <Button variant="outline" className="w-full" onClick={() => setTermsOpen(false)}>Close</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
       </div>
     </div>
-
-      <Dialog open={termsOpen} onOpenChange={setTermsOpen}>
-        <DialogContent className="max-w-lg max-h-[85vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="font-heading">Terms & Conditions</DialogTitle>
-          </DialogHeader>
-          <ScrollArea className="flex-1 max-h-[60vh] pr-4">
-            <div
-              className="prose prose-sm max-w-none text-muted-foreground [&_h2]:font-heading [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:text-foreground [&_h2]:mt-8 [&_h2]:mb-3 [&_p]:mb-3 [&_strong]:text-foreground [&_ul]:list-disc [&_ul]:pl-5 [&_li]:mb-1"
-              dangerouslySetInnerHTML={{ __html: termsContent ?? "" }}
-            />
-          </ScrollArea>
-          <div className="pt-4 border-t">
-            <Button variant="outline" className="w-full" onClick={() => setTermsOpen(false)}>
-              Close
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </>
   );
 }

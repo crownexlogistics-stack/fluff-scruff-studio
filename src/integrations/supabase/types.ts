@@ -268,6 +268,96 @@ export type Database = {
         }
         Relationships: []
       }
+      coupon_usages: {
+        Row: {
+          booking_id: string | null
+          coupon_id: string
+          customer_email: string
+          id: string
+          used_at: string
+        }
+        Insert: {
+          booking_id?: string | null
+          coupon_id: string
+          customer_email: string
+          id?: string
+          used_at?: string
+        }
+        Update: {
+          booking_id?: string | null
+          coupon_id?: string
+          customer_email?: string
+          id?: string
+          used_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coupon_usages_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coupon_usages_coupon_id_fkey"
+            columns: ["coupon_id"]
+            isOneToOne: false
+            referencedRelation: "coupons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      coupons: {
+        Row: {
+          code: string
+          created_at: string
+          description: string | null
+          discount_type: string
+          discount_value: number
+          end_date: string | null
+          id: string
+          is_active: boolean
+          max_uses: number | null
+          max_uses_per_customer: number | null
+          min_order_amount: number | null
+          start_date: string | null
+          times_used: number
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          description?: string | null
+          discount_type?: string
+          discount_value?: number
+          end_date?: string | null
+          id?: string
+          is_active?: boolean
+          max_uses?: number | null
+          max_uses_per_customer?: number | null
+          min_order_amount?: number | null
+          start_date?: string | null
+          times_used?: number
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          description?: string | null
+          discount_type?: string
+          discount_value?: number
+          end_date?: string | null
+          id?: string
+          is_active?: boolean
+          max_uses?: number | null
+          max_uses_per_customer?: number | null
+          min_order_amount?: number | null
+          start_date?: string | null
+          times_used?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       customer_messages: {
         Row: {
           body: string | null
