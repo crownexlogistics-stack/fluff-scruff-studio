@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import { ArrowLeft, Search, Dog, ChevronRight, PawPrint, Save, Move, Sparkles, Check, ChevronLeft, Calendar, Info, X, Lock, Ticket } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -22,6 +23,8 @@ interface BookingFlowProps {
   preselectedBreedId?: string | null;
   preselectedPetName?: string;
   isNewCustomer?: boolean;
+  dogAgeYears?: number | null;
+  dogAgeMonths?: number | null;
 }
 
 const subServices = [
@@ -75,7 +78,7 @@ function getMonday(date: Date): Date {
 const WEEKDAYS_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
-export function BookingFlow({ service, onClose, preselectedBreedId, preselectedPetName, isNewCustomer }: BookingFlowProps) {
+export function BookingFlow({ service, onClose, preselectedBreedId, preselectedPetName, isNewCustomer, dogAgeYears, dogAgeMonths }: BookingFlowProps) {
   const { user } = useAuth();
   const isExistingCustomer = !isNewCustomer && !!user;
   // Fetch matching service record from DB (for fixed-price services)
@@ -123,7 +126,8 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
   const [couponLoading, setCouponLoading] = useState(false);
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
+  const [ageYears, setAgeYears] = useState<string>(dogAgeYears != null ? String(dogAgeYears) : "0");
+  const [ageMonths, setAgeMonths] = useState<string>(dogAgeMonths != null ? String(dogAgeMonths) : "0");
   const { data: termsContent } = useQuery({
     queryKey: ["site_config", "terms_and_conditions"],
     queryFn: async () => {
@@ -358,6 +362,14 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
     setSelectedAddOns([]);
     setSelectedDate(null);
     setSelectedTime(null);
+    // If age is already provided (existing customer), skip age step
+    if (dogAgeYears != null || dogAgeMonths != null) {
+      setStep("calendar");
+    }
+    // Otherwise stay on breed step to collect age (UI will show age picker when breed is selected)
+  };
+
+  const handleBreedAndAgeContinue = () => {
     setStep("calendar");
   };
 
@@ -527,11 +539,22 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
       setStep("calendar");
       setSelectedTime(null);
     } else if (step === "calendar" && needsBreed) {
-      setStep("breed");
-      setSelectedBreed(null);
-      setBreedsSearch("");
+      // If age was provided externally (existing customer), go back to breed search
+      // Otherwise the breed step shows age picker when breed is selected
+      if (dogAgeYears != null || dogAgeMonths != null) {
+        setStep("breed");
+        setSelectedBreed(null);
+        setBreedsSearch("");
+      } else {
+        // Go back to age picker (breed is still selected)
+        setStep("breed");
+      }
       setSelectedDate(null);
       setSelectedTime(null);
+    } else if (step === "breed" && selectedBreed) {
+      // From age picker, go back to breed search
+      setSelectedBreed(null);
+      setBreedsSearch("");
     } else if (step === "breed" && service === "Grooming") {
       setStep("sub-service");
       setSelectedSub(null);
@@ -693,42 +716,102 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
         {/* Breed search */}
         {step === "breed" && (
           <div className="flex-1 flex flex-col animate-fade-in">
-            <div className="flex-1 flex flex-col items-center justify-center px-6 pt-12 pb-4 text-center">
-              <div className="flex items-center justify-center w-20 h-20 rounded-full bg-accent/10 mb-6">
-                <PawPrint className="h-9 w-9 text-accent" />
-              </div>
-              <h2 className="text-2xl sm:text-3xl font-heading text-foreground leading-tight mb-2">
-                Tell us about your<br />four-legged friend
-              </h2>
-              <p className="text-muted-foreground font-body text-sm max-w-xs">
-                Start typing your dog's breed below and we'll find the perfect match
-              </p>
-            </div>
-            <div className="px-5 pb-8 relative">
-              <div className="relative">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground z-10" />
-                <Input placeholder="e.g. Cockapoo, Labrador…" value={breedSearch} onChange={(e) => setBreedsSearch(e.target.value)} className="pl-12 h-14 rounded-2xl text-base shadow-lg shadow-black/[0.04] border-border/60 focus:border-accent" autoFocus />
-              </div>
-              {breedSearch.length > 0 && (
-                <div className="absolute left-5 right-5 mt-2 bg-card border border-border rounded-2xl shadow-xl shadow-black/[0.08] max-h-64 overflow-y-auto z-20 animate-fade-in">
-                  {filteredBreeds?.map((breed) => (
-                    <button key={breed.id} onClick={() => handleBreedSelect(breed)} className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-muted/50 transition-colors first:rounded-t-2xl last:rounded-b-2xl border-b border-border/30 last:border-0">
-                      <Dog className="h-4 w-4 text-muted-foreground shrink-0" />
-                      <span className="font-body text-sm truncate flex-1">{breed.name}</span>
-                    </button>
-                  ))}
-                  {filteredBreeds?.length === 0 && (
-                    <div className="px-4 py-4 text-center text-sm text-muted-foreground">
-                      No breeds match "<span className="font-medium text-foreground">{breedSearch}</span>"
+            {!selectedBreed ? (
+              <>
+                <div className="flex-1 flex flex-col items-center justify-center px-6 pt-12 pb-4 text-center">
+                  <div className="flex items-center justify-center w-20 h-20 rounded-full bg-accent/10 mb-6">
+                    <PawPrint className="h-9 w-9 text-accent" />
+                  </div>
+                  <h2 className="text-2xl sm:text-3xl font-heading text-foreground leading-tight mb-2">
+                    Tell us about your<br />four-legged friend
+                  </h2>
+                  <p className="text-muted-foreground font-body text-sm max-w-xs">
+                    Start typing your dog's breed below and we'll find the perfect match
+                  </p>
+                </div>
+                <div className="px-5 pb-8 relative">
+                  <div className="relative">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground z-10" />
+                    <Input placeholder="e.g. Cockapoo, Labrador…" value={breedSearch} onChange={(e) => setBreedsSearch(e.target.value)} className="pl-12 h-14 rounded-2xl text-base shadow-lg shadow-black/[0.04] border-border/60 focus:border-accent" autoFocus />
+                  </div>
+                  {breedSearch.length > 0 && (
+                    <div className="absolute left-5 right-5 mt-2 bg-card border border-border rounded-2xl shadow-xl shadow-black/[0.08] max-h-64 overflow-y-auto z-20 animate-fade-in">
+                      {filteredBreeds?.map((breed) => (
+                        <button key={breed.id} onClick={() => handleBreedSelect(breed)} className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-muted/50 transition-colors first:rounded-t-2xl last:rounded-b-2xl border-b border-border/30 last:border-0">
+                          <Dog className="h-4 w-4 text-muted-foreground shrink-0" />
+                          <span className="font-body text-sm truncate flex-1">{breed.name}</span>
+                        </button>
+                      ))}
+                      {filteredBreeds?.length === 0 && (
+                        <div className="px-4 py-4 text-center text-sm text-muted-foreground">
+                          No breeds match "<span className="font-medium text-foreground">{breedSearch}</span>"
+                        </div>
+                      )}
+                      <button onClick={() => handleBreedSelect(null)} className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-accent/5 transition-colors rounded-b-2xl border-t border-border/30">
+                        <PawPrint className="h-4 w-4 text-accent shrink-0" />
+                        <span className="font-body text-sm text-accent font-medium">Not Listed — my breed isn't here</span>
+                      </button>
                     </div>
                   )}
-                  <button onClick={() => handleBreedSelect(null)} className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-accent/5 transition-colors rounded-b-2xl border-t border-border/30">
-                    <PawPrint className="h-4 w-4 text-accent shrink-0" />
-                    <span className="font-body text-sm text-accent font-medium">Not Listed — my breed isn't here</span>
-                  </button>
                 </div>
-              )}
-            </div>
+              </>
+            ) : (
+              /* Age picker after breed selected */
+              <div className="px-5 py-8 space-y-6 max-w-lg mx-auto animate-fade-in">
+                <div className="text-center">
+                  <div className="flex items-center justify-center w-16 h-16 rounded-full bg-accent/10 mx-auto mb-4">
+                    <Dog className="h-7 w-7 text-accent" />
+                  </div>
+                  <h2 className="text-2xl font-heading text-foreground mb-1">How old is your pup?</h2>
+                  <p className="text-muted-foreground font-body text-sm">
+                    {selectedBreed.name || "Breed Not Listed"} selected
+                  </p>
+                </div>
+
+                <div className="rounded-2xl border border-border/40 bg-card p-5">
+                  <Label className="text-sm font-medium mb-3 block">Dog's Age</Label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Years</Label>
+                      <Select value={ageYears} onValueChange={setAgeYears}>
+                        <SelectTrigger className="h-12 rounded-xl">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Array.from({ length: 21 }, (_, i) => (
+                            <SelectItem key={i} value={String(i)}>{i} {i === 1 ? "year" : "years"}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Months</Label>
+                      <Select value={ageMonths} onValueChange={setAgeMonths}>
+                        <SelectTrigger className="h-12 rounded-xl">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Array.from({ length: 12 }, (_, i) => (
+                            <SelectItem key={i} value={String(i)}>{i} {i === 1 ? "month" : "months"}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+
+                <Button onClick={handleBreedAndAgeContinue} className="w-full h-14 text-base rounded-xl" size="lg">
+                  Continue
+                </Button>
+
+                <button
+                  onClick={() => { setSelectedBreed(null); setBreedsSearch(""); }}
+                  className="w-full text-center text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Change breed
+                </button>
+              </div>
+            )}
           </div>
         )}
 
