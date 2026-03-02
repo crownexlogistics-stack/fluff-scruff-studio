@@ -91,10 +91,12 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
   });
 
   const isFixedPrice = service !== "Grooming" && dbService?.fixed_price != null;
+  // Only Grooming and Puppy Special need breed selection
+  const needsBreed = service === "Grooming" || service === "Puppy Special";
 
   // If breed is preselected, skip to sub-service (for grooming) or calendar
   const getInitialStep = (): Step => {
-    if (isFixedPrice) return "calendar";
+    if (!needsBreed) return "calendar";
     if (preselectedBreedId) return service === "Grooming" ? "sub-service" : "calendar";
     return service === "Grooming" ? "sub-service" : "breed";
   };
@@ -314,7 +316,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
     } else if (step === "addons") {
       setStep("calendar");
       setSelectedTime(null);
-    } else if (step === "calendar" && !isFixedPrice) {
+    } else if (step === "calendar" && needsBreed) {
       setStep("breed");
       setSelectedBreed(null);
       setBreedsSearch("");
