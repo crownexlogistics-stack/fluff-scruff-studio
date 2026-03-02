@@ -28,6 +28,7 @@ const BookingEntryPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const serviceParam = searchParams.get("service") || "Grooming";
+  const hasSpecificService = searchParams.has("service");
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
 
@@ -239,7 +240,7 @@ const BookingEntryPage = () => {
                   </button>
 
                   <button
-                    onClick={() => setNewCustomerBooking(true)}
+                    onClick={() => { setNewCustomerBooking(true); if (hasSpecificService) setNewCustomerService(serviceParam); }}
                     className="w-full rounded-2xl border-2 border-border/60 bg-card p-5 text-left hover:border-accent/40 hover:shadow-lg hover:shadow-black/[0.04] transition-all duration-300 group"
                   >
                     <div className="flex items-center gap-4">
