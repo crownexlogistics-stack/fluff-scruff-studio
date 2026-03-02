@@ -372,9 +372,11 @@ export function GroomerCalendar({ currentDate, daysToShow, staff, bookings, curr
                           durationHours = booking.breed_duration_minutes / 60;
                         }
 
+                        const isCancelled = booking.status === "Cancelled";
                         const isNoShow = booking.status === "No Show";
-                        const height = isNoShow ? 16 : durationHours * SLOT_HEIGHT;
-                        const color = isNoShow ? { bg: "bg-muted", text: "text-muted-foreground" } : getStaffColor(staffIdx);
+                        const isGhost = isNoShow || isCancelled;
+                        const height = isGhost ? 16 : durationHours * SLOT_HEIGHT;
+                        const color = isGhost ? { bg: "bg-muted", text: "text-muted-foreground" } : getStaffColor(staffIdx);
 
                         // Block rendering
                         if (booking.is_block) {
@@ -441,22 +443,24 @@ export function GroomerCalendar({ currentDate, daysToShow, staff, bookings, curr
                           <Popover key={booking.id}>
                             <PopoverTrigger asChild>
                               <div
-                                className={cn(
-                                  "absolute left-0.5 right-0.5 rounded px-1 py-0.5 text-[10px] cursor-pointer z-10 hover:opacity-90 overflow-hidden",
-                                  color.bg, color.text,
-                                  isNoShow && "line-through opacity-60"
-                                )}
-                                style={{ top: `${topOffset}px`, height: `${height}px`, minHeight: isNoShow ? "16px" : "20px" }}
-                              >
-                                {isNoShow ? (
-                                  <p className="font-medium truncate">{booking.customer_name} — No Show</p>
-                                ) : (
-                                  <>
-                                    <p className="font-bold truncate">{booking.service_name || "Appt"}</p>
-                                    <p className="truncate">{booking.customer_name}</p>
-                                    <p className="truncate opacity-80">{booking.dog_name}</p>
-                                  </>
-                                )}
+                                 className={cn(
+                                   "absolute left-0.5 right-0.5 rounded px-1 py-0.5 text-[10px] cursor-pointer z-10 hover:opacity-90 overflow-hidden",
+                                   color.bg, color.text,
+                                   isGhost && "line-through opacity-50"
+                                 )}
+                                 style={{ top: `${topOffset}px`, height: `${height}px`, minHeight: isGhost ? "16px" : "20px" }}
+                               >
+                                 {isGhost ? (
+                                   <p className="font-medium truncate">
+                                     {booking.customer_name} — {isCancelled ? "Cancelled" : "No Show"}
+                                   </p>
+                                 ) : (
+                                   <>
+                                     <p className="font-bold truncate">{booking.service_name || "Appt"}</p>
+                                     <p className="truncate">{booking.customer_name}</p>
+                                     <p className="truncate opacity-80">{booking.dog_name}</p>
+                                   </>
+                                 )}
                               </div>
                             </PopoverTrigger>
                             <OwnBookingPopover

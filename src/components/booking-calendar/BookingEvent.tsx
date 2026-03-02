@@ -51,8 +51,10 @@ interface BookingEventProps {
 export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1, onEditBlock, onCancelBlock, onViewOrder, onEditAppointment, onCancelBooking, onBookAgain, onCheckout }: BookingEventProps) {
   const navigate = useNavigate();
   const [requestingDeposit, setRequestingDeposit] = useState(false);
+  const isCancelled = booking.status === "Cancelled";
   const isNoShow = booking.status === "No Show";
-  const color = isNoShow ? { bg: "bg-muted", text: "text-muted-foreground" } : getStaffColor(staffIndex);
+  const isGhost = isNoShow || isCancelled;
+  const color = isGhost ? { bg: "bg-muted", text: "text-muted-foreground" } : getStaffColor(staffIndex);
   const timeParts = booking.booking_time.split(":");
   const hour = parseInt(timeParts[0]);
   const minutes = parseInt(timeParts[1] || "0");
@@ -68,7 +70,7 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
   }
 
   // No Show: shrink to thin strip
-  const height = isNoShow ? 16 : calculatedDuration * 64;
+  const height = isGhost ? 16 : calculatedDuration * 64;
 
   if (booking.is_block) {
     return (
@@ -125,12 +127,14 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
           className={cn(
             "absolute left-1 right-1 rounded-md px-2 py-1 text-xs cursor-pointer z-10 overflow-hidden transition-opacity hover:opacity-90",
             color.bg, color.text,
-            isNoShow && "line-through opacity-60"
+            isGhost && "line-through opacity-50"
           )}
-          style={{ top: `${topOffset}px`, height: `${height}px`, minHeight: isNoShow ? "16px" : "48px" }}
+          style={{ top: `${topOffset}px`, height: `${height}px`, minHeight: isGhost ? "16px" : "48px" }}
         >
-          {isNoShow ? (
-            <p className="font-medium truncate text-[10px]">{booking.customer_name} — No Show</p>
+          {isGhost ? (
+            <p className="font-medium truncate text-[10px]">
+              {booking.customer_name} — {isCancelled ? "Cancelled" : "No Show"}
+            </p>
           ) : (
             <>
               <p className="font-bold truncate">{booking.service_name || "Appointment"}</p>
