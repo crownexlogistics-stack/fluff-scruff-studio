@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumericInput } from "@/components/ui/numeric-input";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
@@ -166,7 +167,7 @@ export default function AddOnsPage() {
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-medium text-muted-foreground">Price (£)</label>
-                <Input value={addForm.price} onChange={e => setAddForm({ ...addForm, price: e.target.value })} type="number" min="0" step="0.5" className="h-10" />
+                <NumericInput value={addForm.price} onValueChange={(v) => setAddForm({ ...addForm, price: String(v) })} className="h-10" />
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-medium text-muted-foreground">Icon</label>
@@ -211,7 +212,7 @@ export default function AddOnsPage() {
                     </div>
                     <div className="space-y-1">
                       <label className="text-xs font-medium text-muted-foreground">Price (£)</label>
-                      <Input value={editForm.price} onChange={e => setEditForm({ ...editForm, price: e.target.value })} type="number" min="0" step="0.5" className="h-10" />
+                      <NumericInput value={editForm.price} onValueChange={(v) => setEditForm({ ...editForm, price: String(v) })} className="h-10" />
                     </div>
                     <div className="space-y-1">
                       <label className="text-xs font-medium text-muted-foreground">Icon</label>

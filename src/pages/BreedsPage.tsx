@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumericInput } from "@/components/ui/numeric-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -148,11 +149,11 @@ const BreedsPage = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Bath & Brush (£)</Label>
-                    <Input type="number" min={0} step={1} value={form.price_bath_brush} onChange={(e) => setForm({ ...form, price_bath_brush: parseFloat(e.target.value) || 0 })} />
+                    <NumericInput value={form.price_bath_brush} onValueChange={(v) => setForm({ ...form, price_bath_brush: v })} />
                   </div>
                   <div className="space-y-2">
                     <Label>Full Groom (£)</Label>
-                    <Input type="number" min={0} step={1} value={form.price_full_groom} onChange={(e) => setForm({ ...form, price_full_groom: parseFloat(e.target.value) || 0 })} />
+                    <NumericInput value={form.price_full_groom} onValueChange={(v) => setForm({ ...form, price_full_groom: v })} />
                   </div>
                 </div>
                 <div className="space-y-2">
