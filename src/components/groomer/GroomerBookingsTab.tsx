@@ -1,25 +1,31 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
 import { format, addDays, startOfDay } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CalendarDays, List, ChevronLeft, ChevronRight, CheckCircle, Clock, Dog } from "lucide-react";
+import { CalendarDays, List, ChevronLeft, ChevronRight, Dog } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { GroomerCalendar } from "./GroomerCalendar";
 import { Card, CardContent } from "@/components/ui/card";
+import { NewBookingDialog } from "@/components/booking-calendar/NewBookingDialog";
 
 interface GroomerBookingsTabProps {
   staffId: string;
+  userRole?: string | null;
 }
 
 type ViewMode = "1day" | "3day" | "7day" | "list";
 
-export function GroomerBookingsTab({ staffId }: GroomerBookingsTabProps) {
+export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProps) {
   const isMobile = useIsMobile();
   const [viewMode, setViewMode] = useState<ViewMode>(() => isMobile ? "3day" : "7day");
   const [currentDate, setCurrentDate] = useState(() => startOfDay(new Date()));
+
+  // Dialog state
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogMode, setDialogMode] = useState<"appointment" | "block">("appointment");
+  const [dialogDefaults, setDialogDefaults] = useState<{ date?: Date; hour?: number; staffId?: string }>({});
 
   const { data: allStaff = [] } = useQuery({
     queryKey: ["staff-list-groomer"],
@@ -94,8 +100,7 @@ export function GroomerBookingsTab({ staffId }: GroomerBookingsTabProps) {
 
   const allEvents = useMemo(() => [...bookings, ...overrides], [bookings, overrides]);
 
-  // List view: only own bookings
-  const ownBookings = useMemo(() => 
+  const ownBookings = useMemo(() =>
     bookings
       .filter(b => b.is_own && !b.is_block)
       .sort((a, b) => `${a.booking_date}${a.booking_time}`.localeCompare(`${b.booking_date}${b.booking_time}`)),
@@ -103,6 +108,18 @@ export function GroomerBookingsTab({ staffId }: GroomerBookingsTabProps) {
   );
 
   const today = format(new Date(), "yyyy-MM-dd");
+
+  const handleBook = useCallback((date: Date, hour: number, sid: string) => {
+    setDialogMode("appointment");
+    setDialogDefaults({ date, hour, staffId: sid });
+    setDialogOpen(true);
+  }, []);
+
+  const handleBlock = useCallback((date: Date, hour: number, sid: string) => {
+    setDialogMode("block");
+    setDialogDefaults({ date, hour, staffId: sid });
+    setDialogOpen(true);
+  }, []);
 
   return (
     <div className="space-y-4">
@@ -126,15 +143,9 @@ export function GroomerBookingsTab({ staffId }: GroomerBookingsTabProps) {
         </div>
 
         <div className="flex items-center gap-1 bg-muted rounded-lg p-0.5">
-          <Button variant={viewMode === "1day" ? "default" : "ghost"} size="sm" className="h-7 text-xs" onClick={() => setViewMode("1day")}>
-            1 Day
-          </Button>
-          <Button variant={viewMode === "3day" ? "default" : "ghost"} size="sm" className="h-7 text-xs" onClick={() => setViewMode("3day")}>
-            3 Day
-          </Button>
-          <Button variant={viewMode === "7day" ? "default" : "ghost"} size="sm" className="h-7 text-xs" onClick={() => setViewMode("7day")}>
-            7 Day
-          </Button>
+          <Button variant={viewMode === "1day" ? "default" : "ghost"} size="sm" className="h-7 text-xs" onClick={() => setViewMode("1day")}>1 Day</Button>
+          <Button variant={viewMode === "3day" ? "default" : "ghost"} size="sm" className="h-7 text-xs" onClick={() => setViewMode("3day")}>3 Day</Button>
+          <Button variant={viewMode === "7day" ? "default" : "ghost"} size="sm" className="h-7 text-xs" onClick={() => setViewMode("7day")}>7 Day</Button>
           <Button variant={viewMode === "list" ? "default" : "ghost"} size="sm" className="h-7 text-xs gap-1" onClick={() => setViewMode("list")}>
             <List className="h-3 w-3" /> List
           </Button>
@@ -166,6 +177,9 @@ export function GroomerBookingsTab({ staffId }: GroomerBookingsTabProps) {
           staff={allStaff}
           bookings={allEvents}
           currentStaffId={staffId}
+          userRole={userRole}
+          onBook={handleBook}
+          onBlock={handleBlock}
         />
       ) : (
         <div className="space-y-2">
@@ -206,6 +220,16 @@ export function GroomerBookingsTab({ staffId }: GroomerBookingsTabProps) {
           )}
         </div>
       )}
+
+      {/* Booking/Block Dialog */}
+      <NewBookingDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        defaultDate={dialogDefaults.date}
+        defaultHour={dialogDefaults.hour}
+        defaultStaffId={dialogDefaults.staffId}
+        mode={dialogMode}
+      />
     </div>
   );
 }

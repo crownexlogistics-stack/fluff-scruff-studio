@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserRole } from "@/hooks/useUserRole";
 import { GroomerLayout } from "@/components/GroomerLayout";
 import { CalendarDays, MessageSquare, Dog, PoundSterling, FileText, ChevronRight, ArrowLeft } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -22,6 +23,7 @@ const sectionCards: { id: Section; icon: React.ElementType; title: string; subti
 
 const GroomerPortalPage = () => {
   const { user } = useAuth();
+  const { role: userRole } = useUserRole(user?.id);
   const [staffId, setStaffId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const isMobile = useIsMobile();
@@ -65,7 +67,7 @@ const GroomerPortalPage = () => {
 
   const renderSectionContent = (section: Section) => {
     switch (section) {
-      case "bookings": return <GroomerBookingsTab staffId={staffId} />;
+      case "bookings": return <GroomerBookingsTab staffId={staffId} userRole={userRole} />;
       case "messages": return <GroomerMessagesTab staffId={staffId} />;
       case "breeds": return <GroomerBreedsTab />;
       case "documents": return <GroomerDocumentsTab staffId={staffId} />;
@@ -86,10 +88,7 @@ const GroomerPortalPage = () => {
       return (
         <GroomerLayout>
           <div className="space-y-4">
-            <button
-              onClick={() => setActiveSection(null)}
-              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors -ml-1"
-            >
+            <button onClick={() => setActiveSection(null)} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors -ml-1">
               <ArrowLeft className="h-4 w-4" /> Back
             </button>
             <div>
@@ -111,14 +110,8 @@ const GroomerPortalPage = () => {
           </div>
           <div className="space-y-3">
             {sectionCards.map((card) => (
-              <button
-                key={card.id}
-                onClick={() => setActiveSection(card.id)}
-                className="w-full text-left rounded-2xl border border-border bg-card p-4 hover:shadow-md transition-all active:scale-[0.98] flex items-center gap-3"
-              >
-                <div className="p-2.5 rounded-xl bg-primary/10 text-primary shrink-0">
-                  <card.icon className="h-5 w-5" />
-                </div>
+              <button key={card.id} onClick={() => setActiveSection(card.id)} className="w-full text-left rounded-2xl border border-border bg-card p-4 hover:shadow-md transition-all active:scale-[0.98] flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-primary/10 text-primary shrink-0"><card.icon className="h-5 w-5" /></div>
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-foreground text-sm">{card.title}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">{card.subtitle}</p>
@@ -140,7 +133,6 @@ const GroomerPortalPage = () => {
           <h1 className="text-2xl font-heading text-foreground">My Account</h1>
           <p className="text-muted-foreground font-body text-sm mt-1">Your schedule, messages & more</p>
         </div>
-
         <Tabs defaultValue="bookings">
           <TabsList className="flex-wrap">
             <TabsTrigger value="bookings" className="gap-1.5"><CalendarDays className="h-4 w-4" /> Bookings</TabsTrigger>
@@ -149,7 +141,6 @@ const GroomerPortalPage = () => {
             <TabsTrigger value="finance" className="gap-1.5"><PoundSterling className="h-4 w-4" /> Finance</TabsTrigger>
             <TabsTrigger value="documents" className="gap-1.5"><FileText className="h-4 w-4" /> Documents</TabsTrigger>
           </TabsList>
-
           <TabsContent value="bookings" className="mt-4">{renderSectionContent("bookings")}</TabsContent>
           <TabsContent value="messages" className="mt-4">{renderSectionContent("messages")}</TabsContent>
           <TabsContent value="breeds" className="mt-4">{renderSectionContent("breeds")}</TabsContent>

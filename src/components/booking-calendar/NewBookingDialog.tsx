@@ -132,6 +132,20 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
         }).select("id").single();
         if (error) throw error;
 
+        // Audit trail: log booking creation to staff notes
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user && form.staff_id) {
+          const formattedDate = format(new Date(form.booking_date), "dd MMM yyyy");
+          const hrNote = `📅 BOOKING CREATED — ${formattedDate} at ${form.booking_time.slice(0, 5)} — Customer: ${form.customer_name}, Dog: ${form.dog_name}`;
+          try {
+            await supabase.from("staff_notes").insert({
+              staff_id: form.staff_id,
+              created_by: user.id,
+              note: hrNote,
+            });
+          } catch {} // don't block on audit failure
+        }
+
         // Send confirmation email if customer has email
         if (form.customer_email && insertedBooking?.id) {
           supabase.functions.invoke("send-booking-email", {
@@ -143,7 +157,9 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
     onSuccess: () => {
       toast.success(mode === "block" ? "Time blocked & logged to HR notes" : "Booking created");
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["groomer-bookings"] });
       queryClient.invalidateQueries({ queryKey: ["schedule-overrides"] });
+      queryClient.invalidateQueries({ queryKey: ["groomer-overrides"] });
       queryClient.invalidateQueries({ queryKey: ["staff-notes"] });
       onOpenChange(false);
     },
