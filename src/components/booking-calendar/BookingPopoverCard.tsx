@@ -6,7 +6,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { getStaffColor } from "./staffColors";
-import { Pencil, Trash2, MoreHorizontal, Eye, PenLine, XCircle, Send, CheckCircle2 } from "lucide-react";
+import { Pencil, Trash2, MoreHorizontal, Eye, PenLine, XCircle, Send, CheckCircle2, RotateCcw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { BookingData } from "./BookingEvent";
@@ -14,6 +14,7 @@ import type { BookingData } from "./BookingEvent";
 interface BookingPopoverCardProps {
   booking: BookingData;
   staffIndex?: number;
+  userRole?: string | null;
   onEditBlock?: (booking: BookingData) => void;
   onCancelBlock?: (booking: BookingData) => void;
   onViewOrder?: (booking: BookingData) => void;
@@ -21,11 +22,13 @@ interface BookingPopoverCardProps {
   onCancelBooking?: (booking: BookingData) => void;
   onBookAgain?: (booking: BookingData) => void;
   onCheckout?: (booking: BookingData) => void;
+  onRefundComplete?: () => void;
 }
 
 export function BookingPopoverCard({
   booking,
   staffIndex = 0,
+  userRole,
   onEditBlock,
   onCancelBlock,
   onViewOrder,
@@ -33,11 +36,38 @@ export function BookingPopoverCard({
   onCancelBooking,
   onBookAgain,
   onCheckout,
+  onRefundComplete,
 }: BookingPopoverCardProps) {
   const navigate = useNavigate();
   const [requestingDeposit, setRequestingDeposit] = useState(false);
-  const isGhost = booking.status === "Cancelled" || booking.status === "No Show";
+  const [processingRefund, setProcessingRefund] = useState(false);
+  const isGhost = booking.status === "Cancelled" || booking.status === "No Show" || booking.status === "Refunded";
   const color = isGhost ? { bg: "bg-muted", text: "text-muted-foreground" } : getStaffColor(staffIndex);
+
+  const deposit = Number(booking.deposit_paid);
+  const total = Number(booking.total_price);
+  const isFullyPaid = deposit >= total && total > 0;
+  const isDepositPaid = deposit > 0 && deposit < total;
+  const remaining = total - deposit;
+  const isDirector = userRole === "director";
+
+  const handleRefund = async () => {
+    if (!confirm(`Are you sure you want to refund this booking for ${booking.customer_name}? This will process a refund through Stripe.`)) return;
+    setProcessingRefund(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("process-refund", {
+        body: { booking_id: booking.id },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success(`Refund of £${data.amount?.toFixed(2)} processed successfully`);
+      onRefundComplete?.();
+    } catch (e: any) {
+      toast.error("Refund failed: " + e.message);
+    } finally {
+      setProcessingRefund(false);
+    }
+  };
 
   if (booking.is_block) {
     return (
@@ -94,30 +124,29 @@ export function BookingPopoverCard({
         </div>
       </div>
 
-      {/* Payment status */}
+      {/* Status + Payment badges */}
       <div className="flex flex-wrap gap-2">
         <Badge variant={
           booking.status === "Confirmed" ? "default" :
           booking.status === "Completed" ? "secondary" :
-          booking.status === "No Show" || booking.status === "Cancelled" ? "destructive" : "secondary"
+          booking.status === "No Show" || booking.status === "Cancelled" || booking.status === "Refunded" ? "destructive" : "secondary"
         }>
           {booking.status}
         </Badge>
         {(() => {
-          const deposit = Number(booking.deposit_paid);
-          const total = Number(booking.total_price);
-          if (deposit >= total && total > 0) {
+          if (booking.status === "Refunded") {
+            return <Badge variant="outline">Refunded</Badge>;
+          }
+          if (isFullyPaid) {
             return (
               <Badge className="bg-emerald-600 text-white hover:bg-emerald-600">
-                <CheckCircle2 className="h-3 w-3 mr-1" /> PAID IN FULL
+                <CheckCircle2 className="h-3 w-3 mr-1" /> All Paid Online
               </Badge>
             );
           }
-          if (deposit > 0) {
+          if (isDepositPaid) {
             return (
-              <Badge variant="secondary">
-                DEPOSIT £{deposit.toFixed(2)}
-              </Badge>
+              <Badge variant="secondary">Deposit Paid</Badge>
             );
           }
           return <Badge variant="destructive">NOT PAID</Badge>;
@@ -125,17 +154,36 @@ export function BookingPopoverCard({
       </div>
 
       {/* Paid in full callout */}
-      {Number(booking.deposit_paid) >= Number(booking.total_price) && Number(booking.total_price) > 0 && (
+      {isFullyPaid && booking.status !== "Refunded" && (
         <div className="bg-emerald-50 border border-emerald-200 rounded-md px-3 py-2 text-xs text-emerald-800 flex items-center gap-2">
           <CheckCircle2 className="h-4 w-4 shrink-0" />
           <span>Customer paid in full online — nothing to charge on the day.</span>
         </div>
       )}
 
-      {/* Deposit paid but not full */}
-      {Number(booking.deposit_paid) > 0 && Number(booking.deposit_paid) < Number(booking.total_price) && (
-        <div className="bg-amber-50 border border-amber-200 rounded-md px-3 py-2 text-xs text-amber-800">
-          Deposit of £{Number(booking.deposit_paid).toFixed(2)} paid — remaining balance of £{(Number(booking.total_price) - Number(booking.deposit_paid)).toFixed(2)} due on the day.
+      {/* Deposit paid — financial breakdown */}
+      {isDepositPaid && booking.status !== "Refunded" && (
+        <div className="bg-amber-50 border border-amber-200 rounded-md px-3 py-2 text-xs text-amber-800 space-y-1">
+          <div className="flex justify-between">
+            <span>Total Cost</span>
+            <span className="font-semibold">£{total.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Deposit Paid</span>
+            <span className="font-semibold">£{deposit.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between border-t border-amber-300 pt-1 mt-1">
+            <span className="font-medium">Remaining Balance</span>
+            <span className="font-bold">£{remaining.toFixed(2)}</span>
+          </div>
+          <p className="text-[10px] text-amber-600 mt-1">Due at the salon on the day of appointment.</p>
+        </div>
+      )}
+
+      {/* Stripe Transaction ID */}
+      {(booking as any).stripe_payment_id && (
+        <div className="text-[10px] text-muted-foreground font-mono truncate">
+          Stripe: {(booking as any).stripe_payment_id}
         </div>
       )}
 
@@ -147,7 +195,7 @@ export function BookingPopoverCard({
       <div className="border-t pt-3">
         <p className="font-medium">{booking.service_name || "Service"} — {booking.breed_name || booking.dog_name}</p>
         <p className="text-sm text-muted-foreground">with {booking.staff_name}</p>
-        <p className="text-sm font-medium mt-1">£{Number(booking.total_price).toFixed(2)}</p>
+        <p className="text-sm font-medium mt-1">£{total.toFixed(2)}</p>
       </div>
 
       {booking.notes && (
@@ -157,7 +205,7 @@ export function BookingPopoverCard({
       )}
 
       {/* Request Deposit */}
-      {Number(booking.deposit_paid) === 0 && booking.customer_email && booking.status !== "Cancelled" && booking.status !== "No Show" && (
+      {deposit === 0 && booking.customer_email && booking.status !== "Cancelled" && booking.status !== "No Show" && booking.status !== "Refunded" && (
         <div className="border-t pt-3">
           <Button
             variant="outline"
@@ -181,6 +229,22 @@ export function BookingPopoverCard({
           >
             <Send className="h-4 w-4 mr-1" />
             {requestingDeposit ? "Sending…" : "Request Deposit Payment"}
+          </Button>
+        </div>
+      )}
+
+      {/* Director-only Refund */}
+      {isDirector && deposit > 0 && booking.status !== "Refunded" && booking.status !== "Cancelled" && (
+        <div className="border-t pt-3">
+          <Button
+            variant="destructive"
+            size="sm"
+            className="w-full"
+            disabled={processingRefund}
+            onClick={handleRefund}
+          >
+            <RotateCcw className="h-4 w-4 mr-1" />
+            {processingRefund ? "Processing Refund…" : "Process Refund"}
           </Button>
         </div>
       )}
@@ -211,7 +275,7 @@ export function BookingPopoverCard({
         <Button variant="outline" size="sm" onClick={() => onBookAgain?.(booking)}>
           Book Again
         </Button>
-        {booking.status !== "Completed" && booking.status !== "No Show" && booking.status !== "Cancelled" && (
+        {booking.status !== "Completed" && booking.status !== "No Show" && booking.status !== "Cancelled" && booking.status !== "Refunded" && (
           <Button size="sm" onClick={() => onCheckout?.(booking)}>
             Check Out
           </Button>

@@ -79,6 +79,7 @@ const BookingsPage = () => {
         staff_id: b.staff?.id ?? b.staff_id,
         breed_name: b.breeds?.name ?? "",
         service_name: b.services?.name ?? "",
+        stripe_payment_id: b.stripe_payment_id ?? null,
       })) as BookingData[];
     },
   });

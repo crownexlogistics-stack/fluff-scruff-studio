@@ -78,7 +78,7 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
     queryFn: async () => {
       const { data, error } = await supabase
         .from("bookings")
-        .select("id, customer_name, dog_name, booking_date, booking_time, status, notes, staff_id, total_price, deposit_paid, customer_email, customer_phone, service_id, breed_id, final_charge, services(name), breeds(name, duration_minutes)")
+        .select("id, customer_name, dog_name, booking_date, booking_time, status, notes, staff_id, total_price, deposit_paid, customer_email, customer_phone, service_id, breed_id, final_charge, stripe_payment_id, services(name), breeds(name, duration_minutes)")
         .gte("booking_date", format(currentDate, "yyyy-MM-dd"))
         .lte("booking_date", format(endDate, "yyyy-MM-dd"))
         .order("booking_time");
@@ -103,6 +103,7 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
         service_id: b.service_id,
         breed_id: b.breed_id,
         final_charge: b.final_charge,
+        stripe_payment_id: b.stripe_payment_id ?? null,
         is_block: false,
         is_own: b.staff_id === staffId,
       })) as GroomerCalendarBooking[];
@@ -176,6 +177,7 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
     service_id: b.service_id,
     breed_id: b.breed_id,
     final_charge: b.final_charge,
+    stripe_payment_id: b.stripe_payment_id ?? null,
   });
 
   const handleBook = useCallback((date: Date, hour: number, sid: string) => {
@@ -413,6 +415,7 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
                     <BookingPopoverCard
                       booking={bookingData}
                       staffIndex={sIdx >= 0 ? sIdx : 0}
+                      userRole={userRole}
                       onEditBlock={b.is_block ? (bd) => handleEditBlock(b) : undefined}
                       onCancelBlock={b.is_block ? (bd) => handleCancelBlock(b) : undefined}
                       onViewOrder={(bd) => handleViewOrder(b)}
@@ -420,6 +423,7 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
                       onCancelBooking={(bd) => handleCancelBooking(b)}
                       onBookAgain={(bd) => handleBookAgain(b)}
                       onCheckout={(bd) => handleCheckout(b)}
+                      onRefundComplete={() => queryClient.invalidateQueries({ queryKey: ["groomer-bookings"] })}
                     />
                   </PopoverContent>
                 </Popover>
