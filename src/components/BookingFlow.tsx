@@ -260,6 +260,8 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
     return sum + (addon ? Number(addon.price) : 0);
   }, 0);
   const totalPrice = basePrice + addOnsTotal;
+  const depositAmount = Math.round(totalPrice * 0.6 * 100) / 100;
+  const remainingAmount = Math.round((totalPrice - depositAmount) * 100) / 100;
 
   const handleSubSelect = (sub: string) => {
     setSelectedSub(sub);
@@ -336,6 +338,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
       booking_date: selectedDate!,
       booking_time: selectedTime!,
       total_price: totalPrice,
+      deposit_paid: 0,
       status: "Pending",
     }).select("id").single();
 
@@ -349,6 +352,34 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
       supabase.functions.invoke("send-booking-email", {
         body: { booking_id: insertedBooking.id, email_type: "confirmation" },
       }).catch(() => {}); // fire-and-forget
+    }
+
+    // Redirect to Stripe for deposit payment
+    try {
+      toast.info("Redirecting to payment...");
+      const { data: checkoutData, error: checkoutError } = await supabase.functions.invoke("create-deposit-checkout", {
+        body: {
+          customer_name: guestForm.name,
+          customer_email: guestForm.email || null,
+          dog_name: guestForm.dogName,
+          service_name: serviceType,
+          total_price: totalPrice,
+          booking_id: insertedBooking.id,
+        },
+      });
+
+      if (checkoutError || !checkoutData?.url) {
+        throw new Error(checkoutData?.error || "Failed to create payment session");
+      }
+
+      // Update booking with expected deposit
+      await supabase.from("bookings").update({ deposit_paid: depositAmount }).eq("id", insertedBooking.id);
+
+      window.location.href = checkoutData.url;
+      return;
+    } catch (stripeErr: any) {
+      console.error("Stripe checkout error:", stripeErr);
+      toast.error("Payment setup failed. Your booking is saved — we'll contact you for payment.");
     }
 
     if (isNewCustomer) {
@@ -780,17 +811,27 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
 
         {step === "guest-details" && (
           <div className="px-4 py-6 space-y-6 animate-fade-in max-w-lg mx-auto">
-            <div className="rounded-2xl bg-muted/50 border border-border/40 p-4">
-              <div className="flex justify-between items-center mb-2">
+            <div className="rounded-2xl bg-muted/50 border border-border/40 p-4 space-y-3">
+              <div className="flex justify-between items-center">
                 <p className="font-heading font-semibold">{serviceType}</p>
-                <p className="text-xl font-bold text-accent">£{totalPrice}</p>
+                <p className="text-xl font-bold text-accent">£{totalPrice.toFixed(2)}</p>
               </div>
               <p className="text-sm text-muted-foreground">
                 {isFixedPrice ? "" : `${selectedBreed?.name ?? "Breed Not Listed"} • `}{formatSelectedDate(selectedDate!)} at {selectedTime}
               </p>
               {selectedAddOns.length > 0 && (
-                <p className="text-xs text-muted-foreground mt-1">+ {selectedAddOns.map(id => dbAddOns?.find(a => a.id === id)?.name).filter(Boolean).join(", ")}</p>
+                <p className="text-xs text-muted-foreground">+ {selectedAddOns.map(id => dbAddOns?.find(a => a.id === id)?.name).filter(Boolean).join(", ")}</p>
               )}
+              <div className="border-t border-border/40 pt-3 space-y-1.5">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-muted-foreground">You pay today (60% deposit)</span>
+                  <span className="font-semibold text-foreground">£{depositAmount.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-muted-foreground">Remaining after service</span>
+                  <span className="font-medium text-muted-foreground">£{remainingAmount.toFixed(2)}</span>
+                </div>
+              </div>
             </div>
 
             {isNewCustomer && (
@@ -856,7 +897,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
             </label>
 
             <Button onClick={handleGuestSubmit} disabled={!acceptedTerms} className="w-full h-14 text-base rounded-xl" size="lg">
-              {isNewCustomer ? `Create Account & Book £${totalPrice}` : `Confirm Booking £${totalPrice}`}
+              {isNewCustomer ? `Create Account & Pay Deposit £${depositAmount.toFixed(2)}` : `Create & Pay Deposit £${depositAmount.toFixed(2)}`}
             </Button>
           </div>
         )}
