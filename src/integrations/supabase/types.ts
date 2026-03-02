@@ -125,6 +125,7 @@ export type Database = {
           customer_phone: string | null
           deposit_paid: number
           dog_name: string
+          final_charge: number | null
           id: string
           is_groomers_own_customer: boolean
           notes: string | null
@@ -144,6 +145,7 @@ export type Database = {
           customer_phone?: string | null
           deposit_paid?: number
           dog_name: string
+          final_charge?: number | null
           id?: string
           is_groomers_own_customer?: boolean
           notes?: string | null
@@ -163,6 +165,7 @@ export type Database = {
           customer_phone?: string | null
           deposit_paid?: number
           dog_name?: string
+          final_charge?: number | null
           id?: string
           is_groomers_own_customer?: boolean
           notes?: string | null
