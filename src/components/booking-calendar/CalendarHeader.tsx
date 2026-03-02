@@ -17,11 +17,9 @@ export function CalendarHeader({ weekStart, onPrevWeek, onNextWeek, onToday }: C
       : `${format(weekStart, "MMMM")} - ${format(weekEnd, "MMMM yyyy")}`;
 
   return (
-    <div className="flex items-center justify-between pb-4">
-      <div className="flex items-center gap-3">
-        <h1 className="text-2xl font-heading font-bold">Booking Calendar</h1>
-      </div>
-      <div className="flex items-center gap-2">
+    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pb-4">
+      <h1 className="text-xl sm:text-2xl font-heading font-bold">Booking Calendar</h1>
+      <div className="flex items-center gap-2 flex-wrap">
         <Button variant="outline" size="sm" onClick={onToday}>Today</Button>
         <Button variant="outline" size="icon" className="h-8 w-8" onClick={onPrevWeek}>
           <ChevronLeft className="h-4 w-4" />
@@ -29,8 +27,7 @@ export function CalendarHeader({ weekStart, onPrevWeek, onNextWeek, onToday }: C
         <Button variant="outline" size="icon" className="h-8 w-8" onClick={onNextWeek}>
           <ChevronRight className="h-4 w-4" />
         </Button>
-        <span className="text-lg font-medium min-w-[200px] text-center">{label}</span>
-        <span className="text-sm text-muted-foreground ml-2">Weekly</span>
+        <span className="text-sm sm:text-lg font-medium text-center">{label}</span>
       </div>
     </div>
   );

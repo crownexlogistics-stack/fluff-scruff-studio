@@ -83,7 +83,7 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
             {booking.notes && <p className="opacity-70 truncate text-[10px]">{booking.notes}</p>}
           </div>
         </PopoverTrigger>
-        <PopoverContent className="w-72 p-0" side="right" align="start">
+        <PopoverContent className="w-[calc(100vw-2rem)] sm:w-72 max-w-sm p-0" side="bottom" align="center" sideOffset={4}>
           <div className="p-4 space-y-3">
             <div className="flex items-center justify-between">
               <div>
@@ -140,7 +140,7 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
           )}
         </div>
       </PopoverTrigger>
-      <PopoverContent className="w-80 p-0" side="right" align="start">
+      <PopoverContent className="w-[calc(100vw-2rem)] sm:w-80 max-w-sm p-0" side="bottom" align="center" sideOffset={4}>
         <div className="p-4 space-y-3">
           {/* Top: Customer info */}
           <div className="flex items-center gap-3">
@@ -255,7 +255,7 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
           )}
 
           {/* Action bar */}
-          <div className="border-t pt-3 flex items-center gap-2">
+          <div className="border-t pt-3 flex flex-wrap items-center gap-2">
             {/* 3-dot menu */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

@@ -18,7 +18,7 @@ export function EmptySlotAction({ date, hour, staffId, staffName, onBook, onBloc
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>{children}</PopoverTrigger>
-      <PopoverContent className="w-56 p-2" side="right" align="start">
+      <PopoverContent className="w-48 sm:w-56 p-2" side="bottom" align="center" sideOffset={4}>
         <div className="space-y-1">
           <button
             className="w-full flex items-center gap-3 rounded-md px-3 py-2.5 text-sm hover:bg-accent text-left"
