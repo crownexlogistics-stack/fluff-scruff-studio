@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -75,6 +76,8 @@ const WEEKDAYS_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 export function BookingFlow({ service, onClose, preselectedBreedId, preselectedPetName, isNewCustomer }: BookingFlowProps) {
+  const { user } = useAuth();
+  const isExistingCustomer = !isNewCustomer && !!user;
   // Fetch matching service record from DB (for fixed-price services)
   const { data: dbService } = useQuery({
     queryKey: ["service-record", service],
@@ -134,6 +137,20 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
     },
   });
   const queryClient = useQueryClient();
+
+  // Pre-fill form for existing (logged-in) customers
+  useEffect(() => {
+    if (isExistingCustomer && user) {
+      const meta = user.user_metadata;
+      setGuestForm(prev => ({
+        ...prev,
+        name: meta?.full_name || prev.name,
+        email: user.email || prev.email,
+        phone: meta?.phone || prev.phone,
+        dogName: preselectedPetName || prev.dogName,
+      }));
+    }
+  }, [isExistingCustomer, user, preselectedPetName]);
 
   // Set initial step once we know if it's fixed-price
   useEffect(() => {
@@ -605,7 +622,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
         </button>
         <div className="flex-1">
           <h2 className="text-lg font-semibold font-body">
-            {step === "sub-service" ? service : step === "guest-details" ? "Your Details" : step === "addons" ? "Extras" : selectedSub ?? service}
+            {step === "sub-service" ? service : step === "guest-details" ? (isExistingCustomer ? "Confirm & Pay" : "Your Details") : step === "addons" ? "Extras" : selectedSub ?? service}
           </h2>
           <p className="text-xs text-muted-foreground">
             {step === "sub-service" ? "Choose your style" : step === "breed" ? "Select breed" : step === "calendar" ? "Pick a date & time" : step === "addons" ? "Add the finishing touches" : "Almost done!"}
@@ -957,40 +974,52 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
               </div>
             )}
 
+            {isExistingCustomer && (
+              <div className="text-center">
+                <h2 className="text-xl font-heading text-foreground">Confirm & Pay</h2>
+                <p className="text-muted-foreground text-sm mt-1">Booking for <span className="font-semibold">{guestForm.dogName || "your pup"}</span></p>
+              </div>
+            )}
+
             <div className="space-y-4">
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">Your Name *</Label>
-                <Input value={guestForm.name} onChange={(e) => setGuestForm({ ...guestForm, name: e.target.value })} placeholder="Jane Smith" className="h-12 rounded-xl" />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">Dog's Name *</Label>
-                <Input value={guestForm.dogName} onChange={(e) => setGuestForm({ ...guestForm, dogName: e.target.value })} placeholder="Buddy" className="h-12 rounded-xl" />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">{isNewCustomer ? "Email *" : "Email"}</Label>
-                <Input value={guestForm.email} onChange={(e) => setGuestForm({ ...guestForm, email: e.target.value })} placeholder="jane@example.com" type="email" className="h-12 rounded-xl" />
-              </div>
-              {isNewCustomer && (
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">Create Password *</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      value={guestForm.password}
-                      onChange={(e) => setGuestForm({ ...guestForm, password: e.target.value })}
-                      placeholder="Min 6 characters"
-                      type="password"
-                      className="h-12 rounded-xl pl-10"
-                      minLength={6}
-                    />
+              {/* Only show personal details fields for new customers */}
+              {!isExistingCustomer && (
+                <>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Your Name *</Label>
+                    <Input value={guestForm.name} onChange={(e) => setGuestForm({ ...guestForm, name: e.target.value })} placeholder="Jane Smith" className="h-12 rounded-xl" />
                   </div>
-                  <p className="text-xs text-muted-foreground">You'll use this to manage bookings and your pets</p>
-                </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Dog's Name *</Label>
+                    <Input value={guestForm.dogName} onChange={(e) => setGuestForm({ ...guestForm, dogName: e.target.value })} placeholder="Buddy" className="h-12 rounded-xl" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">{isNewCustomer ? "Email *" : "Email"}</Label>
+                    <Input value={guestForm.email} onChange={(e) => setGuestForm({ ...guestForm, email: e.target.value })} placeholder="jane@example.com" type="email" className="h-12 rounded-xl" />
+                  </div>
+                  {isNewCustomer && (
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Create Password *</Label>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          value={guestForm.password}
+                          onChange={(e) => setGuestForm({ ...guestForm, password: e.target.value })}
+                          placeholder="Min 6 characters"
+                          type="password"
+                          className="h-12 rounded-xl pl-10"
+                          minLength={6}
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground">You'll use this to manage bookings and your pets</p>
+                    </div>
+                  )}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Phone</Label>
+                    <Input value={guestForm.phone} onChange={(e) => setGuestForm({ ...guestForm, phone: e.target.value })} placeholder="07xxx xxxxxx" type="tel" className="h-12 rounded-xl" />
+                  </div>
+                </>
               )}
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">Phone</Label>
-                <Input value={guestForm.phone} onChange={(e) => setGuestForm({ ...guestForm, phone: e.target.value })} placeholder="07xxx xxxxxx" type="tel" className="h-12 rounded-xl" />
-              </div>
               <div className="space-y-2">
                 <Label className="text-sm font-medium">Notes for the groomer</Label>
                 <textarea
@@ -1067,7 +1096,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
             </label>
 
             <Button onClick={handleGuestSubmit} disabled={!acceptedTerms || isSubmitting} className="w-full h-14 text-base rounded-xl" size="lg">
-              {isSubmitting ? "Processing..." : (isNewCustomer ? `Create Account & Pay Deposit` : `Create & Pay Deposit`)} £{depositAmount.toFixed(2)}
+              {isSubmitting ? "Processing..." : isExistingCustomer ? `Pay Deposit` : isNewCustomer ? `Create Account & Pay Deposit` : `Pay Deposit`} £{depositAmount.toFixed(2)}
             </Button>
             </div>
           </div>
