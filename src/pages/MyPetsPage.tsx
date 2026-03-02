@@ -229,7 +229,13 @@ const MyPetsPage = () => {
                       {b.services?.name && ` · ${b.services.name}`}
                     </p>
                   </div>
-                  <span className={`text-xs font-medium px-2 py-1 rounded-full ${b.status === "Completed" ? "bg-green-100 text-green-800" : "bg-muted text-muted-foreground"}`}>
+                  <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${
+                    b.status === "Completed" ? "bg-green-100 text-green-800" :
+                    b.status === "Cancelled" ? "bg-destructive/10 text-destructive line-through" :
+                    b.status === "No Show" ? "bg-orange-100 text-orange-800" :
+                    b.status === "Confirmed" ? "bg-blue-100 text-blue-800" :
+                    "bg-muted text-muted-foreground"
+                  }`}>
                     {b.status}
                   </span>
                 </div>
