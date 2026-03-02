@@ -381,6 +381,17 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
         return;
       }
 
+      // Auto-confirm is enabled, so sign in immediately to establish session
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: guestForm.email,
+        password: guestForm.password,
+      });
+
+      if (signInError) {
+        toast.error("Account created but sign-in failed. Please log in manually.");
+        return;
+      }
+
       // Save pet to customer_pets if we have a user
       const userId = signUpData.user?.id;
       if (userId) {
@@ -466,7 +477,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
     }
 
     if (isNewCustomer) {
-      toast.success("Booking confirmed! Check your email to verify your account.");
+      toast.success("Booking confirmed! You're now logged in.");
     } else {
       toast.success("Booking confirmed! We'll be in touch.");
     }
