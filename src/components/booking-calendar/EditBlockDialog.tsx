@@ -61,6 +61,7 @@ export function EditBlockDialog({ open, onOpenChange, block }: EditBlockDialogPr
     onSuccess: () => {
       toast.success("Block updated & amendment logged to HR notes");
       queryClient.invalidateQueries({ queryKey: ["schedule-overrides"] });
+      queryClient.invalidateQueries({ queryKey: ["groomer-overrides"] });
       queryClient.invalidateQueries({ queryKey: ["staff-notes"] });
       onOpenChange(false);
     },

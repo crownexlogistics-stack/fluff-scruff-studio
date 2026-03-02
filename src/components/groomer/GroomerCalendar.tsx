@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { getStaffColor } from "@/components/booking-calendar/staffColors";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
-import { CalendarPlus, Ban } from "lucide-react";
+import { CalendarPlus, Ban, Pencil, Trash2 } from "lucide-react";
 
 interface StaffMember {
   id: string;
@@ -40,6 +40,8 @@ interface GroomerCalendarProps {
   userRole?: UserRole;
   onBook?: (date: Date, hour: number, staffId: string) => void;
   onBlock?: (date: Date, hour: number, staffId: string) => void;
+  onEditBlock?: (booking: CalendarBooking) => void;
+  onCancelBlock?: (booking: CalendarBooking) => void;
 }
 
 const START_HOUR = 8;
@@ -81,7 +83,7 @@ function SlotAction({ date, hour, staffId, staffName, canBlock, onBook, onBlock 
   );
 }
 
-export function GroomerCalendar({ currentDate, daysToShow, staff, bookings, currentStaffId, userRole, onBook, onBlock }: GroomerCalendarProps) {
+export function GroomerCalendar({ currentDate, daysToShow, staff, bookings, currentStaffId, userRole, onBook, onBlock, onEditBlock, onCancelBlock }: GroomerCalendarProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const canInteract = !!onBook && !!onBlock && (userRole === "groomer" || userRole === "manager" || userRole === "director");
 
@@ -199,6 +201,42 @@ export function GroomerCalendar({ currentDate, daysToShow, staff, bookings, curr
                         const color = getStaffColor(staffIdx);
 
                         if (booking.is_block) {
+                          const canEditBlock = booking.is_own && (userRole === "groomer" || userRole === "manager" || userRole === "director");
+                          if (canEditBlock && onEditBlock && onCancelBlock) {
+                            return (
+                              <Popover key={booking.id}>
+                                <PopoverTrigger asChild>
+                                  <div
+                                    className={cn("absolute left-0.5 right-0.5 rounded px-1 py-0.5 text-[10px] z-10 cursor-pointer hover:opacity-90", color.bg, color.text, "opacity-70")}
+                                    style={{ top: `${topOffset}px`, height: `${height}px`, minHeight: "20px" }}
+                                  >
+                                    <p className="font-bold truncate">Off</p>
+                                    {booking.notes && <p className="truncate opacity-80">{booking.notes}</p>}
+                                  </div>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-52 p-2" side="right" align="start">
+                                  <div className="space-y-1">
+                                    <p className="text-xs font-medium px-2 py-1 text-muted-foreground">
+                                      {booking.booking_time.slice(0, 5)} – {booking.end_time?.slice(0, 5) || "?"}
+                                    </p>
+                                    {booking.notes && <p className="text-xs px-2 pb-1 text-muted-foreground">{booking.notes}</p>}
+                                    <button
+                                      className="w-full flex items-center gap-3 rounded-md px-3 py-2.5 text-sm hover:bg-accent text-left"
+                                      onClick={() => onEditBlock(booking)}
+                                    >
+                                      <Pencil className="h-4 w-4" /> Edit block
+                                    </button>
+                                    <button
+                                      className="w-full flex items-center gap-3 rounded-md px-3 py-2.5 text-sm hover:bg-destructive/10 text-destructive text-left"
+                                      onClick={() => onCancelBlock(booking)}
+                                    >
+                                      <Trash2 className="h-4 w-4" /> Cancel block
+                                    </button>
+                                  </div>
+                                </PopoverContent>
+                              </Popover>
+                            );
+                          }
                           return (
                             <div key={booking.id}
                               className={cn("absolute left-0.5 right-0.5 rounded px-1 py-0.5 text-[10px] z-10", color.bg, color.text, "opacity-70")}

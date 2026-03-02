@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, addDays, startOfDay } from "date-fns";
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +9,9 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { GroomerCalendar } from "./GroomerCalendar";
 import { Card, CardContent } from "@/components/ui/card";
 import { NewBookingDialog } from "@/components/booking-calendar/NewBookingDialog";
+import { EditBlockDialog } from "@/components/booking-calendar/EditBlockDialog";
+import type { BookingData } from "@/components/booking-calendar/BookingEvent";
+import { toast } from "sonner";
 
 interface GroomerBookingsTabProps {
   staffId: string;
@@ -19,6 +22,7 @@ type ViewMode = "1day" | "3day" | "7day" | "list";
 
 export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProps) {
   const isMobile = useIsMobile();
+  const queryClient = useQueryClient();
   const [viewMode, setViewMode] = useState<ViewMode>(() => isMobile ? "3day" : "7day");
   const [currentDate, setCurrentDate] = useState(() => startOfDay(new Date()));
 
@@ -26,6 +30,8 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState<"appointment" | "block">("appointment");
   const [dialogDefaults, setDialogDefaults] = useState<{ date?: Date; hour?: number; staffId?: string }>({});
+  const [editBlockOpen, setEditBlockOpen] = useState(false);
+  const [editingBlock, setEditingBlock] = useState<BookingData | null>(null);
 
   const { data: allStaff = [] } = useQuery({
     queryKey: ["staff-list-groomer"],
@@ -121,6 +127,59 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
     setDialogOpen(true);
   }, []);
 
+  const handleEditBlock = useCallback((block: any) => {
+    // Map to BookingData shape for EditBlockDialog
+    const bookingData: BookingData = {
+      id: block.id,
+      customer_name: block.customer_name || "",
+      dog_name: block.dog_name || "",
+      booking_date: block.booking_date,
+      booking_time: block.booking_time,
+      end_time: block.end_time,
+      total_price: 0,
+      deposit_paid: 0,
+      status: block.status || "Blocked",
+      notes: block.notes,
+      customer_email: null,
+      customer_phone: null,
+      staff_name: block.staff_name,
+      staff_id: block.staff_id,
+      is_block: true,
+    };
+    setEditingBlock(bookingData);
+    setEditBlockOpen(true);
+  }, []);
+
+  const cancelBlock = useMutation({
+    mutationFn: async (block: any) => {
+      const { error } = await supabase.from("staff_schedule_overrides").delete().eq("id", block.id);
+      if (error) throw error;
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user && block.staff_id) {
+        const formattedDate = format(new Date(block.booking_date), "dd MMM yyyy");
+        const hrNote = `🚫 BLOCK CANCELLED — ${formattedDate} ${block.booking_time?.slice(0, 5)}-${block.end_time?.slice(0, 5) || "?"} — Original reason: ${block.notes || "No reason"}`;
+        try {
+          await supabase.from("staff_notes").insert({
+            staff_id: block.staff_id,
+            created_by: user.id,
+            note: hrNote,
+          });
+        } catch {}
+      }
+    },
+    onSuccess: () => {
+      toast.success("Block cancelled & logged");
+      queryClient.invalidateQueries({ queryKey: ["groomer-overrides"] });
+      queryClient.invalidateQueries({ queryKey: ["staff-notes"] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const handleCancelBlock = useCallback((block: any) => {
+    cancelBlock.mutate(block);
+  }, [cancelBlock]);
+
   return (
     <div className="space-y-4">
       {/* Controls */}
@@ -180,6 +239,8 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
           userRole={userRole}
           onBook={handleBook}
           onBlock={handleBlock}
+          onEditBlock={handleEditBlock}
+          onCancelBlock={handleCancelBlock}
         />
       ) : (
         <div className="space-y-2">
@@ -229,6 +290,13 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
         defaultHour={dialogDefaults.hour}
         defaultStaffId={dialogDefaults.staffId}
         mode={dialogMode}
+      />
+
+      {/* Edit Block Dialog */}
+      <EditBlockDialog
+        open={editBlockOpen}
+        onOpenChange={setEditBlockOpen}
+        block={editingBlock}
       />
     </div>
   );
