@@ -15,7 +15,7 @@
 
 export interface StaffAvailability {
   staff_id: string;
-  day_of_week: number; // 0=Sun, 1=Mon, ..., 6=Sat
+  day_of_week: number; // DB format: 0=Mon, 1=Tue, 2=Wed, 3=Thu, 4=Fri, 5=Sat, 6=Sun
   start_time: string;
   end_time: string;
   is_available: boolean;
@@ -172,7 +172,8 @@ export function generateAvailableSlots(
 ): string[] {
   if (!groomers.length) return [];
 
-  const dayOfWeek = date.getDay(); // 0=Sun
+  // Convert JS getDay() (0=Sun,1=Mon,...,6=Sat) to DB format (0=Mon,1=Tue,...,6=Sun)
+  const dayOfWeek = (date.getDay() + 6) % 7;
 
   // For each groomer, compute available windows after blocks
   const groomerWindows = new Map<string, TimeWindow[]>();
@@ -253,7 +254,8 @@ export function dateHasAnyAvailability(
   baseSchedules: StaffAvailability[],
   overrides: ScheduleOverride[]
 ): boolean {
-  const dayOfWeek = date.getDay();
+  // Convert JS getDay() (0=Sun,1=Mon,...,6=Sat) to DB format (0=Mon,1=Tue,...,6=Sun)
+  const dayOfWeek = (date.getDay() + 6) % 7;
   for (const g of groomers) {
     const windows = getGroomerWindows(g.id, dayOfWeek, baseSchedules, overrides);
     if (windows.length > 0) return true;
@@ -273,7 +275,8 @@ export function findFreeGroomer(
   overrides: ScheduleOverride[],
   existingBookings: ExistingBooking[]
 ): Groomer | null {
-  const dayOfWeek = date.getDay();
+  // Convert JS getDay() (0=Sun,1=Mon,...,6=Sat) to DB format (0=Mon,1=Tue,...,6=Sun)
+  const dayOfWeek = (date.getDay() + 6) % 7;
   const slotStart = parseTimeToMinutes(slotTime);
   const slotEnd = slotStart + serviceDurationMins;
 
