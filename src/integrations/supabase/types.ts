@@ -358,6 +358,39 @@ export type Database = {
         }
         Relationships: []
       }
+      customer_communications: {
+        Row: {
+          body: string
+          created_at: string
+          customer_email: string
+          direction: string
+          id: string
+          sent_by: string | null
+          subject: string | null
+          type: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          customer_email: string
+          direction?: string
+          id?: string
+          sent_by?: string | null
+          subject?: string | null
+          type?: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          customer_email?: string
+          direction?: string
+          id?: string
+          sent_by?: string | null
+          subject?: string | null
+          type?: string
+        }
+        Relationships: []
+      }
       customer_messages: {
         Row: {
           body: string | null
