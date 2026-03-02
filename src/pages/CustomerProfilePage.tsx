@@ -90,6 +90,7 @@ export default function CustomerProfilePage() {
   const isOwnCustomer = !isGroomer || (bookings || []).some(
     (b) => b.staff_id === groomerStaff?.id
   );
+  const canManageCustomer = !isGroomer || isOwnCustomer;
 
   const { data: customerUserId } = useQuery({
     queryKey: ["customer-user-id", decodedEmail],
@@ -367,6 +368,26 @@ export default function CustomerProfilePage() {
   const today = new Date().toISOString().split("T")[0];
   const upcomingBookings = bookings?.filter((b) => b.booking_date >= today && b.status !== "Cancelled") || [];
   const pastBookings = bookings?.filter((b) => b.booking_date < today || b.status === "Cancelled") || [];
+  const fallbackDogsFromBookings = Array.from(
+    new Map(
+      (bookings || [])
+        .filter((b) => b.dog_name?.trim())
+        .map((b) => [
+          b.dog_name.trim().toLowerCase(),
+          {
+            id: `booking-dog-${b.id}`,
+            pet_name: b.dog_name,
+            breed_id: b.breed_id || null,
+            dog_age_years: null,
+            dog_age_months: null,
+            notes: null,
+            breed: b.breed || null,
+            is_from_booking: true,
+          },
+        ])
+    ).values()
+  );
+  const visibleDogs = customerPets && customerPets.length > 0 ? customerPets : fallbackDogsFromBookings;
 
   const getStaffName = (userId: string) => staffProfiles?.find((p) => p.id === userId)?.full_name || "Unknown";
 
@@ -505,7 +526,7 @@ export default function CustomerProfilePage() {
                       <h1 className="text-xl sm:text-2xl font-heading font-bold truncate">{customerName}</h1>
                     )}
                   </div>
-                  {!isGroomer && (
+                  {canManageCustomer && (
                     <div className="flex gap-2 shrink-0">
                       {isEditing ? (
                         <>
@@ -565,13 +586,13 @@ export default function CustomerProfilePage() {
             <Card>
               <CardContent className="p-5">
                 <h3 className="text-sm font-semibold flex items-center gap-2 mb-3"><Dog className="h-4 w-4" /> Registered Dogs</h3>
-                {customerPets && customerPets.length > 0 ? (
+                {visibleDogs.length > 0 ? (
                   <div className="space-y-2">
-                    {customerPets.map((pet) => (
+                    {visibleDogs.map((pet: any) => (
                       <div
                         key={pet.id}
-                        className={`flex items-center justify-between p-3 rounded-lg border ${!isGroomer ? "hover:bg-muted/30 cursor-pointer" : ""} transition-colors`}
-                        onClick={() => !isGroomer && openPetEdit(pet)}
+                        className={`flex items-center justify-between p-3 rounded-lg border ${canManageCustomer && !pet.is_from_booking ? "hover:bg-muted/30 cursor-pointer" : ""} transition-colors`}
+                        onClick={() => canManageCustomer && !pet.is_from_booking && openPetEdit(pet)}
                       >
                         <div>
                           <p className="font-medium text-sm">{pet.pet_name}</p>
@@ -581,7 +602,7 @@ export default function CustomerProfilePage() {
                             {(pet.breed as any)?.size_category && ` • ${(pet.breed as any).size_category}`}
                           </p>
                         </div>
-                        {!isGroomer && <Pencil className="h-3.5 w-3.5 text-muted-foreground" />}
+                        {canManageCustomer && !pet.is_from_booking && <Pencil className="h-3.5 w-3.5 text-muted-foreground" />}
                       </div>
                     ))}
                   </div>
@@ -637,7 +658,7 @@ export default function CustomerProfilePage() {
                     {upcomingBookings.length > 0 ? (
                       <div className="space-y-2">
                         {upcomingBookings.map((b) => (
-                          <BookingRow key={b.id} booking={b} onEdit={!isGroomer ? () => openBookingEdit(b) : undefined} onCancel={!isGroomer ? () => cancelBookingMutation.mutate(b.id) : undefined} showActions={!isGroomer} />
+                          <BookingRow key={b.id} booking={b} onEdit={canManageCustomer ? () => openBookingEdit(b) : undefined} onCancel={canManageCustomer ? () => cancelBookingMutation.mutate(b.id) : undefined} showActions={canManageCustomer} />
                         ))}
                       </div>
                     ) : <EmptyBookings />}
@@ -751,7 +772,7 @@ export default function CustomerProfilePage() {
       </div>
 
       {/* ═══ EDIT PET DIALOG ═══ */}
-      {!isGroomer && (
+      {canManageCustomer && (
         <Dialog open={!!editingPet} onOpenChange={(open) => { if (!open) setEditingPet(null); }}>
           <DialogContent className="max-w-md">
             <DialogHeader><DialogTitle>Edit Dog — {petForm.pet_name}</DialogTitle></DialogHeader>
@@ -822,7 +843,7 @@ export default function CustomerProfilePage() {
       )}
 
       {/* ═══ EDIT BOOKING DIALOG ═══ */}
-      {!isGroomer && (
+      {canManageCustomer && (
         <Dialog open={!!editingBooking} onOpenChange={(open) => { if (!open) setEditingBooking(null); }}>
           <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader><DialogTitle>Edit Appointment — {editingBooking?.customer_name}</DialogTitle></DialogHeader>

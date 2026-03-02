@@ -1039,6 +1039,10 @@ export type Database = {
     }
     Functions: {
       get_user_id_by_email: { Args: { _email: string }; Returns: string }
+      groomer_can_access_customer: {
+        Args: { _customer_user_id: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
