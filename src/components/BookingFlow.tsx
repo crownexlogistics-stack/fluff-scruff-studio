@@ -253,20 +253,42 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
     },
   });
 
-  // Fetch ALL schedule overrides for the visible date range (blocks + manual openings)
-  const { data: allOverridesForDate } = useQuery({
-    queryKey: ["schedule-overrides-for-date", selectedDate],
+  // Compute the visible week range for fetching overrides
+  const weekEndDate = useMemo(() => {
+    const end = new Date(weekStart);
+    end.setDate(end.getDate() + 6);
+    return end;
+  }, [weekStart]);
+
+  const weekStartStr = useMemo(() => {
+    const d = weekStart;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }, [weekStart]);
+
+  const weekEndStr = useMemo(() => {
+    const d = weekEndDate;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }, [weekEndDate]);
+
+  // Fetch ALL schedule overrides for the visible WEEK range (blocks + overtime)
+  const { data: allOverridesForWeek } = useQuery({
+    queryKey: ["schedule-overrides-for-week", weekStartStr, weekEndStr],
     queryFn: async () => {
-      if (!selectedDate) return [];
       const { data, error } = await supabase
         .from("staff_schedule_overrides")
         .select("staff_id, override_date, start_time, end_time, is_working")
-        .eq("override_date", selectedDate);
+        .gte("override_date", weekStartStr)
+        .lte("override_date", weekEndStr);
       if (error) throw error;
       return (data || []) as ScheduleOverride[];
     },
-    enabled: !!selectedDate,
   });
+
+  // Filter overrides for the selected date (for slot generation)
+  const allOverridesForDate = useMemo(() => {
+    if (!selectedDate || !allOverridesForWeek) return [];
+    return allOverridesForWeek.filter(o => o.override_date === selectedDate);
+  }, [selectedDate, allOverridesForWeek]);
 
   // For returning customers: find the last groomer who served them
   const { data: lastGroomerBooking } = useQuery({
@@ -712,9 +734,10 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
     const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     if (d <= todayStart) return false;
     if (!groomers?.length || !baseSchedules) return false;
-    // Quick check: does any groomer have working hours on this day?
-    // We don't have overrides for all dates loaded, but we check base schedule + any loaded overrides
-    return dateHasAnyAvailability(d, groomers, baseSchedules, []);
+    // Filter overrides for this specific date
+    const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const overridesForDay = (allOverridesForWeek || []).filter(o => o.override_date === dateStr);
+    return dateHasAnyAvailability(d, groomers, baseSchedules, overridesForDay);
   };
 
   const formatSelectedDate = (dateStr: string) => {
