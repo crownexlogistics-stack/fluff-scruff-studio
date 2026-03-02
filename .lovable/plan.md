@@ -1,133 +1,116 @@
 
 
-# Customer Email System: Confirmations, Reminders & In-App Inbox
+# Redesign Booking Popover with Checkout and Order Management
 
-## The Problem
+## Overview
 
-Resend requires domain verification via DNS records, and Wix won't let you add those records for `fluffandscruff.co.uk`. This blocks all outgoing emails.
+Replace the current simple booking popover with a professional appointment card that includes a 3-dot menu (View Order, Edit Appointment, Cancel), plus "Book Again" and "Check Out" action buttons. The Check Out flow handles two outcomes: "Completed as planned" (with adjustable final charge) and "No Show" (auto-cancels, shrinks calendar block, emails customer).
 
-## The Solution
+## What Changes
 
-Use a temporary sender address (`onboarding@resend.dev`) with `Reply-To: info@fluffandscruff.co.uk` so emails go out immediately. When customers hit reply, their message lands in your real inbox. We also store a copy of every reply in an in-app inbox visible to you and your groomers.
+### 1. Redesigned Booking Popover (BookingEvent.tsx)
 
-Once you move your domain to a provider that supports custom DNS (e.g. Cloudflare, Namecheap, GoDaddy), we swap the sender back to `info@fluffandscruff.co.uk`.
+The current popover shows basic info and a "Book Again" button. It will be replaced with:
 
----
+**Top section:**
+- Customer name (bold) with initials avatar
+- Customer email and phone
+- Status badge + deposit badge
 
-## What Gets Built
+**Middle section:**
+- Date and time
+- Service name, breed/dog name
+- Groomer name
+- Price (total)
 
-### 1. Booking Confirmation Emails
-When a customer completes a booking (from the website or when a manager creates one in the dashboard), they receive a confirmation email with:
-- Dog name, service type, date and time
-- Studio address and contact info
-- A friendly "reply to this email if you need to change anything" line
+**Bottom action bar:**
+- Three-dot icon button (left) opening a dropdown menu with:
+  - **View Order** -- opens a read-only dialog showing the full booking form the customer completed (all fields: name, dog, breed, service, date, time, price, deposit, notes, add-ons)
+  - **Edit Appointment** -- opens a dialog allowing changes to date, time, service, breed, staff, add-ons, and price
+  - **Cancel** -- prompts confirmation, then cancels the booking (sets status to "Cancelled"), logs to audit trail
+- **Book Again** button (outline) -- opens the NewBookingDialog pre-filled with the same customer and service details
+- **Check Out** button (primary) -- opens the checkout flow
 
-### 2. Appointment Reminders (24h + 2h before)
-A scheduled job runs every 15 minutes, checks for upcoming bookings, and sends:
-- **24-hour reminder** the day before
-- **2-hour reminder** on the day
-Each booking is tracked so no duplicate emails are sent.
+### 2. New Checkout Dialog (CheckoutDialog.tsx)
 
-### 3. In-App Message Inbox
-A new "Messages" page in the dashboard where managers and groomers can see customer replies. Replies arrive via a webhook that Resend calls when someone replies.
+A new dialog component with two options presented as cards:
 
----
+**Option A: "Appointment completed as planned"**
+- Shows deposit already paid (read-only)
+- Shows remaining balance = total_price - deposit_paid
+- Editable "Final charge" field (pre-filled with remaining balance) so groomers can adjust if they charged more or less
+- "Complete" button -- updates booking status to "Completed", logs final charge to audit trail
+
+**Option B: "No Show"**
+- Confirmation prompt: "Customer did not attend"
+- On confirm:
+  - Sets booking status to "No Show"
+  - Changes the calendar event colour to a muted/grey style
+  - Shortens the visual block on the calendar (reduces duration to minimal height so the slot appears available for rebooking)
+  - Sends a cancellation email to the customer informing their appointment was cancelled due to non-attendance
+  - Logs to audit trail
+
+### 3. New View Order Dialog (ViewOrderDialog.tsx)
+
+A read-only dialog showing all booking details in a clean form layout:
+- Customer name, email, phone
+- Dog name, breed
+- Service type
+- Date and time
+- Staff member assigned
+- Total price, deposit paid
+- Notes
+- Any add-ons (future)
+
+### 4. New Edit Appointment Dialog (EditAppointmentDialog.tsx)
+
+A form dialog (similar to NewBookingDialog) pre-filled with current booking data, allowing edits to:
+- Date and time
+- Service type
+- Breed
+- Staff member
+- Price adjustments
+- Add-ons
+- Notes
+
+On save: updates the booking record, logs changes to audit trail.
+
+### 5. Calendar Visual Changes for No Show
+
+When a booking has status "No Show":
+- Calendar block uses a grey/muted colour instead of the staff colour
+- Block height shrinks to a thin strip (e.g., 16px) with strikethrough text
+- This visually frees the slot so groomers can see availability and book another customer
+
+### 6. Database Changes
+
+No new tables needed. Changes to existing data:
+- The `bookings.status` field will use new values: "Completed" and "No Show" in addition to existing "Pending", "Confirmed", "Cancelled"
+- Add a `final_charge` column (numeric, nullable) to the `bookings` table to store the actual amount charged at checkout (may differ from `total_price`)
+
+**Migration SQL:**
+```sql
+ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS final_charge numeric;
+```
+
+## Files to Create
+
+- `src/components/booking-calendar/CheckoutDialog.tsx` -- checkout flow with "Completed" and "No Show" options
+- `src/components/booking-calendar/ViewOrderDialog.tsx` -- read-only booking details
+- `src/components/booking-calendar/EditAppointmentDialog.tsx` -- edit booking form
+
+## Files to Modify
+
+- `src/components/booking-calendar/BookingEvent.tsx` -- complete redesign of the popover with 3-dot dropdown menu, Book Again, and Check Out buttons
+- `src/components/booking-calendar/WeeklyCalendar.tsx` -- pass new callback props for checkout, edit, view, and cancel actions
+- `src/pages/BookingsPage.tsx` -- add state and handlers for the new dialogs (checkout, view order, edit appointment), add cancel mutation
+- `src/components/groomer/GroomerCalendar.tsx` -- same new callbacks for groomer view (where applicable based on role permissions)
 
 ## Technical Details
 
-### Database Changes
-
-**New `booking_emails` table** (tracks what was sent to prevent duplicates):
-| Column | Type | Notes |
-|--------|------|-------|
-| id | uuid (PK) | auto-generated |
-| booking_id | uuid | references bookings |
-| email_type | text | 'confirmation', 'reminder_24h', 'reminder_2h' |
-| sent_at | timestamptz | when email was sent |
-| resend_id | text | Resend's email ID for tracking |
-
-**New `customer_messages` table** (stores inbound replies):
-| Column | Type | Notes |
-|--------|------|-------|
-| id | uuid (PK) | auto-generated |
-| booking_id | uuid | nullable, linked if we can match |
-| from_email | text | sender's email |
-| from_name | text | sender's name |
-| subject | text | email subject |
-| body | text | email body |
-| is_read | boolean | default false |
-| created_at | timestamptz | when received |
-
-RLS: managers and directors can read/update all messages; groomers can read messages linked to their bookings.
-
-### Edge Functions
-
-**`send-booking-email`** (new):
-- Accepts `booking_id` and `email_type`
-- Fetches booking details from DB
-- Sends via Resend with `from: "Fluff & Scruff Studio <onboarding@resend.dev>"` and `reply_to: "info@fluffandscruff.co.uk"`
-- Records the send in `booking_emails`
-- Called after booking creation (confirmation) and by the cron job (reminders)
-
-**`send-reminders`** (new):
-- Called every 15 minutes by a scheduled database job (pg_cron + pg_net)
-- Finds bookings in the next 24h and 2h windows
-- Skips any that already have a matching `booking_emails` row
-- Calls `send-booking-email` for each
-
-**`receive-reply`** (new, public webhook):
-- Resend calls this URL when a customer replies
-- Parses the inbound email payload
-- Stores the message in `customer_messages`
-- Tries to match to a booking by the sender's email
-
-**Updates to existing functions:**
-- `send-contract-email`: change `fromEmail` to use `onboarding@resend.dev` with `reply_to: "info@fluffandscruff.co.uk"`
-- `send-test-email`: same change
-
-### Frontend Changes
-
-**New "Messages" page** (`/messages`):
-- List of customer replies, newest first
-- Each shows sender name, subject, body preview, timestamp, read/unread badge
-- Click to expand full message
-- Mark as read button
-- Linked booking shown if matched
-
-**Sidebar update:**
-- Add "Messages" link with unread count badge under Management section
-
-**Booking flow update:**
-- After successful booking insert in `BookingFlow.tsx`, call `send-booking-email` with type `confirmation`
-- Same for `NewBookingDialog.tsx` when manager creates a booking
-
-**Dashboard booking update:**
-- When a manager creates a booking via the calendar dialog, also trigger confirmation email
-
-### Scheduled Job Setup
-
-Enable `pg_cron` and `pg_net` extensions, then create a cron job that calls the `send-reminders` function every 15 minutes.
-
-### Resend Webhook Setup (Manual Step)
-
-After the `receive-reply` function is deployed, you'll need to:
-1. Log into resend.com
-2. Go to Webhooks
-3. Add a webhook URL pointing to the `receive-reply` function
-4. Select the "email.received" event (or configure an inbound domain if available on your Resend plan)
-
-Note: Resend's inbound email feature may require a paid plan. If it's not available, replies still go to your `info@fluffandscruff.co.uk` mailbox normally; the in-app inbox would then be populated manually or via a future integration.
-
----
-
-## Implementation Order
-
-1. Update existing email functions to use temporary sender + reply-to header
-2. Create `booking_emails` and `customer_messages` tables with RLS
-3. Build `send-booking-email` edge function
-4. Wire up confirmation emails in BookingFlow and NewBookingDialog
-5. Build `send-reminders` edge function + set up the cron schedule
-6. Build `receive-reply` webhook edge function
-7. Build the Messages page and add it to the sidebar
-8. Test the full flow end-to-end
+- The 3-dot menu uses the existing `DropdownMenu` component from the UI library
+- "No Show" email uses the existing `send-booking-email` edge function with a new `email_type: "no_show"`
+- All actions (complete, no show, edit, cancel) write to `audit_logs` via the existing `logAudit()` utility
+- The "Book Again" button reuses `NewBookingDialog` with pre-filled defaults from the selected booking
+- Calendar colour logic in `BookingEvent.tsx` checks `booking.status === "No Show"` to apply grey styling
 
