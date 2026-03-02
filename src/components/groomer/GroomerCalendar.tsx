@@ -4,14 +4,19 @@ import { cn } from "@/lib/utils";
 import { getStaffColor } from "@/components/booking-calendar/staffColors";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
-import { CalendarPlus, Ban, Pencil, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { CalendarPlus, Ban, Pencil, Trash2, MoreHorizontal, Eye, PenLine, XCircle, Send, CheckCircle2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 
 interface StaffMember {
   id: string;
   name: string;
 }
 
-interface CalendarBooking {
+export interface GroomerCalendarBooking {
   id: string;
   customer_name: string;
   dog_name: string;
@@ -27,6 +32,13 @@ interface CalendarBooking {
   breed_name?: string;
   is_block?: boolean;
   is_own: boolean;
+  total_price?: number;
+  deposit_paid?: number;
+  customer_email?: string | null;
+  customer_phone?: string | null;
+  service_id?: string;
+  breed_id?: string;
+  final_charge?: number | null;
 }
 
 type UserRole = string | null;
@@ -35,13 +47,18 @@ interface GroomerCalendarProps {
   currentDate: Date;
   daysToShow: number;
   staff: StaffMember[];
-  bookings: CalendarBooking[];
+  bookings: GroomerCalendarBooking[];
   currentStaffId: string;
   userRole?: UserRole;
   onBook?: (date: Date, hour: number, staffId: string) => void;
   onBlock?: (date: Date, hour: number, staffId: string) => void;
-  onEditBlock?: (booking: CalendarBooking) => void;
-  onCancelBlock?: (booking: CalendarBooking) => void;
+  onEditBlock?: (booking: GroomerCalendarBooking) => void;
+  onCancelBlock?: (booking: GroomerCalendarBooking) => void;
+  onViewOrder?: (booking: GroomerCalendarBooking) => void;
+  onEditAppointment?: (booking: GroomerCalendarBooking) => void;
+  onCancelBooking?: (booking: GroomerCalendarBooking) => void;
+  onBookAgain?: (booking: GroomerCalendarBooking) => void;
+  onCheckout?: (booking: GroomerCalendarBooking) => void;
 }
 
 const START_HOUR = 8;
@@ -83,7 +100,165 @@ function SlotAction({ date, hour, staffId, staffName, canBlock, onBook, onBlock 
   );
 }
 
-export function GroomerCalendar({ currentDate, daysToShow, staff, bookings, currentStaffId, userRole, onBook, onBlock, onEditBlock, onCancelBlock }: GroomerCalendarProps) {
+function OwnBookingPopover({ booking, color, onViewOrder, onEditAppointment, onCancelBooking, onBookAgain, onCheckout }: {
+  booking: GroomerCalendarBooking;
+  color: { bg: string; text: string };
+  onViewOrder?: (b: GroomerCalendarBooking) => void;
+  onEditAppointment?: (b: GroomerCalendarBooking) => void;
+  onCancelBooking?: (b: GroomerCalendarBooking) => void;
+  onBookAgain?: (b: GroomerCalendarBooking) => void;
+  onCheckout?: (b: GroomerCalendarBooking) => void;
+}) {
+  const navigate = useNavigate();
+  const [requestingDeposit, setRequestingDeposit] = useState(false);
+  const deposit = Number(booking.deposit_paid || 0);
+  const total = Number(booking.total_price || 0);
+
+  return (
+    <PopoverContent className="w-80 p-0" side="right" align="start">
+      <div className="p-4 space-y-3">
+        {/* Customer info */}
+        <div className="flex items-center gap-3">
+          <div className={cn("h-10 w-10 rounded-full flex items-center justify-center text-sm font-bold", color.bg, color.text)}>
+            {booking.customer_name.split(" ").map(n => n[0]).join("").slice(0, 2)}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p
+              className="font-semibold cursor-pointer hover:underline"
+              onClick={() => booking.customer_email && navigate(`/admin/customers/${encodeURIComponent(booking.customer_email)}`)}
+            >
+              {booking.customer_name}
+            </p>
+            <p className="text-xs text-muted-foreground truncate">
+              {booking.customer_email || ""}
+              {booking.customer_phone ? ` • ${booking.customer_phone}` : ""}
+            </p>
+          </div>
+        </div>
+
+        {/* Payment status */}
+        <div className="flex flex-wrap gap-2">
+          <Badge variant={
+            booking.status === "Confirmed" ? "default" :
+            booking.status === "Completed" ? "secondary" :
+            booking.status === "No Show" || booking.status === "Cancelled" ? "destructive" : "secondary"
+          }>
+            {booking.status}
+          </Badge>
+          {(() => {
+            if (deposit >= total && total > 0) {
+              return (
+                <Badge className="bg-emerald-600 text-white hover:bg-emerald-600">
+                  <CheckCircle2 className="h-3 w-3 mr-1" /> PAID IN FULL
+                </Badge>
+              );
+            }
+            if (deposit > 0) {
+              return <Badge variant="secondary">DEPOSIT £{deposit.toFixed(2)}</Badge>;
+            }
+            return <Badge variant="destructive">NOT PAID</Badge>;
+          })()}
+        </div>
+
+        {/* Paid in full callout */}
+        {deposit >= total && total > 0 && (
+          <div className="bg-emerald-50 border border-emerald-200 rounded-md px-3 py-2 text-xs text-emerald-800 flex items-center gap-2">
+            <CheckCircle2 className="h-4 w-4 shrink-0" />
+            <span>Customer paid in full online — nothing to charge on the day.</span>
+          </div>
+        )}
+
+        {/* Partial deposit */}
+        {deposit > 0 && deposit < total && (
+          <div className="bg-amber-50 border border-amber-200 rounded-md px-3 py-2 text-xs text-amber-800">
+            Deposit of £{deposit.toFixed(2)} paid — remaining balance of £{(total - deposit).toFixed(2)} due on the day.
+          </div>
+        )}
+
+        {/* Details */}
+        <div className="text-sm space-y-1">
+          <p>{format(new Date(booking.booking_date), "EEE, MMM d")} • {booking.booking_time.slice(0, 5)}</p>
+        </div>
+
+        <div className="border-t pt-3">
+          <p className="font-medium">{booking.service_name || "Service"} — {booking.breed_name || booking.dog_name}</p>
+          <p className="text-sm text-muted-foreground">with {booking.staff_name}</p>
+          {total > 0 && <p className="text-sm font-medium mt-1">£{total.toFixed(2)}</p>}
+        </div>
+
+        {booking.notes && (
+          <div className="border-t pt-3">
+            <p className="text-xs text-muted-foreground">{booking.notes}</p>
+          </div>
+        )}
+
+        {/* Request Deposit for unpaid appointments */}
+        {deposit === 0 && booking.customer_email && booking.status !== "Cancelled" && booking.status !== "No Show" && (
+          <div className="border-t pt-3">
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full"
+              disabled={requestingDeposit}
+              onClick={async () => {
+                setRequestingDeposit(true);
+                try {
+                  const { error } = await supabase.functions.invoke("send-deposit-request", {
+                    body: { booking_id: booking.id },
+                  });
+                  if (error) throw error;
+                  toast.success("Deposit request email sent to " + booking.customer_email);
+                } catch (e: any) {
+                  toast.error("Failed to send: " + e.message);
+                } finally {
+                  setRequestingDeposit(false);
+                }
+              }}
+            >
+              <Send className="h-4 w-4 mr-1" />
+              {requestingDeposit ? "Sending…" : "Request Deposit Payment"}
+            </Button>
+          </div>
+        )}
+
+        {/* Action bar */}
+        <div className="border-t pt-3 flex items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <DropdownMenuItem onClick={() => onViewOrder?.(booking)}>
+                <Eye className="h-4 w-4 mr-2" /> View Order
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onEditAppointment?.(booking)}>
+                <PenLine className="h-4 w-4 mr-2" /> Edit Appointment
+              </DropdownMenuItem>
+              <DropdownMenuItem className="text-destructive" onClick={() => onCancelBooking?.(booking)}>
+                <XCircle className="h-4 w-4 mr-2" /> Cancel
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <div className="flex-1" />
+
+          <Button variant="outline" size="sm" onClick={() => onBookAgain?.(booking)}>
+            Book Again
+          </Button>
+          {booking.status !== "Completed" && booking.status !== "No Show" && booking.status !== "Cancelled" && (
+            <Button size="sm" onClick={() => onCheckout?.(booking)}>
+              Check Out
+            </Button>
+          )}
+        </div>
+      </div>
+    </PopoverContent>
+  );
+}
+
+export function GroomerCalendar({ currentDate, daysToShow, staff, bookings, currentStaffId, userRole, onBook, onBlock, onEditBlock, onCancelBlock, onViewOrder, onEditAppointment, onCancelBooking, onBookAgain, onCheckout }: GroomerCalendarProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const canInteract = !!onBook && !!onBlock && (userRole === "groomer" || userRole === "manager" || userRole === "director");
 
@@ -93,7 +268,7 @@ export function GroomerCalendar({ currentDate, daysToShow, staff, bookings, curr
   );
 
   const bookingsByDateAndStaff = useMemo(() => {
-    const map = new Map<string, CalendarBooking[]>();
+    const map = new Map<string, GroomerCalendarBooking[]>();
     bookings.forEach(b => {
       const key = `${b.booking_date}_${b.staff_id}`;
       if (!map.has(key)) map.set(key, []);
@@ -159,7 +334,6 @@ export function GroomerCalendar({ currentDate, daysToShow, staff, bookings, curr
                   const key = `${dateStr}_${s.id}`;
                   const staffBookings = bookingsByDateAndStaff.get(key) || [];
                   const isMe = s.id === currentStaffId;
-                  // Managers can block anyone, groomers only their own
                   const canBlockThisColumn = userRole === "manager" || userRole === "director" || (userRole === "groomer" && isMe);
 
                   return (
@@ -197,9 +371,12 @@ export function GroomerCalendar({ currentDate, daysToShow, staff, bookings, curr
                         } else if (booking.breed_duration_minutes) {
                           durationHours = booking.breed_duration_minutes / 60;
                         }
-                        const height = durationHours * SLOT_HEIGHT;
-                        const color = getStaffColor(staffIdx);
 
+                        const isNoShow = booking.status === "No Show";
+                        const height = isNoShow ? 16 : durationHours * SLOT_HEIGHT;
+                        const color = isNoShow ? { bg: "bg-muted", text: "text-muted-foreground" } : getStaffColor(staffIdx);
+
+                        // Block rendering
                         if (booking.is_block) {
                           const canEditBlock = booking.is_own && (userRole === "groomer" || userRole === "manager" || userRole === "director");
                           if (canEditBlock && onEditBlock && onCancelBlock) {
@@ -208,7 +385,7 @@ export function GroomerCalendar({ currentDate, daysToShow, staff, bookings, curr
                                 <PopoverTrigger asChild>
                                   <div
                                     className={cn("absolute left-0.5 right-0.5 rounded px-1 py-0.5 text-[10px] z-10 cursor-pointer hover:opacity-90", color.bg, color.text, "opacity-70")}
-                                    style={{ top: `${topOffset}px`, height: `${height}px`, minHeight: "20px" }}
+                                    style={{ top: `${topOffset}px`, height: `${durationHours * SLOT_HEIGHT}px`, minHeight: "20px" }}
                                   >
                                     <p className="font-bold truncate">Off</p>
                                     {booking.notes && <p className="truncate opacity-80">{booking.notes}</p>}
@@ -240,13 +417,14 @@ export function GroomerCalendar({ currentDate, daysToShow, staff, bookings, curr
                           return (
                             <div key={booking.id}
                               className={cn("absolute left-0.5 right-0.5 rounded px-1 py-0.5 text-[10px] z-10", color.bg, color.text, "opacity-70")}
-                              style={{ top: `${topOffset}px`, height: `${height}px`, minHeight: "20px" }}
+                              style={{ top: `${topOffset}px`, height: `${durationHours * SLOT_HEIGHT}px`, minHeight: "20px" }}
                             >
                               <p className="font-bold truncate">Off</p>
                             </div>
                           );
                         }
 
+                        // Not own booking - just show "Booked" (availability only)
                         if (!booking.is_own) {
                           return (
                             <div key={booking.id}
@@ -258,32 +436,38 @@ export function GroomerCalendar({ currentDate, daysToShow, staff, bookings, curr
                           );
                         }
 
+                        // Own booking - full admin-style popover
                         return (
                           <Popover key={booking.id}>
                             <PopoverTrigger asChild>
                               <div
-                                className={cn("absolute left-0.5 right-0.5 rounded px-1 py-0.5 text-[10px] cursor-pointer z-10 hover:opacity-90", color.bg, color.text)}
-                                style={{ top: `${topOffset}px`, height: `${height}px`, minHeight: "20px" }}
+                                className={cn(
+                                  "absolute left-0.5 right-0.5 rounded px-1 py-0.5 text-[10px] cursor-pointer z-10 hover:opacity-90 overflow-hidden",
+                                  color.bg, color.text,
+                                  isNoShow && "line-through opacity-60"
+                                )}
+                                style={{ top: `${topOffset}px`, height: `${height}px`, minHeight: isNoShow ? "16px" : "20px" }}
                               >
-                                <p className="font-bold truncate">{booking.service_name || "Appt"}</p>
-                                <p className="truncate">{booking.customer_name}</p>
-                                <p className="truncate opacity-80">{booking.dog_name}</p>
+                                {isNoShow ? (
+                                  <p className="font-medium truncate">{booking.customer_name} — No Show</p>
+                                ) : (
+                                  <>
+                                    <p className="font-bold truncate">{booking.service_name || "Appt"}</p>
+                                    <p className="truncate">{booking.customer_name}</p>
+                                    <p className="truncate opacity-80">{booking.dog_name}</p>
+                                  </>
+                                )}
                               </div>
                             </PopoverTrigger>
-                            <PopoverContent className="w-64 p-3" side="right" align="start">
-                              <div className="space-y-2">
-                                <p className="font-semibold text-sm">{booking.customer_name}</p>
-                                <p className="text-xs text-muted-foreground">
-                                  {format(new Date(booking.booking_date), "EEE d MMM")} at {booking.booking_time.slice(0, 5)}
-                                </p>
-                                <div className="flex gap-1.5">
-                                  {booking.service_name && <Badge variant="outline" className="text-xs">{booking.service_name}</Badge>}
-                                  {booking.breed_name && <Badge variant="secondary" className="text-xs">{booking.breed_name}</Badge>}
-                                </div>
-                                <p className="text-xs">🐕 {booking.dog_name}</p>
-                                {booking.notes && <p className="text-xs text-muted-foreground border-t pt-1">{booking.notes}</p>}
-                              </div>
-                            </PopoverContent>
+                            <OwnBookingPopover
+                              booking={booking}
+                              color={color}
+                              onViewOrder={onViewOrder}
+                              onEditAppointment={onEditAppointment}
+                              onCancelBooking={onCancelBooking}
+                              onBookAgain={onBookAgain}
+                              onCheckout={onCheckout}
+                            />
                           </Popover>
                         );
                       })}

@@ -25,6 +25,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { CustomerSearchBar } from "@/components/booking-calendar/CustomerSearchBar";
 
 const BookingsPage = () => {
   const queryClient = useQueryClient();
@@ -242,6 +243,8 @@ const BookingsPage = () => {
   return (
     <AppLayout>
       <div className="space-y-4">
+        <CustomerSearchBar className="max-w-lg" />
+
         <CalendarHeader
           weekStart={weekStart}
           onPrevWeek={() => setWeekStart(w => addWeeks(w, -1))}
