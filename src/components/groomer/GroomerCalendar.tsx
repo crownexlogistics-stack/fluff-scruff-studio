@@ -1,9 +1,10 @@
-import { useMemo, useRef, useEffect } from "react";
+import { useMemo, useRef, useEffect, useState } from "react";
 import { format, addDays, isToday } from "date-fns";
 import { cn } from "@/lib/utils";
 import { getStaffColor } from "@/components/booking-calendar/staffColors";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
+import { CalendarPlus, Ban } from "lucide-react";
 
 interface StaffMember {
   id: string;
@@ -28,22 +29,61 @@ interface CalendarBooking {
   is_own: boolean;
 }
 
+type UserRole = string | null;
+
 interface GroomerCalendarProps {
   currentDate: Date;
-  daysToShow: number; // 1, 3, or 7
+  daysToShow: number;
   staff: StaffMember[];
   bookings: CalendarBooking[];
   currentStaffId: string;
+  userRole?: UserRole;
+  onBook?: (date: Date, hour: number, staffId: string) => void;
+  onBlock?: (date: Date, hour: number, staffId: string) => void;
 }
 
 const START_HOUR = 8;
-const END_HOUR = 24; // midnight
+const END_HOUR = 24;
 const HOURS = Array.from({ length: END_HOUR - START_HOUR }, (_, i) => START_HOUR + i);
-const FOCUS_HOUR = 9; // scroll to 9am on mount
-const SLOT_HEIGHT = 56; // h-14 = 56px
+const FOCUS_HOUR = 9;
+const SLOT_HEIGHT = 56;
 
-export function GroomerCalendar({ currentDate, daysToShow, staff, bookings, currentStaffId }: GroomerCalendarProps) {
+function SlotAction({ date, hour, staffId, staffName, canBlock, onBook, onBlock }: {
+  date: Date; hour: number; staffId: string; staffName: string; canBlock: boolean;
+  onBook: (date: Date, hour: number, staffId: string) => void;
+  onBlock: (date: Date, hour: number, staffId: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <div className="h-14 border-b cursor-pointer hover:bg-primary/[0.04] transition-colors" />
+      </PopoverTrigger>
+      <PopoverContent className="w-52 p-2" side="right" align="start">
+        <div className="space-y-1">
+          <button
+            className="w-full flex items-center gap-3 rounded-md px-3 py-2.5 text-sm hover:bg-accent text-left"
+            onClick={() => { onBook(date, hour, staffId); setOpen(false); }}
+          >
+            <CalendarPlus className="h-4 w-4" /> Appointment
+          </button>
+          {canBlock && (
+            <button
+              className="w-full flex items-center gap-3 rounded-md px-3 py-2.5 text-sm hover:bg-accent text-left"
+              onClick={() => { onBlock(date, hour, staffId); setOpen(false); }}
+            >
+              <Ban className="h-4 w-4" /> Block time
+            </button>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+export function GroomerCalendar({ currentDate, daysToShow, staff, bookings, currentStaffId, userRole, onBook, onBlock }: GroomerCalendarProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const canInteract = !!onBook && !!onBlock && (userRole === "groomer" || userRole === "manager" || userRole === "director");
 
   const days = useMemo(() =>
     Array.from({ length: daysToShow }, (_, i) => addDays(currentDate, i)),
@@ -60,19 +100,16 @@ export function GroomerCalendar({ currentDate, daysToShow, staff, bookings, curr
     return map;
   }, [bookings]);
 
-  // Auto-scroll to 9am on mount / when date changes
   useEffect(() => {
     if (scrollRef.current) {
-      const scrollTo = (FOCUS_HOUR - START_HOUR) * SLOT_HEIGHT;
-      scrollRef.current.scrollTop = scrollTo;
+      scrollRef.current.scrollTop = (FOCUS_HOUR - START_HOUR) * SLOT_HEIGHT;
     }
   }, [currentDate, daysToShow]);
 
   return (
     <div className="border rounded-lg bg-card overflow-hidden">
-      {/* Header: days across top, staff columns within each day */}
+      {/* Header */}
       <div className="border-b bg-muted/30 sticky top-0 z-20">
-        {/* Day row */}
         <div className="grid" style={{ gridTemplateColumns: `50px repeat(${days.length}, 1fr)` }}>
           <div className="border-r p-1" />
           {days.map((day) => (
@@ -82,18 +119,15 @@ export function GroomerCalendar({ currentDate, daysToShow, staff, bookings, curr
             </div>
           ))}
         </div>
-        {/* Staff sub-headers */}
         <div className="grid border-t" style={{ gridTemplateColumns: `50px repeat(${days.length}, 1fr)` }}>
           <div className="border-r p-1" />
           {days.map((day) => (
             <div key={day.toISOString()} className="grid border-r last:border-r-0" style={{ gridTemplateColumns: `repeat(${staff.length}, 1fr)` }}>
-              {staff.map((s, i) => {
+              {staff.map((s) => {
                 const isMe = s.id === currentStaffId;
                 return (
                   <div key={s.id} className={cn("text-center py-1 text-[10px] font-medium border-r last:border-r-0 truncate px-0.5", isMe && "bg-primary/5")}>
-                    <span className={cn(isMe && "font-bold text-primary")}>
-                      {s.name.split(" ")[0]}
-                    </span>
+                    <span className={cn(isMe && "font-bold text-primary")}>{s.name.split(" ")[0]}</span>
                   </div>
                 );
               })}
@@ -102,21 +136,19 @@ export function GroomerCalendar({ currentDate, daysToShow, staff, bookings, curr
         </div>
       </div>
 
-      {/* Time grid — native scrollable div so we can imperatively scroll */}
+      {/* Time grid */}
       <div ref={scrollRef} className="overflow-y-auto" style={{ height: "calc(100vh - 320px)" }}>
         <div className="grid" style={{ gridTemplateColumns: `50px repeat(${days.length}, 1fr)` }}>
-          {/* Time labels */}
           <div className="border-r">
             {HOURS.map(hour => (
               <div key={hour} className="h-14 border-b flex items-start justify-end pr-1 pt-0.5">
                 <span className="text-[10px] text-muted-foreground">
-                  {hour === 0 ? "00:00" : hour < 10 ? `0${hour}:00` : `${hour}:00`}
+                  {hour < 10 ? `0${hour}:00` : `${hour}:00`}
                 </span>
               </div>
             ))}
           </div>
 
-          {/* Day columns */}
           {days.map((day) => {
             const dateStr = format(day, "yyyy-MM-dd");
             return (
@@ -125,14 +157,28 @@ export function GroomerCalendar({ currentDate, daysToShow, staff, bookings, curr
                   const key = `${dateStr}_${s.id}`;
                   const staffBookings = bookingsByDateAndStaff.get(key) || [];
                   const isMe = s.id === currentStaffId;
+                  // Managers can block anyone, groomers only their own
+                  const canBlockThisColumn = userRole === "manager" || userRole === "director" || (userRole === "groomer" && isMe);
 
                   return (
                     <div key={s.id} className={cn("relative border-r last:border-r-0", isMe && "bg-primary/[0.03]")}>
                       {HOURS.map(hour => (
-                        <div key={hour} className="h-14 border-b" />
+                        canInteract ? (
+                          <SlotAction
+                            key={hour}
+                            date={day}
+                            hour={hour}
+                            staffId={s.id}
+                            staffName={s.name}
+                            canBlock={canBlockThisColumn}
+                            onBook={onBook!}
+                            onBlock={onBlock!}
+                          />
+                        ) : (
+                          <div key={hour} className="h-14 border-b" />
+                        )
                       ))}
 
-                      {/* Bookings */}
                       {staffBookings.map(booking => {
                         const timeParts = booking.booking_time.split(":");
                         const hour = parseInt(timeParts[0]);
@@ -150,13 +196,11 @@ export function GroomerCalendar({ currentDate, daysToShow, staff, bookings, curr
                           durationHours = booking.breed_duration_minutes / 60;
                         }
                         const height = durationHours * SLOT_HEIGHT;
-
                         const color = getStaffColor(staffIdx);
 
                         if (booking.is_block) {
                           return (
-                            <div
-                              key={booking.id}
+                            <div key={booking.id}
                               className={cn("absolute left-0.5 right-0.5 rounded px-1 py-0.5 text-[10px] z-10", color.bg, color.text, "opacity-70")}
                               style={{ top: `${topOffset}px`, height: `${height}px`, minHeight: "20px" }}
                             >
@@ -167,8 +211,7 @@ export function GroomerCalendar({ currentDate, daysToShow, staff, bookings, curr
 
                         if (!booking.is_own) {
                           return (
-                            <div
-                              key={booking.id}
+                            <div key={booking.id}
                               className={cn("absolute left-0.5 right-0.5 rounded px-1 py-0.5 text-[10px] z-10 opacity-60", color.bg, color.text)}
                               style={{ top: `${topOffset}px`, height: `${height}px`, minHeight: "20px" }}
                             >
