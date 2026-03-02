@@ -84,7 +84,7 @@ serve(async (req) => {
             📍 <strong>Fluff & Scruff Studio</strong><br/>
             138 Hillview Avenue, Hornchurch RM11 2DL
           </p>
-          <p style="color: #666;">Need to change anything? Simply reply to this email and we'll sort it out.</p>
+          <p style="color: #666;">Need to make changes or cancel? You can do this from your profile up to 48 hours before your appointment. If your appointment is less than 48 hours away, please call or email us directly at <a href="mailto:info@fluffandscruff.co.uk" style="color: #1a1a1a;">info@fluffandscruff.co.uk</a>.</p>
           <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
           <p style="color: #999; font-size: 12px;">Fluff & Scruff Studio · 138 Hillview Avenue, Hornchurch RM11 2DL</p>
         </div>
