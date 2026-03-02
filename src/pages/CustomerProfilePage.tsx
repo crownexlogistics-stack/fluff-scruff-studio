@@ -920,8 +920,9 @@ export default function CustomerProfilePage() {
         customerEmail={decodedEmail}
         customerPhone={customerPhone}
         dogName={visibleDogs?.[0]?.pet_name || bookings?.[0]?.dog_name || ""}
-        breedId={visibleDogs?.[0]?.breed_id || bookings?.[0]?.breed_id || ""}
-        lastStaffId={bookings?.[0]?.staff_id || ""}
+        breedId={visibleDogs?.[0]?.breed_id || bookings?.find((b) => !!b.breed_id)?.breed_id || ""}
+        serviceId={bookings?.find((b) => !!b.service_id)?.service_id || ""}
+        lastStaffId={bookings?.find((b) => !!b.staff_id)?.staff_id || ""}
       />
     </Layout>
   );

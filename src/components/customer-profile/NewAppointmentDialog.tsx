@@ -20,13 +20,14 @@ interface Props {
   customerPhone: string;
   dogName?: string;
   breedId?: string;
+  serviceId?: string;
   lastStaffId?: string;
 }
 
 export function NewAppointmentDialog({
   open, onOpenChange,
   customerName, customerEmail, customerPhone,
-  dogName, breedId, lastStaffId,
+  dogName, breedId, serviceId, lastStaffId,
 }: Props) {
   const queryClient = useQueryClient();
   const [showDepositPrompt, setShowDepositPrompt] = useState(false);
@@ -56,7 +57,7 @@ export function NewAppointmentDialog({
         customer_email: customerEmail,
         customer_phone: customerPhone,
         breed_id: breedId || "",
-        service_id: "",
+        service_id: serviceId || "",
         staff_id: lastStaffId || "",
         booking_date: "",
         booking_time: "09:00",
@@ -67,7 +68,7 @@ export function NewAppointmentDialog({
       setShowDepositPrompt(false);
       setCreatedBookingId(null);
     }
-  }, [open, customerName, customerEmail, customerPhone, dogName, breedId, lastStaffId]);
+  }, [open, customerName, customerEmail, customerPhone, dogName, breedId, serviceId, lastStaffId]);
 
   const { data: staff } = useQuery({
     queryKey: ["staff-list"],
