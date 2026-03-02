@@ -1,8 +1,7 @@
-import { useMemo } from "react";
-import { format, addDays, isToday, isSameDay } from "date-fns";
+import { useMemo, useRef, useEffect } from "react";
+import { format, addDays, isToday } from "date-fns";
 import { cn } from "@/lib/utils";
 import { getStaffColor } from "@/components/booking-calendar/staffColors";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
 
@@ -26,32 +25,30 @@ interface CalendarBooking {
   service_name?: string;
   breed_name?: string;
   is_block?: boolean;
-  is_own: boolean; // Whether this belongs to the current groomer
+  is_own: boolean;
 }
 
 interface GroomerCalendarProps {
   currentDate: Date;
-  daysToShow: number; // 1 or 3
+  daysToShow: number; // 1, 3, or 7
   staff: StaffMember[];
   bookings: CalendarBooking[];
   currentStaffId: string;
 }
 
 const START_HOUR = 8;
-const END_HOUR = 18;
-const HOURS = Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, i) => START_HOUR + i);
+const END_HOUR = 24; // midnight
+const HOURS = Array.from({ length: END_HOUR - START_HOUR }, (_, i) => START_HOUR + i);
+const FOCUS_HOUR = 9; // scroll to 9am on mount
+const SLOT_HEIGHT = 56; // h-14 = 56px
 
 export function GroomerCalendar({ currentDate, daysToShow, staff, bookings, currentStaffId }: GroomerCalendarProps) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+
   const days = useMemo(() =>
     Array.from({ length: daysToShow }, (_, i) => addDays(currentDate, i)),
     [currentDate, daysToShow]
   );
-
-  const staffIndexMap = useMemo(() => {
-    const map = new Map<string, number>();
-    staff.forEach((s, i) => map.set(s.id, i));
-    return map;
-  }, [staff]);
 
   const bookingsByDateAndStaff = useMemo(() => {
     const map = new Map<string, CalendarBooking[]>();
@@ -62,6 +59,14 @@ export function GroomerCalendar({ currentDate, daysToShow, staff, bookings, curr
     });
     return map;
   }, [bookings]);
+
+  // Auto-scroll to 9am on mount / when date changes
+  useEffect(() => {
+    if (scrollRef.current) {
+      const scrollTo = (FOCUS_HOUR - START_HOUR) * SLOT_HEIGHT;
+      scrollRef.current.scrollTop = scrollTo;
+    }
+  }, [currentDate, daysToShow]);
 
   return (
     <div className="border rounded-lg bg-card overflow-hidden">
@@ -83,7 +88,6 @@ export function GroomerCalendar({ currentDate, daysToShow, staff, bookings, curr
           {days.map((day) => (
             <div key={day.toISOString()} className="grid border-r last:border-r-0" style={{ gridTemplateColumns: `repeat(${staff.length}, 1fr)` }}>
               {staff.map((s, i) => {
-                const color = getStaffColor(i);
                 const isMe = s.id === currentStaffId;
                 return (
                   <div key={s.id} className={cn("text-center py-1 text-[10px] font-medium border-r last:border-r-0 truncate px-0.5", isMe && "bg-primary/5")}>
@@ -98,14 +102,16 @@ export function GroomerCalendar({ currentDate, daysToShow, staff, bookings, curr
         </div>
       </div>
 
-      {/* Time grid */}
-      <ScrollArea className="h-[calc(100vh-320px)]">
+      {/* Time grid — native scrollable div so we can imperatively scroll */}
+      <div ref={scrollRef} className="overflow-y-auto" style={{ height: "calc(100vh - 320px)" }}>
         <div className="grid" style={{ gridTemplateColumns: `50px repeat(${days.length}, 1fr)` }}>
           {/* Time labels */}
           <div className="border-r">
             {HOURS.map(hour => (
               <div key={hour} className="h-14 border-b flex items-start justify-end pr-1 pt-0.5">
-                <span className="text-[10px] text-muted-foreground">{`${hour}:00`}</span>
+                <span className="text-[10px] text-muted-foreground">
+                  {hour === 0 ? "00:00" : hour < 10 ? `0${hour}:00` : `${hour}:00`}
+                </span>
               </div>
             ))}
           </div>
@@ -131,7 +137,7 @@ export function GroomerCalendar({ currentDate, daysToShow, staff, bookings, curr
                         const timeParts = booking.booking_time.split(":");
                         const hour = parseInt(timeParts[0]);
                         const minutes = parseInt(timeParts[1] || "0");
-                        const topOffset = (hour - START_HOUR + minutes / 60) * 56; // 56px = h-14
+                        const topOffset = (hour - START_HOUR + minutes / 60) * SLOT_HEIGHT;
 
                         let durationHours = 1.5;
                         if (booking.end_time) {
@@ -143,7 +149,7 @@ export function GroomerCalendar({ currentDate, daysToShow, staff, bookings, curr
                         } else if (booking.breed_duration_minutes) {
                           durationHours = booking.breed_duration_minutes / 60;
                         }
-                        const height = durationHours * 56;
+                        const height = durationHours * SLOT_HEIGHT;
 
                         const color = getStaffColor(staffIdx);
 
@@ -160,7 +166,6 @@ export function GroomerCalendar({ currentDate, daysToShow, staff, bookings, curr
                         }
 
                         if (!booking.is_own) {
-                          // Other groomer's appointment — show "Booked" only
                           return (
                             <div
                               key={booking.id}
@@ -172,7 +177,6 @@ export function GroomerCalendar({ currentDate, daysToShow, staff, bookings, curr
                           );
                         }
 
-                        // Own appointment — show full details
                         return (
                           <Popover key={booking.id}>
                             <PopoverTrigger asChild>
@@ -209,7 +213,7 @@ export function GroomerCalendar({ currentDate, daysToShow, staff, bookings, curr
             );
           })}
         </div>
-      </ScrollArea>
+      </div>
     </div>
   );
 }

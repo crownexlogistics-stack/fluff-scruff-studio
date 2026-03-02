@@ -6,6 +6,7 @@ import { format, addDays, startOfDay } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CalendarDays, List, ChevronLeft, ChevronRight, CheckCircle, Clock, Dog } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { GroomerCalendar } from "./GroomerCalendar";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -13,10 +14,11 @@ interface GroomerBookingsTabProps {
   staffId: string;
 }
 
-type ViewMode = "1day" | "3day" | "list";
+type ViewMode = "1day" | "3day" | "7day" | "list";
 
 export function GroomerBookingsTab({ staffId }: GroomerBookingsTabProps) {
-  const [viewMode, setViewMode] = useState<ViewMode>("3day");
+  const isMobile = useIsMobile();
+  const [viewMode, setViewMode] = useState<ViewMode>(() => isMobile ? "3day" : "7day");
   const [currentDate, setCurrentDate] = useState(() => startOfDay(new Date()));
 
   const { data: allStaff = [] } = useQuery({
@@ -28,7 +30,7 @@ export function GroomerBookingsTab({ staffId }: GroomerBookingsTabProps) {
     },
   });
 
-  const daysToShow = viewMode === "1day" ? 1 : viewMode === "3day" ? 3 : 7;
+  const daysToShow = viewMode === "1day" ? 1 : viewMode === "3day" ? 3 : viewMode === "7day" ? 7 : 7;
   const endDate = addDays(currentDate, daysToShow - 1);
 
   const { data: bookings = [] } = useQuery({
@@ -129,6 +131,9 @@ export function GroomerBookingsTab({ staffId }: GroomerBookingsTabProps) {
           </Button>
           <Button variant={viewMode === "3day" ? "default" : "ghost"} size="sm" className="h-7 text-xs" onClick={() => setViewMode("3day")}>
             3 Day
+          </Button>
+          <Button variant={viewMode === "7day" ? "default" : "ghost"} size="sm" className="h-7 text-xs" onClick={() => setViewMode("7day")}>
+            7 Day
           </Button>
           <Button variant={viewMode === "list" ? "default" : "ghost"} size="sm" className="h-7 text-xs gap-1" onClick={() => setViewMode("list")}>
             <List className="h-3 w-3" /> List
