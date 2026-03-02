@@ -17,9 +17,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
 import {
   ArrowLeft, Mail, Phone, Dog, Calendar, Send,
-  Pencil, Check, X, MessageSquare, MailOpen, Ban, CalendarPlus,
+  Pencil, Check, X, MessageSquare, MailOpen, Ban, CalendarPlus, UserCheck,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { toast } from "@/hooks/use-toast";
@@ -392,6 +393,28 @@ export default function CustomerProfilePage() {
   );
   const visibleDogs = customerPets && customerPets.length > 0 ? customerPets : fallbackDogsFromBookings;
 
+  // Own Customer status — true if ANY booking for this customer is flagged
+  const customerIsOwn = (bookings || []).some((b) => b.is_groomers_own_customer);
+
+  const toggleOwnCustomerMutation = useMutation({
+    mutationFn: async (newValue: boolean) => {
+      const { error } = await supabase
+        .from("bookings")
+        .update({ is_groomers_own_customer: newValue } as any)
+        .eq("customer_email", decodedEmail);
+      if (error) throw error;
+      logAudit({
+        action: newValue ? "CUSTOMER_MARKED_OWN" : "CUSTOMER_UNMARKED_OWN",
+        details: `${customerName} (${decodedEmail}) marked as ${newValue ? "Own Customer" : "Salon Customer"}`,
+      });
+    },
+    onSuccess: (_, newValue) => {
+      queryClient.invalidateQueries({ queryKey: ["customer-profile-bookings", decodedEmail] });
+      toast({ title: newValue ? "Marked as Own Customer (50% commission)" : "Set to Salon Customer (40% commission)" });
+    },
+    onError: () => toast({ title: "Failed to update", variant: "destructive" }),
+  });
+
   const getStaffName = (userId: string) => staffProfiles?.find((p) => p.id === userId)?.full_name || "Unknown";
 
   const startEditing = () => { setEditName(customerName); setEditEmail(decodedEmail); setEditPhone(customerPhone); setIsEditing(true); };
@@ -542,10 +565,13 @@ export default function CustomerProfilePage() {
                     </div>
                   )}
                 </div>
-                <div className="flex flex-wrap gap-2 mt-1">
+                <div className="flex flex-wrap items-center gap-2 mt-1">
                   <Badge variant="secondary">{bookings?.length || 0} booking{(bookings?.length || 0) !== 1 ? "s" : ""}</Badge>
                   {(bookings?.length || 0) >= 2 && (
                     <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">Returning</Badge>
+                  )}
+                  {customerIsOwn && (
+                    <Badge className="bg-accent/15 text-accent border-accent/30"><UserCheck className="h-3 w-3 mr-1" />Own Customer</Badge>
                   )}
                 </div>
               </div>
@@ -586,6 +612,28 @@ export default function CustomerProfilePage() {
 
           {/* ── Overview ── */}
           <TabsContent value="overview" className="mt-4 space-y-4">
+            {/* Own Customer Toggle */}
+            {canManageCustomer && (
+              <Card>
+                <CardContent className="p-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <UserCheck className="h-5 w-5 text-accent" />
+                    <div>
+                      <p className="text-sm font-semibold">Own Customer</p>
+                      <p className="text-xs text-muted-foreground">
+                        {customerIsOwn ? "50% commission rate applies" : "40% standard commission rate"}
+                      </p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={customerIsOwn}
+                    onCheckedChange={(checked) => toggleOwnCustomerMutation.mutate(checked)}
+                    disabled={toggleOwnCustomerMutation.isPending}
+                  />
+                </CardContent>
+              </Card>
+            )}
+
             <Card>
               <CardContent className="p-5">
                 <h3 className="text-sm font-semibold flex items-center gap-2 mb-3"><Dog className="h-4 w-4" /> Registered Dogs</h3>
