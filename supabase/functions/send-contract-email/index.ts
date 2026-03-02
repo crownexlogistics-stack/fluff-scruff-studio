@@ -163,9 +163,84 @@ serve(async (req) => {
       return new Response(JSON.stringify({ success: true, message: "H&S policy sent for signature" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+
+    } else if (type === "resend_account_email") {
+      if (!staff.email || !staff.auth_user_id) {
+        return new Response(
+          JSON.stringify({ error: "No account exists for this staff member yet." }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
+        type: "recovery",
+        email: staff.email,
+        options: { redirectTo: "https://fluff-scruff-studio.lovable.app/reset-password" },
+      });
+      if (linkError) throw linkError;
+
+      const roleMap: Record<string, string> = { groomer: "groomer", manager: "manager", director: "director" };
+      const appRole = roleMap[staff.role?.toLowerCase()] || "groomer";
+      const portalName = appRole === "manager" || appRole === "director" ? "Management Dashboard" : "Staff Portal";
+
+      await sendEmail(SENDGRID_API_KEY, [staff.email], `Set Up Your ${portalName} Account — Fluff & Scruff Studio`, `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
+          ${emailHeader}
+          <h2 style="color: #1a1a1a;">Welcome to the Team! 🎉</h2>
+          <p>Hi <strong>${staff.name}</strong>,</p>
+          <p>Your <strong>${portalName}</strong> account is ready! Click the button below to set your password:</p>
+          <p style="margin: 24px 0; text-align: center;">
+            <a href="${linkData.properties.action_link}" style="background-color: #3d4147; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: bold; font-size: 16px;">
+              Set Your Password
+            </a>
+          </p>
+          <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
+          <p style="color: #999; font-size: 12px;">Fluff & Scruff Studio · 138 Hillview Avenue, Hornchurch RM11 2DL</p>
+        </div>
+      `);
+
+      return new Response(JSON.stringify({ success: true, message: "Account setup email re-sent" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+
+    } else if (type === "force_password_reset") {
+      if (!staff.email || !staff.auth_user_id) {
+        return new Response(
+          JSON.stringify({ error: "No account exists for this staff member yet." }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
+        type: "recovery",
+        email: staff.email,
+        options: { redirectTo: "https://fluff-scruff-studio.lovable.app/reset-password" },
+      });
+      if (linkError) throw linkError;
+
+      await sendEmail(SENDGRID_API_KEY, [staff.email], "Password Reset — Fluff & Scruff Studio", `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
+          ${emailHeader}
+          <h2 style="color: #1a1a1a;">Password Reset</h2>
+          <p>Hi <strong>${staff.name}</strong>,</p>
+          <p>Your manager has requested a password reset for your account. Click the button below to set a new password:</p>
+          <p style="margin: 24px 0; text-align: center;">
+            <a href="${linkData.properties.action_link}" style="background-color: #3d4147; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: bold; font-size: 16px;">
+              Reset Password
+            </a>
+          </p>
+          <p style="color: #666; font-size: 14px;">If you didn't expect this, please contact the salon.</p>
+          <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
+          <p style="color: #999; font-size: 12px;">Fluff & Scruff Studio · 138 Hillview Avenue, Hornchurch RM11 2DL</p>
+        </div>
+      `);
+
+      return new Response(JSON.stringify({ success: true, message: "Password reset email sent" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    return new Response(JSON.stringify({ error: "Invalid type. Use 'send_for_signature' or 'signed_confirmation'." }), {
+    return new Response(JSON.stringify({ error: "Invalid type." }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

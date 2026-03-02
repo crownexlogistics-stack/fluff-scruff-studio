@@ -36,7 +36,7 @@ export function GroomerBookingsTab({ staffId }: GroomerBookingsTabProps) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("bookings")
-        .select("id, customer_name, dog_name, booking_date, booking_time, status, notes, staff_id, services(name), breeds(name)")
+        .select("id, customer_name, dog_name, booking_date, booking_time, status, notes, staff_id, services(name), breeds(name, duration_minutes)")
         .gte("booking_date", format(currentDate, "yyyy-MM-dd"))
         .lte("booking_date", format(endDate, "yyyy-MM-dd"))
         .order("booking_time");
@@ -53,6 +53,7 @@ export function GroomerBookingsTab({ staffId }: GroomerBookingsTabProps) {
         staff_name: allStaff.find(s => s.id === b.staff_id)?.name || "Unassigned",
         service_name: b.services?.name ?? "",
         breed_name: b.breeds?.name ?? "",
+        breed_duration_minutes: b.breeds?.duration_minutes ?? undefined,
         is_block: false,
         is_own: b.staff_id === staffId,
       }));

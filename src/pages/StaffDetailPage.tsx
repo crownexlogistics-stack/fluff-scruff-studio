@@ -16,7 +16,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, CalendarIcon, Save, FileText, Send, CheckCircle2, User, Clock, Scissors, StickyNote, Cake, ShieldCheck } from "lucide-react";
+import { ArrowLeft, CalendarIcon, Save, FileText, Send, CheckCircle2, User, Clock, Scissors, StickyNote, Cake, ShieldCheck, RotateCcw, KeyRound } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { cn } from "@/lib/utils";
@@ -224,6 +224,32 @@ const StaffDetailPage = () => {
       if (fnError) throw fnError;
     },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["staff", id] }); toast.success("Health & Safety policy emailed to " + staff?.email); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const resendAccountEmailMutation = useMutation({
+    mutationFn: async () => {
+      if (!staff?.email) throw new Error("No email address on file.");
+      if (!staff.auth_user_id) throw new Error("No account exists yet. Documents must be signed first.");
+      const { data: linkData, error: linkError } = await supabase.functions.invoke("send-contract-email", {
+        body: { staff_id: id, type: "resend_account_email" },
+      });
+      if (linkError) throw linkError;
+    },
+    onSuccess: () => toast.success("Account setup email re-sent to " + staff?.email),
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const forcePasswordResetMutation = useMutation({
+    mutationFn: async () => {
+      if (!staff?.email) throw new Error("No email address on file.");
+      if (!staff.auth_user_id) throw new Error("No account exists yet.");
+      const { data, error } = await supabase.functions.invoke("send-contract-email", {
+        body: { staff_id: id, type: "force_password_reset" },
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => toast.success("Password reset email sent to " + staff?.email),
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -451,6 +477,24 @@ const StaffDetailPage = () => {
                     )}
                   </div>
                 </div>
+
+                {/* Account Actions */}
+                {staff.auth_user_id && (
+                  <>
+                    <Separator />
+                    <div className="space-y-3">
+                      <span className="text-sm font-medium">Account Actions</span>
+                      <div className="flex flex-col gap-2">
+                        <Button size="sm" variant="outline" onClick={() => resendAccountEmailMutation.mutate()} disabled={resendAccountEmailMutation.isPending} className="w-full justify-start">
+                          <RotateCcw className="mr-2 h-3.5 w-3.5" /> Resend Account Setup Email
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => forcePasswordResetMutation.mutate()} disabled={forcePasswordResetMutation.isPending} className="w-full justify-start">
+                          <KeyRound className="mr-2 h-3.5 w-3.5" /> Force Password Reset
+                        </Button>
+                      </div>
+                    </div>
+                  </>
+                )}
               </CardContent>
             </Card>
 
