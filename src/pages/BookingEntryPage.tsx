@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -21,6 +21,8 @@ interface PetWithBreed {
 
 const BookingEntryPage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const serviceParam = searchParams.get("service") || "Grooming";
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
 
@@ -158,7 +160,7 @@ const BookingEntryPage = () => {
   if (activeBooking) {
     return (
       <BookingFlow
-        service="Grooming"
+        service={serviceParam}
         onClose={() => setActiveBooking(null)}
         preselectedBreedId={activeBooking.breedId}
         preselectedPetName={activeBooking.petName}

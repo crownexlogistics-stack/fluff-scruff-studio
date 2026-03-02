@@ -71,11 +71,33 @@ const WEEKDAYS_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 export function BookingFlow({ service, onClose, preselectedBreedId, preselectedPetName }: BookingFlowProps) {
+  // Fetch matching service record from DB (for fixed-price services)
+  const { data: dbService } = useQuery({
+    queryKey: ["service-record", service],
+    queryFn: async () => {
+      // Try to find a service matching the name
+      const { data, error } = await supabase
+        .from("services")
+        .select("id, name, fixed_price, duration_minutes")
+        .eq("is_active", true)
+        .ilike("name", `%${service}%`)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: service !== "Grooming",
+  });
+
+  const isFixedPrice = service !== "Grooming" && dbService?.fixed_price != null;
+
   // If breed is preselected, skip to sub-service (for grooming) or calendar
-  const initialStep: Step = preselectedBreedId
-    ? (service === "Grooming" ? "sub-service" : "calendar")
-    : (service === "Grooming" ? "sub-service" : "breed");
-  const [step, setStep] = useState<Step>(initialStep);
+  const getInitialStep = (): Step => {
+    if (isFixedPrice) return "calendar";
+    if (preselectedBreedId) return service === "Grooming" ? "sub-service" : "calendar";
+    return service === "Grooming" ? "sub-service" : "breed";
+  };
+
+  const [step, setStep] = useState<Step>(null);
   const [selectedSub, setSelectedSub] = useState<string | null>(null);
   const [breedSearch, setBreedsSearch] = useState("");
   const [selectedBreed, setSelectedBreed] = useState<any>(null);
@@ -85,6 +107,13 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [guestForm, setGuestForm] = useState({ name: "", phone: "", email: "", dogName: preselectedPetName || "" });
   const queryClient = useQueryClient();
+
+  // Set initial step once we know if it's fixed-price
+  useEffect(() => {
+    if (step === null) {
+      setStep(getInitialStep());
+    }
+  }, [dbService, isFixedPrice]);
 
   // Week-strip state
   const today = new Date();
@@ -162,14 +191,19 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
     : breeds;
 
   const serviceType = selectedSub ?? service;
-  const breedPrice = selectedBreed
-    ? (serviceType === "Bath & Brush" ? selectedBreed.price_bath_brush : selectedBreed.price_full_groom)
-    : 0;
+  const basePrice = isFixedPrice
+    ? Number(dbService!.fixed_price)
+    : selectedBreed
+      ? (serviceType === "Bath & Brush" ? selectedBreed.price_bath_brush : selectedBreed.price_full_groom)
+      : 0;
+  const serviceDuration = isFixedPrice
+    ? (dbService!.duration_minutes ?? 60)
+    : (selectedBreed?.duration_minutes ?? 60);
   const addOnsTotal = selectedAddOns.reduce((sum, id) => {
     const addon = dbAddOns?.find(a => a.id === id);
     return sum + (addon ? Number(addon.price) : 0);
   }, 0);
-  const totalPrice = breedPrice + addOnsTotal;
+  const totalPrice = basePrice + addOnsTotal;
 
   const handleSubSelect = (sub: string) => {
     setSelectedSub(sub);
@@ -200,6 +234,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
       customer_email: guestForm.email || null,
       dog_name: guestForm.dogName,
       breed_id: selectedBreed?.id ?? null,
+      service_id: dbService?.id ?? null,
       booking_date: selectedDate!,
       booking_time: selectedTime!,
       total_price: totalPrice,
@@ -228,7 +263,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
     } else if (step === "addons") {
       setStep("calendar");
       setSelectedTime(null);
-    } else if (step === "calendar") {
+    } else if (step === "calendar" && !isFixedPrice) {
       setStep("breed");
     } else if (step === "breed" && service === "Grooming") {
       setStep("sub-service");
@@ -241,7 +276,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
   // Generate time slots
   const generateTimeSlots = () => {
     const slots: string[] = [];
-    const durationMins = selectedBreed?.duration_minutes ?? 60;
+    const durationMins = serviceDuration;
     const startHour = 8;
     const endHour = 18;
     for (let h = startHour; h < endHour; h++) {
@@ -301,6 +336,14 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
     if (iconName === "Dog") return Dog;
     return Sparkles;
   };
+
+  if (step === null) {
+    return (
+      <div className="fixed inset-0 z-50 bg-background flex items-center justify-center">
+        <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 bg-background animate-slide-up flex flex-col">
@@ -432,9 +475,11 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-foreground font-body">{serviceType}</p>
-                  <p className="text-xs text-muted-foreground font-body truncate">{selectedBreed?.name ?? "Breed Not Listed"}{selectedBreed ? ` · ${formatDuration(selectedBreed.duration_minutes)}` : ""}</p>
+                  <p className="text-xs text-muted-foreground font-body truncate">
+                    {isFixedPrice ? `${formatDuration(serviceDuration)}` : `${selectedBreed?.name ?? "Breed Not Listed"}${selectedBreed ? ` · ${formatDuration(selectedBreed.duration_minutes)}` : ""}`}
+                  </p>
                 </div>
-                <p className="text-xl font-bold text-accent font-body tabular-nums">£{breedPrice}</p>
+                <p className="text-xl font-bold text-accent font-body tabular-nums">£{basePrice}</p>
               </div>
             </div>
 
@@ -540,7 +585,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
                 <p className="text-xl font-bold text-accent">£{totalPrice}</p>
               </div>
               <p className="text-sm text-muted-foreground">
-                {selectedBreed?.name ?? "Breed Not Listed"} • {formatSelectedDate(selectedDate!)} at {selectedTime}
+                {isFixedPrice ? "" : `${selectedBreed?.name ?? "Breed Not Listed"} • `}{formatSelectedDate(selectedDate!)} at {selectedTime}
               </p>
             </div>
 
@@ -631,7 +676,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
                 <p className="text-xl font-bold text-accent">£{totalPrice}</p>
               </div>
               <p className="text-sm text-muted-foreground">
-                {selectedBreed?.name ?? "Breed Not Listed"} • {formatSelectedDate(selectedDate!)} at {selectedTime}
+                {isFixedPrice ? "" : `${selectedBreed?.name ?? "Breed Not Listed"} • `}{formatSelectedDate(selectedDate!)} at {selectedTime}
               </p>
               {selectedAddOns.length > 0 && (
                 <p className="text-xs text-muted-foreground mt-1">+ {selectedAddOns.map(id => dbAddOns?.find(a => a.id === id)?.name).filter(Boolean).join(", ")}</p>
