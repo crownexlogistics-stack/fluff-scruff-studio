@@ -25,6 +25,7 @@ import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { logAudit } from "@/lib/auditLog";
+import { NewAppointmentDialog } from "@/components/customer-profile/NewAppointmentDialog";
 
 export default function CustomerProfilePage() {
   const { email } = useParams<{ email: string }>();
@@ -41,6 +42,7 @@ export default function CustomerProfilePage() {
   const [editEmail, setEditEmail] = useState("");
   const [editPhone, setEditPhone] = useState("");
   const [bookingTab, setBookingTab] = useState("upcoming");
+  const [newApptOpen, setNewApptOpen] = useState(false);
   const [newMessage, setNewMessage] = useState("");
   const [emailSubject, setEmailSubject] = useState("");
   const [emailBody, setEmailBody] = useState("");
@@ -648,7 +650,12 @@ export default function CustomerProfilePage() {
           <TabsContent value="bookings" className="mt-4">
             <Card>
               <CardContent className="p-5">
-                <h3 className="text-sm font-semibold flex items-center gap-2 mb-4"><Calendar className="h-4 w-4" /> Bookings</h3>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-semibold flex items-center gap-2"><Calendar className="h-4 w-4" /> Bookings</h3>
+                  <Button size="sm" onClick={() => setNewApptOpen(true)}>
+                    <CalendarPlus className="h-4 w-4 mr-1.5" /> New Appointment
+                  </Button>
+                </div>
                 <Tabs value={bookingTab} onValueChange={setBookingTab}>
                   <TabsList className="bg-transparent h-9 p-0 gap-4 justify-start">
                     <TabsTrigger value="upcoming" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-1 pb-2 h-auto text-sm">Upcoming ({upcomingBookings.length})</TabsTrigger>
@@ -903,6 +910,18 @@ export default function CustomerProfilePage() {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* ═══ NEW APPOINTMENT DIALOG ═══ */}
+      <NewAppointmentDialog
+        open={newApptOpen}
+        onOpenChange={setNewApptOpen}
+        customerName={customerName}
+        customerEmail={decodedEmail}
+        customerPhone={customerPhone}
+        dogName={visibleDogs?.[0]?.pet_name || bookings?.[0]?.dog_name || ""}
+        breedId={visibleDogs?.[0]?.breed_id || bookings?.[0]?.breed_id || ""}
+        lastStaffId={bookings?.[0]?.staff_id || ""}
+      />
     </Layout>
   );
 }
