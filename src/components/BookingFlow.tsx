@@ -1,5 +1,7 @@
-import React, { useState, useCallback, useRef, useEffect } from "react";
+import React, { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { ArrowLeft, Search, Dog, ChevronRight, PawPrint, Save, Move, Sparkles, Check, ChevronLeft, Calendar, Info, X, Lock, Ticket } from "lucide-react";
+import { generateAvailableSlots, dateHasAnyAvailability, findFreeGroomer, parseTimeToMinutes } from "@/lib/availability";
+import type { StaffAvailability, ScheduleOverride, ExistingBooking, Groomer } from "@/lib/availability";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -235,8 +237,35 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
         .ilike("role", "%groomer%")
         .order("name");
       if (error) throw error;
-      return data;
+      return data as Groomer[];
     },
+  });
+
+  // Fetch base working hours for all groomers
+  const { data: baseSchedules } = useQuery({
+    queryKey: ["staff-availability-all"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("staff_availability")
+        .select("staff_id, day_of_week, start_time, end_time, is_available");
+      if (error) throw error;
+      return (data || []) as StaffAvailability[];
+    },
+  });
+
+  // Fetch ALL schedule overrides for the visible date range (blocks + manual openings)
+  const { data: allOverridesForDate } = useQuery({
+    queryKey: ["schedule-overrides-for-date", selectedDate],
+    queryFn: async () => {
+      if (!selectedDate) return [];
+      const { data, error } = await supabase
+        .from("staff_schedule_overrides")
+        .select("staff_id, override_date, start_time, end_time, is_working")
+        .eq("override_date", selectedDate);
+      if (error) throw error;
+      return (data || []) as ScheduleOverride[];
+    },
+    enabled: !!selectedDate,
   });
 
   // For returning customers: find the last groomer who served them
@@ -496,35 +525,41 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
       }
     }
 
-    // Determine staff_id: returning customers choose, new customers get auto-assigned
+    // Final real-time validation: re-check availability at submission time
+    // This catches cases where the schedule changed while the customer was filling in details
     let assignedStaffId: string | null = null;
     if (isExistingCustomer && selectedStaffId) {
       assignedStaffId = selectedStaffId;
-    } else if (groomers && groomers.length > 0) {
-      const [bookingsAtTimeRes, blockedAtTimeRes] = await Promise.all([
+    } else if (groomers && groomers.length > 0 && baseSchedules) {
+      // Re-fetch fresh data for final validation
+      const [freshBookingsRes, freshOverridesRes] = await Promise.all([
         supabase
           .from("bookings")
-          .select("staff_id")
+          .select("booking_time, staff_id, services(duration_minutes), breeds(duration_minutes)")
           .eq("booking_date", selectedDate!)
-          .eq("booking_time", selectedTime!)
           .not("status", "in", "(Cancelled,No Show)"),
         supabase
           .from("staff_schedule_overrides")
-          .select("staff_id")
-          .eq("override_date", selectedDate!)
-          .eq("is_working", false)
-          .lte("start_time", selectedTime!)
-          .gt("end_time", selectedTime!),
+          .select("staff_id, override_date, start_time, end_time, is_working")
+          .eq("override_date", selectedDate!),
       ]);
 
-      const busyStaffIds = new Set([
-        ...(bookingsAtTimeRes.data || []).map((b: any) => b.staff_id).filter(Boolean),
-        ...(blockedAtTimeRes.data || []).map((b: any) => b.staff_id).filter(Boolean),
-      ]);
+      const freshBookings = (freshBookingsRes.data || []) as ExistingBooking[];
+      const freshOverrides = (freshOverridesRes.data || []) as ScheduleOverride[];
+      const bookingDate = new Date(selectedDate! + "T00:00:00");
 
-      const freeGroomer = groomers.find(g => !busyStaffIds.has(g.id));
+      const freeGroomer = findFreeGroomer(
+        selectedTime!,
+        serviceDuration,
+        bookingDate,
+        groomers,
+        baseSchedules,
+        freshOverrides,
+        freshBookings
+      );
+
       if (!freeGroomer) {
-        setAlertMessage("No groomer is available for this time slot. Please choose another time.");
+        setAlertMessage("This slot is no longer available. The groomer's schedule changed while you were booking. Please choose another time.");
         setIsSubmitting(false);
         return;
       }
@@ -641,23 +676,6 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
     }
   }, [step, service, onClose]);
 
-  // Generate time slots
-  const generateTimeSlots = () => {
-    const slots: string[] = [];
-    const durationMins = serviceDuration;
-    const startHour = 8;
-    const endHour = 18;
-    for (let h = startHour; h < endHour; h++) {
-      for (let m = 0; m < 60; m += 30) {
-        const endMins = h * 60 + m + durationMins;
-        if (endMins <= endHour * 60) {
-          slots.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
-        }
-      }
-    }
-    return slots;
-  };
-
   // Fetch existing appointments for selected date to check availability
   const { data: existingBookingsForDate } = useQuery({
     queryKey: ["bookings-for-date", selectedDate],
@@ -669,69 +687,34 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
         .eq("booking_date", selectedDate)
         .not("status", "in", "(Cancelled,No Show)");
       if (error) throw error;
-      return data || [];
+      return (data || []) as ExistingBooking[];
     },
     enabled: !!selectedDate,
   });
 
-  // Fetch blocked overrides for selected date
-  const { data: blockedOverridesForDate } = useQuery({
-    queryKey: ["blocked-overrides-for-date", selectedDate],
-    queryFn: async () => {
-      if (!selectedDate) return [];
-      const { data, error } = await supabase
-        .from("staff_schedule_overrides")
-        .select("staff_id, start_time, end_time")
-        .eq("override_date", selectedDate)
-        .eq("is_working", false);
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!selectedDate,
-  });
+  // Generate available time slots using the availability engine
+  const availableTimeSlots = useMemo(() => {
+    if (!selectedDate || !groomers?.length || !baseSchedules) return [];
+    const date = new Date(selectedDate + "T00:00:00");
+    return generateAvailableSlots(
+      date,
+      serviceDuration,
+      groomers,
+      baseSchedules,
+      allOverridesForDate || [],
+      existingBookingsForDate || [],
+      30
+    );
+  }, [selectedDate, groomers, baseSchedules, allOverridesForDate, existingBookingsForDate, serviceDuration]);
 
-  const parseTimeToMinutes = (time: string) => {
-    const [h, m] = (time || "00:00").split(":");
-    return (parseInt(h || "0", 10) * 60) + parseInt(m || "0", 10);
-  };
-
-  // Check if a time slot is fully booked (all groomers busy from appointments or blocked time)
-  const isSlotFullyBooked = (slotTime: string) => {
-    if (!groomers || groomers.length === 0) return false;
-
-    const slotStart = parseTimeToMinutes(slotTime);
-    const slotEnd = slotStart + serviceDuration;
-
-    let busyCount = 0;
-
-    for (const groomer of groomers) {
-      const hasBookingConflict = (existingBookingsForDate || []).some((b: any) => {
-        if (b.staff_id !== groomer.id) return false;
-        const bookingStart = parseTimeToMinutes(b.booking_time);
-        const bookingDuration = Number(b.services?.duration_minutes ?? b.breeds?.duration_minutes ?? 90);
-        const bookingEnd = bookingStart + bookingDuration;
-        return slotStart < bookingEnd && slotEnd > bookingStart;
-      });
-
-      const hasBlockConflict = (blockedOverridesForDate || []).some((ov: any) => {
-        if (ov.staff_id !== groomer.id) return false;
-        const blockStart = parseTimeToMinutes(ov.start_time);
-        const blockEnd = parseTimeToMinutes(ov.end_time || ov.start_time);
-        return slotStart < blockEnd && slotEnd > blockStart;
-      });
-
-      if (hasBookingConflict || hasBlockConflict) busyCount++;
-    }
-
-    return busyCount >= groomers.length;
-  };
-
-  // Week-strip: check if a date is selectable (not in the past, not Sunday)
+  // Week-strip: check if a date is selectable (not in the past, has at least one groomer working)
   const isDateSelectableDate = (d: Date) => {
     const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     if (d <= todayStart) return false;
-    if (d.getDay() === 0) return false; // Sunday
-    return true;
+    if (!groomers?.length || !baseSchedules) return false;
+    // Quick check: does any groomer have working hours on this day?
+    // We don't have overrides for all dates loaded, but we check base schedule + any loaded overrides
+    return dateHasAnyAvailability(d, groomers, baseSchedules, []);
   };
 
   const formatSelectedDate = (dateStr: string) => {
@@ -1044,10 +1027,8 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
                   <h3 className="text-base font-heading text-foreground mb-1">Available times</h3>
                   <p className="text-xs text-muted-foreground font-body mb-4">{formatSelectedDate(selectedDate)}</p>
                   <div className="grid grid-cols-2 gap-2.5">
-                    {generateTimeSlots().map((time) => {
+                    {availableTimeSlots.map((time) => {
                       const isTimeSelected = selectedTime === time;
-                      const fullyBooked = isSlotFullyBooked(time);
-                      if (fullyBooked) return null;
                       return (
                         <button
                           key={time}
@@ -1062,7 +1043,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
                         </button>
                       );
                     })}
-                    {generateTimeSlots().every(t => isSlotFullyBooked(t)) && (
+                    {availableTimeSlots.length === 0 && (
                       <p className="col-span-2 text-center text-sm text-muted-foreground py-4">No available slots on this date. Please try another day.</p>
                     )}
                   </div>
