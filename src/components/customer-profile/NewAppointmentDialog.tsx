@@ -89,20 +89,55 @@ export function NewAppointmentDialog({
   const { data: breeds } = useQuery({
     queryKey: ["breeds-list"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("breeds").select("id, name").order("name");
+      const { data, error } = await supabase.from("breeds").select("id, name, price_bath_brush, price_full_groom").order("name");
       if (error) throw error;
       return data;
     },
   });
 
-  // Auto-fill price when service changes
+  const { data: servicePrices } = useQuery({
+    queryKey: ["service-prices"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("service_prices").select("*");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Auto-fill price when service or breed changes
   useEffect(() => {
     if (!form.service_id) return;
     const svc = services?.find(s => s.id === form.service_id);
+
+    let price = 0;
+
     if (svc?.fixed_price) {
-      setForm(prev => ({ ...prev, total_price: Number(svc.fixed_price) }));
+      // Fixed-price service (e.g. Nail Trim, Teeth Cleaning)
+      price = Number(svc.fixed_price);
+    } else if (form.breed_id) {
+      // Check service_prices table first
+      const sp = servicePrices?.find(p => p.service_id === form.service_id && p.breed_id === form.breed_id);
+      if (sp) {
+        price = Number(sp.price);
+      } else {
+        // Fallback to breed pricing columns
+        const breed = breeds?.find(b => b.id === form.breed_id);
+        if (breed) {
+          const name = svc?.name?.toLowerCase() || "";
+          if (name.includes("bath") && name.includes("brush")) {
+            price = Number(breed.price_bath_brush);
+          } else if (name.includes("full") || name.includes("groom")) {
+            price = Number(breed.price_full_groom);
+          }
+        }
+      }
     }
-  }, [form.service_id, services]);
+
+    if (price > 0) {
+      const deposit = Math.round(price * 0.6 * 100) / 100;
+      setForm(prev => ({ ...prev, total_price: price, deposit_paid: deposit }));
+    }
+  }, [form.service_id, form.breed_id, services, breeds, servicePrices]);
 
   const createBooking = useMutation({
     mutationFn: async () => {
