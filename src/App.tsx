@@ -26,6 +26,7 @@ import RulesPage from "./pages/RulesPage";
 import TermsEditorPage from "./pages/TermsEditorPage";
 import MessagesPage from "./pages/MessagesPage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { ScrollToTop } from "./components/ScrollToTop";
 import BookingEntryPage from "./pages/BookingEntryPage";
 import TermsPage from "./pages/TermsPage";
 import NotFound from "./pages/NotFound";
@@ -38,6 +39,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
+        <ScrollToTop />
         <Routes>
           {/* Public */}
           <Route path="/" element={<CustomerHome />} />
