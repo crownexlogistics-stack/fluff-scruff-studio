@@ -1028,6 +1028,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
             <Button onClick={handleGuestSubmit} disabled={!acceptedTerms} className="w-full h-14 text-base rounded-xl" size="lg">
               {isNewCustomer ? `Create Account & Pay Deposit` : `Create & Pay Deposit`} £{depositAmount.toFixed(2)}
             </Button>
+            </div>
           </div>
         )}
 
