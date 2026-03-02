@@ -26,12 +26,13 @@ const BookingEntryPage = () => {
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
 
-  // Auth form state (for inline login/signup)
-  const [authMode, setAuthMode] = useState<"choose" | "login" | "signup" | "forgot">("choose");
+  // Auth form state (for inline login)
+  const [authMode, setAuthMode] = useState<"choose" | "login" | "forgot">("choose");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [fullName, setFullName] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  // New customer flow: skip signup, go straight to booking
+  const [newCustomerBooking, setNewCustomerBooking] = useState(false);
 
   // Pet selection / add-pet state
   const [showAddPet, setShowAddPet] = useState(false);
@@ -90,24 +91,7 @@ const BookingEntryPage = () => {
     // On success, user state updates automatically
   };
 
-  const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmitting(true);
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { full_name: fullName },
-        emailRedirectTo: `${window.location.origin}/book`,
-      },
-    });
-    setSubmitting(false);
-    if (error) {
-      toast({ title: "Sign up failed", description: error.message, variant: "destructive" });
-    } else {
-      toast({ title: "Check your email", description: "We've sent a confirmation link. Please verify to continue." });
-    }
-  };
+
 
   const handleForgot = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -156,7 +140,7 @@ const BookingEntryPage = () => {
     );
   }
 
-  // If booking flow is active, show it
+  // If booking flow is active (logged-in user selected a pet)
   if (activeBooking) {
     return (
       <BookingFlow
@@ -164,6 +148,17 @@ const BookingEntryPage = () => {
         onClose={() => setActiveBooking(null)}
         preselectedBreedId={activeBooking.breedId}
         preselectedPetName={activeBooking.petName}
+      />
+    );
+  }
+
+  // New customer flow: browse services/dates first, create account at checkout
+  if (newCustomerBooking) {
+    return (
+      <BookingFlow
+        service={serviceParam}
+        onClose={() => setNewCustomerBooking(false)}
+        isNewCustomer
       />
     );
   }
@@ -214,7 +209,7 @@ const BookingEntryPage = () => {
                   </button>
 
                   <button
-                    onClick={() => setAuthMode("signup")}
+                    onClick={() => setNewCustomerBooking(true)}
                     className="w-full rounded-2xl border-2 border-border/60 bg-card p-5 text-left hover:border-accent/40 hover:shadow-lg hover:shadow-black/[0.04] transition-all duration-300 group"
                   >
                     <div className="flex items-center gap-4">
@@ -223,7 +218,7 @@ const BookingEntryPage = () => {
                       </div>
                       <div className="flex-1">
                         <p className="font-semibold text-foreground">New Here?</p>
-                        <p className="text-sm text-muted-foreground">Create an account to book</p>
+                        <p className="text-sm text-muted-foreground">Browse services & prices first</p>
                       </div>
                       <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-accent transition-colors" />
                     </div>
@@ -256,46 +251,14 @@ const BookingEntryPage = () => {
                 </form>
                 <div className="text-center text-sm space-y-2">
                   <button onClick={() => setAuthMode("forgot")} className="text-muted-foreground hover:text-foreground transition-colors">Forgot password?</button>
-                  <p className="text-muted-foreground">Don't have an account?{" "}
-                    <button onClick={() => setAuthMode("signup")} className="text-foreground font-medium hover:underline">Sign up</button>
+                  <p className="text-muted-foreground">New here?{" "}
+                    <button onClick={() => { setAuthMode("choose"); setNewCustomerBooking(true); }} className="text-foreground font-medium hover:underline">Browse services</button>
                   </p>
                 </div>
               </div>
             )}
 
-            {authMode === "signup" && (
-              <div className="space-y-6 animate-fade-in">
-                <button onClick={() => setAuthMode("choose")} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
-                  <ArrowLeft className="h-4 w-4" /> Back
-                </button>
-                <div className="text-center">
-                  <h1 className="text-2xl font-heading text-foreground">Create Your Account</h1>
-                  <p className="text-muted-foreground text-sm mt-1">Quick setup, then we'll book your pup in</p>
-                </div>
-                <form onSubmit={handleSignup} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="fullName">Full Name</Label>
-                    <Input id="fullName" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Your name" required />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="signupEmail">Email</Label>
-                    <Input id="signupEmail" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="hello@example.com" required />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="signupPassword">Password</Label>
-                    <Input id="signupPassword" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required minLength={6} />
-                  </div>
-                  <Button type="submit" className="w-full" disabled={submitting}>
-                    {submitting ? "Creating account…" : "Create Account"}
-                  </Button>
-                </form>
-                <div className="text-center text-sm">
-                  <p className="text-muted-foreground">Already have an account?{" "}
-                    <button onClick={() => setAuthMode("login")} className="text-foreground font-medium hover:underline">Sign in</button>
-                  </p>
-                </div>
-              </div>
-            )}
+
 
             {authMode === "forgot" && (
               <div className="space-y-6 animate-fade-in">

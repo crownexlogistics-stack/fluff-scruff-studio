@@ -1,9 +1,10 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { ArrowLeft, Search, Dog, ChevronRight, PawPrint, Save, Move, Sparkles, Check, ChevronLeft, Calendar, Info, X } from "lucide-react";
+import { ArrowLeft, Search, Dog, ChevronRight, PawPrint, Save, Move, Sparkles, Check, ChevronLeft, Calendar, Info, X, Lock } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import serviceBathBrush from "@/assets/service-bath-brush.jpg";
 import serviceFullGroomSub from "@/assets/service-full-groom-sub.jpg";
@@ -17,6 +18,7 @@ interface BookingFlowProps {
   onClose: () => void;
   preselectedBreedId?: string | null;
   preselectedPetName?: string;
+  isNewCustomer?: boolean;
 }
 
 const subServices = [
@@ -70,7 +72,7 @@ function getMonday(date: Date): Date {
 const WEEKDAYS_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
-export function BookingFlow({ service, onClose, preselectedBreedId, preselectedPetName }: BookingFlowProps) {
+export function BookingFlow({ service, onClose, preselectedBreedId, preselectedPetName, isNewCustomer }: BookingFlowProps) {
   // Fetch matching service record from DB (for fixed-price services)
   const { data: dbService } = useQuery({
     queryKey: ["service-record", service],
@@ -105,7 +107,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
   const [infoPopup, setInfoPopup] = useState<{ name: string; description: string } | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
-  const [guestForm, setGuestForm] = useState({ name: "", phone: "", email: "", dogName: preselectedPetName || "" });
+  const [guestForm, setGuestForm] = useState({ name: "", phone: "", email: "", dogName: preselectedPetName || "", password: "" });
   const queryClient = useQueryClient();
 
   // Set initial step once we know if it's fixed-price
@@ -228,6 +230,44 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
       return;
     }
 
+    // New customer: create account first
+    if (isNewCustomer) {
+      if (!guestForm.email.trim() || !guestForm.password.trim()) {
+        toast.error("Please enter your email and choose a password");
+        return;
+      }
+      if (guestForm.password.length < 6) {
+        toast.error("Password must be at least 6 characters");
+        return;
+      }
+
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email: guestForm.email,
+        password: guestForm.password,
+        options: {
+          data: { full_name: guestForm.name },
+          emailRedirectTo: `${window.location.origin}/book`,
+        },
+      });
+
+      if (signUpError) {
+        toast.error(signUpError.message);
+        return;
+      }
+
+      // Save pet to customer_pets if we have a user
+      const userId = signUpData.user?.id;
+      if (userId) {
+        try {
+          await supabase.from("customer_pets").insert({
+            user_id: userId,
+            pet_name: guestForm.dogName,
+            breed_id: selectedBreed?.id ?? null,
+          });
+        } catch { /* ignore */ }
+      }
+    }
+
     const { data: insertedBooking, error } = await supabase.from("bookings").insert({
       customer_name: guestForm.name,
       customer_phone: guestForm.phone || null,
@@ -253,7 +293,11 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
       }).catch(() => {}); // fire-and-forget
     }
 
-    toast.success("Booking confirmed! We'll be in touch.");
+    if (isNewCustomer) {
+      toast.success("Booking confirmed! Check your email to verify your account.");
+    } else {
+      toast.success("Booking confirmed! We'll be in touch.");
+    }
     onClose();
   };
 
@@ -683,27 +727,51 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
               )}
             </div>
 
+            {isNewCustomer && (
+              <div className="text-center">
+                <h2 className="text-xl font-heading text-foreground">Create Your Account</h2>
+                <p className="text-muted-foreground text-sm mt-1">Quick setup, then we'll confirm your booking</p>
+              </div>
+            )}
+
             <div className="space-y-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium">Your Name *</label>
+                <Label className="text-sm font-medium">Your Name *</Label>
                 <Input value={guestForm.name} onChange={(e) => setGuestForm({ ...guestForm, name: e.target.value })} placeholder="Jane Smith" className="h-12 rounded-xl" />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium">Dog's Name *</label>
+                <Label className="text-sm font-medium">Dog's Name *</Label>
                 <Input value={guestForm.dogName} onChange={(e) => setGuestForm({ ...guestForm, dogName: e.target.value })} placeholder="Buddy" className="h-12 rounded-xl" />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium">Phone</label>
-                <Input value={guestForm.phone} onChange={(e) => setGuestForm({ ...guestForm, phone: e.target.value })} placeholder="07xxx xxxxxx" type="tel" className="h-12 rounded-xl" />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Email</label>
+                <Label className="text-sm font-medium">{isNewCustomer ? "Email *" : "Email"}</Label>
                 <Input value={guestForm.email} onChange={(e) => setGuestForm({ ...guestForm, email: e.target.value })} placeholder="jane@example.com" type="email" className="h-12 rounded-xl" />
+              </div>
+              {isNewCustomer && (
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Create Password *</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      value={guestForm.password}
+                      onChange={(e) => setGuestForm({ ...guestForm, password: e.target.value })}
+                      placeholder="Min 6 characters"
+                      type="password"
+                      className="h-12 rounded-xl pl-10"
+                      minLength={6}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">You'll use this to manage bookings and your pets</p>
+                </div>
+              )}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Phone</Label>
+                <Input value={guestForm.phone} onChange={(e) => setGuestForm({ ...guestForm, phone: e.target.value })} placeholder="07xxx xxxxxx" type="tel" className="h-12 rounded-xl" />
               </div>
             </div>
 
             <Button onClick={handleGuestSubmit} className="w-full h-14 text-base rounded-xl" size="lg">
-              Confirm Booking £{totalPrice}
+              {isNewCustomer ? `Create Account & Book £${totalPrice}` : `Confirm Booking £${totalPrice}`}
             </Button>
           </div>
         )}
