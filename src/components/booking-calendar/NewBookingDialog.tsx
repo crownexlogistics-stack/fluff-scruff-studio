@@ -9,6 +9,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { logAudit } from "@/lib/auditLog";
 
 interface NewBookingDialogProps {
   open: boolean;
@@ -103,17 +104,28 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
         });
         if (error) throw error;
 
+        const staffName = staff?.find(s => s.id === form.staff_id)?.name || "Unknown";
+        const formattedDate = format(new Date(form.booking_date), "dd MMM yyyy");
+
+        // HR notes
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          const formattedDate = format(new Date(form.booking_date), "dd MMM yyyy");
-          const staffName = staff?.find(s => s.id === form.staff_id)?.name || "Unknown";
           const hrNote = `⛔ TIME BLOCKED — ${formattedDate} from ${form.booking_time.slice(0, 5)} to ${form.end_time.slice(0, 5)} — Reason: ${form.notes.trim()}`;
-          await supabase.from("staff_notes").insert({
-            staff_id: form.staff_id,
-            created_by: user.id,
-            note: hrNote,
-          });
+          try {
+            await supabase.from("staff_notes").insert({
+              staff_id: form.staff_id,
+              created_by: user.id,
+              note: hrNote,
+            });
+          } catch {}
         }
+
+        // Audit trail
+        logAudit({
+          staffId: form.staff_id,
+          action: "TIME_BLOCKED",
+          details: `Blocked ${formattedDate} ${form.booking_time.slice(0, 5)}-${form.end_time.slice(0, 5)} for ${staffName}. Reason: ${form.notes.trim()}`,
+        });
       } else {
         const { data: insertedBooking, error } = await supabase.from("bookings").insert({
           customer_name: form.customer_name,
@@ -132,35 +144,31 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
         }).select("id").single();
         if (error) throw error;
 
-        // Audit trail: log booking creation to staff notes
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user && form.staff_id) {
-          const formattedDate = format(new Date(form.booking_date), "dd MMM yyyy");
-          const hrNote = `📅 BOOKING CREATED — ${formattedDate} at ${form.booking_time.slice(0, 5)} — Customer: ${form.customer_name}, Dog: ${form.dog_name}`;
-          try {
-            await supabase.from("staff_notes").insert({
-              staff_id: form.staff_id,
-              created_by: user.id,
-              note: hrNote,
-            });
-          } catch {} // don't block on audit failure
-        }
+        const staffName = staff?.find(s => s.id === form.staff_id)?.name || "Unknown";
+
+        // Audit trail
+        logAudit({
+          staffId: form.staff_id || undefined,
+          action: "BOOKING_CREATED",
+          details: `Booking for ${form.customer_name} (${form.dog_name}) on ${form.booking_date} at ${form.booking_time.slice(0, 5)} with ${staffName}`,
+        });
 
         // Send confirmation email if customer has email
         if (form.customer_email && insertedBooking?.id) {
           supabase.functions.invoke("send-booking-email", {
             body: { booking_id: insertedBooking.id, email_type: "confirmation" },
-          }).catch(() => {}); // fire-and-forget
+          }).catch(() => {});
         }
       }
     },
     onSuccess: () => {
-      toast.success(mode === "block" ? "Time blocked & logged to HR notes" : "Booking created");
+      toast.success(mode === "block" ? "Time blocked" : "Booking created");
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
       queryClient.invalidateQueries({ queryKey: ["groomer-bookings"] });
       queryClient.invalidateQueries({ queryKey: ["schedule-overrides"] });
       queryClient.invalidateQueries({ queryKey: ["groomer-overrides"] });
       queryClient.invalidateQueries({ queryKey: ["staff-notes"] });
+      queryClient.invalidateQueries({ queryKey: ["audit-logs"] });
       onOpenChange(false);
     },
     onError: (e: any) => toast.error(e.message),
@@ -187,9 +195,24 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
                 </p>
               </div>
 
-              <div className="space-y-1">
-                <Label>End Time</Label>
-                <Input type="time" value={form.end_time} onChange={(e) => setForm({ ...form, end_time: e.target.value })} />
+              <Button
+                type="button"
+                variant="secondary"
+                className="w-full"
+                onClick={() => setForm({ ...form, booking_time: "08:00", end_time: "23:59" })}
+              >
+                Block All Day
+              </Button>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label>Start Time</Label>
+                  <Input type="time" value={form.booking_time} onChange={(e) => setForm({ ...form, booking_time: e.target.value })} />
+                </div>
+                <div className="space-y-1">
+                  <Label>End Time</Label>
+                  <Input type="time" value={form.end_time} onChange={(e) => setForm({ ...form, end_time: e.target.value })} />
+                </div>
               </div>
 
               <div className="space-y-1">
@@ -216,7 +239,7 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
               </div>
 
               <p className="text-xs text-muted-foreground">
-                This block will be automatically logged to the staff member's HR notes for record keeping.
+                This block will be logged to the audit trail for record keeping.
               </p>
             </>
           ) : (

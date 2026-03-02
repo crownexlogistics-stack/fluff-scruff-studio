@@ -16,7 +16,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, CalendarIcon, Save, FileText, Send, CheckCircle2, User, Clock, Scissors, StickyNote, Cake, ShieldCheck, RotateCcw, KeyRound } from "lucide-react";
+import { ArrowLeft, CalendarIcon, Save, FileText, Send, CheckCircle2, User, Clock, Scissors, StickyNote, Cake, ShieldCheck, RotateCcw, KeyRound, Activity } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { cn } from "@/lib/utils";
@@ -99,6 +99,21 @@ const StaffDetailPage = () => {
     queryKey: ["staff_notes", id],
     queryFn: async () => {
       const { data, error } = await supabase.from("staff_notes" as any).select("*").eq("staff_id", id!).order("created_at", { ascending: false });
+      if (error) throw error;
+      return data as any[];
+    },
+    enabled: !!id && isDirector,
+  });
+
+  // Fetch audit logs (director only)
+  const { data: auditLogs } = useQuery({
+    queryKey: ["audit-logs", id],
+    queryFn: async () => {
+      const { data, error } = await (supabase.from("audit_logs" as any) as any)
+        .select("*")
+        .eq("staff_id", id!)
+        .order("created_at", { ascending: false })
+        .limit(100);
       if (error) throw error;
       return data as any[];
     },
@@ -575,6 +590,45 @@ const StaffDetailPage = () => {
                         )}>{n.note}</p>
                         <p className="text-xs text-muted-foreground">
                           {format(new Date(n.created_at), "dd MMM yyyy 'at' HH:mm")}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Audit Trail - Director only */}
+        {isDirector && (
+          <Card>
+            <CardHeader className="pb-4">
+              <CardTitle className="font-heading text-lg flex items-center gap-2"><Activity className="h-5 w-5 text-primary" /> Audit Trail</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {!auditLogs || auditLogs.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No audit entries yet.</p>
+              ) : (
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {auditLogs.map((log: any) => {
+                    const actionIcons: Record<string, string> = {
+                      LOGIN: "🔑",
+                      BOOKING_CREATED: "📅",
+                      TIME_BLOCKED: "⛔",
+                      BLOCK_AMENDED: "✏️",
+                      BLOCK_CANCELLED: "🚫",
+                    };
+                    const icon = actionIcons[log.action] || "📋";
+                    return (
+                      <div key={log.id} className="rounded-lg border bg-muted/20 p-3 space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span>{icon}</span>
+                          <span className="text-sm font-medium">{log.action.replace(/_/g, " ")}</span>
+                        </div>
+                        {log.details && <p className="text-xs text-muted-foreground">{log.details}</p>}
+                        <p className="text-xs text-muted-foreground/70">
+                          {format(new Date(log.created_at), "dd MMM yyyy 'at' HH:mm:ss")}
                         </p>
                       </div>
                     );

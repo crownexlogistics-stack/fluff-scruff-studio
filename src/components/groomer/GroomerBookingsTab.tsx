@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { logAudit } from "@/lib/auditLog";
 import { format, addDays, startOfDay } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -167,11 +168,18 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
           });
         } catch {}
       }
+
+      logAudit({
+        staffId: block.staff_id,
+        action: "BLOCK_CANCELLED",
+        details: `Cancelled block on ${format(new Date(block.booking_date), "dd MMM yyyy")} ${block.booking_time?.slice(0, 5)}-${block.end_time?.slice(0, 5) || "?"}`,
+      });
     },
     onSuccess: () => {
-      toast.success("Block cancelled & logged");
+      toast.success("Block cancelled");
       queryClient.invalidateQueries({ queryKey: ["groomer-overrides"] });
       queryClient.invalidateQueries({ queryKey: ["staff-notes"] });
+      queryClient.invalidateQueries({ queryKey: ["audit-logs"] });
     },
     onError: (e: any) => toast.error(e.message),
   });
