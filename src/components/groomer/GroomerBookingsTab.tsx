@@ -1,14 +1,18 @@
 import { useState, useMemo, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { logAudit } from "@/lib/auditLog";
 import { format, addDays, startOfDay } from "date-fns";
+import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarDays, List, ChevronLeft, ChevronRight, Dog } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { GroomerCalendar, type GroomerCalendarBooking } from "./GroomerCalendar";
 import { Card, CardContent } from "@/components/ui/card";
+import { BookingPopoverCard } from "@/components/booking-calendar/BookingPopoverCard";
 import { NewBookingDialog } from "@/components/booking-calendar/NewBookingDialog";
 import { EditBlockDialog } from "@/components/booking-calendar/EditBlockDialog";
 import { CheckoutDialog } from "@/components/booking-calendar/CheckoutDialog";
@@ -36,6 +40,7 @@ interface GroomerBookingsTabProps {
 type ViewMode = "1day" | "3day" | "7day" | "list";
 
 export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProps) {
+  const navigate = useNavigate();
   const isMobile = useIsMobile();
   const queryClient = useQueryClient();
   const [viewMode, setViewMode] = useState<ViewMode>(() => isMobile ? "3day" : "7day");
@@ -368,29 +373,56 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
             ownBookings.map(b => {
               const isToday = b.booking_date === today;
               const isPast = b.booking_date < today;
+              const bookingData = toBookingData(b);
+              const sIdx = allStaff.findIndex(s => s.id === b.staff_id);
               return (
-                <Card key={b.id} className={isPast ? "opacity-50" : ""}>
-                  <CardContent className="p-4 flex items-start justify-between gap-3">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <Dog className="h-4 w-4 text-accent" />
-                        <span className="font-semibold text-sm">{b.dog_name}</span>
-                        <span className="text-muted-foreground text-xs">({b.customer_name})</span>
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        {isToday ? "Today" : format(new Date(b.booking_date), "EEE d MMM")} at {b.booking_time.slice(0, 5)}
-                      </p>
-                      <div className="flex gap-1.5">
-                        {b.service_name && <Badge variant="outline" className="text-[10px]">{b.service_name}</Badge>}
-                        {b.breed_name && <Badge variant="secondary" className="text-[10px]">{b.breed_name}</Badge>}
-                      </div>
-                      {b.notes && <p className="text-xs text-muted-foreground">{b.notes}</p>}
-                    </div>
-                    <Badge variant={b.status === "Completed" ? "default" : b.status === "Confirmed" ? "secondary" : "outline"} className="text-xs shrink-0">
-                      {b.status}
-                    </Badge>
-                  </CardContent>
-                </Card>
+                <Popover key={b.id}>
+                  <PopoverTrigger asChild>
+                    <Card className={cn("cursor-pointer hover:shadow-md transition-shadow", isPast && "opacity-50")}>
+                      <CardContent className="p-4 flex items-start justify-between gap-3">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <Dog className="h-4 w-4 text-accent" />
+                            <span className="font-semibold text-sm">{b.dog_name}</span>
+                            <span
+                              className="text-muted-foreground text-xs hover:underline hover:text-foreground cursor-pointer"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (b.customer_email) navigate(`/admin/customers/${encodeURIComponent(b.customer_email)}`);
+                              }}
+                            >
+                              ({b.customer_name})
+                            </span>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            {isToday ? "Today" : format(new Date(b.booking_date), "EEE d MMM")} at {b.booking_time.slice(0, 5)}
+                          </p>
+                          <div className="flex gap-1.5">
+                            {b.service_name && <Badge variant="outline" className="text-[10px]">{b.service_name}</Badge>}
+                            {b.breed_name && <Badge variant="secondary" className="text-[10px]">{b.breed_name}</Badge>}
+                          </div>
+                          {b.notes && <p className="text-xs text-muted-foreground">{b.notes}</p>}
+                        </div>
+                        <Badge variant={b.status === "Completed" ? "default" : b.status === "Confirmed" ? "secondary" : b.status === "Cancelled" || b.status === "No Show" ? "destructive" : "outline"} className="text-xs shrink-0">
+                          {b.status}
+                        </Badge>
+                      </CardContent>
+                    </Card>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[calc(100vw-2rem)] sm:w-80 max-w-sm p-0" side="bottom" align="start" sideOffset={4}>
+                    <BookingPopoverCard
+                      booking={bookingData}
+                      staffIndex={sIdx >= 0 ? sIdx : 0}
+                      onEditBlock={b.is_block ? (bd) => handleEditBlock(b) : undefined}
+                      onCancelBlock={b.is_block ? (bd) => handleCancelBlock(b) : undefined}
+                      onViewOrder={(bd) => handleViewOrder(b)}
+                      onEditAppointment={(bd) => handleEditAppointment(b)}
+                      onCancelBooking={(bd) => handleCancelBooking(b)}
+                      onBookAgain={(bd) => handleBookAgain(b)}
+                      onCheckout={(bd) => handleCheckout(b)}
+                    />
+                  </PopoverContent>
+                </Popover>
               );
             })
           )}
