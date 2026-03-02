@@ -551,15 +551,12 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
       } catch { /* ignore */ }
     }
 
-    // Send confirmation email if customer provided email
-    if (guestForm.email && insertedBooking?.id) {
-      supabase.functions.invoke("send-booking-email", {
-        body: { booking_id: insertedBooking.id, email_type: "confirmation" },
-      }).catch(() => {}); // fire-and-forget
-    }
-
-    // Redirect to Stripe for deposit payment
+    // Redirect to Stripe for payment FIRST — do NOT confirm or email until payment succeeds
     try {
+      if (totalPrice <= 0) {
+        throw new Error("Total price must be greater than £0");
+      }
+
       const { data: checkoutData, error: checkoutError } = await supabase.functions.invoke("create-deposit-checkout", {
         body: {
           customer_name: guestForm.name,
@@ -584,11 +581,12 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
       return;
     } catch (stripeErr: any) {
       console.error("Stripe checkout error:", stripeErr);
-      setAlertMessage("Payment setup failed. Your booking is saved — we'll contact you for payment.");
+      // Delete the pending booking since payment failed
+      await supabase.from("bookings").delete().eq("id", insertedBooking.id);
+      setAlertMessage("Payment could not be processed. Please try again.");
+      setIsSubmitting(false);
+      return; // Stay on the page — do NOT close
     }
-
-    setIsSubmitting(false);
-    onClose();
   };
 
   const goBack = useCallback(() => {
