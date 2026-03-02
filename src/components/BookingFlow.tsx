@@ -307,7 +307,9 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
   };
 
   const goBack = useCallback(() => {
-    if (step === "guest-details") {
+    if (step === "guest-details" && isFixedPrice) {
+      setStep("calendar");
+    } else if (step === "guest-details") {
       setStep("addons");
     } else if (step === "addons") {
       setStep("calendar");
@@ -365,7 +367,8 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
 
   const handleTimeClick = (time: string) => {
     setSelectedTime(time);
-    setTimeout(() => setStep("addons"), 300);
+    // Fixed-price services skip add-ons
+    setTimeout(() => setStep(isFixedPrice ? "guest-details" : "addons"), 300);
   };
 
   const prevWeek = () => {
