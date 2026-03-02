@@ -56,7 +56,7 @@ export function WeeklyCalendar({ weekStart, staff, bookings, staffIndexMap, onBo
         ))}
       </div>
 
-      <ScrollArea className="h-[calc(100vh-220px)]">
+      <ScrollArea className="h-[calc(100vh-260px)] sm:h-[calc(100vh-220px)]">
         <div className="relative grid" style={{ gridTemplateColumns: `60px repeat(${days.length}, 1fr)` }}>
           <div className="border-r">
             {HOURS.map(hour => (

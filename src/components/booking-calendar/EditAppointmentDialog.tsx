@@ -141,7 +141,7 @@ export function EditAppointmentDialog({ open, onOpenChange, booking }: EditAppoi
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             <div className="space-y-1">
               <Label>Date</Label>
               <Input type="date" value={form.booking_date} onChange={(e) => setForm({ ...form, booking_date: e.target.value })} />
@@ -162,7 +162,7 @@ export function EditAppointmentDialog({ open, onOpenChange, booking }: EditAppoi
             </Select>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             <div className="space-y-1">
               <Label>Service</Label>
               <Select value={form.service_id} onValueChange={(v) => setForm({ ...form, service_id: v })}>
@@ -183,7 +183,7 @@ export function EditAppointmentDialog({ open, onOpenChange, booking }: EditAppoi
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             <div className="space-y-1">
               <Label>Total Price (£)</Label>
               <Input type="number" value={form.total_price} onChange={(e) => setForm({ ...form, total_price: Number(e.target.value) })} />

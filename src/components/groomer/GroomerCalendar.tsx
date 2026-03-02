@@ -78,7 +78,7 @@ function SlotAction({ date, hour, staffId, staffName, canBlock, onBook, onBlock 
       <PopoverTrigger asChild>
         <div className="h-14 border-b cursor-pointer hover:bg-primary/[0.04] transition-colors" />
       </PopoverTrigger>
-      <PopoverContent className="w-52 p-2" side="right" align="start">
+      <PopoverContent className="w-48 sm:w-52 p-2" side="bottom" align="center" sideOffset={4}>
         <div className="space-y-1">
           <button
             className="w-full flex items-center gap-3 rounded-md px-3 py-2.5 text-sm hover:bg-accent text-left"
@@ -115,7 +115,7 @@ function OwnBookingPopover({ booking, color, onViewOrder, onEditAppointment, onC
   const total = Number(booking.total_price || 0);
 
   return (
-    <PopoverContent className="w-80 p-0" side="right" align="start">
+    <PopoverContent className="w-[calc(100vw-2rem)] sm:w-80 max-w-sm p-0" side="bottom" align="center" sideOffset={4}>
       <div className="p-4 space-y-3">
         {/* Customer info */}
         <div className="flex items-center gap-3">
@@ -222,7 +222,7 @@ function OwnBookingPopover({ booking, color, onViewOrder, onEditAppointment, onC
         )}
 
         {/* Action bar */}
-        <div className="border-t pt-3 flex items-center gap-2">
+        <div className="border-t pt-3 flex flex-wrap items-center gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -391,7 +391,7 @@ export function GroomerCalendar({ currentDate, daysToShow, staff, bookings, curr
                                     {booking.notes && <p className="truncate opacity-80">{booking.notes}</p>}
                                   </div>
                                 </PopoverTrigger>
-                                <PopoverContent className="w-52 p-2" side="right" align="start">
+                                <PopoverContent className="w-48 sm:w-52 p-2" side="bottom" align="center" sideOffset={4}>
                                   <div className="space-y-1">
                                     <p className="text-xs font-medium px-2 py-1 text-muted-foreground">
                                       {booking.booking_time.slice(0, 5)} – {booking.end_time?.slice(0, 5) || "?"}

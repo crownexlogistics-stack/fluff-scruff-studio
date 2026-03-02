@@ -385,42 +385,46 @@ export default function CustomerProfilePage() {
 
   return (
     <AppLayout>
-      <div className="space-y-0 max-w-5xl">
+      <div className="space-y-0 max-w-5xl px-0">
         <Button variant="ghost" size="sm" className="mb-4" onClick={() => navigate(-1)}>
           <ArrowLeft className="h-4 w-4 mr-1" /> Back
         </Button>
 
         {/* ═══ HEADER CARD ═══ */}
         <Card className="rounded-b-none">
-          <CardContent className="p-6">
-            <div className="flex items-start gap-5">
-              <div className="h-16 w-16 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
-                <span className="text-xl font-bold text-primary">{initials}</span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-3 mb-1">
-                  {isEditing ? (
-                    <Input value={editName} onChange={(e) => setEditName(e.target.value)} className="text-xl font-bold h-9 max-w-xs" />
-                  ) : (
-                    <h1 className="text-2xl font-heading font-bold truncate">{customerName}</h1>
-                  )}
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-5">
+              <div className="flex items-center gap-3 sm:block">
+                <div className="h-12 w-12 sm:h-16 sm:w-16 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
+                  <span className="text-lg sm:text-xl font-bold text-primary">{initials}</span>
                 </div>
-                <div className="flex gap-2 mt-1">
+              </div>
+              <div className="flex-1 min-w-0 w-full">
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <div className="min-w-0 flex-1">
+                    {isEditing ? (
+                      <Input value={editName} onChange={(e) => setEditName(e.target.value)} className="text-lg sm:text-xl font-bold h-9 w-full" />
+                    ) : (
+                      <h1 className="text-xl sm:text-2xl font-heading font-bold truncate">{customerName}</h1>
+                    )}
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    {isEditing ? (
+                      <>
+                        <Button size="sm" variant="ghost" onClick={() => setIsEditing(false)}><X className="h-4 w-4" /><span className="hidden sm:inline ml-1">Cancel</span></Button>
+                        <Button size="sm" onClick={saveEdits} disabled={updateCustomerMutation.isPending}><Check className="h-4 w-4" /><span className="hidden sm:inline ml-1">Save</span></Button>
+                      </>
+                    ) : (
+                      <Button size="sm" variant="outline" onClick={startEditing}><Pencil className="h-4 w-4" /><span className="hidden sm:inline ml-1">Edit</span></Button>
+                    )}
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2 mt-1">
                   <Badge variant="secondary">{bookings?.length || 0} booking{(bookings?.length || 0) !== 1 ? "s" : ""}</Badge>
                   {(bookings?.length || 0) >= 2 && (
-                    <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">Returning Customer</Badge>
+                    <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">Returning</Badge>
                   )}
                 </div>
-              </div>
-              <div className="flex gap-2 shrink-0">
-                {isEditing ? (
-                  <>
-                    <Button size="sm" variant="ghost" onClick={() => setIsEditing(false)}><X className="h-4 w-4 mr-1" /> Cancel</Button>
-                    <Button size="sm" onClick={saveEdits} disabled={updateCustomerMutation.isPending}><Check className="h-4 w-4 mr-1" /> Save</Button>
-                  </>
-                ) : (
-                  <Button size="sm" variant="outline" onClick={startEditing}><Pencil className="h-4 w-4 mr-1" /> Edit</Button>
-                )}
               </div>
             </div>
             <Separator className="my-5" />
@@ -444,7 +448,7 @@ export default function CustomerProfilePage() {
         {/* ═══ TABS ═══ */}
         <Tabs defaultValue="overview" className="w-full">
           <div className="border border-t-0 rounded-b-lg bg-card px-2">
-            <TabsList className="bg-transparent h-12 w-full justify-start gap-0 rounded-none border-b flex-wrap">
+            <TabsList className="bg-transparent h-auto min-h-[3rem] w-full justify-start gap-0 rounded-none border-b flex-wrap py-1">
               <TabsTrigger value="overview" className={tabTriggerClass}>Overview</TabsTrigger>
               <TabsTrigger value="notes" className={tabTriggerClass}>Notes {notes && notes.length > 0 && `(${notes.length})`}</TabsTrigger>
               <TabsTrigger value="bookings" className={tabTriggerClass}>Bookings</TabsTrigger>
@@ -607,14 +611,14 @@ export default function CustomerProfilePage() {
                   <div className="space-y-2">
                     {allEmails.map((em) => (
                       <div key={em.id} className="p-3 rounded-lg border bg-muted/30">
-                        <div className="flex items-center justify-between mb-1">
-                          <div className="flex items-center gap-2">
-                            <Badge variant={em.direction === "inbound" ? "default" : "outline"} className="text-[10px] px-1.5 py-0">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-1">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <Badge variant={em.direction === "inbound" ? "default" : "outline"} className="text-[10px] px-1.5 py-0 shrink-0">
                               {em.direction === "inbound" ? "Received" : "Sent"}
                             </Badge>
-                            <p className="text-sm font-medium">{em.displaySubject}</p>
+                            <p className="text-sm font-medium truncate">{em.displaySubject}</p>
                           </div>
-                          <span className="text-xs text-muted-foreground">{format(new Date(em.created_at), "dd MMM yyyy, HH:mm")}</span>
+                          <span className="text-xs text-muted-foreground shrink-0">{format(new Date(em.created_at), "dd MMM yyyy, HH:mm")}</span>
                         </div>
                         <p className="text-sm text-muted-foreground whitespace-pre-wrap line-clamp-3">{em.body}</p>
                         {em.direction === "inbound" && (em as any).from_name && (
@@ -713,7 +717,7 @@ export default function CustomerProfilePage() {
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Edit Appointment — {editingBooking?.customer_name}</DialogTitle></DialogHeader>
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div className="space-y-1">
                 <Label>Date</Label>
                 <Input type="date" value={bookingForm.booking_date} onChange={(e) => setBookingForm({ ...bookingForm, booking_date: e.target.value })} />
@@ -730,7 +734,7 @@ export default function CustomerProfilePage() {
                 <SelectContent>{allStaff?.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div className="space-y-1">
                 <Label>Service</Label>
                 <Select value={bookingForm.service_id} onValueChange={(v) => setBookingForm({ ...bookingForm, service_id: v })}>
@@ -746,7 +750,7 @@ export default function CustomerProfilePage() {
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div className="space-y-1">
                 <Label>Total Price (£)</Label>
                 <Input type="number" value={bookingForm.total_price} onChange={(e) => setBookingForm({ ...bookingForm, total_price: Number(e.target.value) })} />

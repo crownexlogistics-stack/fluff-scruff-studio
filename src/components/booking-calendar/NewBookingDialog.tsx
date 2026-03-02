@@ -244,7 +244,7 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
             </>
           ) : (
             <>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div className="space-y-1">
                   <Label>Date</Label>
                   <Input type="date" value={form.booking_date} onChange={(e) => setForm({ ...form, booking_date: e.target.value })} />
@@ -265,7 +265,7 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
                 </Select>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div className="space-y-1">
                   <Label>Customer Name</Label>
                   <Input value={form.customer_name} onChange={(e) => setForm({ ...form, customer_name: e.target.value })} />
@@ -275,7 +275,7 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
                   <Input value={form.dog_name} onChange={(e) => setForm({ ...form, dog_name: e.target.value })} />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div className="space-y-1">
                   <Label>Email</Label>
                   <Input type="email" value={form.customer_email} onChange={(e) => setForm({ ...form, customer_email: e.target.value })} />
@@ -285,7 +285,7 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
                   <Input value={form.customer_phone} onChange={(e) => setForm({ ...form, customer_phone: e.target.value })} />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div className="space-y-1">
                   <Label>Service</Label>
                   <Select value={form.service_id} onValueChange={(v) => setForm({ ...form, service_id: v })}>
@@ -305,7 +305,7 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
                   </Select>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div className="space-y-1">
                   <Label>Total Price (£)</Label>
                   <Input type="number" value={form.total_price} onChange={(e) => setForm({ ...form, total_price: Number(e.target.value) })} />
