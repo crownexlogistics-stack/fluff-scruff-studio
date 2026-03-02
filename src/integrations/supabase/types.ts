@@ -403,6 +403,8 @@ export type Database = {
         Row: {
           breed_id: string | null
           created_at: string
+          dog_age_months: number | null
+          dog_age_years: number | null
           id: string
           notes: string | null
           pet_name: string
@@ -411,6 +413,8 @@ export type Database = {
         Insert: {
           breed_id?: string | null
           created_at?: string
+          dog_age_months?: number | null
+          dog_age_years?: number | null
           id?: string
           notes?: string | null
           pet_name: string
@@ -419,6 +423,8 @@ export type Database = {
         Update: {
           breed_id?: string | null
           created_at?: string
+          dog_age_months?: number | null
+          dog_age_years?: number | null
           id?: string
           notes?: string | null
           pet_name?: string

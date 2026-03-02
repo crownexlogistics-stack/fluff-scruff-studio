@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, PawPrint, LogIn, UserPlus, Dog, Plus, Search, ChevronRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { BookingFlow } from "@/components/BookingFlow";
@@ -22,6 +23,8 @@ interface PetWithBreed {
   notes: string | null;
   breed_id: string | null;
   breed_name?: string;
+  dog_age_years?: number | null;
+  dog_age_months?: number | null;
 }
 
 const BookingEntryPage = () => {
@@ -47,8 +50,17 @@ const BookingEntryPage = () => {
   const [breedSearch, setBreedSearch] = useState("");
   const [selectedBreedId, setSelectedBreedId] = useState<string | null>(null);
 
+  // Existing customer multi-step: pet → service → (missing info) → BookingFlow
+  const [selectedPet, setSelectedPet] = useState<PetWithBreed | null>(null);
+  const [selectedServiceForPet, setSelectedServiceForPet] = useState<string | null>(null);
+  const [missingInfoStep, setMissingInfoStep] = useState(false);
+  const [missingBreedId, setMissingBreedId] = useState<string | null>(null);
+  const [missingBreedSearch, setMissingBreedSearch] = useState("");
+  const [missingAgeYears, setMissingAgeYears] = useState<string>("0");
+  const [missingAgeMonths, setMissingAgeMonths] = useState<string>("0");
+
   // Booking flow state
-  const [activeBooking, setActiveBooking] = useState<{ petId: string; breedId: string | null; petName: string } | null>(null);
+  const [activeBooking, setActiveBooking] = useState<{ petId: string; breedId: string | null; petName: string; service: string; dogAgeYears?: number | null; dogAgeMonths?: number | null } | null>(null);
 
   // Fetch customer pets
   const { data: pets = [], refetch: refetchPets } = useQuery({
@@ -57,7 +69,7 @@ const BookingEntryPage = () => {
       if (!user) return [];
       const { data, error } = await supabase
         .from("customer_pets")
-        .select("id, pet_name, notes, breed_id, breeds(name)")
+        .select("id, pet_name, notes, breed_id, dog_age_years, dog_age_months, breeds(name)")
         .eq("user_id", user.id)
         .order("created_at");
       if (error) throw error;
@@ -67,6 +79,8 @@ const BookingEntryPage = () => {
         notes: p.notes,
         breed_id: p.breed_id,
         breed_name: p.breeds?.name || null,
+        dog_age_years: p.dog_age_years,
+        dog_age_months: p.dog_age_months,
       })) as PetWithBreed[];
     },
     enabled: !!user,
@@ -86,6 +100,10 @@ const BookingEntryPage = () => {
     ? breeds.filter(b => b.name.toLowerCase().includes(breedSearch.toLowerCase()))
     : [];
 
+  const filteredMissingBreeds = missingBreedSearch.length > 0
+    ? breeds.filter(b => b.name.toLowerCase().includes(missingBreedSearch.toLowerCase()))
+    : [];
+
   // Auth handlers
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -95,10 +113,7 @@ const BookingEntryPage = () => {
     if (error) {
       toast({ title: "Login failed", description: error.message, variant: "destructive" });
     }
-    // On success, user state updates automatically
   };
-
-
 
   const handleForgot = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -134,9 +149,73 @@ const BookingEntryPage = () => {
     }
   };
 
-  // Select pet and start booking
+  // Select pet → show service picker
   const selectPetForBooking = (pet: PetWithBreed) => {
-    setActiveBooking({ petId: pet.id, breedId: pet.breed_id, petName: pet.pet_name });
+    setSelectedPet(pet);
+    setSelectedServiceForPet(null);
+    setMissingInfoStep(false);
+  };
+
+  // Does service need breed?
+  const serviceNeedsBreed = (svc: string) => svc === "Grooming" || svc === "Puppy Special";
+
+  // Handle service selection for existing customer's pet
+  const handleServiceForPet = async (serviceName: string) => {
+    if (!selectedPet) return;
+    const needsBreed = serviceNeedsBreed(serviceName);
+    const hasMissingBreed = needsBreed && !selectedPet.breed_id;
+    const hasMissingAge = needsBreed && (selectedPet.dog_age_years == null && selectedPet.dog_age_months == null);
+
+    if (hasMissingBreed || hasMissingAge) {
+      setSelectedServiceForPet(serviceName);
+      setMissingInfoStep(true);
+      setMissingBreedId(selectedPet.breed_id);
+      setMissingBreedSearch(selectedPet.breed_name || "");
+      setMissingAgeYears(selectedPet.dog_age_years != null ? String(selectedPet.dog_age_years) : "0");
+      setMissingAgeMonths(selectedPet.dog_age_months != null ? String(selectedPet.dog_age_months) : "0");
+    } else {
+      // All info present, go to booking
+      setActiveBooking({
+        petId: selectedPet.id,
+        breedId: selectedPet.breed_id,
+        petName: selectedPet.pet_name,
+        service: serviceName,
+        dogAgeYears: selectedPet.dog_age_years,
+        dogAgeMonths: selectedPet.dog_age_months,
+      });
+    }
+  };
+
+  // Save missing info and proceed
+  const handleMissingInfoSubmit = async () => {
+    if (!selectedPet || !selectedServiceForPet) return;
+    const needsBreed = serviceNeedsBreed(selectedServiceForPet);
+    const breedId = needsBreed ? (missingBreedId || selectedPet.breed_id) : selectedPet.breed_id;
+    const ageYears = parseInt(missingAgeYears) || 0;
+    const ageMonths = parseInt(missingAgeMonths) || 0;
+
+    // Update pet with missing info
+    const updates: any = {};
+    if (needsBreed && !selectedPet.breed_id && breedId) updates.breed_id = breedId;
+    if (needsBreed && selectedPet.dog_age_years == null) {
+      updates.dog_age_years = ageYears;
+      updates.dog_age_months = ageMonths;
+    }
+
+    if (Object.keys(updates).length > 0) {
+      await supabase.from("customer_pets").update(updates).eq("id", selectedPet.id);
+      refetchPets();
+    }
+
+    setActiveBooking({
+      petId: selectedPet.id,
+      breedId: breedId,
+      petName: selectedPet.pet_name,
+      service: selectedServiceForPet,
+      dogAgeYears: ageYears,
+      dogAgeMonths: ageMonths,
+    });
+    setMissingInfoStep(false);
   };
 
   if (authLoading) {
@@ -147,20 +226,21 @@ const BookingEntryPage = () => {
     );
   }
 
-  // If booking flow is active (logged-in user selected a pet)
+  // If booking flow is active (logged-in user selected a pet + service)
   if (activeBooking) {
     return (
       <BookingFlow
-        service={serviceParam}
-        onClose={() => setActiveBooking(null)}
+        service={activeBooking.service}
+        onClose={() => { setActiveBooking(null); setSelectedPet(null); setSelectedServiceForPet(null); }}
         preselectedBreedId={activeBooking.breedId}
         preselectedPetName={activeBooking.petName}
+        dogAgeYears={activeBooking.dogAgeYears}
+        dogAgeMonths={activeBooking.dogAgeMonths}
       />
     );
   }
 
   // New customer flow: service selection then booking
-
   const allServices = [
     { title: "Grooming", subtitle: "The ultimate pamper session — wash, dry, cut & style. Your pup leaves looking like a supermodel.", image: serviceFullGroom, imagePosition: "50% 43%" },
     { title: "Puppy Special", subtitle: "A gentle, fun first grooming experience. We go at their pace with loads of treats & cuddles.", image: servicePuppy, imagePosition: "50% 52%" },
@@ -199,7 +279,12 @@ const BookingEntryPage = () => {
       {/* Header */}
       <nav className="sticky top-0 z-50 glass border-b border-border/50">
         <div className="max-w-2xl mx-auto px-4 sm:px-6 h-16 flex items-center gap-3">
-          <button onClick={() => navigate("/")} className="text-muted-foreground hover:text-foreground transition-colors">
+          <button onClick={() => {
+            if (missingInfoStep) { setMissingInfoStep(false); return; }
+            if (selectedPet && selectedServiceForPet) { setSelectedServiceForPet(null); return; }
+            if (selectedPet) { setSelectedPet(null); return; }
+            navigate("/");
+          }} className="text-muted-foreground hover:text-foreground transition-colors">
             <ArrowLeft className="h-5 w-5" />
           </button>
           <img src={logo} alt="Fluff & Scruff" className="h-10 w-auto" />
@@ -289,8 +374,6 @@ const BookingEntryPage = () => {
               </div>
             )}
 
-
-
             {authMode === "forgot" && (
               <div className="space-y-6 animate-fade-in">
                 <button onClick={() => setAuthMode("login")} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
@@ -314,8 +397,8 @@ const BookingEntryPage = () => {
           </>
         )}
 
-        {/* LOGGED IN — show pet selector */}
-        {user && (
+        {/* LOGGED IN */}
+        {user && !selectedPet && (
           <div className="space-y-6 animate-fade-in">
             <div className="text-center">
               <div className="flex items-center justify-center w-16 h-16 rounded-full bg-accent/10 mx-auto mb-4">
@@ -422,6 +505,133 @@ const BookingEntryPage = () => {
                 <p className="text-muted-foreground text-sm">Add your first dog to get started with booking</p>
               </div>
             )}
+          </div>
+        )}
+
+        {/* LOGGED IN — Pet selected, show service picker */}
+        {user && selectedPet && !missingInfoStep && !selectedServiceForPet && (
+          <div className="space-y-6 animate-fade-in">
+            <div className="text-center">
+              <div className="flex items-center justify-center w-16 h-16 rounded-full bg-accent/10 mx-auto mb-4">
+                <Dog className="h-7 w-7 text-accent" />
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-heading text-foreground">What does {selectedPet.pet_name} need?</h1>
+              <p className="text-muted-foreground text-sm mt-2">Choose a service</p>
+            </div>
+
+            <div className="space-y-3">
+              {allServices.map((svc) => (
+                <button
+                  key={svc.title}
+                  onClick={() => handleServiceForPet(svc.title)}
+                  className="w-full rounded-2xl border-2 border-border/60 bg-card p-4 text-left hover:border-accent/40 hover:shadow-lg hover:shadow-black/[0.04] transition-all duration-300 group"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="h-14 w-14 shrink-0 rounded-xl overflow-hidden">
+                      <img src={svc.image} alt={svc.title} className="h-full w-full object-cover" style={{ objectPosition: svc.imagePosition || "50% 50%" }} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-foreground">{svc.title}</p>
+                      <p className="text-sm text-muted-foreground line-clamp-2">{svc.subtitle}</p>
+                    </div>
+                    <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-accent transition-colors shrink-0" />
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* LOGGED IN — Missing info step (breed/age) */}
+        {user && selectedPet && missingInfoStep && selectedServiceForPet && (
+          <div className="space-y-6 animate-fade-in">
+            <div className="text-center">
+              <div className="flex items-center justify-center w-16 h-16 rounded-full bg-accent/10 mx-auto mb-4">
+                <PawPrint className="h-7 w-7 text-accent" />
+              </div>
+              <h1 className="text-2xl font-heading text-foreground">A few more details about {selectedPet.pet_name}</h1>
+              <p className="text-muted-foreground text-sm mt-2">We need this to match the best service & pricing</p>
+            </div>
+
+            {/* Breed picker (only if missing) */}
+            {!selectedPet.breed_id && (
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Breed</Label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
+                  <Input
+                    placeholder="Search breed…"
+                    value={missingBreedSearch}
+                    onChange={(e) => { setMissingBreedSearch(e.target.value); setMissingBreedId(null); }}
+                    className="pl-10 h-12 rounded-xl"
+                  />
+                </div>
+                {missingBreedId && (
+                  <p className="text-sm text-accent font-medium">
+                    ✓ {breeds.find(b => b.id === missingBreedId)?.name}
+                  </p>
+                )}
+                {missingBreedSearch.length > 0 && !missingBreedId && (
+                  <div className="border rounded-xl max-h-40 overflow-y-auto bg-card shadow-lg">
+                    {filteredMissingBreeds.length > 0 ? filteredMissingBreeds.map(b => (
+                      <button
+                        key={b.id}
+                        onClick={() => { setMissingBreedId(b.id); setMissingBreedSearch(b.name); }}
+                        className="w-full text-left px-3 py-2.5 text-sm hover:bg-muted/50 transition-colors border-b border-border/30 last:border-0"
+                      >
+                        {b.name}
+                      </button>
+                    )) : (
+                      <p className="px-3 py-2 text-sm text-muted-foreground">No breeds found</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Age picker (only if missing) */}
+            {selectedPet.dog_age_years == null && selectedPet.dog_age_months == null && (
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">{selectedPet.pet_name}'s Age</Label>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Years</Label>
+                    <Select value={missingAgeYears} onValueChange={setMissingAgeYears}>
+                      <SelectTrigger className="h-12 rounded-xl">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Array.from({ length: 21 }, (_, i) => (
+                          <SelectItem key={i} value={String(i)}>{i} {i === 1 ? "year" : "years"}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Months</Label>
+                    <Select value={missingAgeMonths} onValueChange={setMissingAgeMonths}>
+                      <SelectTrigger className="h-12 rounded-xl">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Array.from({ length: 12 }, (_, i) => (
+                          <SelectItem key={i} value={String(i)}>{i} {i === 1 ? "month" : "months"}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <Button
+              onClick={handleMissingInfoSubmit}
+              className="w-full h-14 text-base rounded-xl"
+              size="lg"
+              disabled={!selectedPet.breed_id && !missingBreedId}
+            >
+              Continue to Booking
+            </Button>
           </div>
         )}
       </div>
