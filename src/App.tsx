@@ -23,6 +23,7 @@ import MyPetsPage from "./pages/MyPetsPage";
 import IncidentReportsPage from "./pages/IncidentReportsPage";
 import RiskAssessmentsPage from "./pages/RiskAssessmentsPage";
 import RulesPage from "./pages/RulesPage";
+import TermsEditorPage from "./pages/TermsEditorPage";
 import MessagesPage from "./pages/MessagesPage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import BookingEntryPage from "./pages/BookingEntryPage";
@@ -56,6 +57,7 @@ const App = () => (
           {/* Manager only */}
           <Route path="/admin" element={<ProtectedRoute allowedRoles={["manager", "director"]}><AdminDashboard /></ProtectedRoute>} />
           <Route path="/admin/users" element={<ProtectedRoute allowedRoles={["director"]}><AdminUsersPage /></ProtectedRoute>} />
+          <Route path="/admin/terms" element={<ProtectedRoute allowedRoles={["director"]}><TermsEditorPage /></ProtectedRoute>} />
           <Route path="/breeds" element={<ProtectedRoute allowedRoles={["director"]}><BreedsPage /></ProtectedRoute>} />
           <Route path="/add-ons" element={<ProtectedRoute allowedRoles={["manager", "director"]}><AddOnsPage /></ProtectedRoute>} />
           

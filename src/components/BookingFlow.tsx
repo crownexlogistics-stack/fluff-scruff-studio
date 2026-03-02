@@ -108,6 +108,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [guestForm, setGuestForm] = useState({ name: "", phone: "", email: "", dogName: preselectedPetName || "", password: "" });
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const queryClient = useQueryClient();
 
   // Set initial step once we know if it's fixed-price
@@ -227,6 +228,10 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
   const handleGuestSubmit = async () => {
     if (!guestForm.name.trim() || !guestForm.dogName.trim()) {
       toast.error("Please fill in your name and dog's name");
+      return;
+    }
+    if (!acceptedTerms) {
+      toast.error("Please accept the Terms & Conditions to continue");
       return;
     }
 
@@ -774,7 +779,28 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
               </div>
             </div>
 
-            <Button onClick={handleGuestSubmit} className="w-full h-14 text-base rounded-xl" size="lg">
+            <label className="flex items-start gap-3 cursor-pointer group">
+              <input
+                type="checkbox"
+                checked={acceptedTerms}
+                onChange={(e) => setAcceptedTerms(e.target.checked)}
+                className="mt-1 h-4 w-4 rounded border-border accent-primary cursor-pointer"
+              />
+              <span className="text-sm text-muted-foreground leading-relaxed">
+                I agree to the{" "}
+                <a
+                  href="/terms"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-accent underline underline-offset-2 hover:text-accent/80"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  Terms & Conditions
+                </a>
+              </span>
+            </label>
+
+            <Button onClick={handleGuestSubmit} disabled={!acceptedTerms} className="w-full h-14 text-base rounded-xl" size="lg">
               {isNewCustomer ? `Create Account & Book £${totalPrice}` : `Confirm Booking £${totalPrice}`}
             </Button>
           </div>
