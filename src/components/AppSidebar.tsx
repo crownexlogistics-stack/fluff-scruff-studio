@@ -3,7 +3,7 @@ import {
   UserPlus, CalendarClock, ChevronDown, Megaphone,
   UsersRound, BarChart3, Tags, Search, Facebook, Mail,
   LogOut, Sparkles, AlertTriangle, ShieldCheck, BookOpen,
-  Inbox,
+  Inbox, FileText,
 } from "lucide-react";
 import logo from "@/assets/logo-transparent.png";
 import { NavLink } from "@/components/NavLink";
@@ -58,6 +58,7 @@ const marketingSubItems = [
 
 const directorOnlyItems = [
   { title: "Users", url: "/admin/users", icon: Crown },
+  { title: "Terms & Conditions", url: "/admin/terms", icon: FileText },
 ];
 
 export function AppSidebar() {
