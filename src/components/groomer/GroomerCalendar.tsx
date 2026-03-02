@@ -31,6 +31,7 @@ export interface GroomerCalendarBooking {
   service_name?: string;
   breed_name?: string;
   is_block?: boolean;
+  is_overtime?: boolean;
   is_own: boolean;
   total_price?: number;
   deposit_paid?: number;
@@ -56,6 +57,8 @@ interface GroomerCalendarProps {
   onOvertime?: (date: Date, hour: number, staffId: string) => void;
   onEditBlock?: (booking: GroomerCalendarBooking) => void;
   onCancelBlock?: (booking: GroomerCalendarBooking) => void;
+  onEditOvertime?: (booking: GroomerCalendarBooking) => void;
+  onCancelOvertime?: (booking: GroomerCalendarBooking) => void;
   onViewOrder?: (booking: GroomerCalendarBooking) => void;
   onEditAppointment?: (booking: GroomerCalendarBooking) => void;
   onCancelBooking?: (booking: GroomerCalendarBooking) => void;
@@ -291,7 +294,7 @@ function OwnBookingPopover({ booking, color, onViewOrder, onEditAppointment, onC
   );
 }
 
-export function GroomerCalendar({ currentDate, daysToShow, staff, bookings, currentStaffId, userRole, onBook, onBlock, onOvertime, onEditBlock, onCancelBlock, onViewOrder, onEditAppointment, onCancelBooking, onBookAgain, onCheckout }: GroomerCalendarProps) {
+export function GroomerCalendar({ currentDate, daysToShow, staff, bookings, currentStaffId, userRole, onBook, onBlock, onOvertime, onEditBlock, onCancelBlock, onEditOvertime, onCancelOvertime, onViewOrder, onEditAppointment, onCancelBooking, onBookAgain, onCheckout }: GroomerCalendarProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const canInteract = !!onBook && !!onBlock && (userRole === "groomer" || userRole === "manager" || userRole === "director");
 
@@ -456,6 +459,54 @@ export function GroomerCalendar({ currentDate, daysToShow, staff, bookings, curr
                               style={{ top: `${topOffset}px`, height: `${durationHours * SLOT_HEIGHT}px`, minHeight: "20px" }}
                             >
                               <p className="font-bold truncate">Off</p>
+                            </div>
+                          );
+                        }
+
+                        // Overtime rendering
+                        if (booking.is_overtime) {
+                          const canEditOvertime = booking.is_own && (userRole === "groomer" || userRole === "manager" || userRole === "director");
+                          if (canEditOvertime && onEditOvertime && onCancelOvertime) {
+                            return (
+                              <Popover key={booking.id}>
+                                <PopoverTrigger asChild>
+                                  <div
+                                    className="absolute left-0.5 right-0.5 rounded px-1 py-0.5 text-[10px] z-10 cursor-pointer hover:opacity-90 bg-emerald-100 text-emerald-900 border border-emerald-300"
+                                    style={{ top: `${topOffset}px`, height: `${durationHours * SLOT_HEIGHT}px`, minHeight: "20px" }}
+                                  >
+                                    <p className="font-bold truncate flex items-center gap-0.5"><Clock className="h-2.5 w-2.5" /> OT</p>
+                                    {booking.notes && <p className="truncate opacity-80">{booking.notes}</p>}
+                                  </div>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-48 sm:w-52 p-2" side="bottom" align="center" sideOffset={4}>
+                                  <div className="space-y-1">
+                                    <p className="text-xs font-medium px-2 py-1 text-muted-foreground">
+                                      Overtime: {booking.booking_time.slice(0, 5)} – {booking.end_time?.slice(0, 5) || "?"}
+                                    </p>
+                                    {booking.notes && <p className="text-xs px-2 pb-1 text-muted-foreground">{booking.notes}</p>}
+                                    <button
+                                      className="w-full flex items-center gap-3 rounded-md px-3 py-2.5 text-sm hover:bg-accent text-left"
+                                      onClick={() => onEditOvertime(booking)}
+                                    >
+                                      <Pencil className="h-4 w-4" /> Edit overtime
+                                    </button>
+                                    <button
+                                      className="w-full flex items-center gap-3 rounded-md px-3 py-2.5 text-sm hover:bg-destructive/10 text-destructive text-left"
+                                      onClick={() => onCancelOvertime(booking)}
+                                    >
+                                      <Trash2 className="h-4 w-4" /> Remove overtime
+                                    </button>
+                                  </div>
+                                </PopoverContent>
+                              </Popover>
+                            );
+                          }
+                          return (
+                            <div key={booking.id}
+                              className="absolute left-0.5 right-0.5 rounded px-1 py-0.5 text-[10px] z-10 bg-emerald-100 text-emerald-900 border border-emerald-300 opacity-70"
+                              style={{ top: `${topOffset}px`, height: `${durationHours * SLOT_HEIGHT}px`, minHeight: "20px" }}
+                            >
+                              <p className="font-bold truncate flex items-center gap-0.5"><Clock className="h-2.5 w-2.5" /> OT</p>
                             </div>
                           );
                         }

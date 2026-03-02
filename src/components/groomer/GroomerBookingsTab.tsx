@@ -15,6 +15,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { BookingPopoverCard } from "@/components/booking-calendar/BookingPopoverCard";
 import { NewBookingDialog } from "@/components/booking-calendar/NewBookingDialog";
 import { OvertimeDialog } from "@/components/booking-calendar/OvertimeDialog";
+import { EditOvertimeDialog } from "@/components/booking-calendar/EditOvertimeDialog";
 import { EditBlockDialog } from "@/components/booking-calendar/EditBlockDialog";
 import { CheckoutDialog } from "@/components/booking-calendar/CheckoutDialog";
 import { ViewOrderDialog } from "@/components/booking-calendar/ViewOrderDialog";
@@ -63,6 +64,8 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
   const [cancelBookingData, setCancelBookingData] = useState<BookingData | null>(null);
   const [overtimeOpen, setOvertimeOpen] = useState(false);
   const [overtimeDefaults, setOvertimeDefaults] = useState<{ date?: Date; hour?: number; staffId?: string }>({});
+  const [editOvertimeOpen, setEditOvertimeOpen] = useState(false);
+  const [editingOvertime, setEditingOvertime] = useState<BookingData | null>(null);
 
   const { data: allStaff = [] } = useQuery({
     queryKey: ["staff-list-groomer"],
@@ -121,23 +124,23 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
         .from("staff_schedule_overrides")
         .select("*, staff(name, id)")
         .gte("override_date", format(currentDate, "yyyy-MM-dd"))
-        .lte("override_date", format(endDate, "yyyy-MM-dd"))
-        .eq("is_working", false);
+        .lte("override_date", format(endDate, "yyyy-MM-dd"));
       if (error) throw error;
       return (data || []).map((o: any) => ({
         id: o.id,
-        customer_name: o.note || "Blocked",
+        customer_name: o.is_working ? (o.note || "Overtime") : (o.note || "Blocked"),
         dog_name: "",
         booking_date: o.override_date,
         booking_time: o.start_time || "09:00",
         end_time: o.end_time || undefined,
-        status: "Blocked",
+        status: o.is_working ? "Overtime" : "Blocked",
         notes: o.note,
         staff_id: o.staff?.id ?? o.staff_id,
         staff_name: o.staff?.name ?? "Unknown",
         service_name: "",
         breed_name: "",
-        is_block: true,
+        is_block: !o.is_working,
+        is_overtime: o.is_working,
         is_own: (o.staff?.id ?? o.staff_id) === staffId,
         total_price: 0,
         deposit_paid: 0,
@@ -204,6 +207,13 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
     setEditingBlock(toBookingData(block));
     setEditBlockOpen(true);
   }, []);
+
+  const handleEditOvertime = useCallback((overtime: GroomerCalendarBooking) => {
+    setEditingOvertime(toBookingData(overtime));
+    setEditOvertimeOpen(true);
+  }, []);
+
+  // handleCancelOvertime defined after cancelBlock mutation below
 
   const handleViewOrder = useCallback((booking: GroomerCalendarBooking) => {
     setViewOrderBooking(toBookingData(booking));
@@ -302,6 +312,10 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
     cancelBlock.mutate(block);
   }, [cancelBlock]);
 
+  const handleCancelOvertime = useCallback((overtime: GroomerCalendarBooking) => {
+    cancelBlock.mutate(overtime);
+  }, [cancelBlock]);
+
   return (
     <div className="space-y-4">
       {/* Customer Search */}
@@ -367,6 +381,8 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
           onOvertime={handleOvertime}
           onEditBlock={handleEditBlock}
           onCancelBlock={handleCancelBlock}
+          onEditOvertime={handleEditOvertime}
+          onCancelOvertime={handleCancelOvertime}
           onViewOrder={handleViewOrder}
           onEditAppointment={handleEditAppointment}
           onCancelBooking={handleCancelBooking}
@@ -458,6 +474,7 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
         defaultHour={overtimeDefaults.hour}
         defaultStaffId={overtimeDefaults.staffId}
       />
+      <EditOvertimeDialog open={editOvertimeOpen} onOpenChange={setEditOvertimeOpen} overtime={editingOvertime} />
       <EditBlockDialog open={editBlockOpen} onOpenChange={setEditBlockOpen} block={editingBlock} />
       <CheckoutDialog
         open={checkoutOpen}

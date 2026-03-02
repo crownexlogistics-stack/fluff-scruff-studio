@@ -20,6 +20,8 @@ interface WeeklyCalendarProps {
   onOvertime?: (date: Date, hour: number, staffId: string) => void;
   onEditBlock?: (booking: BookingData) => void;
   onCancelBlock?: (booking: BookingData) => void;
+  onEditOvertime?: (booking: BookingData) => void;
+  onCancelOvertime?: (booking: BookingData) => void;
   onViewOrder?: (booking: BookingData) => void;
   onEditAppointment?: (booking: BookingData) => void;
   onCancelBooking?: (booking: BookingData) => void;
@@ -32,7 +34,7 @@ const END_HOUR = 18;
 const HOURS = Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, i) => START_HOUR + i);
 const DAYS = Array.from({ length: 7 }, (_, i) => i);
 
-export function WeeklyCalendar({ weekStart, staff, bookings, staffIndexMap, onBook, onBlock, onOvertime, onEditBlock, onCancelBlock, onViewOrder, onEditAppointment, onCancelBooking, onBookAgain, onCheckout }: WeeklyCalendarProps) {
+export function WeeklyCalendar({ weekStart, staff, bookings, staffIndexMap, onBook, onBlock, onOvertime, onEditBlock, onCancelBlock, onEditOvertime, onCancelOvertime, onViewOrder, onEditAppointment, onCancelBooking, onBookAgain, onCheckout }: WeeklyCalendarProps) {
   const days = useMemo(() => DAYS.map(i => addDays(weekStart, i)), [weekStart]);
 
   const bookingsByDate = useMemo(() => {
@@ -99,6 +101,8 @@ export function WeeklyCalendar({ weekStart, staff, bookings, staffIndexMap, onBo
                       durationHours={1.5}
                       onEditBlock={onEditBlock}
                       onCancelBlock={onCancelBlock}
+                      onEditOvertime={onEditOvertime}
+                      onCancelOvertime={onCancelOvertime}
                       onViewOrder={onViewOrder}
                       onEditAppointment={onEditAppointment}
                       onCancelBooking={onCancelBooking}

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { format } from "date-fns";
 import { getStaffColor } from "./staffColors";
-import { Pencil, Trash2, MoreHorizontal, Eye, PenLine, XCircle, Send, CheckCircle2 } from "lucide-react";
+import { Pencil, Trash2, MoreHorizontal, Eye, PenLine, XCircle, Send, CheckCircle2, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -28,6 +28,7 @@ export interface BookingData {
   breed_name?: string;
   service_name?: string;
   is_block?: boolean;
+  is_overtime?: boolean;
   end_time?: string;
   service_id?: string;
   breed_id?: string;
@@ -42,6 +43,8 @@ interface BookingEventProps {
   durationHours?: number;
   onEditBlock?: (booking: BookingData) => void;
   onCancelBlock?: (booking: BookingData) => void;
+  onEditOvertime?: (booking: BookingData) => void;
+  onCancelOvertime?: (booking: BookingData) => void;
   onViewOrder?: (booking: BookingData) => void;
   onEditAppointment?: (booking: BookingData) => void;
   onCancelBooking?: (booking: BookingData) => void;
@@ -49,7 +52,7 @@ interface BookingEventProps {
   onCheckout?: (booking: BookingData) => void;
 }
 
-export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1, onEditBlock, onCancelBlock, onViewOrder, onEditAppointment, onCancelBooking, onBookAgain, onCheckout }: BookingEventProps) {
+export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1, onEditBlock, onCancelBlock, onEditOvertime, onCancelOvertime, onViewOrder, onEditAppointment, onCancelBooking, onBookAgain, onCheckout }: BookingEventProps) {
   const navigate = useNavigate();
   const [requestingDeposit, setRequestingDeposit] = useState(false);
   const isCancelled = booking.status === "Cancelled";
@@ -113,6 +116,59 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
               </Button>
               <Button variant="destructive" size="sm" onClick={() => onCancelBlock?.(booking)}>
                 <Trash2 className="h-3 w-3 mr-1" /> Cancel Block
+              </Button>
+            </div>
+          </div>
+        </PopoverContent>
+      </Popover>
+    );
+  }
+
+  if (booking.is_overtime) {
+    return (
+      <Popover>
+        <PopoverTrigger asChild>
+          <div
+            className="absolute left-1 right-1 rounded-md px-2 py-1 text-xs font-medium cursor-pointer z-10 hover:opacity-90 transition-opacity bg-emerald-100 text-emerald-900 border border-emerald-300"
+            style={{ top: `${topOffset}px`, height: `${calculatedDuration * 64}px`, minHeight: "28px" }}
+          >
+            <p className="font-bold flex items-center gap-1"><Clock className="h-3 w-3" /> Overtime</p>
+            <p className="opacity-80">{booking.staff_name}</p>
+            {booking.notes && <p className="opacity-70 truncate text-[10px]">{booking.notes}</p>}
+          </div>
+        </PopoverTrigger>
+        <PopoverContent className="w-[calc(100vw-2rem)] sm:w-72 max-w-sm p-0" side="bottom" align="center" sideOffset={4}>
+          <div className="p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-semibold text-sm">Overtime / Extra Shift</p>
+                <p className="text-xs text-muted-foreground">{booking.staff_name}</p>
+              </div>
+              <Badge className="bg-emerald-600 text-white hover:bg-emerald-600">
+                <Clock className="h-3 w-3 mr-1" /> Overtime
+              </Badge>
+            </div>
+            <div className="text-sm space-y-1">
+              <p>{format(new Date(booking.booking_date), "EEEE, dd MMM yyyy")}</p>
+              <p className="text-muted-foreground">
+                {booking.booking_time.slice(0, 5)} — {booking.end_time?.slice(0, 5) || "Unknown"}
+              </p>
+            </div>
+            <div className="bg-emerald-50 border border-emerald-200 rounded-md px-3 py-2 text-xs text-emerald-800">
+              These hours are visible to customers as available booking slots.
+            </div>
+            {booking.notes && (
+              <div className="border-t pt-2">
+                <p className="text-xs font-medium text-muted-foreground mb-1">Notes</p>
+                <p className="text-sm">{booking.notes}</p>
+              </div>
+            )}
+            <div className="border-t pt-3 flex items-center justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={() => onEditOvertime?.(booking)}>
+                <Pencil className="h-3 w-3 mr-1" /> Edit
+              </Button>
+              <Button variant="destructive" size="sm" onClick={() => onCancelOvertime?.(booking)}>
+                <Trash2 className="h-3 w-3 mr-1" /> Remove Overtime
               </Button>
             </div>
           </div>
