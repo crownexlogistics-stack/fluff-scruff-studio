@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,13 +10,19 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  ArrowLeft, Mail, Phone, Dog, Calendar, StickyNote, Send,
-  Pencil, Check, X, User, MessageSquare, MailOpen,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  ArrowLeft, Mail, Phone, Dog, Calendar, Send,
+  Pencil, Check, X, MessageSquare, MailOpen, Ban,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { logAudit } from "@/lib/auditLog";
 
 export default function CustomerProfilePage() {
   const { email } = useParams<{ email: string }>();
@@ -31,17 +37,24 @@ export default function CustomerProfilePage() {
   const [editEmail, setEditEmail] = useState("");
   const [editPhone, setEditPhone] = useState("");
   const [bookingTab, setBookingTab] = useState("upcoming");
-
-  // Message state
   const [newMessage, setNewMessage] = useState("");
-
-  // Email state
   const [emailSubject, setEmailSubject] = useState("");
   const [emailBody, setEmailBody] = useState("");
 
+  // Pet edit dialog
+  const [editingPet, setEditingPet] = useState<any>(null);
+  const [petForm, setPetForm] = useState({ pet_name: "", breed_id: "", dog_age_years: 0, dog_age_months: 0, notes: "" });
+
+  // Booking edit dialog
+  const [editingBooking, setEditingBooking] = useState<any>(null);
+  const [bookingForm, setBookingForm] = useState({
+    booking_date: "", booking_time: "", service_id: "", breed_id: "", staff_id: "",
+    total_price: 0, deposit_paid: 0, notes: "",
+  });
+
   // ── Data queries ──────────────────────────────────────────────────
 
-  const { data: bookings, isLoading: loadingBookings } = useQuery({
+  const { data: bookings } = useQuery({
     queryKey: ["customer-profile-bookings", decodedEmail],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -100,7 +113,6 @@ export default function CustomerProfilePage() {
     },
   });
 
-  // Communications (messages + emails)
   const { data: messages } = useQuery({
     queryKey: ["customer-messages", decodedEmail],
     queryFn: async () => {
@@ -116,8 +128,9 @@ export default function CustomerProfilePage() {
     enabled: !!decodedEmail,
   });
 
-  const { data: emails } = useQuery({
-    queryKey: ["customer-emails", decodedEmail],
+  // Emails: combine outbound (customer_communications) + inbound (customer_messages)
+  const { data: outboundEmails } = useQuery({
+    queryKey: ["customer-emails-out", decodedEmail],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("customer_communications")
@@ -131,14 +144,68 @@ export default function CustomerProfilePage() {
     enabled: !!decodedEmail,
   });
 
+  const { data: inboundEmails } = useQuery({
+    queryKey: ["customer-emails-in", decodedEmail],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("customer_messages")
+        .select("*")
+        .eq("from_email", decodedEmail)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!decodedEmail,
+  });
+
+  // Combine & sort all emails
+  const allEmails = [
+    ...(outboundEmails || []).map((e) => ({ ...e, direction: "outbound" as const, displaySubject: e.subject })),
+    ...(inboundEmails || []).map((e) => ({
+      id: e.id,
+      created_at: e.created_at,
+      direction: "inbound" as const,
+      displaySubject: e.subject || "(No subject)",
+      body: e.body || "",
+      from_name: e.from_name,
+      sent_by: null as string | null,
+    })),
+  ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+  // Lookup data for edit dialogs
+  const { data: allBreeds } = useQuery({
+    queryKey: ["breeds-list"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("breeds").select("id, name").order("name");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: allServices } = useQuery({
+    queryKey: ["services-list"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("services").select("id, name").eq("is_active", true).order("name");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: allStaff } = useQuery({
+    queryKey: ["staff-list"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("staff").select("id, name").order("name");
+      if (error) throw error;
+      return data;
+    },
+  });
+
   // ── Mutations ─────────────────────────────────────────────────────
 
   const addNoteMutation = useMutation({
     mutationFn: async (note: string) => {
       const { error } = await supabase.from("customer_notes").insert({
-        customer_email: decodedEmail,
-        note,
-        created_by: user!.id,
+        customer_email: decodedEmail, note, created_by: user!.id,
       });
       if (error) throw error;
     },
@@ -153,11 +220,7 @@ export default function CustomerProfilePage() {
   const sendMessageMutation = useMutation({
     mutationFn: async (body: string) => {
       const { error } = await supabase.from("customer_communications").insert({
-        customer_email: decodedEmail,
-        type: "message",
-        body,
-        direction: "outbound",
-        sent_by: user!.id,
+        customer_email: decodedEmail, type: "message", body, direction: "outbound", sent_by: user!.id,
       });
       if (error) throw error;
     },
@@ -180,7 +243,7 @@ export default function CustomerProfilePage() {
     onSuccess: () => {
       setEmailSubject("");
       setEmailBody("");
-      queryClient.invalidateQueries({ queryKey: ["customer-emails", decodedEmail] });
+      queryClient.invalidateQueries({ queryKey: ["customer-emails-out", decodedEmail] });
       toast({ title: "Email sent successfully" });
     },
     onError: (err: any) => toast({ title: `Failed to send email: ${err.message}`, variant: "destructive" }),
@@ -190,23 +253,12 @@ export default function CustomerProfilePage() {
     mutationFn: async (updates: { name: string; email: string; phone: string }) => {
       const { error } = await supabase
         .from("bookings")
-        .update({
-          customer_name: updates.name,
-          customer_email: updates.email,
-          customer_phone: updates.phone,
-        })
+        .update({ customer_name: updates.name, customer_email: updates.email, customer_phone: updates.phone })
         .eq("customer_email", decodedEmail);
       if (error) throw error;
-
       if (updates.email !== decodedEmail) {
-        await supabase
-          .from("customer_notes")
-          .update({ customer_email: updates.email })
-          .eq("customer_email", decodedEmail);
-        await supabase
-          .from("customer_communications")
-          .update({ customer_email: updates.email })
-          .eq("customer_email", decodedEmail);
+        await supabase.from("customer_notes").update({ customer_email: updates.email }).eq("customer_email", decodedEmail);
+        await supabase.from("customer_communications").update({ customer_email: updates.email }).eq("customer_email", decodedEmail);
       }
     },
     onSuccess: (_, variables) => {
@@ -220,42 +272,110 @@ export default function CustomerProfilePage() {
     onError: () => toast({ title: "Failed to update", variant: "destructive" }),
   });
 
+  // Pet update mutation
+  const updatePetMutation = useMutation({
+    mutationFn: async (pet: { id: string; pet_name: string; breed_id: string | null; dog_age_years: number | null; dog_age_months: number | null; notes: string | null }) => {
+      const { error } = await supabase.from("customer_pets").update({
+        pet_name: pet.pet_name,
+        breed_id: pet.breed_id || null,
+        dog_age_years: pet.dog_age_years,
+        dog_age_months: pet.dog_age_months,
+        notes: pet.notes || null,
+      }).eq("id", pet.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      setEditingPet(null);
+      queryClient.invalidateQueries({ queryKey: ["customer-profile-pets"] });
+      toast({ title: "Pet updated" });
+    },
+    onError: () => toast({ title: "Failed to update pet", variant: "destructive" }),
+  });
+
+  // Booking update mutation
+  const updateBookingMutation = useMutation({
+    mutationFn: async () => {
+      if (!editingBooking) return;
+      const { error } = await supabase.from("bookings").update({
+        booking_date: bookingForm.booking_date,
+        booking_time: bookingForm.booking_time,
+        service_id: bookingForm.service_id || null,
+        breed_id: bookingForm.breed_id || null,
+        staff_id: bookingForm.staff_id || null,
+        total_price: bookingForm.total_price,
+        deposit_paid: bookingForm.deposit_paid,
+        notes: bookingForm.notes || null,
+      }).eq("id", editingBooking.id);
+      if (error) throw error;
+      logAudit({
+        staffId: bookingForm.staff_id || undefined,
+        action: "BOOKING_EDITED",
+        details: `Edited booking for ${editingBooking.customer_name} on ${bookingForm.booking_date}`,
+      });
+    },
+    onSuccess: () => {
+      setEditingBooking(null);
+      queryClient.invalidateQueries({ queryKey: ["customer-profile-bookings", decodedEmail] });
+      toast({ title: "Booking updated" });
+    },
+    onError: (e: any) => toast({ title: e.message, variant: "destructive" }),
+  });
+
+  // Cancel booking mutation
+  const cancelBookingMutation = useMutation({
+    mutationFn: async (bookingId: string) => {
+      const { error } = await supabase.from("bookings").update({ status: "Cancelled" }).eq("id", bookingId);
+      if (error) throw error;
+      logAudit({ action: "BOOKING_CANCELLED", details: `Cancelled booking ${bookingId}` });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["customer-profile-bookings", decodedEmail] });
+      toast({ title: "Booking cancelled" });
+    },
+    onError: () => toast({ title: "Failed to cancel", variant: "destructive" }),
+  });
+
   // ── Derived data ──────────────────────────────────────────────────
 
   const customerName = bookings?.[0]?.customer_name || "Customer";
   const customerPhone = bookings?.find((b) => b.customer_phone)?.customer_phone || "";
-  const initials = customerName
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
+  const initials = customerName.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
 
   const today = new Date().toISOString().split("T")[0];
-  const upcomingBookings =
-    bookings?.filter((b) => b.booking_date >= today && b.status !== "Cancelled") || [];
-  const pastBookings =
-    bookings?.filter((b) => b.booking_date < today || b.status === "Cancelled") || [];
+  const upcomingBookings = bookings?.filter((b) => b.booking_date >= today && b.status !== "Cancelled") || [];
+  const pastBookings = bookings?.filter((b) => b.booking_date < today || b.status === "Cancelled") || [];
 
-  const getStaffName = (userId: string) =>
-    staffProfiles?.find((p) => p.id === userId)?.full_name || "Unknown";
+  const getStaffName = (userId: string) => staffProfiles?.find((p) => p.id === userId)?.full_name || "Unknown";
 
-  const startEditing = () => {
-    setEditName(customerName);
-    setEditEmail(decodedEmail);
-    setEditPhone(customerPhone);
-    setIsEditing(true);
-  };
+  const startEditing = () => { setEditName(customerName); setEditEmail(decodedEmail); setEditPhone(customerPhone); setIsEditing(true); };
 
   const saveEdits = () => {
-    if (!editName.trim() || !editEmail.trim()) {
-      toast({ title: "Name and email are required", variant: "destructive" });
-      return;
-    }
-    updateCustomerMutation.mutate({
-      name: editName.trim(),
-      email: editEmail.trim(),
-      phone: editPhone.trim(),
+    if (!editName.trim() || !editEmail.trim()) { toast({ title: "Name and email are required", variant: "destructive" }); return; }
+    updateCustomerMutation.mutate({ name: editName.trim(), email: editEmail.trim(), phone: editPhone.trim() });
+  };
+
+  const openPetEdit = (pet: any) => {
+    setEditingPet(pet);
+    setPetForm({
+      pet_name: pet.pet_name,
+      breed_id: pet.breed_id || "",
+      dog_age_years: pet.dog_age_years || 0,
+      dog_age_months: pet.dog_age_months || 0,
+      notes: pet.notes || "",
+    });
+  };
+
+  const openBookingEdit = (booking: any) => {
+    setEditingBooking(booking);
+    setBookingForm({
+      booking_date: booking.booking_date,
+      booking_time: booking.booking_time?.slice(0, 5) || "",
+      service_id: booking.service_id || "",
+      breed_id: booking.breed_id || "",
+      staff_id: booking.staff_id || "",
+      total_price: Number(booking.total_price),
+      deposit_paid: Number(booking.deposit_paid),
+      notes: booking.notes || "",
     });
   };
 
@@ -266,7 +386,6 @@ export default function CustomerProfilePage() {
   return (
     <AppLayout>
       <div className="space-y-0 max-w-5xl">
-        {/* Back */}
         <Button variant="ghost" size="sm" className="mb-4" onClick={() => navigate(-1)}>
           <ArrowLeft className="h-4 w-4 mr-1" /> Back
         </Button>
@@ -278,89 +397,45 @@ export default function CustomerProfilePage() {
               <div className="h-16 w-16 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
                 <span className="text-xl font-bold text-primary">{initials}</span>
               </div>
-
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-3 mb-1">
                   {isEditing ? (
-                    <Input
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                      className="text-xl font-bold h-9 max-w-xs"
-                    />
+                    <Input value={editName} onChange={(e) => setEditName(e.target.value)} className="text-xl font-bold h-9 max-w-xs" />
                   ) : (
                     <h1 className="text-2xl font-heading font-bold truncate">{customerName}</h1>
                   )}
                 </div>
                 <div className="flex gap-2 mt-1">
-                  <Badge variant="secondary">
-                    {bookings?.length || 0} booking{(bookings?.length || 0) !== 1 ? "s" : ""}
-                  </Badge>
+                  <Badge variant="secondary">{bookings?.length || 0} booking{(bookings?.length || 0) !== 1 ? "s" : ""}</Badge>
                   {(bookings?.length || 0) >= 2 && (
-                    <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
-                      Returning Customer
-                    </Badge>
+                    <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">Returning Customer</Badge>
                   )}
                 </div>
               </div>
-
               <div className="flex gap-2 shrink-0">
                 {isEditing ? (
                   <>
-                    <Button size="sm" variant="ghost" onClick={() => setIsEditing(false)}>
-                      <X className="h-4 w-4 mr-1" /> Cancel
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={saveEdits}
-                      disabled={updateCustomerMutation.isPending}
-                    >
-                      <Check className="h-4 w-4 mr-1" /> Save
-                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => setIsEditing(false)}><X className="h-4 w-4 mr-1" /> Cancel</Button>
+                    <Button size="sm" onClick={saveEdits} disabled={updateCustomerMutation.isPending}><Check className="h-4 w-4 mr-1" /> Save</Button>
                   </>
                 ) : (
-                  <Button size="sm" variant="outline" onClick={startEditing}>
-                    <Pencil className="h-4 w-4 mr-1" /> Edit
-                  </Button>
+                  <Button size="sm" variant="outline" onClick={startEditing}><Pencil className="h-4 w-4 mr-1" /> Edit</Button>
                 )}
               </div>
             </div>
-
             <Separator className="my-5" />
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
               <div>
-                <p className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1">
-                  <Mail className="h-3 w-3" /> Primary email
-                </p>
-                {isEditing ? (
-                  <Input
-                    value={editEmail}
-                    onChange={(e) => setEditEmail(e.target.value)}
-                    className="h-8 text-sm"
-                  />
-                ) : (
-                  <p className="text-sm font-medium truncate">{decodedEmail}</p>
-                )}
+                <p className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1"><Mail className="h-3 w-3" /> Primary email</p>
+                {isEditing ? <Input value={editEmail} onChange={(e) => setEditEmail(e.target.value)} className="h-8 text-sm" /> : <p className="text-sm font-medium truncate">{decodedEmail}</p>}
               </div>
               <div>
-                <p className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1">
-                  <Phone className="h-3 w-3" /> Primary phone
-                </p>
-                {isEditing ? (
-                  <Input
-                    value={editPhone}
-                    onChange={(e) => setEditPhone(e.target.value)}
-                    className="h-8 text-sm"
-                    placeholder="+44 ..."
-                  />
-                ) : (
-                  <p className="text-sm font-medium">{customerPhone || "—"}</p>
-                )}
+                <p className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1"><Phone className="h-3 w-3" /> Primary phone</p>
+                {isEditing ? <Input value={editPhone} onChange={(e) => setEditPhone(e.target.value)} className="h-8 text-sm" placeholder="+44 ..." /> : <p className="text-sm font-medium">{customerPhone || "—"}</p>}
               </div>
               <div>
                 <p className="text-xs font-medium text-muted-foreground mb-1">Total spend</p>
-                <p className="text-sm font-medium">
-                  £{bookings?.reduce((sum, b) => sum + Number(b.total_price), 0).toFixed(2) || "0.00"}
-                </p>
+                <p className="text-sm font-medium">£{bookings?.reduce((sum, b) => sum + Number(b.total_price), 0).toFixed(2) || "0.00"}</p>
               </div>
             </div>
           </CardContent>
@@ -369,20 +444,12 @@ export default function CustomerProfilePage() {
         {/* ═══ TABS ═══ */}
         <Tabs defaultValue="overview" className="w-full">
           <div className="border border-t-0 rounded-b-lg bg-card px-2">
-            <TabsList className="bg-transparent h-12 w-full justify-start gap-0 rounded-none border-b">
+            <TabsList className="bg-transparent h-12 w-full justify-start gap-0 rounded-none border-b flex-wrap">
               <TabsTrigger value="overview" className={tabTriggerClass}>Overview</TabsTrigger>
-              <TabsTrigger value="notes" className={tabTriggerClass}>
-                Notes {notes && notes.length > 0 && `(${notes.length})`}
-              </TabsTrigger>
+              <TabsTrigger value="notes" className={tabTriggerClass}>Notes {notes && notes.length > 0 && `(${notes.length})`}</TabsTrigger>
               <TabsTrigger value="bookings" className={tabTriggerClass}>Bookings</TabsTrigger>
-              <TabsTrigger value="messages" className={tabTriggerClass}>
-                <MessageSquare className="h-3.5 w-3.5 mr-1.5" />
-                Messages {messages && messages.length > 0 && `(${messages.length})`}
-              </TabsTrigger>
-              <TabsTrigger value="email" className={tabTriggerClass}>
-                <MailOpen className="h-3.5 w-3.5 mr-1.5" />
-                Email {emails && emails.length > 0 && `(${emails.length})`}
-              </TabsTrigger>
+              <TabsTrigger value="messages" className={tabTriggerClass}><MessageSquare className="h-3.5 w-3.5 mr-1.5" />Messages {messages && messages.length > 0 && `(${messages.length})`}</TabsTrigger>
+              <TabsTrigger value="email" className={tabTriggerClass}><MailOpen className="h-3.5 w-3.5 mr-1.5" />Email {allEmails.length > 0 && `(${allEmails.length})`}</TabsTrigger>
             </TabsList>
           </div>
 
@@ -390,31 +457,24 @@ export default function CustomerProfilePage() {
           <TabsContent value="overview" className="mt-4 space-y-4">
             <Card>
               <CardContent className="p-5">
-                <h3 className="text-sm font-semibold flex items-center gap-2 mb-3">
-                  <Dog className="h-4 w-4" /> Registered Dogs
-                </h3>
+                <h3 className="text-sm font-semibold flex items-center gap-2 mb-3"><Dog className="h-4 w-4" /> Registered Dogs</h3>
                 {customerPets && customerPets.length > 0 ? (
                   <div className="space-y-2">
                     {customerPets.map((pet) => (
                       <div
                         key={pet.id}
-                        className="flex items-center justify-between p-3 rounded-lg border"
+                        className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/30 cursor-pointer transition-colors"
+                        onClick={() => openPetEdit(pet)}
                       >
                         <div>
                           <p className="font-medium text-sm">{pet.pet_name}</p>
                           <p className="text-xs text-muted-foreground">
                             {(pet.breed as any)?.name || "Breed not set"}
-                            {pet.dog_age_years != null &&
-                              ` • ${pet.dog_age_years}y ${pet.dog_age_months || 0}m`}
-                            {(pet.breed as any)?.size_category &&
-                              ` • ${(pet.breed as any).size_category}`}
+                            {pet.dog_age_years != null && ` • ${pet.dog_age_years}y ${pet.dog_age_months || 0}m`}
+                            {(pet.breed as any)?.size_category && ` • ${(pet.breed as any).size_category}`}
                           </p>
                         </div>
-                        {pet.notes && (
-                          <p className="text-xs text-muted-foreground max-w-[200px] truncate">
-                            {pet.notes}
-                          </p>
-                        )}
+                        <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
                       </div>
                     ))}
                   </div>
@@ -427,14 +487,8 @@ export default function CustomerProfilePage() {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <MiniStat label="Total Bookings" value={String(bookings?.length || 0)} />
               <MiniStat label="Upcoming" value={String(upcomingBookings.length)} />
-              <MiniStat
-                label="Completed"
-                value={String(bookings?.filter((b) => b.status === "Completed").length || 0)}
-              />
-              <MiniStat
-                label="No Shows"
-                value={String(bookings?.filter((b) => b.status === "No Show").length || 0)}
-              />
+              <MiniStat label="Completed" value={String(bookings?.filter((b) => b.status === "Completed").length || 0)} />
+              <MiniStat label="No Shows" value={String(bookings?.filter((b) => b.status === "No Show").length || 0)} />
             </div>
           </TabsContent>
 
@@ -443,31 +497,15 @@ export default function CustomerProfilePage() {
             <Card>
               <CardContent className="p-5 space-y-4">
                 <div className="flex gap-2">
-                  <Textarea
-                    placeholder="Add a note about this customer..."
-                    value={newNote}
-                    onChange={(e) => setNewNote(e.target.value)}
-                    className="min-h-[60px]"
-                  />
-                  <Button
-                    size="icon"
-                    className="shrink-0 self-end"
-                    disabled={!newNote.trim() || addNoteMutation.isPending}
-                    onClick={() => addNoteMutation.mutate(newNote.trim())}
-                  >
-                    <Send className="h-4 w-4" />
-                  </Button>
+                  <Textarea placeholder="Add a note about this customer..." value={newNote} onChange={(e) => setNewNote(e.target.value)} className="min-h-[60px]" />
+                  <Button size="icon" className="shrink-0 self-end" disabled={!newNote.trim() || addNoteMutation.isPending} onClick={() => addNoteMutation.mutate(newNote.trim())}><Send className="h-4 w-4" /></Button>
                 </div>
-
                 {notes && notes.length > 0 ? (
                   <div className="space-y-2">
                     {notes.map((note) => (
                       <div key={note.id} className="p-3 rounded-lg border bg-muted/30">
                         <p className="text-sm">{note.note}</p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {getStaffName(note.created_by)} •{" "}
-                          {format(new Date(note.created_at), "dd MMM yyyy, HH:mm")}
-                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">{getStaffName(note.created_by)} • {format(new Date(note.created_at), "dd MMM yyyy, HH:mm")}</p>
                       </div>
                     ))}
                   </div>
@@ -482,40 +520,21 @@ export default function CustomerProfilePage() {
           <TabsContent value="bookings" className="mt-4">
             <Card>
               <CardContent className="p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-sm font-semibold flex items-center gap-2">
-                    <Calendar className="h-4 w-4" /> Bookings
-                  </h3>
-                </div>
-
+                <h3 className="text-sm font-semibold flex items-center gap-2 mb-4"><Calendar className="h-4 w-4" /> Bookings</h3>
                 <Tabs value={bookingTab} onValueChange={setBookingTab}>
                   <TabsList className="bg-transparent h-9 p-0 gap-4 justify-start">
-                    <TabsTrigger
-                      value="upcoming"
-                      className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-1 pb-2 h-auto text-sm"
-                    >
-                      Upcoming ({upcomingBookings.length})
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="past"
-                      className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-1 pb-2 h-auto text-sm"
-                    >
-                      Past ({pastBookings.length})
-                    </TabsTrigger>
+                    <TabsTrigger value="upcoming" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-1 pb-2 h-auto text-sm">Upcoming ({upcomingBookings.length})</TabsTrigger>
+                    <TabsTrigger value="past" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-1 pb-2 h-auto text-sm">Past ({pastBookings.length})</TabsTrigger>
                   </TabsList>
-
                   <TabsContent value="upcoming" className="mt-3">
                     {upcomingBookings.length > 0 ? (
                       <div className="space-y-2">
                         {upcomingBookings.map((b) => (
-                          <BookingRow key={b.id} booking={b} />
+                          <BookingRow key={b.id} booking={b} onEdit={() => openBookingEdit(b)} onCancel={() => cancelBookingMutation.mutate(b.id)} showActions />
                         ))}
                       </div>
-                    ) : (
-                      <EmptyBookings />
-                    )}
+                    ) : <EmptyBookings />}
                   </TabsContent>
-
                   <TabsContent value="past" className="mt-3">
                     {pastBookings.length > 0 ? (
                       <div className="space-y-2">
@@ -523,9 +542,7 @@ export default function CustomerProfilePage() {
                           <BookingRow key={b.id} booking={b} />
                         ))}
                       </div>
-                    ) : (
-                      <EmptyBookings />
-                    )}
+                    ) : <EmptyBookings />}
                   </TabsContent>
                 </Tabs>
               </CardContent>
@@ -536,48 +553,23 @@ export default function CustomerProfilePage() {
           <TabsContent value="messages" className="mt-4">
             <Card>
               <CardContent className="p-5 space-y-4">
-                <h3 className="text-sm font-semibold flex items-center gap-2 mb-1">
-                  <MessageSquare className="h-4 w-4" /> Send Message
-                </h3>
+                <h3 className="text-sm font-semibold flex items-center gap-2 mb-1"><MessageSquare className="h-4 w-4" /> Send Message</h3>
                 <div className="flex gap-2">
-                  <Textarea
-                    placeholder="Type a message to this customer..."
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    className="min-h-[60px]"
-                  />
-                  <Button
-                    size="icon"
-                    className="shrink-0 self-end"
-                    disabled={!newMessage.trim() || sendMessageMutation.isPending}
-                    onClick={() => sendMessageMutation.mutate(newMessage.trim())}
-                  >
-                    <Send className="h-4 w-4" />
-                  </Button>
+                  <Textarea placeholder="Type a message to this customer..." value={newMessage} onChange={(e) => setNewMessage(e.target.value)} className="min-h-[60px]" />
+                  <Button size="icon" className="shrink-0 self-end" disabled={!newMessage.trim() || sendMessageMutation.isPending} onClick={() => sendMessageMutation.mutate(newMessage.trim())}><Send className="h-4 w-4" /></Button>
                 </div>
-
                 <Separator />
-
                 <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Message History</h4>
-
                 {messages && messages.length > 0 ? (
                   <div className="space-y-2">
                     {messages.map((msg) => (
                       <div key={msg.id} className="p-3 rounded-lg border bg-muted/30">
                         <div className="flex items-center gap-2 mb-1">
-                          <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                            {msg.direction === "outbound" ? "Sent" : "Received"}
-                          </Badge>
-                          <span className="text-xs text-muted-foreground">
-                            {format(new Date(msg.created_at), "dd MMM yyyy, HH:mm")}
-                          </span>
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0">{msg.direction === "outbound" ? "Sent" : "Received"}</Badge>
+                          <span className="text-xs text-muted-foreground">{format(new Date(msg.created_at), "dd MMM yyyy, HH:mm")}</span>
                         </div>
                         <p className="text-sm whitespace-pre-wrap">{msg.body}</p>
-                        {msg.sent_by && (
-                          <p className="text-xs text-muted-foreground mt-1">
-                            by {getStaffName(msg.sent_by)}
-                          </p>
-                        )}
+                        {msg.sent_by && <p className="text-xs text-muted-foreground mt-1">by {getStaffName(msg.sent_by)}</p>}
                       </div>
                     ))}
                   </div>
@@ -596,59 +588,40 @@ export default function CustomerProfilePage() {
           <TabsContent value="email" className="mt-4">
             <Card>
               <CardContent className="p-5 space-y-4">
-                <h3 className="text-sm font-semibold flex items-center gap-2 mb-1">
-                  <MailOpen className="h-4 w-4" /> Send Email
-                </h3>
+                <h3 className="text-sm font-semibold flex items-center gap-2 mb-1"><MailOpen className="h-4 w-4" /> Send Email</h3>
                 <div className="space-y-3">
                   <div>
                     <p className="text-xs text-muted-foreground mb-1">To: {decodedEmail}</p>
-                    <Input
-                      placeholder="Subject"
-                      value={emailSubject}
-                      onChange={(e) => setEmailSubject(e.target.value)}
-                    />
+                    <Input placeholder="Subject" value={emailSubject} onChange={(e) => setEmailSubject(e.target.value)} />
                   </div>
-                  <Textarea
-                    placeholder="Write your email here..."
-                    value={emailBody}
-                    onChange={(e) => setEmailBody(e.target.value)}
-                    className="min-h-[120px]"
-                  />
+                  <Textarea placeholder="Write your email here..." value={emailBody} onChange={(e) => setEmailBody(e.target.value)} className="min-h-[120px]" />
                   <div className="flex justify-end">
-                    <Button
-                      disabled={!emailSubject.trim() || !emailBody.trim() || sendEmailMutation.isPending}
-                      onClick={() =>
-                        sendEmailMutation.mutate({
-                          subject: emailSubject.trim(),
-                          body: emailBody.trim(),
-                        })
-                      }
-                    >
-                      <Send className="h-4 w-4 mr-2" />
-                      {sendEmailMutation.isPending ? "Sending..." : "Send Email"}
+                    <Button disabled={!emailSubject.trim() || !emailBody.trim() || sendEmailMutation.isPending} onClick={() => sendEmailMutation.mutate({ subject: emailSubject.trim(), body: emailBody.trim() })}>
+                      <Send className="h-4 w-4 mr-2" />{sendEmailMutation.isPending ? "Sending..." : "Send Email"}
                     </Button>
                   </div>
                 </div>
-
                 <Separator />
-
                 <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Email History</h4>
-
-                {emails && emails.length > 0 ? (
+                {allEmails.length > 0 ? (
                   <div className="space-y-2">
-                    {emails.map((em) => (
+                    {allEmails.map((em) => (
                       <div key={em.id} className="p-3 rounded-lg border bg-muted/30">
                         <div className="flex items-center justify-between mb-1">
-                          <p className="text-sm font-medium">{em.subject || "(No subject)"}</p>
-                          <span className="text-xs text-muted-foreground">
-                            {format(new Date(em.created_at), "dd MMM yyyy, HH:mm")}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <Badge variant={em.direction === "inbound" ? "default" : "outline"} className="text-[10px] px-1.5 py-0">
+                              {em.direction === "inbound" ? "Received" : "Sent"}
+                            </Badge>
+                            <p className="text-sm font-medium">{em.displaySubject}</p>
+                          </div>
+                          <span className="text-xs text-muted-foreground">{format(new Date(em.created_at), "dd MMM yyyy, HH:mm")}</span>
                         </div>
                         <p className="text-sm text-muted-foreground whitespace-pre-wrap line-clamp-3">{em.body}</p>
-                        {em.sent_by && (
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Sent by {getStaffName(em.sent_by)}
-                          </p>
+                        {em.direction === "inbound" && (em as any).from_name && (
+                          <p className="text-xs text-muted-foreground mt-1">From: {(em as any).from_name}</p>
+                        )}
+                        {em.direction === "outbound" && em.sent_by && (
+                          <p className="text-xs text-muted-foreground mt-1">Sent by {getStaffName(em.sent_by)}</p>
                         )}
                       </div>
                     ))}
@@ -656,8 +629,8 @@ export default function CustomerProfilePage() {
                 ) : (
                   <div className="text-center py-8">
                     <Mail className="h-10 w-10 mx-auto text-muted-foreground/40 mb-3" />
-                    <p className="font-medium text-sm">No emails sent yet</p>
-                    <p className="text-xs text-muted-foreground">Compose an email above to get started.</p>
+                    <p className="font-medium text-sm">No emails yet</p>
+                    <p className="text-xs text-muted-foreground">Compose an email above or wait for customer replies.</p>
                   </div>
                 )}
               </CardContent>
@@ -665,6 +638,118 @@ export default function CustomerProfilePage() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* ═══ EDIT PET DIALOG ═══ */}
+      <Dialog open={!!editingPet} onOpenChange={(open) => { if (!open) setEditingPet(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Edit Dog — {petForm.pet_name}</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <Label>Dog Name</Label>
+              <Input value={petForm.pet_name} onChange={(e) => setPetForm({ ...petForm, pet_name: e.target.value })} />
+            </div>
+            <div className="space-y-1">
+              <Label>Breed</Label>
+              <Select value={petForm.breed_id} onValueChange={(v) => setPetForm({ ...petForm, breed_id: v })}>
+                <SelectTrigger><SelectValue placeholder="Select breed" /></SelectTrigger>
+                <SelectContent>
+                  {allBreeds?.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <Label>Age (years)</Label>
+                <Input type="number" min={0} value={petForm.dog_age_years} onChange={(e) => setPetForm({ ...petForm, dog_age_years: Number(e.target.value) })} />
+              </div>
+              <div className="space-y-1">
+                <Label>Age (months)</Label>
+                <Input type="number" min={0} max={11} value={petForm.dog_age_months} onChange={(e) => setPetForm({ ...petForm, dog_age_months: Number(e.target.value) })} />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label>Notes</Label>
+              <Textarea value={petForm.notes} onChange={(e) => setPetForm({ ...petForm, notes: e.target.value })} rows={2} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingPet(null)}>Cancel</Button>
+            <Button
+              disabled={!petForm.pet_name.trim() || updatePetMutation.isPending}
+              onClick={() => updatePetMutation.mutate({
+                id: editingPet.id,
+                pet_name: petForm.pet_name.trim(),
+                breed_id: petForm.breed_id || null,
+                dog_age_years: petForm.dog_age_years || null,
+                dog_age_months: petForm.dog_age_months || null,
+                notes: petForm.notes.trim() || null,
+              })}
+            >
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ═══ EDIT BOOKING DIALOG ═══ */}
+      <Dialog open={!!editingBooking} onOpenChange={(open) => { if (!open) setEditingBooking(null); }}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Edit Appointment — {editingBooking?.customer_name}</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <Label>Date</Label>
+                <Input type="date" value={bookingForm.booking_date} onChange={(e) => setBookingForm({ ...bookingForm, booking_date: e.target.value })} />
+              </div>
+              <div className="space-y-1">
+                <Label>Time</Label>
+                <Input type="time" value={bookingForm.booking_time} onChange={(e) => setBookingForm({ ...bookingForm, booking_time: e.target.value })} />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label>Staff Member</Label>
+              <Select value={bookingForm.staff_id} onValueChange={(v) => setBookingForm({ ...bookingForm, staff_id: v })}>
+                <SelectTrigger><SelectValue placeholder="Select staff" /></SelectTrigger>
+                <SelectContent>{allStaff?.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <Label>Service</Label>
+                <Select value={bookingForm.service_id} onValueChange={(v) => setBookingForm({ ...bookingForm, service_id: v })}>
+                  <SelectTrigger><SelectValue placeholder="Select service" /></SelectTrigger>
+                  <SelectContent>{allServices?.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label>Breed</Label>
+                <Select value={bookingForm.breed_id} onValueChange={(v) => setBookingForm({ ...bookingForm, breed_id: v })}>
+                  <SelectTrigger><SelectValue placeholder="Select breed" /></SelectTrigger>
+                  <SelectContent>{allBreeds?.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <Label>Total Price (£)</Label>
+                <Input type="number" value={bookingForm.total_price} onChange={(e) => setBookingForm({ ...bookingForm, total_price: Number(e.target.value) })} />
+              </div>
+              <div className="space-y-1">
+                <Label>Deposit (£)</Label>
+                <Input type="number" value={bookingForm.deposit_paid} onChange={(e) => setBookingForm({ ...bookingForm, deposit_paid: Number(e.target.value) })} />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label>Notes</Label>
+              <Textarea value={bookingForm.notes} onChange={(e) => setBookingForm({ ...bookingForm, notes: e.target.value })} rows={2} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingBooking(null)}>Cancel</Button>
+            <Button onClick={() => updateBookingMutation.mutate()} disabled={updateBookingMutation.isPending}>Save Changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }
@@ -682,7 +767,7 @@ function MiniStat({ label, value }: { label: string; value: string }) {
   );
 }
 
-function BookingRow({ booking }: { booking: any }) {
+function BookingRow({ booking, onEdit, onCancel, showActions }: { booking: any; onEdit?: () => void; onCancel?: () => void; showActions?: boolean }) {
   const staffName = (booking.staff as any)?.name;
   const serviceName = (booking.service as any)?.name;
   const breedName = (booking.breed as any)?.name;
@@ -695,26 +780,25 @@ function BookingRow({ booking }: { booking: any }) {
           {breedName && <span className="text-muted-foreground"> ({breedName})</span>}
         </p>
         <p className="text-xs text-muted-foreground">
-          {format(parseISO(booking.booking_date), "EEE, dd MMM yyyy")} at{" "}
-          {booking.booking_time?.slice(0, 5)}
+          {format(parseISO(booking.booking_date), "EEE, dd MMM yyyy")} at {booking.booking_time?.slice(0, 5)}
           {staffName && ` • with ${staffName}`}
         </p>
       </div>
       <div className="flex items-center gap-2 shrink-0">
-        <Badge
-          variant={
-            booking.status === "Confirmed"
-              ? "default"
-              : booking.status === "Completed"
-              ? "secondary"
-              : booking.status === "No Show" || booking.status === "Cancelled"
-              ? "destructive"
-              : "secondary"
-          }
-        >
+        <Badge variant={booking.status === "Confirmed" ? "default" : booking.status === "Completed" ? "secondary" : booking.status === "No Show" || booking.status === "Cancelled" ? "destructive" : "secondary"}>
           {booking.status}
         </Badge>
         <span className="text-sm font-medium">£{Number(booking.total_price).toFixed(2)}</span>
+        {showActions && (
+          <>
+            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={onEdit} title="Edit">
+              <Pencil className="h-3.5 w-3.5" />
+            </Button>
+            <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={onCancel} title="Cancel">
+              <Ban className="h-3.5 w-3.5" />
+            </Button>
+          </>
+        )}
       </div>
     </div>
   );
