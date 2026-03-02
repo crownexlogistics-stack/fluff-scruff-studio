@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Phone, MapPin, Clock, Instagram, Facebook, PawPrint, LogIn, LogOut, Star } from "lucide-react";
+import { Phone, MapPin, Clock, Instagram, Facebook, PawPrint, LogIn, LogOut, Star, Menu, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Link } from "react-router-dom";
@@ -20,6 +20,16 @@ const CustomerHome = () => {
   const [activeService, setActiveService] = useState<string | null>(null);
 
   const isStaff = role === "manager" || role === "director" || role === "groomer";
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const getAccountLink = () => {
+    if (!user) return null;
+    if (role === "manager" || role === "director") return "/admin";
+    if (role === "groomer") return "/portal";
+    if (role === "customer") return "/my-pets";
+    return null;
+  };
+  const accountLink = getAccountLink();
 
   const services = [
     { title: "Grooming", subtitle: "The ultimate pamper session — wash, dry, cut & style. Your pup leaves looking like a supermodel.", image: serviceFullGroom, imagePosition: "50% 43%" },
@@ -40,14 +50,8 @@ const CustomerHome = () => {
             <a href="#services" className="relative text-muted-foreground hover:text-foreground transition-colors duration-300 after:absolute after:left-0 after:bottom-[-4px] after:h-[2px] after:w-0 after:bg-accent after:transition-all after:duration-300 hover:after:w-full">Services</a>
             <a href="#about" className="relative text-muted-foreground hover:text-foreground transition-colors duration-300 after:absolute after:left-0 after:bottom-[-4px] after:h-[2px] after:w-0 after:bg-accent after:transition-all after:duration-300 hover:after:w-full">About</a>
             <a href="#contact" className="relative text-muted-foreground hover:text-foreground transition-colors duration-300 after:absolute after:left-0 after:bottom-[-4px] after:h-[2px] after:w-0 after:bg-accent after:transition-all after:duration-300 hover:after:w-full">Contact</a>
-            {user && role === "customer" && (
-              <Link to="/my-pets" className="relative text-muted-foreground hover:text-foreground transition-colors duration-300 after:absolute after:left-0 after:bottom-[-4px] after:h-[2px] after:w-0 after:bg-accent after:transition-all after:duration-300 hover:after:w-full">My Pets</Link>
-            )}
-            {user && (role === "manager" || role === "director") && (
-              <Link to="/admin" className="relative text-muted-foreground hover:text-foreground transition-colors duration-300 after:absolute after:left-0 after:bottom-[-4px] after:h-[2px] after:w-0 after:bg-accent after:transition-all after:duration-300 hover:after:w-full">Dashboard</Link>
-            )}
-            {user && role === "groomer" && (
-              <Link to="/portal" className="relative text-muted-foreground hover:text-foreground transition-colors duration-300 after:absolute after:left-0 after:bottom-[-4px] after:h-[2px] after:w-0 after:bg-accent after:transition-all after:duration-300 hover:after:w-full">My Schedule</Link>
+            {accountLink && (
+              <Link to={accountLink} className="relative text-muted-foreground hover:text-foreground transition-colors duration-300 after:absolute after:left-0 after:bottom-[-4px] after:h-[2px] after:w-0 after:bg-accent after:transition-all after:duration-300 hover:after:w-full">My Account</Link>
             )}
           </div>
           <div className="flex items-center gap-3">
@@ -58,28 +62,60 @@ const CustomerHome = () => {
             >
               Book Now
             </button>
-            {/* Only show auth controls for staff or logged-in customers */}
             {user ? (
               isStaff || role === "customer" ? (
                 <button
                   onClick={async () => { await signOut(); }}
-                  className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors duration-300 font-body"
+                  className="hidden sm:flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors duration-300 font-body"
                 >
                   <LogOut className="h-4 w-4" /> Sign Out
                 </button>
               ) : null
             ) : (
-              /* Hide sign-in from public — only show a subtle link */
               <Link
                 to="/auth"
-                className="text-muted-foreground/40 hover:text-muted-foreground transition-colors duration-300"
+                className="hidden sm:block text-muted-foreground/40 hover:text-muted-foreground transition-colors duration-300"
                 aria-label="Staff login"
               >
                 <LogIn className="h-4 w-4" />
               </Link>
             )}
+            {/* Mobile hamburger */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="sm:hidden flex items-center justify-center h-10 w-10 rounded-lg text-foreground/70 hover:text-foreground transition-colors"
+              aria-label="Toggle menu"
+            >
+              {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
           </div>
         </div>
+
+        {/* Mobile dropdown menu */}
+        {mobileMenuOpen && (
+          <div className="sm:hidden border-t border-border/30 bg-white/95 backdrop-blur-xl px-4 py-4 space-y-1 animate-in slide-in-from-top-2 duration-200">
+            <a href="#services" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2.5 rounded-lg text-sm font-medium font-body text-foreground/80 hover:bg-muted/50 transition-colors">Services</a>
+            <a href="#about" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2.5 rounded-lg text-sm font-medium font-body text-foreground/80 hover:bg-muted/50 transition-colors">About</a>
+            <a href="#contact" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2.5 rounded-lg text-sm font-medium font-body text-foreground/80 hover:bg-muted/50 transition-colors">Contact</a>
+            {accountLink && (
+              <Link to={accountLink} onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2.5 rounded-lg text-sm font-medium font-body text-foreground/80 hover:bg-muted/50 transition-colors">My Account</Link>
+            )}
+            <div className="pt-2 border-t border-border/30">
+              {user ? (
+                <button
+                  onClick={async () => { setMobileMenuOpen(false); await signOut(); }}
+                  className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium font-body text-muted-foreground hover:bg-muted/50 transition-colors w-full"
+                >
+                  <LogOut className="h-4 w-4" /> Sign Out
+                </button>
+              ) : (
+                <Link to="/auth" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium font-body text-muted-foreground hover:bg-muted/50 transition-colors">
+                  <LogIn className="h-4 w-4" /> Staff Login
+                </Link>
+              )}
+            </div>
+          </div>
+        )}
       </nav>
 
       {/* Hero Section */}
