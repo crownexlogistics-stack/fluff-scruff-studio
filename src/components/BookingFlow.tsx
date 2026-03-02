@@ -111,7 +111,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
   const [infoPopup, setInfoPopup] = useState<{ name: string; description: string } | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
-  const [guestForm, setGuestForm] = useState({ name: "", phone: "", email: "", dogName: preselectedPetName || "", password: "" });
+  const [guestForm, setGuestForm] = useState({ name: "", phone: "", email: "", dogName: preselectedPetName || "", password: "", notes: "" });
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [termsOpen, setTermsOpen] = useState(false);
   const [couponCode, setCouponCode] = useState("");
@@ -405,6 +405,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
       booking_time: selectedTime!,
       total_price: totalPrice,
       deposit_paid: 0,
+      notes: guestForm.notes.trim() || null,
       status: "Pending",
     }).select("id").single();
 
@@ -961,6 +962,18 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
               <div className="space-y-2">
                 <Label className="text-sm font-medium">Phone</Label>
                 <Input value={guestForm.phone} onChange={(e) => setGuestForm({ ...guestForm, phone: e.target.value })} placeholder="07xxx xxxxxx" type="tel" className="h-12 rounded-xl" />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Notes for the groomer</Label>
+                <textarea
+                  value={guestForm.notes}
+                  onChange={(e) => setGuestForm({ ...guestForm, notes: e.target.value })}
+                  placeholder="Any special requests, allergies, or things we should know about your dog…"
+                  className="flex w-full rounded-xl border border-input bg-background px-3 py-3 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm min-h-[80px] resize-none"
+                  maxLength={500}
+                  rows={3}
+                />
+                <p className="text-xs text-muted-foreground">Optional — visible to your groomer on the day</p>
               </div>
 
             {/* Coupon Code */}
