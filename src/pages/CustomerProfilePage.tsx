@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import {
   ArrowLeft, Mail, Phone, Dog, Calendar, StickyNote, Send,
-  Pencil, Check, X, User,
+  Pencil, Check, X, User, MessageSquare, MailOpen,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { toast } from "@/hooks/use-toast";
@@ -31,6 +31,13 @@ export default function CustomerProfilePage() {
   const [editEmail, setEditEmail] = useState("");
   const [editPhone, setEditPhone] = useState("");
   const [bookingTab, setBookingTab] = useState("upcoming");
+
+  // Message state
+  const [newMessage, setNewMessage] = useState("");
+
+  // Email state
+  const [emailSubject, setEmailSubject] = useState("");
+  const [emailBody, setEmailBody] = useState("");
 
   // ── Data queries ──────────────────────────────────────────────────
 
@@ -93,6 +100,37 @@ export default function CustomerProfilePage() {
     },
   });
 
+  // Communications (messages + emails)
+  const { data: messages } = useQuery({
+    queryKey: ["customer-messages", decodedEmail],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("customer_communications")
+        .select("*")
+        .eq("customer_email", decodedEmail)
+        .eq("type", "message")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!decodedEmail,
+  });
+
+  const { data: emails } = useQuery({
+    queryKey: ["customer-emails", decodedEmail],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("customer_communications")
+        .select("*")
+        .eq("customer_email", decodedEmail)
+        .eq("type", "email")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!decodedEmail,
+  });
+
   // ── Mutations ─────────────────────────────────────────────────────
 
   const addNoteMutation = useMutation({
@@ -112,9 +150,44 @@ export default function CustomerProfilePage() {
     onError: () => toast({ title: "Failed to add note", variant: "destructive" }),
   });
 
+  const sendMessageMutation = useMutation({
+    mutationFn: async (body: string) => {
+      const { error } = await supabase.from("customer_communications").insert({
+        customer_email: decodedEmail,
+        type: "message",
+        body,
+        direction: "outbound",
+        sent_by: user!.id,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      setNewMessage("");
+      queryClient.invalidateQueries({ queryKey: ["customer-messages", decodedEmail] });
+      toast({ title: "Message saved" });
+    },
+    onError: () => toast({ title: "Failed to send message", variant: "destructive" }),
+  });
+
+  const sendEmailMutation = useMutation({
+    mutationFn: async ({ subject, body }: { subject: string; body: string }) => {
+      const { data, error } = await supabase.functions.invoke("send-customer-email", {
+        body: { customer_email: decodedEmail, subject, body },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+    },
+    onSuccess: () => {
+      setEmailSubject("");
+      setEmailBody("");
+      queryClient.invalidateQueries({ queryKey: ["customer-emails", decodedEmail] });
+      toast({ title: "Email sent successfully" });
+    },
+    onError: (err: any) => toast({ title: `Failed to send email: ${err.message}`, variant: "destructive" }),
+  });
+
   const updateCustomerMutation = useMutation({
     mutationFn: async (updates: { name: string; email: string; phone: string }) => {
-      // Update all bookings for this customer with the corrected info
       const { error } = await supabase
         .from("bookings")
         .update({
@@ -125,10 +198,13 @@ export default function CustomerProfilePage() {
         .eq("customer_email", decodedEmail);
       if (error) throw error;
 
-      // If email changed, update notes too
       if (updates.email !== decodedEmail) {
         await supabase
           .from("customer_notes")
+          .update({ customer_email: updates.email })
+          .eq("customer_email", decodedEmail);
+        await supabase
+          .from("customer_communications")
           .update({ customer_email: updates.email })
           .eq("customer_email", decodedEmail);
       }
@@ -136,7 +212,6 @@ export default function CustomerProfilePage() {
     onSuccess: (_, variables) => {
       setIsEditing(false);
       toast({ title: "Customer details updated" });
-      // If email changed, navigate to the new URL
       if (variables.email !== decodedEmail) {
         navigate(`/admin/customers/${encodeURIComponent(variables.email)}`, { replace: true });
       }
@@ -184,6 +259,8 @@ export default function CustomerProfilePage() {
     });
   };
 
+  const tabTriggerClass = "rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4";
+
   // ── Render ────────────────────────────────────────────────────────
 
   return (
@@ -198,12 +275,10 @@ export default function CustomerProfilePage() {
         <Card className="rounded-b-none">
           <CardContent className="p-6">
             <div className="flex items-start gap-5">
-              {/* Avatar */}
               <div className="h-16 w-16 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
                 <span className="text-xl font-bold text-primary">{initials}</span>
               </div>
 
-              {/* Name + actions */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-3 mb-1">
                   {isEditing ? (
@@ -228,7 +303,6 @@ export default function CustomerProfilePage() {
                 </div>
               </div>
 
-              {/* Edit / Save buttons */}
               <div className="flex gap-2 shrink-0">
                 {isEditing ? (
                   <>
@@ -251,10 +325,8 @@ export default function CustomerProfilePage() {
               </div>
             </div>
 
-            {/* Contact row */}
             <Separator className="my-5" />
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-              {/* Email */}
               <div>
                 <p className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1">
                   <Mail className="h-3 w-3" /> Primary email
@@ -269,8 +341,6 @@ export default function CustomerProfilePage() {
                   <p className="text-sm font-medium truncate">{decodedEmail}</p>
                 )}
               </div>
-
-              {/* Phone */}
               <div>
                 <p className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1">
                   <Phone className="h-3 w-3" /> Primary phone
@@ -286,8 +356,6 @@ export default function CustomerProfilePage() {
                   <p className="text-sm font-medium">{customerPhone || "—"}</p>
                 )}
               </div>
-
-              {/* Total spend */}
               <div>
                 <p className="text-xs font-medium text-muted-foreground mb-1">Total spend</p>
                 <p className="text-sm font-medium">
@@ -302,30 +370,24 @@ export default function CustomerProfilePage() {
         <Tabs defaultValue="overview" className="w-full">
           <div className="border border-t-0 rounded-b-lg bg-card px-2">
             <TabsList className="bg-transparent h-12 w-full justify-start gap-0 rounded-none border-b">
-              <TabsTrigger
-                value="overview"
-                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4"
-              >
-                Overview
-              </TabsTrigger>
-              <TabsTrigger
-                value="notes"
-                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4"
-              >
+              <TabsTrigger value="overview" className={tabTriggerClass}>Overview</TabsTrigger>
+              <TabsTrigger value="notes" className={tabTriggerClass}>
                 Notes {notes && notes.length > 0 && `(${notes.length})`}
               </TabsTrigger>
-              <TabsTrigger
-                value="bookings"
-                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4"
-              >
-                Bookings
+              <TabsTrigger value="bookings" className={tabTriggerClass}>Bookings</TabsTrigger>
+              <TabsTrigger value="messages" className={tabTriggerClass}>
+                <MessageSquare className="h-3.5 w-3.5 mr-1.5" />
+                Messages {messages && messages.length > 0 && `(${messages.length})`}
+              </TabsTrigger>
+              <TabsTrigger value="email" className={tabTriggerClass}>
+                <MailOpen className="h-3.5 w-3.5 mr-1.5" />
+                Email {emails && emails.length > 0 && `(${emails.length})`}
               </TabsTrigger>
             </TabsList>
           </div>
 
           {/* ── Overview ── */}
           <TabsContent value="overview" className="mt-4 space-y-4">
-            {/* Pets */}
             <Card>
               <CardContent className="p-5">
                 <h3 className="text-sm font-semibold flex items-center gap-2 mb-3">
@@ -362,7 +424,6 @@ export default function CustomerProfilePage() {
               </CardContent>
             </Card>
 
-            {/* Quick booking summary */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <MiniStat label="Total Bookings" value={String(bookings?.length || 0)} />
               <MiniStat label="Upcoming" value={String(upcomingBookings.length)} />
@@ -427,7 +488,6 @@ export default function CustomerProfilePage() {
                   </h3>
                 </div>
 
-                {/* Sub-tabs: Upcoming / Past */}
                 <Tabs value={bookingTab} onValueChange={setBookingTab}>
                   <TabsList className="bg-transparent h-9 p-0 gap-4 justify-start">
                     <TabsTrigger
@@ -468,6 +528,138 @@ export default function CustomerProfilePage() {
                     )}
                   </TabsContent>
                 </Tabs>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* ── Messages ── */}
+          <TabsContent value="messages" className="mt-4">
+            <Card>
+              <CardContent className="p-5 space-y-4">
+                <h3 className="text-sm font-semibold flex items-center gap-2 mb-1">
+                  <MessageSquare className="h-4 w-4" /> Send Message
+                </h3>
+                <div className="flex gap-2">
+                  <Textarea
+                    placeholder="Type a message to this customer..."
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    className="min-h-[60px]"
+                  />
+                  <Button
+                    size="icon"
+                    className="shrink-0 self-end"
+                    disabled={!newMessage.trim() || sendMessageMutation.isPending}
+                    onClick={() => sendMessageMutation.mutate(newMessage.trim())}
+                  >
+                    <Send className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                <Separator />
+
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Message History</h4>
+
+                {messages && messages.length > 0 ? (
+                  <div className="space-y-2">
+                    {messages.map((msg) => (
+                      <div key={msg.id} className="p-3 rounded-lg border bg-muted/30">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                            {msg.direction === "outbound" ? "Sent" : "Received"}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">
+                            {format(new Date(msg.created_at), "dd MMM yyyy, HH:mm")}
+                          </span>
+                        </div>
+                        <p className="text-sm whitespace-pre-wrap">{msg.body}</p>
+                        {msg.sent_by && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            by {getStaffName(msg.sent_by)}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <MessageSquare className="h-10 w-10 mx-auto text-muted-foreground/40 mb-3" />
+                    <p className="font-medium text-sm">No messages yet</p>
+                    <p className="text-xs text-muted-foreground">Send a message to start the conversation.</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* ── Email ── */}
+          <TabsContent value="email" className="mt-4">
+            <Card>
+              <CardContent className="p-5 space-y-4">
+                <h3 className="text-sm font-semibold flex items-center gap-2 mb-1">
+                  <MailOpen className="h-4 w-4" /> Send Email
+                </h3>
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">To: {decodedEmail}</p>
+                    <Input
+                      placeholder="Subject"
+                      value={emailSubject}
+                      onChange={(e) => setEmailSubject(e.target.value)}
+                    />
+                  </div>
+                  <Textarea
+                    placeholder="Write your email here..."
+                    value={emailBody}
+                    onChange={(e) => setEmailBody(e.target.value)}
+                    className="min-h-[120px]"
+                  />
+                  <div className="flex justify-end">
+                    <Button
+                      disabled={!emailSubject.trim() || !emailBody.trim() || sendEmailMutation.isPending}
+                      onClick={() =>
+                        sendEmailMutation.mutate({
+                          subject: emailSubject.trim(),
+                          body: emailBody.trim(),
+                        })
+                      }
+                    >
+                      <Send className="h-4 w-4 mr-2" />
+                      {sendEmailMutation.isPending ? "Sending..." : "Send Email"}
+                    </Button>
+                  </div>
+                </div>
+
+                <Separator />
+
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Email History</h4>
+
+                {emails && emails.length > 0 ? (
+                  <div className="space-y-2">
+                    {emails.map((em) => (
+                      <div key={em.id} className="p-3 rounded-lg border bg-muted/30">
+                        <div className="flex items-center justify-between mb-1">
+                          <p className="text-sm font-medium">{em.subject || "(No subject)"}</p>
+                          <span className="text-xs text-muted-foreground">
+                            {format(new Date(em.created_at), "dd MMM yyyy, HH:mm")}
+                          </span>
+                        </div>
+                        <p className="text-sm text-muted-foreground whitespace-pre-wrap line-clamp-3">{em.body}</p>
+                        {em.sent_by && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Sent by {getStaffName(em.sent_by)}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <Mail className="h-10 w-10 mx-auto text-muted-foreground/40 mb-3" />
+                    <p className="font-medium text-sm">No emails sent yet</p>
+                    <p className="text-xs text-muted-foreground">Compose an email above to get started.</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
