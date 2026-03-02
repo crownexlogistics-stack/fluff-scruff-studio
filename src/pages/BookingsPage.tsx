@@ -86,6 +86,7 @@ const BookingsPage = () => {
         breed_name: b.breeds?.name ?? "",
         service_name: b.services?.name ?? "",
         stripe_payment_id: b.stripe_payment_id ?? null,
+        is_groomers_own_customer: b.is_groomers_own_customer ?? false,
       })) as BookingData[];
     },
   });
@@ -168,34 +169,78 @@ const BookingsPage = () => {
     onError: (e: any) => toast.error(e.message),
   });
 
-  // Complete booking mutation
+  // Complete booking mutation — also creates commission record
   const completeMutation = useMutation({
-    mutationFn: async ({ bookingId, finalCharge }: { bookingId: string; finalCharge: number }) => {
-      const { error } = await (supabase.from("bookings") as any).update({ status: "Completed", final_charge: finalCharge }).eq("id", bookingId);
+    mutationFn: async ({ bookingId, finalCharge, isOwnCustomer }: { bookingId: string; finalCharge: number; isOwnCustomer: boolean }) => {
+      const { error } = await (supabase.from("bookings") as any).update({ status: "Completed", final_charge: finalCharge, is_groomers_own_customer: isOwnCustomer }).eq("id", bookingId);
       if (error) throw error;
+
+      // Find the booking to calculate commission
+      const booking = bookings.find(b => b.id === bookingId);
+      if (booking && booking.staff_id) {
+        const rate = isOwnCustomer ? 0.5 : 0.4;
+        const totalPrice = finalCharge;
+        const groomerPay = Math.round(totalPrice * rate * 100) / 100;
+        const studioShare = Math.round((totalPrice - groomerPay) * 100) / 100;
+
+        await supabase.from("commission_records").insert({
+          booking_id: bookingId,
+          staff_id: booking.staff_id,
+          total_price: totalPrice,
+          deposit_paid: Number(booking.deposit_paid),
+          final_charge: finalCharge,
+          commission_type: isOwnCustomer ? "own_customer" : "normal",
+          commission_rate: rate,
+          groomer_pay: groomerPay,
+          studio_share: studioShare,
+        });
+      }
+
       logAudit({ action: "BOOKING_COMPLETED", details: `Completed booking ${bookingId}. Final charge: £${finalCharge.toFixed(2)}` });
     },
     onSuccess: () => {
       toast.success("Appointment completed");
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
       queryClient.invalidateQueries({ queryKey: ["audit-logs"] });
+      queryClient.invalidateQueries({ queryKey: ["commission-records"] });
     },
     onError: (e: any) => toast.error(e.message),
   });
 
-  // No Show mutation
+  // No Show mutation — creates commission record (50% of deposit)
   const noShowMutation = useMutation({
     mutationFn: async (bookingId: string) => {
       const { error } = await supabase.from("bookings").update({ status: "No Show" }).eq("id", bookingId);
       if (error) throw error;
+
+      // Calculate no-show commission: groomer gets 50% of deposit
+      const booking = bookings.find(b => b.id === bookingId);
+      if (booking && booking.staff_id) {
+        const deposit = Number(booking.deposit_paid);
+        const groomerPay = Math.round(deposit * 0.5 * 100) / 100;
+        const studioShare = Math.round((deposit - groomerPay) * 100) / 100;
+
+        await supabase.from("commission_records").insert({
+          booking_id: bookingId,
+          staff_id: booking.staff_id,
+          total_price: Number(booking.total_price),
+          deposit_paid: deposit,
+          final_charge: 0,
+          commission_type: "no_show",
+          commission_rate: 0.5,
+          groomer_pay: groomerPay,
+          studio_share: studioShare,
+        });
+      }
+
       logAudit({ action: "BOOKING_NO_SHOW", details: `Marked booking ${bookingId} as No Show` });
-      // Send no-show email
       supabase.functions.invoke("send-booking-email", { body: { booking_id: bookingId, email_type: "no_show" } }).catch(() => {});
     },
     onSuccess: () => {
       toast.success("Marked as No Show");
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
       queryClient.invalidateQueries({ queryKey: ["audit-logs"] });
+      queryClient.invalidateQueries({ queryKey: ["commission-records"] });
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -360,7 +405,7 @@ const BookingsPage = () => {
         open={checkoutOpen}
         onOpenChange={setCheckoutOpen}
         booking={checkoutBooking}
-        onComplete={(id, charge) => completeMutation.mutate({ bookingId: id, finalCharge: charge })}
+        onComplete={(id, charge, isOwn) => completeMutation.mutate({ bookingId: id, finalCharge: charge, isOwnCustomer: isOwn })}
         onNoShow={(id) => noShowMutation.mutate(id)}
       />
 

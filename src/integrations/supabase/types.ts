@@ -271,6 +271,63 @@ export type Database = {
         }
         Relationships: []
       }
+      commission_records: {
+        Row: {
+          booking_id: string
+          commission_rate: number
+          commission_type: string
+          created_at: string
+          deposit_paid: number
+          final_charge: number | null
+          groomer_pay: number
+          id: string
+          staff_id: string
+          studio_share: number
+          total_price: number
+        }
+        Insert: {
+          booking_id: string
+          commission_rate?: number
+          commission_type?: string
+          created_at?: string
+          deposit_paid?: number
+          final_charge?: number | null
+          groomer_pay?: number
+          id?: string
+          staff_id: string
+          studio_share?: number
+          total_price?: number
+        }
+        Update: {
+          booking_id?: string
+          commission_rate?: number
+          commission_type?: string
+          created_at?: string
+          deposit_paid?: number
+          final_charge?: number | null
+          groomer_pay?: number
+          id?: string
+          staff_id?: string
+          studio_share?: number
+          total_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commission_records_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commission_records_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       coupon_usages: {
         Row: {
           booking_id: string | null
@@ -616,6 +673,50 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      payout_records: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          notes: string | null
+          payment_method: string
+          period_end: string
+          period_start: string
+          processed_by: string
+          staff_id: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          payment_method?: string
+          period_end: string
+          period_start: string
+          processed_by: string
+          staff_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          payment_method?: string
+          period_end?: string
+          period_start?: string
+          processed_by?: string
+          staff_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payout_records_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {

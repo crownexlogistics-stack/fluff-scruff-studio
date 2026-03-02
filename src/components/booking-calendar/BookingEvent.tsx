@@ -34,6 +34,7 @@ export interface BookingData {
   breed_id?: string;
   final_charge?: number | null;
   stripe_payment_id?: string | null;
+  is_groomers_own_customer?: boolean;
 }
 
 interface BookingEventProps {
@@ -294,6 +295,9 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
             <p className="font-medium">{booking.service_name || "Service"} — {booking.breed_name || booking.dog_name}</p>
             <p className="text-sm text-muted-foreground">with {booking.staff_name}</p>
             <p className="text-sm font-medium mt-1">£{Number(booking.total_price).toFixed(2)}</p>
+            {booking.is_groomers_own_customer && (
+              <Badge className="mt-1 text-xs bg-violet-100 text-violet-700 hover:bg-violet-100 dark:bg-violet-900/30 dark:text-violet-400">Own Customer • 50%</Badge>
+            )}
           </div>
 
           {booking.notes && (
