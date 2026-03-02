@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { useNavigate } from "react-router-dom";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -45,6 +46,7 @@ interface BookingEventProps {
 }
 
 export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1, onEditBlock, onCancelBlock, onViewOrder, onEditAppointment, onCancelBooking, onBookAgain, onCheckout }: BookingEventProps) {
+  const navigate = useNavigate();
   const isNoShow = booking.status === "No Show";
   const color = isNoShow ? { bg: "bg-muted", text: "text-muted-foreground" } : getStaffColor(staffIndex);
   const timeParts = booking.booking_time.split(":");
@@ -142,7 +144,12 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
               {booking.customer_name.split(" ").map(n => n[0]).join("").slice(0, 2)}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="font-semibold">{booking.customer_name}</p>
+              <p
+                className="font-semibold cursor-pointer hover:underline"
+                onClick={() => booking.customer_email && navigate(`/admin/customers/${encodeURIComponent(booking.customer_email)}`)}
+              >
+                {booking.customer_name}
+              </p>
               <p className="text-xs text-muted-foreground truncate">
                 {booking.customer_email || ""}
                 {booking.customer_phone ? ` • ${booking.customer_phone}` : ""}
