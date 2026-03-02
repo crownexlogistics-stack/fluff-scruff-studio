@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      add_on_services: {
+        Row: {
+          add_on_id: string
+          created_at: string
+          id: string
+          service_id: string
+        }
+        Insert: {
+          add_on_id: string
+          created_at?: string
+          id?: string
+          service_id: string
+        }
+        Update: {
+          add_on_id?: string
+          created_at?: string
+          id?: string
+          service_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "add_on_services_add_on_id_fkey"
+            columns: ["add_on_id"]
+            isOneToOne: false
+            referencedRelation: "add_ons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "add_on_services_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       add_ons: {
         Row: {
           created_at: string
