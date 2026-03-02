@@ -12,6 +12,7 @@ import { NewBookingDialog } from "@/components/booking-calendar/NewBookingDialog
 import { EditBlockDialog } from "@/components/booking-calendar/EditBlockDialog";
 import { CheckoutDialog } from "@/components/booking-calendar/CheckoutDialog";
 import { ViewOrderDialog } from "@/components/booking-calendar/ViewOrderDialog";
+import { OvertimeDialog } from "@/components/booking-calendar/OvertimeDialog";
 import { EditAppointmentDialog } from "@/components/booking-calendar/EditAppointmentDialog";
 import type { BookingData } from "@/components/booking-calendar/BookingEvent";
 import { toast } from "sonner";
@@ -45,6 +46,8 @@ const BookingsPage = () => {
   const [editApptBooking, setEditApptBooking] = useState<BookingData | null>(null);
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
   const [cancelBooking, setCancelBookingState] = useState<BookingData | null>(null);
+  const [overtimeOpen, setOvertimeOpen] = useState(false);
+  const [overtimeDefaults, setOvertimeDefaults] = useState<{ date?: Date; hour?: number; staffId?: string }>({});
 
   const weekEnd = addDays(weekStart, 6);
 
@@ -206,6 +209,11 @@ const BookingsPage = () => {
     setDialogOpen(true);
   }, []);
 
+  const handleOvertime = useCallback((date: Date, hour: number, staffId: string) => {
+    setOvertimeDefaults({ date, hour, staffId });
+    setOvertimeOpen(true);
+  }, []);
+
   const handleEditBlock = useCallback((block: BookingData) => {
     setEditingBlock(block);
     setEditBlockOpen(true);
@@ -272,6 +280,7 @@ const BookingsPage = () => {
           staffIndexMap={staffIndexMap}
           onBook={handleBook}
           onBlock={handleBlock}
+          onOvertime={handleOvertime}
           onEditBlock={handleEditBlock}
           onCancelBlock={handleCancelBlock}
           onViewOrder={handleViewOrder}
@@ -289,6 +298,14 @@ const BookingsPage = () => {
         defaultHour={dialogDefaults.hour}
         defaultStaffId={dialogDefaults.staffId}
         mode={dialogMode}
+      />
+
+      <OvertimeDialog
+        open={overtimeOpen}
+        onOpenChange={setOvertimeOpen}
+        defaultDate={overtimeDefaults.date}
+        defaultHour={overtimeDefaults.hour}
+        defaultStaffId={overtimeDefaults.staffId}
       />
 
       <EditBlockDialog
