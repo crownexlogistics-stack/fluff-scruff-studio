@@ -110,7 +110,7 @@ const CustomerHome = () => {
                 </button>
               ) : (
                 <Link to="/auth" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium font-body text-muted-foreground hover:bg-muted/50 transition-colors">
-                  <LogIn className="h-4 w-4" /> Staff Login
+                  <LogIn className="h-4 w-4" /> Login
                 </Link>
               )}
             </div>

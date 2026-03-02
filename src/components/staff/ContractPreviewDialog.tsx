@@ -198,6 +198,9 @@ export function ContractContent({ staff }: { staff: StaffMember }) {
             </p>
             {staff.contract_status === "signed" && staff.signed_at ? (
               <>
+                <p className="text-xs text-muted-foreground">
+                  Signature:
+                </p>
                 {(staff as any).contract_signature_data ? (
                   <img
                     src={(staff as any).contract_signature_data}
@@ -208,7 +211,7 @@ export function ContractContent({ staff }: { staff: StaffMember }) {
                   <p className="text-lg italic font-serif text-foreground">{staff.name}</p>
                 )}
                 <p className="text-xs text-muted-foreground">
-                  Date: {format(new Date(staff.signed_at), "PPP")}
+                  Date: {format(new Date(staff.signed_at), "PPP 'at' p")}
                 </p>
                 {staff.signed_ip && (
                   <p className="text-xs text-muted-foreground">IP: {staff.signed_ip}</p>
@@ -216,7 +219,9 @@ export function ContractContent({ staff }: { staff: StaffMember }) {
               </>
             ) : (
               <>
-                <div className="border-b border-dashed h-8" />
+                <p className="text-xs text-muted-foreground">
+                  Signature: _______________
+                </p>
                 <p className="text-xs text-muted-foreground">
                   Date: _______________
                 </p>
