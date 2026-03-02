@@ -14,6 +14,7 @@ import { GroomerCalendar, type GroomerCalendarBooking } from "./GroomerCalendar"
 import { Card, CardContent } from "@/components/ui/card";
 import { BookingPopoverCard } from "@/components/booking-calendar/BookingPopoverCard";
 import { NewBookingDialog } from "@/components/booking-calendar/NewBookingDialog";
+import { OvertimeDialog } from "@/components/booking-calendar/OvertimeDialog";
 import { EditBlockDialog } from "@/components/booking-calendar/EditBlockDialog";
 import { CheckoutDialog } from "@/components/booking-calendar/CheckoutDialog";
 import { ViewOrderDialog } from "@/components/booking-calendar/ViewOrderDialog";
@@ -60,6 +61,8 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
   const [editApptBooking, setEditApptBooking] = useState<BookingData | null>(null);
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
   const [cancelBookingData, setCancelBookingData] = useState<BookingData | null>(null);
+  const [overtimeOpen, setOvertimeOpen] = useState(false);
+  const [overtimeDefaults, setOvertimeDefaults] = useState<{ date?: Date; hour?: number; staffId?: string }>({});
 
   const { data: allStaff = [] } = useQuery({
     queryKey: ["staff-list-groomer"],
@@ -190,6 +193,11 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
     setDialogMode("block");
     setDialogDefaults({ date, hour, staffId: sid });
     setDialogOpen(true);
+  }, []);
+
+  const handleOvertime = useCallback((date: Date, hour: number, sid: string) => {
+    setOvertimeDefaults({ date, hour, staffId: sid });
+    setOvertimeOpen(true);
   }, []);
 
   const handleEditBlock = useCallback((block: GroomerCalendarBooking) => {
@@ -356,6 +364,7 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
           userRole={userRole}
           onBook={handleBook}
           onBlock={handleBlock}
+          onOvertime={handleOvertime}
           onEditBlock={handleEditBlock}
           onCancelBlock={handleCancelBlock}
           onViewOrder={handleViewOrder}
@@ -441,6 +450,13 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
         defaultHour={dialogDefaults.hour}
         defaultStaffId={dialogDefaults.staffId}
         mode={dialogMode}
+      />
+      <OvertimeDialog
+        open={overtimeOpen}
+        onOpenChange={setOvertimeOpen}
+        defaultDate={overtimeDefaults.date}
+        defaultHour={overtimeDefaults.hour}
+        defaultStaffId={overtimeDefaults.staffId}
       />
       <EditBlockDialog open={editBlockOpen} onOpenChange={setEditBlockOpen} block={editingBlock} />
       <CheckoutDialog

@@ -6,7 +6,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { CalendarPlus, Ban, Pencil, Trash2, MoreHorizontal, Eye, PenLine, XCircle, Send, CheckCircle2 } from "lucide-react";
+import { CalendarPlus, Ban, Clock, Pencil, Trash2, MoreHorizontal, Eye, PenLine, XCircle, Send, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -53,6 +53,7 @@ interface GroomerCalendarProps {
   userRole?: UserRole;
   onBook?: (date: Date, hour: number, staffId: string) => void;
   onBlock?: (date: Date, hour: number, staffId: string) => void;
+  onOvertime?: (date: Date, hour: number, staffId: string) => void;
   onEditBlock?: (booking: GroomerCalendarBooking) => void;
   onCancelBlock?: (booking: GroomerCalendarBooking) => void;
   onViewOrder?: (booking: GroomerCalendarBooking) => void;
@@ -68,10 +69,11 @@ const HOURS = Array.from({ length: END_HOUR - START_HOUR }, (_, i) => START_HOUR
 const FOCUS_HOUR = 9;
 const SLOT_HEIGHT = 56;
 
-function SlotAction({ date, hour, staffId, staffName, canBlock, onBook, onBlock }: {
+function SlotAction({ date, hour, staffId, staffName, canBlock, onBook, onBlock, onOvertime }: {
   date: Date; hour: number; staffId: string; staffName: string; canBlock: boolean;
   onBook: (date: Date, hour: number, staffId: string) => void;
   onBlock: (date: Date, hour: number, staffId: string) => void;
+  onOvertime?: (date: Date, hour: number, staffId: string) => void;
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -93,6 +95,14 @@ function SlotAction({ date, hour, staffId, staffName, canBlock, onBook, onBlock 
               onClick={() => { onBlock(date, hour, staffId); setOpen(false); }}
             >
               <Ban className="h-4 w-4" /> Block time
+            </button>
+          )}
+          {onOvertime && (
+            <button
+              className="w-full flex items-center gap-3 rounded-md px-3 py-2.5 text-sm hover:bg-accent text-left"
+              onClick={() => { onOvertime(date, hour, staffId); setOpen(false); }}
+            >
+              <Clock className="h-4 w-4" /> Overtime
             </button>
           )}
         </div>
@@ -281,7 +291,7 @@ function OwnBookingPopover({ booking, color, onViewOrder, onEditAppointment, onC
   );
 }
 
-export function GroomerCalendar({ currentDate, daysToShow, staff, bookings, currentStaffId, userRole, onBook, onBlock, onEditBlock, onCancelBlock, onViewOrder, onEditAppointment, onCancelBooking, onBookAgain, onCheckout }: GroomerCalendarProps) {
+export function GroomerCalendar({ currentDate, daysToShow, staff, bookings, currentStaffId, userRole, onBook, onBlock, onOvertime, onEditBlock, onCancelBlock, onViewOrder, onEditAppointment, onCancelBooking, onBookAgain, onCheckout }: GroomerCalendarProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const canInteract = !!onBook && !!onBlock && (userRole === "groomer" || userRole === "manager" || userRole === "director");
 
@@ -372,6 +382,7 @@ export function GroomerCalendar({ currentDate, daysToShow, staff, bookings, curr
                             canBlock={canBlockThisColumn}
                             onBook={onBook!}
                             onBlock={onBlock!}
+                            onOvertime={onOvertime}
                           />
                         ) : (
                           <div key={hour} className="h-14 border-b" />

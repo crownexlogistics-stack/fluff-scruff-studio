@@ -17,6 +17,7 @@ interface WeeklyCalendarProps {
   staffIndexMap: Map<string, number>;
   onBook: (date: Date, hour: number, staffId: string) => void;
   onBlock: (date: Date, hour: number, staffId: string) => void;
+  onOvertime?: (date: Date, hour: number, staffId: string) => void;
   onEditBlock?: (booking: BookingData) => void;
   onCancelBlock?: (booking: BookingData) => void;
   onViewOrder?: (booking: BookingData) => void;
@@ -31,7 +32,7 @@ const END_HOUR = 18;
 const HOURS = Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, i) => START_HOUR + i);
 const DAYS = Array.from({ length: 7 }, (_, i) => i);
 
-export function WeeklyCalendar({ weekStart, staff, bookings, staffIndexMap, onBook, onBlock, onEditBlock, onCancelBlock, onViewOrder, onEditAppointment, onCancelBooking, onBookAgain, onCheckout }: WeeklyCalendarProps) {
+export function WeeklyCalendar({ weekStart, staff, bookings, staffIndexMap, onBook, onBlock, onOvertime, onEditBlock, onCancelBlock, onViewOrder, onEditAppointment, onCancelBooking, onBookAgain, onCheckout }: WeeklyCalendarProps) {
   const days = useMemo(() => DAYS.map(i => addDays(weekStart, i)), [weekStart]);
 
   const bookingsByDate = useMemo(() => {
@@ -81,6 +82,7 @@ export function WeeklyCalendar({ weekStart, staff, bookings, staffIndexMap, onBo
                     staffName={staff[0]?.name || ""}
                     onBook={onBook}
                     onBlock={onBlock}
+                    onOvertime={onOvertime}
                   >
                     <div className="h-16 border-b cursor-pointer hover:bg-accent/30 transition-colors" />
                   </EmptySlotAction>
