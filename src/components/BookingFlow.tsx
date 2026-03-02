@@ -1,5 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { ArrowLeft, Search, Dog, ChevronRight, PawPrint, Save, Move, Sparkles, Check, ChevronLeft, Calendar, Info, X, Lock } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
@@ -111,6 +113,20 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [guestForm, setGuestForm] = useState({ name: "", phone: "", email: "", dogName: preselectedPetName || "", password: "" });
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [termsOpen, setTermsOpen] = useState(false);
+
+  const { data: termsContent } = useQuery({
+    queryKey: ["site_config", "terms_and_conditions"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("site_config")
+        .select("value")
+        .eq("key", "terms_and_conditions")
+        .maybeSingle();
+      if (error) throw error;
+      return (data?.value as string) ?? "";
+    },
+  });
   const queryClient = useQueryClient();
 
   // Set initial step once we know if it's fixed-price
@@ -439,6 +455,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
   }
 
   return (
+    <>
     <div className="fixed inset-0 z-50 bg-background animate-slide-up flex flex-col">
       {/* Header */}
       <div className="glass sticky top-0 z-10 px-4 py-3 flex items-center gap-3 safe-area-top">
@@ -828,15 +845,13 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
               />
               <span className="text-sm text-muted-foreground leading-relaxed">
                 I agree to the{" "}
-                <a
-                  href="/terms"
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <button
+                  type="button"
                   className="text-accent underline underline-offset-2 hover:text-accent/80"
-                  onClick={(e) => e.stopPropagation()}
+                  onClick={(e) => { e.stopPropagation(); setTermsOpen(true); }}
                 >
                   Terms & Conditions
-                </a>
+                </button>
               </span>
             </label>
 
@@ -847,5 +862,25 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
         )}
       </div>
     </div>
+
+      <Dialog open={termsOpen} onOpenChange={setTermsOpen}>
+        <DialogContent className="max-w-lg max-h-[85vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="font-heading">Terms & Conditions</DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="flex-1 max-h-[60vh] pr-4">
+            <div
+              className="prose prose-sm max-w-none text-muted-foreground [&_h2]:font-heading [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:text-foreground [&_h2]:mt-8 [&_h2]:mb-3 [&_p]:mb-3 [&_strong]:text-foreground [&_ul]:list-disc [&_ul]:pl-5 [&_li]:mb-1"
+              dangerouslySetInnerHTML={{ __html: termsContent ?? "" }}
+            />
+          </ScrollArea>
+          <div className="pt-4 border-t">
+            <Button variant="outline" className="w-full" onClick={() => setTermsOpen(false)}>
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
