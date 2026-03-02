@@ -172,10 +172,16 @@ const BookingsPage = () => {
 
   // Cancel booking mutation
   const cancelBookingMutation = useMutation({
-    mutationFn: async (bookingId: string) => {
-      const { error } = await supabase.from("bookings").update({ status: "Cancelled" }).eq("id", bookingId);
+    mutationFn: async (booking: BookingData) => {
+      const { error } = await supabase.from("bookings").update({ status: "Cancelled" }).eq("id", booking.id);
       if (error) throw error;
-      logAudit({ action: "BOOKING_CANCELLED", details: `Cancelled booking ${bookingId}` });
+      logAudit({ action: "BOOKING_CANCELLED", details: `Cancelled booking ${booking.id}` });
+      // Notify groomer
+      if (booking.staff_id) {
+        supabase.functions.invoke("notify-groomer", {
+          body: { booking_id: booking.id, notification_type: "booking_cancelled" },
+        }).catch(() => {});
+      }
     },
     onSuccess: () => {
       toast.success("Booking cancelled");
@@ -319,7 +325,7 @@ const BookingsPage = () => {
             <AlertDialogCancel>Keep Booking</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => cancelBooking && cancelBookingMutation.mutate(cancelBooking.id)}
+              onClick={() => cancelBooking && cancelBookingMutation.mutate(cancelBooking)}
             >
               Cancel Booking
             </AlertDialogAction>

@@ -94,6 +94,12 @@ export function EditAppointmentDialog({ open, onOpenChange, booking }: EditAppoi
         action: "BOOKING_EDITED",
         details: `Edited booking for ${booking.customer_name} on ${form.booking_date} at ${form.booking_time}`,
       });
+      // Notify groomer of the edit
+      if (form.staff_id) {
+        supabase.functions.invoke("notify-groomer", {
+          body: { booking_id: booking.id, notification_type: "booking_edited" },
+        }).catch(() => {});
+      }
     },
     onSuccess: () => {
       toast.success("Appointment updated");

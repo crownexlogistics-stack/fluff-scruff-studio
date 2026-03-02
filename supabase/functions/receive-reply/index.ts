@@ -47,6 +47,26 @@ serve(async (req) => {
 
     if (error) throw error;
 
+    // Notify the groomer assigned to this booking
+    if (bookingId) {
+      const notifyUrl = `${supabaseUrl}/functions/v1/notify-groomer`;
+      await fetch(notifyUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${supabaseKey}`,
+        },
+        body: JSON.stringify({
+          booking_id: bookingId,
+          notification_type: "customer_message",
+          extra: {
+            message_subject: subject,
+            message_preview: body?.slice(0, 500) || "",
+          },
+        }),
+      }).catch((e) => console.error("Failed to notify groomer:", e));
+    }
+
     return new Response(JSON.stringify({ success: true }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
