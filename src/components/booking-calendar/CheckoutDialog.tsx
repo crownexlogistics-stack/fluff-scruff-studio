@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { NumericInput } from "@/components/ui/numeric-input";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, UserX } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -90,11 +90,9 @@ export function CheckoutDialog({ open, onOpenChange, booking, onComplete, onNoSh
 
             <div className="space-y-1">
               <Label>Final charge to customer (£)</Label>
-              <Input
-                type="number"
-                step="0.01"
+              <NumericInput
                 value={finalCharge}
-                onChange={(e) => setFinalCharge(Number(e.target.value))}
+                onValueChange={setFinalCharge}
               />
               <p className="text-xs text-muted-foreground">Adjust if the groomer charged more or less than planned</p>
             </div>

@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumericInput } from "@/components/ui/numeric-input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
@@ -294,21 +295,17 @@ export default function CouponsPage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label>Discount Value *</Label>
-                <Input
-                  type="number"
-                  step={form.discount_type === "percentage" ? "1" : "0.01"}
+                <NumericInput
                   value={form.discount_value}
-                  onChange={(e) => setForm({ ...form, discount_value: Number(e.target.value) })}
+                  onValueChange={(v) => setForm({ ...form, discount_value: v })}
                   placeholder={form.discount_type === "percentage" ? "20" : "5.00"}
                 />
               </div>
               <div className="space-y-1.5">
                 <Label>Min Order (£)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
+                <NumericInput
                   value={form.min_order_amount}
-                  onChange={(e) => setForm({ ...form, min_order_amount: e.target.value })}
+                  onValueChange={(v) => setForm({ ...form, min_order_amount: String(v) })}
                   placeholder="0"
                 />
               </div>
@@ -348,19 +345,19 @@ export default function CouponsPage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label>Total Uses Limit</Label>
-                <Input
-                  type="number"
+                <NumericInput
                   value={form.max_uses}
-                  onChange={(e) => setForm({ ...form, max_uses: e.target.value })}
+                  onValueChange={(v) => setForm({ ...form, max_uses: String(v) })}
+                  allowDecimals={false}
                   placeholder="Unlimited"
                 />
               </div>
               <div className="space-y-1.5">
                 <Label>Per Customer Limit</Label>
-                <Input
-                  type="number"
+                <NumericInput
                   value={form.max_uses_per_customer}
-                  onChange={(e) => setForm({ ...form, max_uses_per_customer: e.target.value })}
+                  onValueChange={(v) => setForm({ ...form, max_uses_per_customer: String(v) })}
+                  allowDecimals={false}
                   placeholder="1"
                 />
               </div>

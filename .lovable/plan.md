@@ -1,5 +1,3 @@
-
-
 ## Fix: Booking Flow - Auto-Login on Signup + Stripe Payment
 
 ### Problem
@@ -35,3 +33,30 @@ When a new customer clicks "Create Account & Pay Deposit":
 - Update success toast to remove email verification mention
 - Keep the pet insert logic as-is (it will now work since user is authenticated)
 
+## Rule: Numeric Inputs — Free Format Only
+
+**PERMANENT RULE**: All numeric input fields across the entire application MUST use the `NumericInput` component (`@/components/ui/numeric-input`), NOT `<Input type="number">`.
+
+### Why
+- No browser spinner arrows (up/down buttons)
+- Clean free-format text field that only accepts digits and decimal points
+- Uses `inputMode="decimal"` for mobile numeric keyboard
+- Consistent UX across all forms
+
+### How
+```tsx
+import { NumericInput } from "@/components/ui/numeric-input";
+
+<NumericInput
+  value={form.price}
+  onValueChange={(v) => setForm({ ...form, price: v })}
+  allowDecimals={true}    // default true, set false for integers
+  placeholder="0"
+/>
+```
+
+### Never do this
+```tsx
+// ❌ WRONG — creates spinner arrows
+<Input type="number" value={...} onChange={...} />
+```

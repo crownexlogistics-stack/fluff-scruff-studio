@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumericInput } from "@/components/ui/numeric-input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
@@ -891,11 +892,11 @@ export default function CustomerProfilePage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div className="space-y-1">
                   <Label>Total Price (£)</Label>
-                  <Input type="number" value={bookingForm.total_price} onChange={(e) => setBookingForm({ ...bookingForm, total_price: Number(e.target.value) })} />
+                  <NumericInput value={bookingForm.total_price} onValueChange={(v) => setBookingForm({ ...bookingForm, total_price: v })} />
                 </div>
                 <div className="space-y-1">
                   <Label>Deposit (£)</Label>
-                  <Input type="number" value={bookingForm.deposit_paid} onChange={(e) => setBookingForm({ ...bookingForm, deposit_paid: Number(e.target.value) })} />
+                  <NumericInput value={bookingForm.deposit_paid} onValueChange={(v) => setBookingForm({ ...bookingForm, deposit_paid: v })} />
                 </div>
               </div>
               <div className="space-y-1">
