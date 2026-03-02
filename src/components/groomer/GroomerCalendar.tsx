@@ -18,6 +18,7 @@ interface CalendarBooking {
   booking_date: string;
   booking_time: string;
   end_time?: string;
+  breed_duration_minutes?: number;
   status: string;
   notes: string | null;
   staff_name?: string;
@@ -139,6 +140,8 @@ export function GroomerCalendar({ currentDate, daysToShow, staff, bookings, curr
                           const endMin = parseInt(endParts[1] || "0");
                           durationHours = (endHour + endMin / 60) - (hour + minutes / 60);
                           if (durationHours <= 0) durationHours = 1;
+                        } else if (booking.breed_duration_minutes) {
+                          durationHours = booking.breed_duration_minutes / 60;
                         }
                         const height = durationHours * 56;
 
