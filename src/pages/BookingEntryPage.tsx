@@ -9,7 +9,12 @@ import { Label } from "@/components/ui/label";
 import { ArrowLeft, PawPrint, LogIn, UserPlus, Dog, Plus, Search, ChevronRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { BookingFlow } from "@/components/BookingFlow";
+import { ServiceJourney } from "@/components/ServiceJourney";
 import logo from "@/assets/logo-transparent.png";
+import serviceFullGroom from "@/assets/service-full-groom.jpg";
+import servicePuppy from "@/assets/service-puppy.jpg";
+import serviceTeeth from "@/assets/service-teeth.jpg";
+import serviceNails from "@/assets/service-nails.jpg";
 
 interface PetWithBreed {
   id: string;
@@ -33,6 +38,7 @@ const BookingEntryPage = () => {
   const [submitting, setSubmitting] = useState(false);
   // New customer flow: skip signup, go straight to booking
   const [newCustomerBooking, setNewCustomerBooking] = useState(false);
+  const [newCustomerService, setNewCustomerService] = useState<string | null>(null);
 
   // Pet selection / add-pet state
   const [showAddPet, setShowAddPet] = useState(false);
@@ -152,14 +158,38 @@ const BookingEntryPage = () => {
     );
   }
 
-  // New customer flow: browse services/dates first, create account at checkout
-  if (newCustomerBooking) {
+  // New customer flow: service selection then booking
+
+  const allServices = [
+    { title: "Grooming", subtitle: "The ultimate pamper session — wash, dry, cut & style. Your pup leaves looking like a supermodel.", image: serviceFullGroom, imagePosition: "50% 43%" },
+    { title: "Puppy Special", subtitle: "A gentle, fun first grooming experience. We go at their pace with loads of treats & cuddles.", image: servicePuppy, imagePosition: "50% 52%" },
+    { title: "Teeth Cleaning", subtitle: "Fresh gums and pearly whites for your best friend. Say goodbye to bad breath.", image: serviceTeeth },
+    { title: "Nail Clipping", subtitle: "Quick, painless trim so those tippy-taps stay happy and healthy.", image: serviceNails, imagePosition: "48% 63%" },
+  ];
+
+  if (newCustomerBooking && newCustomerService) {
     return (
       <BookingFlow
-        service={serviceParam}
-        onClose={() => setNewCustomerBooking(false)}
+        service={newCustomerService}
+        onClose={() => { setNewCustomerService(null); setNewCustomerBooking(false); }}
         isNewCustomer
       />
+    );
+  }
+
+  if (newCustomerBooking && !newCustomerService) {
+    return (
+      <div className="min-h-screen bg-background">
+        <nav className="sticky top-0 z-50 glass border-b border-border/50">
+          <div className="max-w-2xl mx-auto px-4 sm:px-6 h-16 flex items-center gap-3">
+            <button onClick={() => setNewCustomerBooking(false)} className="text-muted-foreground hover:text-foreground transition-colors">
+              <ArrowLeft className="h-5 w-5" />
+            </button>
+            <img src={logo} alt="Fluff & Scruff" className="h-10 w-auto" />
+          </div>
+        </nav>
+        <ServiceJourney services={allServices} onSelectService={(title) => setNewCustomerService(title)} />
+      </div>
     );
   }
 
