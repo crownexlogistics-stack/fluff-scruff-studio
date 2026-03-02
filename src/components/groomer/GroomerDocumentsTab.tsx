@@ -11,7 +11,7 @@ import { FileText, ShieldCheck, ScrollText, Scissors, Download, ArrowLeft, Chevr
 import { ContractContent } from "@/components/staff/ContractPreviewDialog";
 import { HealthAndSafetyContent } from "@/components/staff/HealthAndSafetyContent";
 import CodeOfConduct from "@/components/staff/CodeOfConduct";
-import { GroomerDocuments as IncidentReports } from "@/components/incident-reports/GroomerIncidentReview";
+
 
 // Room rules data (same as RulesPage)
 const ruleFolders = [
@@ -65,7 +65,7 @@ const ruleFolders = [
   },
 ];
 
-type DocView = null | "contract" | "health-safety" | "room-rules" | "code-of-conduct" | "incidents";
+type DocView = null | "contract" | "health-safety" | "room-rules" | "code-of-conduct";
 
 export function GroomerDocumentsTab({ staffId }: { staffId: string }) {
   const [activeDoc, setActiveDoc] = useState<DocView>(null);
@@ -84,7 +84,7 @@ export function GroomerDocumentsTab({ staffId }: { staffId: string }) {
     { id: "health-safety", icon: ShieldCheck, title: "Health & Safety Policy", subtitle: "12-section workplace safety policy", badge: (staff as any)?.hs_status === "signed" ? "Signed" : undefined },
     { id: "room-rules", icon: Scissors, title: "Room Rules", subtitle: "Grooming, bathing & kitchen area rules" },
     { id: "code-of-conduct", icon: ScrollText, title: "Code of Conduct", subtitle: "Professional standards & expectations" },
-    { id: "incidents", icon: FileText, title: "Incident Reports", subtitle: "Reports requiring your review" },
+    
   ];
 
   if (activeDoc) {
@@ -97,8 +97,10 @@ export function GroomerDocumentsTab({ staffId }: { staffId: string }) {
         {activeDoc === "contract" && staff && (
           <Card>
             <CardContent className="p-4 md:p-6">
-              <ScrollArea className="max-h-[70vh]">
-                <ContractContent staff={staff} />
+              <ScrollArea className="h-[70vh]">
+                <div className="pr-4">
+                  <ContractContent staff={staff} />
+                </div>
               </ScrollArea>
             </CardContent>
           </Card>
@@ -107,37 +109,39 @@ export function GroomerDocumentsTab({ staffId }: { staffId: string }) {
         {activeDoc === "health-safety" && staff && (
           <Card>
             <CardContent className="p-4 md:p-6">
-              <ScrollArea className="max-h-[70vh]">
-                <HealthAndSafetyContent staff={staff as any} />
+              <ScrollArea className="h-[70vh]">
+                <div className="pr-4">
+                  <HealthAndSafetyContent staff={staff as any} />
+                </div>
               </ScrollArea>
             </CardContent>
           </Card>
         )}
 
         {activeDoc === "room-rules" && (
-          <div className="space-y-4">
-            {ruleFolders.map((folder, idx) => (
-              <Card key={idx}>
-                <CardContent className="p-4 space-y-3">
-                  <h3 className="font-heading font-semibold text-base">{folder.title}</h3>
-                  {folder.rules.map((rule) => (
-                    <div key={rule.number} className="flex gap-3 p-3 rounded-xl bg-muted/40 border border-border/40">
-                      <span className="flex-shrink-0 flex items-center justify-center h-7 w-7 rounded-full bg-primary/10 text-primary font-semibold text-sm">{rule.number}</span>
-                      <div>
-                        <p className="font-medium text-foreground text-sm">{rule.title}</p>
-                        <p className="text-muted-foreground text-sm mt-0.5">{rule.description}</p>
+          <ScrollArea className="h-[70vh]">
+            <div className="space-y-4 pr-4">
+              {ruleFolders.map((folder, idx) => (
+                <Card key={idx}>
+                  <CardContent className="p-4 space-y-3">
+                    <h3 className="font-heading font-semibold text-base">{folder.title}</h3>
+                    {folder.rules.map((rule) => (
+                      <div key={rule.number} className="flex gap-3 p-3 rounded-xl bg-muted/40 border border-border/40">
+                        <span className="flex-shrink-0 flex items-center justify-center h-7 w-7 rounded-full bg-primary/10 text-primary font-semibold text-sm">{rule.number}</span>
+                        <div>
+                          <p className="font-medium text-foreground text-sm">{rule.title}</p>
+                          <p className="text-muted-foreground text-sm mt-0.5">{rule.description}</p>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </ScrollArea>
         )}
 
         {activeDoc === "code-of-conduct" && <CodeOfConduct />}
-
-        {activeDoc === "incidents" && <IncidentReports />}
       </div>
     );
   }
