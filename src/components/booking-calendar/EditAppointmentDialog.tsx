@@ -9,6 +9,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { logAudit } from "@/lib/auditLog";
+import { Mail } from "lucide-react";
 import type { BookingData } from "./BookingEvent";
 
 interface EditAppointmentDialogProps {
@@ -104,6 +105,26 @@ export function EditAppointmentDialog({ open, onOpenChange, booking }: EditAppoi
     onError: (e: any) => toast.error(e.message),
   });
 
+  const [notifying, setNotifying] = useState(false);
+  const handleNotifyClient = async () => {
+    if (!booking?.customer_email) {
+      toast.error("No customer email on this booking");
+      return;
+    }
+    setNotifying(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("send-booking-email", {
+        body: { booking_id: booking.id, email_type: "appointment_updated" },
+      });
+      if (error) throw error;
+      toast.success("Update notification sent to " + booking.customer_email);
+    } catch (e: any) {
+      toast.error("Failed to send: " + e.message);
+    } finally {
+      setNotifying(false);
+    }
+  };
+
   if (!booking) return null;
 
   return (
@@ -173,7 +194,16 @@ export function EditAppointmentDialog({ open, onOpenChange, booking }: EditAppoi
           </div>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="flex-col sm:flex-row gap-2">
+          <Button
+            variant="secondary"
+            onClick={handleNotifyClient}
+            disabled={notifying || !booking.customer_email}
+            className="sm:mr-auto"
+          >
+            <Mail className="h-4 w-4 mr-1" />
+            {notifying ? "Sending…" : "Notify Client by Email"}
+          </Button>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button onClick={() => updateBooking.mutate()} disabled={updateBooking.isPending}>
             Save Changes

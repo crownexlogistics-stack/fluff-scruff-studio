@@ -26,18 +26,20 @@ serve(async (req) => {
       });
     }
 
-    // Check if already sent
-    const { data: existing } = await supabase
-      .from("booking_emails")
-      .select("id")
-      .eq("booking_id", booking_id)
-      .eq("email_type", email_type)
-      .maybeSingle();
+    // Check if already sent (skip dedup for appointment_updated since it can be sent multiple times)
+    if (email_type !== "appointment_updated") {
+      const { data: existing } = await supabase
+        .from("booking_emails")
+        .select("id")
+        .eq("booking_id", booking_id)
+        .eq("email_type", email_type)
+        .maybeSingle();
 
-    if (existing) {
-      return new Response(JSON.stringify({ success: true, message: "Already sent" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      if (existing) {
+        return new Response(JSON.stringify({ success: true, message: "Already sent" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
     // Fetch booking with service and breed
@@ -119,6 +121,29 @@ serve(async (req) => {
             138 Hillview Avenue, Hornchurch RM11 2DL
           </p>
           <p style="color: #666;">Running late? Reply to this email to let us know.</p>
+          <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
+          <p style="color: #999; font-size: 12px;">Fluff & Scruff Studio · 138 Hillview Avenue, Hornchurch RM11 2DL</p>
+        </div>
+      `;
+    } else if (email_type === "appointment_updated") {
+      subject = `Appointment Updated — ${booking.dog_name} on ${dateFormatted}`;
+      bodyHtml = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
+          <h2 style="color: #1a1a1a;">Your Appointment Has Been Updated 📝</h2>
+          <p>Hi ${booking.customer_name},</p>
+          <p>We've made a change to <strong>${booking.dog_name}</strong>'s appointment. Here are the updated details:</p>
+          <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
+            <tr><td style="padding: 8px 0; color: #666;">Dog</td><td style="padding: 8px 0; font-weight: bold;">${booking.dog_name}${breedName ? ` (${breedName})` : ""}</td></tr>
+            <tr><td style="padding: 8px 0; color: #666;">Service</td><td style="padding: 8px 0; font-weight: bold;">${serviceName}</td></tr>
+            <tr><td style="padding: 8px 0; color: #666;">Date</td><td style="padding: 8px 0; font-weight: bold;">${dateFormatted}</td></tr>
+            <tr><td style="padding: 8px 0; color: #666;">Time</td><td style="padding: 8px 0; font-weight: bold;">${timeFormatted}</td></tr>
+            <tr><td style="padding: 8px 0; color: #666;">Price</td><td style="padding: 8px 0; font-weight: bold;">£${Number(booking.total_price).toFixed(2)}</td></tr>
+          </table>
+          <p style="background: #f8f8f8; padding: 16px; border-radius: 8px; margin: 16px 0;">
+            📍 <strong>Fluff & Scruff Studio</strong><br/>
+            138 Hillview Avenue, Hornchurch RM11 2DL
+          </p>
+          <p style="color: #666;">Questions? Simply reply to this email and we'll help.</p>
           <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
           <p style="color: #999; font-size: 12px;">Fluff & Scruff Studio · 138 Hillview Avenue, Hornchurch RM11 2DL</p>
         </div>
