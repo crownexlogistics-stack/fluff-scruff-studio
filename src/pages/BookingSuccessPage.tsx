@@ -53,6 +53,12 @@ export default function BookingSuccessPage() {
           body: { booking_id: bookingId, email_type: "confirmation" },
         }).catch(() => {});
       }
+      // Notify groomer of new booking
+      if (booking.staff_id) {
+        supabase.functions.invoke("notify-groomer", {
+          body: { booking_id: bookingId, notification_type: "new_booking" },
+        }).catch(() => {});
+      }
     }
   }, [booking, bookingId]);
 
