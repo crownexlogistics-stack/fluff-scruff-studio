@@ -309,6 +309,10 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
       setSelectedTime(null);
     } else if (step === "calendar" && !isFixedPrice) {
       setStep("breed");
+      setSelectedBreed(null);
+      setBreedsSearch("");
+      setSelectedDate(null);
+      setSelectedTime(null);
     } else if (step === "breed" && service === "Grooming") {
       setStep("sub-service");
       setSelectedSub(null);
