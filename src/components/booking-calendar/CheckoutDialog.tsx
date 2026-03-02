@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { NumericInput } from "@/components/ui/numeric-input";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { CheckCircle2, UserX } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { BookingData } from "./BookingEvent";
@@ -12,7 +13,7 @@ interface CheckoutDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   booking: BookingData | null;
-  onComplete: (bookingId: string, finalCharge: number) => void;
+  onComplete: (bookingId: string, finalCharge: number, isOwnCustomer: boolean) => void;
   onNoShow: (bookingId: string) => void;
 }
 
@@ -20,12 +21,14 @@ export function CheckoutDialog({ open, onOpenChange, booking, onComplete, onNoSh
   const [step, setStep] = useState<"choose" | "complete" | "noshow">("choose");
   const remaining = booking ? Number(booking.total_price) - Number(booking.deposit_paid) : 0;
   const [finalCharge, setFinalCharge] = useState(remaining);
+  const [isOwnCustomer, setIsOwnCustomer] = useState(false);
 
   // Reset when dialog opens
   const handleOpenChange = (v: boolean) => {
     if (v) {
       setStep("choose");
       setFinalCharge(booking ? Number(booking.total_price) - Number(booking.deposit_paid) : 0);
+      setIsOwnCustomer(booking?.is_groomers_own_customer ?? false);
     }
     onOpenChange(v);
   };
@@ -97,9 +100,37 @@ export function CheckoutDialog({ open, onOpenChange, booking, onComplete, onNoSh
               <p className="text-xs text-muted-foreground">Adjust if the groomer charged more or less than planned</p>
             </div>
 
+            <div className="flex items-center justify-between rounded-lg border p-3">
+              <div>
+                <Label className="text-sm font-medium">Own Customer</Label>
+                <p className="text-xs text-muted-foreground">Groomer gets 50% instead of 40%</p>
+              </div>
+              <Switch checked={isOwnCustomer} onCheckedChange={setIsOwnCustomer} />
+            </div>
+
+            {/* Commission preview */}
+            <div className="rounded-lg bg-muted/30 border p-3 space-y-1 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Commission rate</span>
+                <span className="font-medium">{isOwnCustomer ? "50%" : "40%"}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Groomer pay</span>
+                <span className="font-semibold text-primary">
+                  £{(Number(booking.total_price) * (isOwnCustomer ? 0.5 : 0.4)).toFixed(2)}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Studio share</span>
+                <span className="font-medium">
+                  £{(Number(booking.total_price) * (isOwnCustomer ? 0.5 : 0.6)).toFixed(2)}
+                </span>
+              </div>
+            </div>
+
             <div className="flex gap-2 justify-end">
               <Button variant="outline" onClick={() => setStep("choose")}>Back</Button>
-              <Button onClick={() => { onComplete(booking.id, finalCharge); onOpenChange(false); }}>
+              <Button onClick={() => { onComplete(booking.id, finalCharge, isOwnCustomer); onOpenChange(false); }}>
                 Complete Appointment
               </Button>
             </div>

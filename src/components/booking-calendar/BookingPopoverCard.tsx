@@ -196,6 +196,9 @@ export function BookingPopoverCard({
         <p className="font-medium">{booking.service_name || "Service"} — {booking.breed_name || booking.dog_name}</p>
         <p className="text-sm text-muted-foreground">with {booking.staff_name}</p>
         <p className="text-sm font-medium mt-1">£{total.toFixed(2)}</p>
+        {(booking as any).is_groomers_own_customer && (
+          <Badge className="mt-1 text-xs bg-violet-100 text-violet-700 hover:bg-violet-100 dark:bg-violet-900/30 dark:text-violet-400">Own Customer • 50%</Badge>
+        )}
       </div>
 
       {booking.notes && (

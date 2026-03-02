@@ -27,6 +27,7 @@ import TermsEditorPage from "./pages/TermsEditorPage";
 import MessagesPage from "./pages/MessagesPage";
 import CouponsPage from "./pages/CouponsPage";
 import CustomerProfilePage from "./pages/CustomerProfilePage";
+import FinancePage from "./pages/FinancePage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { ScrollToTop } from "./components/ScrollToTop";
 import BookingEntryPage from "./pages/BookingEntryPage";
@@ -75,6 +76,7 @@ const App = () => (
           <Route path="/staff/risk-assessments" element={<ProtectedRoute allowedRoles={["manager", "director"]}><RiskAssessmentsPage /></ProtectedRoute>} />
           <Route path="/staff/rules" element={<ProtectedRoute allowedRoles={["manager", "director", "groomer", "volunteer", "work_placement"]}><RulesPage /></ProtectedRoute>} />
           <Route path="/bookings" element={<ProtectedRoute allowedRoles={["manager", "director"]}><BookingsPage /></ProtectedRoute>} />
+          <Route path="/finance" element={<ProtectedRoute allowedRoles={["manager", "director"]}><FinancePage /></ProtectedRoute>} />
           <Route path="/messages" element={<ProtectedRoute allowedRoles={["manager", "director", "groomer"]}><MessagesPage /></ProtectedRoute>} />
           <Route path="/admin/customers/:email" element={<ProtectedRoute allowedRoles={["manager", "director", "groomer"]}><CustomerProfilePage /></ProtectedRoute>} />
           <Route path="/marketing/*" element={<ProtectedRoute allowedRoles={["manager", "director"]}><MarketingPage /></ProtectedRoute>} />

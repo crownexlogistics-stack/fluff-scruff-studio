@@ -1,15 +1,125 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useQuery } from "@tanstack/react-query";
 import { GroomerLayout } from "@/components/GroomerLayout";
 import { CalendarDays, MessageSquare, Dog, PoundSterling, FileText, ChevronRight, ArrowLeft } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { GroomerBookingsTab } from "@/components/groomer/GroomerBookingsTab";
 import { GroomerMessagesTab } from "@/components/groomer/GroomerMessagesTab";
 import { GroomerBreedsTab } from "@/components/groomer/GroomerBreedsTab";
 import { GroomerDocumentsTab } from "@/components/groomer/GroomerDocumentsTab";
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addWeeks, addMonths } from "date-fns";
+
+function GroomerFinanceView({ staffId }: { staffId: string }) {
+  const [period, setPeriod] = useState<"weekly" | "monthly">("weekly");
+  const [weekOffset, setWeekOffset] = useState(0);
+  const [monthOffset, setMonthOffset] = useState(0);
+
+  const now = new Date();
+  const periodStart = useMemo(() => {
+    if (period === "weekly") return startOfWeek(addWeeks(now, weekOffset), { weekStartsOn: 1 });
+    return startOfMonth(addMonths(now, monthOffset));
+  }, [period, weekOffset, monthOffset]);
+  const periodEnd = useMemo(() => {
+    if (period === "weekly") return endOfWeek(addWeeks(now, weekOffset), { weekStartsOn: 1 });
+    return endOfMonth(addMonths(now, monthOffset));
+  }, [period, weekOffset, monthOffset]);
+
+  const periodStartStr = format(periodStart, "yyyy-MM-dd");
+  const periodEndStr = format(periodEnd, "yyyy-MM-dd");
+
+  const { data: commissions = [] } = useQuery({
+    queryKey: ["groomer-commissions", staffId, periodStartStr, periodEndStr],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("commission_records")
+        .select("*, bookings(customer_name, dog_name, booking_date, services:service_id(name))")
+        .eq("staff_id", staffId)
+        .gte("created_at", `${periodStartStr}T00:00:00`)
+        .lte("created_at", `${periodEndStr}T23:59:59`)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data as any[];
+    },
+  });
+
+  const { data: payouts = [] } = useQuery({
+    queryKey: ["groomer-payouts", staffId, periodStartStr, periodEndStr],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("payout_records")
+        .select("*")
+        .eq("staff_id", staffId)
+        .gte("period_start", periodStartStr)
+        .lte("period_end", periodEndStr)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data as any[];
+    },
+  });
+
+  const totalPay = commissions.reduce((sum, c) => sum + Number(c.groomer_pay), 0);
+  const totalPaid = payouts.reduce((sum, p) => sum + Number(p.amount), 0);
+  const offset = period === "weekly" ? weekOffset : monthOffset;
+  const setOffset = period === "weekly" ? setWeekOffset : setMonthOffset;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <Tabs value={period} onValueChange={v => { setPeriod(v as any); setWeekOffset(0); setMonthOffset(0); }}>
+          <TabsList><TabsTrigger value="weekly">Weekly</TabsTrigger><TabsTrigger value="monthly">Monthly</TabsTrigger></TabsList>
+        </Tabs>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setOffset(o => o - 1)} className="text-xs underline">← Prev</button>
+          <span className="text-xs font-medium">{format(periodStart, "dd MMM")} — {format(periodEnd, "dd MMM yyyy")}</span>
+          <button onClick={() => setOffset(o => o + 1)} disabled={offset >= 0} className="text-xs underline disabled:opacity-30">Next →</button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-3 gap-3">
+        <Card><CardContent className="p-3 text-center"><p className="text-xs text-muted-foreground">Dogs</p><p className="text-xl font-bold">{commissions.length}</p></CardContent></Card>
+        <Card><CardContent className="p-3 text-center"><p className="text-xs text-muted-foreground">My Earnings</p><p className="text-xl font-bold text-primary">£{totalPay.toFixed(2)}</p></CardContent></Card>
+        <Card><CardContent className="p-3 text-center"><p className="text-xs text-muted-foreground">Paid Out</p><p className="text-xl font-bold">£{totalPaid.toFixed(2)}</p></CardContent></Card>
+      </div>
+
+      {commissions.length > 0 ? (
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-sm">Earnings Breakdown</CardTitle></CardHeader>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader><TableRow><TableHead>Customer</TableHead><TableHead>Service</TableHead><TableHead>Type</TableHead><TableHead className="text-right">Pay</TableHead></TableRow></TableHeader>
+              <TableBody>
+                {commissions.map((c: any) => (
+                  <TableRow key={c.id}>
+                    <TableCell className="text-sm">{c.bookings?.customer_name || "—"}</TableCell>
+                    <TableCell className="text-sm">{c.bookings?.services?.name || "—"}</TableCell>
+                    <TableCell>
+                      <Badge variant={c.commission_type === "no_show" ? "destructive" : c.commission_type === "own_customer" ? "default" : "secondary"} className="text-xs">
+                        {c.commission_type === "own_customer" ? "Own 50%" : c.commission_type === "no_show" ? "No Show" : "40%"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right font-medium">£{Number(c.groomer_pay).toFixed(2)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="text-center py-8">
+          <PoundSterling className="h-10 w-10 mx-auto text-muted-foreground/40 mb-2" />
+          <p className="text-sm text-muted-foreground">No completed appointments this period</p>
+        </div>
+      )}
+    </div>
+  );
+}
 
 type Section = "bookings" | "messages" | "breeds" | "finance" | "documents";
 
@@ -71,13 +181,7 @@ const GroomerPortalPage = () => {
       case "messages": return <GroomerMessagesTab staffId={staffId} />;
       case "breeds": return <GroomerBreedsTab />;
       case "documents": return <GroomerDocumentsTab staffId={staffId} />;
-      case "finance": return (
-        <div className="text-center py-16 space-y-3">
-          <PoundSterling className="h-12 w-12 text-muted-foreground/40 mx-auto" />
-          <p className="text-muted-foreground font-body">Finance section coming soon</p>
-          <p className="text-xs text-muted-foreground">Commission tracking and payouts will appear here</p>
-        </div>
-      );
+      case "finance": return <GroomerFinanceView staffId={staffId} />;
     }
   };
 
