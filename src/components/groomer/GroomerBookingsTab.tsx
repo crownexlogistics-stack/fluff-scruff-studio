@@ -7,12 +7,26 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CalendarDays, List, ChevronLeft, ChevronRight, Dog } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { GroomerCalendar } from "./GroomerCalendar";
+import { GroomerCalendar, type GroomerCalendarBooking } from "./GroomerCalendar";
 import { Card, CardContent } from "@/components/ui/card";
 import { NewBookingDialog } from "@/components/booking-calendar/NewBookingDialog";
 import { EditBlockDialog } from "@/components/booking-calendar/EditBlockDialog";
+import { CheckoutDialog } from "@/components/booking-calendar/CheckoutDialog";
+import { ViewOrderDialog } from "@/components/booking-calendar/ViewOrderDialog";
+import { EditAppointmentDialog } from "@/components/booking-calendar/EditAppointmentDialog";
+import { CustomerSearchBar } from "@/components/booking-calendar/CustomerSearchBar";
 import type { BookingData } from "@/components/booking-calendar/BookingEvent";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface GroomerBookingsTabProps {
   staffId: string;
@@ -33,6 +47,14 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
   const [dialogDefaults, setDialogDefaults] = useState<{ date?: Date; hour?: number; staffId?: string }>({});
   const [editBlockOpen, setEditBlockOpen] = useState(false);
   const [editingBlock, setEditingBlock] = useState<BookingData | null>(null);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [checkoutBooking, setCheckoutBooking] = useState<BookingData | null>(null);
+  const [viewOrderOpen, setViewOrderOpen] = useState(false);
+  const [viewOrderBooking, setViewOrderBooking] = useState<BookingData | null>(null);
+  const [editApptOpen, setEditApptOpen] = useState(false);
+  const [editApptBooking, setEditApptBooking] = useState<BookingData | null>(null);
+  const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
+  const [cancelBookingData, setCancelBookingData] = useState<BookingData | null>(null);
 
   const { data: allStaff = [] } = useQuery({
     queryKey: ["staff-list-groomer"],
@@ -51,7 +73,7 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
     queryFn: async () => {
       const { data, error } = await supabase
         .from("bookings")
-        .select("id, customer_name, dog_name, booking_date, booking_time, status, notes, staff_id, services(name), breeds(name, duration_minutes)")
+        .select("id, customer_name, dog_name, booking_date, booking_time, status, notes, staff_id, total_price, deposit_paid, customer_email, customer_phone, service_id, breed_id, final_charge, services(name), breeds(name, duration_minutes)")
         .gte("booking_date", format(currentDate, "yyyy-MM-dd"))
         .lte("booking_date", format(endDate, "yyyy-MM-dd"))
         .order("booking_time");
@@ -69,9 +91,16 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
         service_name: b.services?.name ?? "",
         breed_name: b.breeds?.name ?? "",
         breed_duration_minutes: b.breeds?.duration_minutes ?? undefined,
+        total_price: b.total_price,
+        deposit_paid: b.deposit_paid,
+        customer_email: b.customer_email,
+        customer_phone: b.customer_phone,
+        service_id: b.service_id,
+        breed_id: b.breed_id,
+        final_charge: b.final_charge,
         is_block: false,
         is_own: b.staff_id === staffId,
-      }));
+      })) as GroomerCalendarBooking[];
     },
     enabled: allStaff.length > 0,
   });
@@ -101,7 +130,11 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
         breed_name: "",
         is_block: true,
         is_own: (o.staff?.id ?? o.staff_id) === staffId,
-      }));
+        total_price: 0,
+        deposit_paid: 0,
+        customer_email: null,
+        customer_phone: null,
+      })) as GroomerCalendarBooking[];
     },
   });
 
@@ -116,6 +149,30 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
 
   const today = format(new Date(), "yyyy-MM-dd");
 
+  // Helper to map to BookingData for shared dialogs
+  const toBookingData = (b: GroomerCalendarBooking): BookingData => ({
+    id: b.id,
+    customer_name: b.customer_name,
+    dog_name: b.dog_name,
+    booking_date: b.booking_date,
+    booking_time: b.booking_time,
+    total_price: b.total_price || 0,
+    deposit_paid: b.deposit_paid || 0,
+    status: b.status,
+    notes: b.notes,
+    customer_email: b.customer_email || null,
+    customer_phone: b.customer_phone || null,
+    staff_name: b.staff_name,
+    staff_id: b.staff_id,
+    breed_name: b.breed_name,
+    service_name: b.service_name,
+    is_block: b.is_block,
+    end_time: b.end_time,
+    service_id: b.service_id,
+    breed_id: b.breed_id,
+    final_charge: b.final_charge,
+  });
+
   const handleBook = useCallback((date: Date, hour: number, sid: string) => {
     setDialogMode("appointment");
     setDialogDefaults({ date, hour, staffId: sid });
@@ -128,52 +185,50 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
     setDialogOpen(true);
   }, []);
 
-  const handleEditBlock = useCallback((block: any) => {
-    // Map to BookingData shape for EditBlockDialog
-    const bookingData: BookingData = {
-      id: block.id,
-      customer_name: block.customer_name || "",
-      dog_name: block.dog_name || "",
-      booking_date: block.booking_date,
-      booking_time: block.booking_time,
-      end_time: block.end_time,
-      total_price: 0,
-      deposit_paid: 0,
-      status: block.status || "Blocked",
-      notes: block.notes,
-      customer_email: null,
-      customer_phone: null,
-      staff_name: block.staff_name,
-      staff_id: block.staff_id,
-      is_block: true,
-    };
-    setEditingBlock(bookingData);
+  const handleEditBlock = useCallback((block: GroomerCalendarBooking) => {
+    setEditingBlock(toBookingData(block));
     setEditBlockOpen(true);
   }, []);
 
+  const handleViewOrder = useCallback((booking: GroomerCalendarBooking) => {
+    setViewOrderBooking(toBookingData(booking));
+    setViewOrderOpen(true);
+  }, []);
+
+  const handleEditAppointment = useCallback((booking: GroomerCalendarBooking) => {
+    setEditApptBooking(toBookingData(booking));
+    setEditApptOpen(true);
+  }, []);
+
+  const handleCancelBooking = useCallback((booking: GroomerCalendarBooking) => {
+    setCancelBookingData(toBookingData(booking));
+    setCancelConfirmOpen(true);
+  }, []);
+
+  const handleBookAgain = useCallback((booking: GroomerCalendarBooking) => {
+    setDialogMode("appointment");
+    setDialogDefaults({ date: new Date(booking.booking_date), staffId: booking.staff_id });
+    setDialogOpen(true);
+  }, []);
+
+  const handleCheckout = useCallback((booking: GroomerCalendarBooking) => {
+    setCheckoutBooking(toBookingData(booking));
+    setCheckoutOpen(true);
+  }, []);
+
   const cancelBlock = useMutation({
-    mutationFn: async (block: any) => {
+    mutationFn: async (block: GroomerCalendarBooking) => {
       const { error } = await supabase.from("staff_schedule_overrides").delete().eq("id", block.id);
       if (error) throw error;
-
       const { data: { user } } = await supabase.auth.getUser();
       if (user && block.staff_id) {
         const formattedDate = format(new Date(block.booking_date), "dd MMM yyyy");
         const hrNote = `🚫 BLOCK CANCELLED — ${formattedDate} ${block.booking_time?.slice(0, 5)}-${block.end_time?.slice(0, 5) || "?"} — Original reason: ${block.notes || "No reason"}`;
         try {
-          await supabase.from("staff_notes").insert({
-            staff_id: block.staff_id,
-            created_by: user.id,
-            note: hrNote,
-          });
+          await supabase.from("staff_notes").insert({ staff_id: block.staff_id, created_by: user.id, note: hrNote });
         } catch {}
       }
-
-      logAudit({
-        staffId: block.staff_id,
-        action: "BLOCK_CANCELLED",
-        details: `Cancelled block on ${format(new Date(block.booking_date), "dd MMM yyyy")} ${block.booking_time?.slice(0, 5)}-${block.end_time?.slice(0, 5) || "?"}`,
-      });
+      logAudit({ staffId: block.staff_id, action: "BLOCK_CANCELLED", details: `Cancelled block on ${format(new Date(block.booking_date), "dd MMM yyyy")} ${block.booking_time?.slice(0, 5)}-${block.end_time?.slice(0, 5) || "?"}` });
     },
     onSuccess: () => {
       toast.success("Block cancelled");
@@ -184,12 +239,59 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
     onError: (e: any) => toast.error(e.message),
   });
 
-  const handleCancelBlock = useCallback((block: any) => {
+  const completeMutation = useMutation({
+    mutationFn: async ({ bookingId, finalCharge }: { bookingId: string; finalCharge: number }) => {
+      const { error } = await (supabase.from("bookings") as any).update({ status: "Completed", final_charge: finalCharge }).eq("id", bookingId);
+      if (error) throw error;
+      logAudit({ action: "BOOKING_COMPLETED", details: `Completed booking ${bookingId}. Final charge: £${finalCharge.toFixed(2)}` });
+    },
+    onSuccess: () => {
+      toast.success("Appointment completed");
+      queryClient.invalidateQueries({ queryKey: ["groomer-bookings"] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const noShowMutation = useMutation({
+    mutationFn: async (bookingId: string) => {
+      const { error } = await supabase.from("bookings").update({ status: "No Show" }).eq("id", bookingId);
+      if (error) throw error;
+      logAudit({ action: "BOOKING_NO_SHOW", details: `Marked booking ${bookingId} as No Show` });
+      supabase.functions.invoke("send-booking-email", { body: { booking_id: bookingId, email_type: "no_show" } }).catch(() => {});
+    },
+    onSuccess: () => {
+      toast.success("Marked as No Show");
+      queryClient.invalidateQueries({ queryKey: ["groomer-bookings"] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const cancelBookingMutation = useMutation({
+    mutationFn: async (booking: BookingData) => {
+      const { error } = await supabase.from("bookings").update({ status: "Cancelled" }).eq("id", booking.id);
+      if (error) throw error;
+      logAudit({ action: "BOOKING_CANCELLED", details: `Cancelled booking ${booking.id}` });
+      if (booking.staff_id) {
+        supabase.functions.invoke("notify-groomer", { body: { booking_id: booking.id, notification_type: "booking_cancelled" } }).catch(() => {});
+      }
+    },
+    onSuccess: () => {
+      toast.success("Booking cancelled");
+      queryClient.invalidateQueries({ queryKey: ["groomer-bookings"] });
+      setCancelConfirmOpen(false);
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const handleCancelBlock = useCallback((block: GroomerCalendarBooking) => {
     cancelBlock.mutate(block);
   }, [cancelBlock]);
 
   return (
     <div className="space-y-4">
+      {/* Customer Search */}
+      <CustomerSearchBar currentStaffId={staffId} />
+
       {/* Controls */}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-1">
@@ -249,6 +351,11 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
           onBlock={handleBlock}
           onEditBlock={handleEditBlock}
           onCancelBlock={handleCancelBlock}
+          onViewOrder={handleViewOrder}
+          onEditAppointment={handleEditAppointment}
+          onCancelBooking={handleCancelBooking}
+          onBookAgain={handleBookAgain}
+          onCheckout={handleCheckout}
         />
       ) : (
         <div className="space-y-2">
@@ -290,7 +397,7 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
         </div>
       )}
 
-      {/* Booking/Block Dialog */}
+      {/* Dialogs */}
       <NewBookingDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
@@ -299,13 +406,36 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
         defaultStaffId={dialogDefaults.staffId}
         mode={dialogMode}
       />
-
-      {/* Edit Block Dialog */}
-      <EditBlockDialog
-        open={editBlockOpen}
-        onOpenChange={setEditBlockOpen}
-        block={editingBlock}
+      <EditBlockDialog open={editBlockOpen} onOpenChange={setEditBlockOpen} block={editingBlock} />
+      <CheckoutDialog
+        open={checkoutOpen}
+        onOpenChange={setCheckoutOpen}
+        booking={checkoutBooking}
+        onComplete={(id, charge) => completeMutation.mutate({ bookingId: id, finalCharge: charge })}
+        onNoShow={(id) => noShowMutation.mutate(id)}
       />
+      <ViewOrderDialog open={viewOrderOpen} onOpenChange={setViewOrderOpen} booking={viewOrderBooking} />
+      <EditAppointmentDialog open={editApptOpen} onOpenChange={setEditApptOpen} booking={editApptBooking} />
+
+      <AlertDialog open={cancelConfirmOpen} onOpenChange={setCancelConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel Booking</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to cancel {cancelBookingData?.customer_name}'s appointment? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep Booking</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => cancelBookingData && cancelBookingMutation.mutate(cancelBookingData)}
+            >
+              Cancel Booking
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
