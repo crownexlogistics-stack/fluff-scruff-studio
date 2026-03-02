@@ -41,12 +41,18 @@ export default function BookingSuccessPage() {
     enabled: !!bookingId,
   });
 
-  // Update booking status to Confirmed on successful payment
+  // Update booking status to Confirmed on successful payment and send confirmation email
   useEffect(() => {
     if (booking && booking.status === "Pending" && bookingId) {
       supabase.from("bookings").update({ status: "Confirmed" }).eq("id", bookingId).then(() => {
         queryClient.invalidateQueries({ queryKey: ["booking-success", bookingId] });
       });
+      // Send confirmation email now that payment is confirmed
+      if (booking.customer_email) {
+        supabase.functions.invoke("send-booking-email", {
+          body: { booking_id: bookingId, email_type: "confirmation" },
+        }).catch(() => {});
+      }
     }
   }, [booking, bookingId]);
 
