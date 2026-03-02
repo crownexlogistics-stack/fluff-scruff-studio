@@ -118,6 +118,8 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
   const [appliedCoupon, setAppliedCoupon] = useState<{ id: string; code: string; discount_type: string; discount_value: number } | null>(null);
   const [couponError, setCouponError] = useState("");
   const [couponLoading, setCouponLoading] = useState(false);
+  const [alertMessage, setAlertMessage] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { data: termsContent } = useQuery({
     queryKey: ["site_config", "terms_and_conditions"],
@@ -348,22 +350,26 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
 
   const handleGuestSubmit = async () => {
     if (!guestForm.name.trim() || !guestForm.dogName.trim()) {
-      toast.error("Please fill in your name and dog's name");
+      setAlertMessage("Please fill in your name and dog's name");
       return;
     }
     if (!acceptedTerms) {
-      toast.error("Please accept the Terms & Conditions to continue");
+      setAlertMessage("Please accept the Terms & Conditions to continue");
       return;
     }
+
+    setIsSubmitting(true);
 
     // New customer: create account first
     if (isNewCustomer) {
       if (!guestForm.email.trim() || !guestForm.password.trim()) {
-        toast.error("Please enter your email and choose a password");
+        setAlertMessage("Please enter your email and choose a password");
+        setIsSubmitting(false);
         return;
       }
       if (guestForm.password.length < 6) {
-        toast.error("Password must be at least 6 characters");
+        setAlertMessage("Password must be at least 6 characters");
+        setIsSubmitting(false);
         return;
       }
 
@@ -376,32 +382,47 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
         },
       });
 
+      // If user already exists, try signing in instead
       if (signUpError) {
-        toast.error(signUpError.message);
-        return;
-      }
-
-      // Auto-confirm is enabled, so sign in immediately to establish session
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: guestForm.email,
-        password: guestForm.password,
-      });
-
-      if (signInError) {
-        toast.error("Account created but sign-in failed. Please log in manually.");
-        return;
-      }
-
-      // Save pet to customer_pets if we have a user
-      const userId = signUpData.user?.id;
-      if (userId) {
-        try {
-          await supabase.from("customer_pets").insert({
-            user_id: userId,
-            pet_name: guestForm.dogName,
-            breed_id: selectedBreed?.id ?? null,
+        if (signUpError.message?.toLowerCase().includes("already registered") || signUpError.message?.toLowerCase().includes("already exists")) {
+          const { error: loginError } = await supabase.auth.signInWithPassword({
+            email: guestForm.email,
+            password: guestForm.password,
           });
-        } catch { /* ignore */ }
+          if (loginError) {
+            setAlertMessage("An account with this email already exists. Please check your password and try again.");
+            setIsSubmitting(false);
+            return;
+          }
+          // Signed in successfully — continue with booking
+        } else {
+          setAlertMessage(signUpError.message);
+          setIsSubmitting(false);
+          return;
+        }
+      } else {
+        // New account created — sign in immediately
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: guestForm.email,
+          password: guestForm.password,
+        });
+
+        if (signInError) {
+          // Don't block — continue without session, booking insert allows anyone
+          console.warn("Auto sign-in failed:", signInError.message);
+        }
+
+        // Save pet to customer_pets if we have a user
+        const userId = signUpData?.user?.id;
+        if (userId) {
+          try {
+            await supabase.from("customer_pets").insert({
+              user_id: userId,
+              pet_name: guestForm.dogName,
+              breed_id: selectedBreed?.id ?? null,
+            });
+          } catch { /* ignore */ }
+        }
       }
     }
 
@@ -421,7 +442,8 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
     }).select("id").single();
 
     if (error) {
-      toast.error("Failed to book — please try again");
+      setAlertMessage("Failed to book — please try again");
+      setIsSubmitting(false);
       return;
     }
 
@@ -450,7 +472,6 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
 
     // Redirect to Stripe for deposit payment
     try {
-      toast.info("Redirecting to payment...");
       const { data: checkoutData, error: checkoutError } = await supabase.functions.invoke("create-deposit-checkout", {
         body: {
           customer_name: guestForm.name,
@@ -473,14 +494,10 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
       return;
     } catch (stripeErr: any) {
       console.error("Stripe checkout error:", stripeErr);
-      toast.error("Payment setup failed. Your booking is saved — we'll contact you for payment.");
+      setAlertMessage("Payment setup failed. Your booking is saved — we'll contact you for payment.");
     }
 
-    if (isNewCustomer) {
-      toast.success("Booking confirmed! You're now logged in.");
-    } else {
-      toast.success("Booking confirmed! We'll be in touch.");
-    }
+    setIsSubmitting(false);
     onClose();
   };
 
@@ -1049,8 +1066,8 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
               </span>
             </label>
 
-            <Button onClick={handleGuestSubmit} disabled={!acceptedTerms} className="w-full h-14 text-base rounded-xl" size="lg">
-              {isNewCustomer ? `Create Account & Pay Deposit` : `Create & Pay Deposit`} £{depositAmount.toFixed(2)}
+            <Button onClick={handleGuestSubmit} disabled={!acceptedTerms || isSubmitting} className="w-full h-14 text-base rounded-xl" size="lg">
+              {isSubmitting ? "Processing..." : (isNewCustomer ? `Create Account & Pay Deposit` : `Create & Pay Deposit`)} £{depositAmount.toFixed(2)}
             </Button>
             </div>
           </div>
@@ -1070,6 +1087,19 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
             </ScrollArea>
             <div className="pt-4 border-t">
               <Button variant="outline" className="w-full" onClick={() => setTermsOpen(false)}>Close</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Alert Dialog - centered with X close */}
+        <Dialog open={!!alertMessage} onOpenChange={() => setAlertMessage(null)}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="font-heading">Notice</DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-muted-foreground">{alertMessage}</p>
+            <div className="pt-2">
+              <Button className="w-full" onClick={() => setAlertMessage(null)}>OK</Button>
             </div>
           </DialogContent>
         </Dialog>
