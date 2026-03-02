@@ -660,11 +660,28 @@ export default function CustomerProfilePage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
                 <Label>Age (years)</Label>
-                <Input type="number" min={0} value={petForm.dog_age_years} onChange={(e) => setPetForm({ ...petForm, dog_age_years: Number(e.target.value) })} />
+                <Input
+                  inputMode="numeric"
+                  value={petForm.dog_age_years === 0 ? "" : String(petForm.dog_age_years)}
+                  placeholder="e.g. 3"
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[^0-9]/g, "");
+                    setPetForm({ ...petForm, dog_age_years: val ? parseInt(val, 10) : 0 });
+                  }}
+                />
               </div>
               <div className="space-y-1">
                 <Label>Age (months)</Label>
-                <Input type="number" min={0} max={11} value={petForm.dog_age_months} onChange={(e) => setPetForm({ ...petForm, dog_age_months: Number(e.target.value) })} />
+                <Input
+                  inputMode="numeric"
+                  value={petForm.dog_age_months === 0 ? "" : String(petForm.dog_age_months)}
+                  placeholder="e.g. 6"
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[^0-9]/g, "");
+                    const num = val ? parseInt(val, 10) : 0;
+                    setPetForm({ ...petForm, dog_age_months: Math.min(num, 11) });
+                  }}
+                />
               </div>
             </div>
             <div className="space-y-1">
