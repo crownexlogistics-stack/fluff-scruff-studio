@@ -1,13 +1,13 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { PawPrint, Plus, ArrowLeft, CalendarDays, Trash2 } from "lucide-react";
+import { PawPrint, Plus, ArrowLeft, CalendarDays, Trash2, Search, Dog } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import logo from "@/assets/logo-transparent.png";
@@ -17,6 +17,7 @@ interface Pet {
   pet_name: string;
   notes: string | null;
   breed_id: string | null;
+  breed_name?: string;
   created_at: string;
 }
 
@@ -36,20 +37,38 @@ const MyPetsPage = () => {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [petName, setPetName] = useState("");
-  const [petNotes, setPetNotes] = useState("");
+  const [breedSearch, setBreedSearch] = useState("");
+  const [selectedBreedId, setSelectedBreedId] = useState<string | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  // Fetch breeds
+  const { data: breeds = [] } = useQuery({
+    queryKey: ["breeds-list"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("breeds").select("id, name").order("name");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const filteredBreeds = breedSearch.length > 0
+    ? breeds.filter(b => b.name.toLowerCase().includes(breedSearch.toLowerCase()))
+    : [];
 
   const fetchData = async () => {
     if (!user) return;
     setLoading(true);
 
     const [petsRes, bookingsRes] = await Promise.all([
-      supabase.from("customer_pets").select("*").eq("user_id", user.id).order("created_at"),
+      supabase.from("customer_pets").select("*, breeds(name)").eq("user_id", user.id).order("created_at"),
       supabase.from("bookings").select("id, dog_name, booking_date, booking_time, status, services(name)").eq("customer_email", user.email).order("booking_date", { ascending: false }).limit(20),
     ]);
 
-    setPets(petsRes.data || []);
+    setPets((petsRes.data || []).map((p: any) => ({
+      ...p,
+      breed_name: p.breeds?.name || null,
+    })));
     setBookings((bookingsRes.data as unknown as BookingRecord[]) || []);
     setLoading(false);
   };
@@ -58,13 +77,18 @@ const MyPetsPage = () => {
 
   const addPet = async () => {
     if (!user || !petName.trim()) return;
-    const { error } = await supabase.from("customer_pets").insert({ user_id: user.id, pet_name: petName.trim(), notes: petNotes.trim() || null });
+    const { error } = await supabase.from("customer_pets").insert({
+      user_id: user.id,
+      pet_name: petName.trim(),
+      breed_id: selectedBreedId,
+    });
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } else {
       toast({ title: "Pet added!" });
       setPetName("");
-      setPetNotes("");
+      setBreedSearch("");
+      setSelectedBreedId(null);
       setDialogOpen(false);
       fetchData();
     }
@@ -90,7 +114,12 @@ const MyPetsPage = () => {
             </button>
             <img src={logo} alt="Fluff & Scruff" className="h-10 w-auto" />
           </div>
-          <Button variant="ghost" size="sm" onClick={async () => { await signOut(); navigate("/"); }}>Sign Out</Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => navigate("/book")}>
+              Book Now
+            </Button>
+            <Button variant="ghost" size="sm" onClick={async () => { await signOut(); navigate("/"); }}>Sign Out</Button>
+          </div>
         </div>
       </nav>
 
@@ -115,8 +144,36 @@ const MyPetsPage = () => {
                     <Input value={petName} onChange={(e) => setPetName(e.target.value)} placeholder="e.g. Buddy" />
                   </div>
                   <div className="space-y-2">
-                    <Label>Notes</Label>
-                    <Textarea value={petNotes} onChange={(e) => setPetNotes(e.target.value)} placeholder="Breed, allergies, preferences…" />
+                    <Label>Breed</Label>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
+                      <Input
+                        placeholder="Search breed…"
+                        value={breedSearch}
+                        onChange={(e) => { setBreedSearch(e.target.value); setSelectedBreedId(null); }}
+                        className="pl-10"
+                      />
+                    </div>
+                    {selectedBreedId && (
+                      <p className="text-sm text-accent font-medium">
+                        ✓ {breeds.find(b => b.id === selectedBreedId)?.name}
+                      </p>
+                    )}
+                    {breedSearch.length > 0 && !selectedBreedId && (
+                      <div className="border rounded-xl max-h-40 overflow-y-auto bg-card shadow-lg">
+                        {filteredBreeds.length > 0 ? filteredBreeds.map(b => (
+                          <button
+                            key={b.id}
+                            onClick={() => { setSelectedBreedId(b.id); setBreedSearch(b.name); }}
+                            className="w-full text-left px-3 py-2 text-sm hover:bg-muted/50 transition-colors border-b border-border/30 last:border-0"
+                          >
+                            {b.name}
+                          </button>
+                        )) : (
+                          <p className="px-3 py-2 text-sm text-muted-foreground">No breeds found</p>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <Button onClick={addPet} className="w-full bg-charcoal text-primary-foreground" disabled={!petName.trim()}>Add Pet</Button>
                 </div>
@@ -138,8 +195,12 @@ const MyPetsPage = () => {
               {pets.map((pet) => (
                 <div key={pet.id} className="rounded-2xl border border-border/60 bg-card p-5 shadow-sm shadow-black/[0.02] flex justify-between items-start">
                   <div>
-                    <h3 className="font-semibold text-foreground">{pet.pet_name}</h3>
-                    {pet.notes && <p className="text-sm text-muted-foreground mt-1">{pet.notes}</p>}
+                    <h3 className="font-semibold text-foreground flex items-center gap-2">
+                      <Dog className="h-4 w-4 text-accent" />
+                      {pet.pet_name}
+                    </h3>
+                    {pet.breed_name && <p className="text-sm text-muted-foreground mt-1">{pet.breed_name}</p>}
+                    {pet.notes && <p className="text-xs text-muted-foreground mt-0.5">{pet.notes}</p>}
                   </div>
                   <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive" onClick={() => deletePet(pet.id)}>
                     <Trash2 className="h-4 w-4" />

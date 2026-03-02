@@ -25,6 +25,7 @@ import RiskAssessmentsPage from "./pages/RiskAssessmentsPage";
 import RulesPage from "./pages/RulesPage";
 import MessagesPage from "./pages/MessagesPage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import BookingEntryPage from "./pages/BookingEntryPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -41,6 +42,7 @@ const App = () => (
           <Route path="/auth" element={<AuthPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/contract/sign/:staffId" element={<ContractSignPage />} />
+          <Route path="/book" element={<BookingEntryPage />} />
           <Route path="/hs/sign/:staffId" element={<HealthAndSafetySignPage />} />
 
           {/* Customer only */}

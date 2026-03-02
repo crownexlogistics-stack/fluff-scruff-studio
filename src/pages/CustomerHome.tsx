@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Phone, MapPin, Clock, Instagram, Facebook, PawPrint, LogIn, LogOut, Star, Menu, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -17,6 +18,7 @@ import { TrustStrip } from "@/components/TrustStrip";
 const CustomerHome = () => {
   const { user, signOut, loading: authLoading } = useAuth();
   const { role } = useUserRole(user?.id);
+  const navigate = useNavigate();
   const [activeService, setActiveService] = useState<string | null>(null);
 
   const isStaff = role === "manager" || role === "director" || role === "groomer";
@@ -56,7 +58,7 @@ const CustomerHome = () => {
           </div>
           <div className="flex items-center gap-3">
             <button
-              onClick={() => setActiveService("Full Groom")}
+              onClick={() => navigate("/book")}
               className="text-primary-foreground font-semibold font-body text-sm px-6 py-2.5 rounded-full transition-all duration-300 shadow-md shadow-charcoal/15 hover:shadow-lg hover:shadow-charcoal/20 active:scale-[0.96]"
               style={{ background: 'linear-gradient(135deg, hsl(220 10% 22%), hsl(220 10% 30%))' }}
             >
@@ -154,7 +156,7 @@ const CustomerHome = () => {
           </div>
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center mt-7 sm:mt-10">
             <button
-              onClick={() => setActiveService("Full Groom")}
+              onClick={() => navigate("/book")}
               className="font-semibold font-body text-base px-12 rounded-full text-primary-foreground transition-all duration-300 shadow-lg shadow-charcoal/20 hover:shadow-xl hover:shadow-charcoal/25 hover:-translate-y-0.5 active:scale-[0.97] active:shadow-md"
               style={{
                 paddingTop: '1.1rem',
@@ -180,7 +182,7 @@ const CustomerHome = () => {
       {/* Services Journey */}
       <ServiceJourney
         services={services}
-        onSelectService={(title) => setActiveService(title)}
+        onSelectService={() => navigate("/book")}
       />
 
       {/* Divider */}
@@ -254,7 +256,7 @@ const CustomerHome = () => {
             Give your dog the spa day they deserve. Book online in seconds.
           </p>
           <button
-            onClick={() => setActiveService("Full Groom")}
+            onClick={() => navigate("/book")}
             className="bg-white text-charcoal font-semibold font-body text-base px-12 py-5 rounded-full hover:bg-white/95 transition-all duration-300 shadow-xl shadow-black/10 hover:shadow-2xl hover:shadow-black/15 hover:-translate-y-0.5"
           >
             Book Now
