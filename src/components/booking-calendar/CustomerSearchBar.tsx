@@ -83,7 +83,7 @@ export function CustomerSearchBar({ currentStaffId, className }: CustomerSearchB
   };
 
   const handleSelect = (result: SearchResult) => {
-    if (result.is_own_customer && result.customer_email) {
+    if (result.customer_email) {
       navigate(`/admin/customers/${encodeURIComponent(result.customer_email)}`);
     }
     setOpen(false);
