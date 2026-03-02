@@ -399,6 +399,30 @@ export type Database = {
           },
         ]
       }
+      customer_notes: {
+        Row: {
+          created_at: string
+          created_by: string
+          customer_email: string
+          id: string
+          note: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          customer_email: string
+          id?: string
+          note: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          customer_email?: string
+          id?: string
+          note?: string
+        }
+        Relationships: []
+      }
       customer_pets: {
         Row: {
           breed_id: string | null
@@ -981,6 +1005,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_user_id_by_email: { Args: { _email: string }; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

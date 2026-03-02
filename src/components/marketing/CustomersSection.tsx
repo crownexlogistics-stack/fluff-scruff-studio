@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { UsersRound, UserCheck, UserX, TrendingUp } from "lucide-react";
@@ -16,6 +17,7 @@ interface CustomerSummary {
 }
 
 export function CustomersSection() {
+  const navigate = useNavigate();
   const [filter, setFilter] = useState<FilterType>("all");
 
   const { data: bookings, isLoading } = useQuery({
@@ -204,7 +206,12 @@ export function CustomersSection() {
                 key={idx}
                 className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto_auto] gap-1 sm:gap-4 px-4 py-3 hover:bg-muted/30 transition-colors"
               >
-                <p className="font-medium text-sm text-foreground truncate">{customer.name}</p>
+                <p
+                  className="font-medium text-sm text-foreground truncate cursor-pointer hover:underline"
+                  onClick={() => customer.email && navigate(`/admin/customers/${encodeURIComponent(customer.email)}`)}
+                >
+                  {customer.name}
+                </p>
                 <p className="text-sm text-muted-foreground truncate">{customer.email || "—"}</p>
                 <p className="text-sm text-muted-foreground w-32 truncate">{customer.phone || "—"}</p>
                 <p className="text-sm font-medium text-right w-20">
