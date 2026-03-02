@@ -639,6 +639,45 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
     return slots;
   };
 
+  // Fetch existing bookings for the selected date to check availability
+  const { data: existingBookingsForDate } = useQuery({
+    queryKey: ["bookings-for-date", selectedDate],
+    queryFn: async () => {
+      if (!selectedDate) return [];
+      const { data, error } = await supabase
+        .from("bookings")
+        .select("booking_time, staff_id, service_id, breed_id, status")
+        .eq("booking_date", selectedDate)
+        .not("status", "in", "(Cancelled,No Show)");
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!selectedDate,
+  });
+
+  // Check if a time slot is fully booked (all groomers busy)
+  const isSlotFullyBooked = (slotTime: string) => {
+    if (!existingBookingsForDate || !groomers || groomers.length === 0) return false;
+    const slotMins = parseInt(slotTime.split(":")[0]) * 60 + parseInt(slotTime.split(":")[1]);
+    const slotEnd = slotMins + serviceDuration;
+
+    // Count how many groomers have a conflicting booking at this time
+    let busyCount = 0;
+    for (const groomer of groomers) {
+      const hasConflict = existingBookingsForDate.some(b => {
+        if (b.staff_id !== groomer.id) return false;
+        const bMins = parseInt((b.booking_time || "00:00").split(":")[0]) * 60 + parseInt((b.booking_time || "00:00").split(":")[1]);
+        // Assume existing booking duration ~90 mins (1.5hr default) — use breed duration if available
+        const bDuration = 90;
+        const bEnd = bMins + bDuration;
+        // Overlap check
+        return slotMins < bEnd && slotEnd > bMins;
+      });
+      if (hasConflict) busyCount++;
+    }
+    return busyCount >= groomers.length;
+  };
+
   // Week-strip: check if a date is selectable (not in the past, not Sunday)
   const isDateSelectableDate = (d: Date) => {
     const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
@@ -959,6 +998,8 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
                   <div className="grid grid-cols-2 gap-2.5">
                     {generateTimeSlots().map((time) => {
                       const isTimeSelected = selectedTime === time;
+                      const fullyBooked = isSlotFullyBooked(time);
+                      if (fullyBooked) return null;
                       return (
                         <button
                           key={time}
@@ -973,6 +1014,9 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
                         </button>
                       );
                     })}
+                    {generateTimeSlots().every(t => isSlotFullyBooked(t)) && (
+                      <p className="col-span-2 text-center text-sm text-muted-foreground py-4">No available slots on this date. Please try another day.</p>
+                    )}
                   </div>
                 </div>
               ) : (
