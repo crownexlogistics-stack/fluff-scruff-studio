@@ -182,7 +182,7 @@ const CustomerHome = () => {
       {/* Services Journey */}
       <ServiceJourney
         services={services}
-        onSelectService={() => navigate("/book")}
+        onSelectService={(title) => navigate(`/book?service=${encodeURIComponent(title)}`)}
       />
 
       {/* Divider */}
