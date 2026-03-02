@@ -191,6 +191,41 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
     },
   });
 
+  // Fetch add-on → service links
+  const { data: addOnServiceLinks } = useQuery({
+    queryKey: ["add_on_services"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("add_on_services").select("add_on_id, service_id");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Resolve current service ID for filtering add-ons
+  const resolvedServiceName = selectedSub ?? service;
+  const { data: currentServiceRecord } = useQuery({
+    queryKey: ["current-service-record", resolvedServiceName],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("services")
+        .select("id")
+        .eq("is_active", true)
+        .ilike("name", `%${resolvedServiceName}%`)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!resolvedServiceName,
+  });
+
+  // Filter add-ons: only show those linked to the current service (or all if no links exist)
+  const filteredAddOns = dbAddOns?.filter((addon) => {
+    const links = addOnServiceLinks?.filter((l) => l.add_on_id === addon.id) ?? [];
+    if (links.length === 0) return true;
+    if (!currentServiceRecord?.id) return true;
+    return links.some((l) => l.service_id === currentServiceRecord.id);
+  });
+
   const filteredBreeds = breedSearch.length > 0
     ? breeds?.filter((b) => b.name.toLowerCase().includes(breedSearch.toLowerCase()))
     : breeds;
@@ -652,7 +687,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
               <h3 className="font-heading font-semibold text-foreground text-lg mb-1">Add the finishing touches</h3>
               <p className="text-sm text-muted-foreground mb-4">Make it extra special for your pup</p>
               <div className="space-y-3">
-                {dbAddOns?.map((addon) => {
+                {filteredAddOns?.map((addon) => {
                   const isSelected = selectedAddOns.includes(addon.id);
                   const Icon = getAddonIcon(addon.icon);
                   return (
@@ -682,7 +717,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
                     </div>
                   );
                 })}
-                {(!dbAddOns || dbAddOns.length === 0) && (
+                {(!filteredAddOns || filteredAddOns.length === 0) && (
                   <p className="text-sm text-muted-foreground text-center py-4">No extras available right now</p>
                 )}
               </div>
