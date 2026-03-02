@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -6,7 +7,9 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { format } from "date-fns";
 import { getStaffColor } from "./staffColors";
-import { Pencil, Trash2, MoreHorizontal, Eye, PenLine, XCircle } from "lucide-react";
+import { Pencil, Trash2, MoreHorizontal, Eye, PenLine, XCircle, Send, CheckCircle2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 export interface BookingData {
   id: string;
@@ -47,6 +50,7 @@ interface BookingEventProps {
 
 export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1, onEditBlock, onCancelBlock, onViewOrder, onEditAppointment, onCancelBooking, onBookAgain, onCheckout }: BookingEventProps) {
   const navigate = useNavigate();
+  const [requestingDeposit, setRequestingDeposit] = useState(false);
   const isNoShow = booking.status === "No Show";
   const color = isNoShow ? { bg: "bg-muted", text: "text-muted-foreground" } : getStaffColor(staffIndex);
   const timeParts = booking.booking_time.split(":");
@@ -157,8 +161,8 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
             </div>
           </div>
 
-          {/* Status badges */}
-          <div className="flex gap-2">
+          {/* Payment status */}
+          <div className="flex flex-wrap gap-2">
             <Badge variant={
               booking.status === "Confirmed" ? "default" :
               booking.status === "Completed" ? "secondary" :
@@ -166,10 +170,41 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
             }>
               {booking.status}
             </Badge>
-            <Badge variant={booking.deposit_paid > 0 ? "secondary" : "destructive"}>
-              {booking.deposit_paid > 0 ? "PAID" : "NOT PAID"}
-            </Badge>
+            {(() => {
+              const deposit = Number(booking.deposit_paid);
+              const total = Number(booking.total_price);
+              if (deposit >= total && total > 0) {
+                return (
+                  <Badge className="bg-emerald-600 text-white hover:bg-emerald-600">
+                    <CheckCircle2 className="h-3 w-3 mr-1" /> PAID IN FULL
+                  </Badge>
+                );
+              }
+              if (deposit > 0) {
+                return (
+                  <Badge variant="secondary">
+                    DEPOSIT £{deposit.toFixed(2)}
+                  </Badge>
+                );
+              }
+              return <Badge variant="destructive">NOT PAID</Badge>;
+            })()}
           </div>
+
+          {/* Paid in full callout */}
+          {Number(booking.deposit_paid) >= Number(booking.total_price) && Number(booking.total_price) > 0 && (
+            <div className="bg-emerald-50 border border-emerald-200 rounded-md px-3 py-2 text-xs text-emerald-800 flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 shrink-0" />
+              <span>Customer paid in full online — nothing to charge on the day.</span>
+            </div>
+          )}
+
+          {/* Deposit paid but not full */}
+          {Number(booking.deposit_paid) > 0 && Number(booking.deposit_paid) < Number(booking.total_price) && (
+            <div className="bg-amber-50 border border-amber-200 rounded-md px-3 py-2 text-xs text-amber-800">
+              Deposit of £{Number(booking.deposit_paid).toFixed(2)} paid — remaining balance of £{(Number(booking.total_price) - Number(booking.deposit_paid)).toFixed(2)} due on the day.
+            </div>
+          )}
 
           {/* Details */}
           <div className="text-sm space-y-1">
@@ -185,6 +220,37 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
           {booking.notes && (
             <div className="border-t pt-3">
               <p className="text-xs text-muted-foreground">{booking.notes}</p>
+            </div>
+          )}
+
+          {/* Request Deposit for internally booked, unpaid appointments */}
+          {Number(booking.deposit_paid) === 0 && booking.customer_email && booking.status !== "Cancelled" && booking.status !== "No Show" && (
+            <div className="border-t pt-3">
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full"
+                disabled={requestingDeposit}
+                onClick={async () => {
+                  setRequestingDeposit(true);
+                  try {
+                    const { data, error } = await supabase.functions.invoke("send-deposit-request", {
+                      body: {
+                        booking_id: booking.id,
+                      },
+                    });
+                    if (error) throw error;
+                    toast.success("Deposit request email sent to " + booking.customer_email);
+                  } catch (e: any) {
+                    toast.error("Failed to send: " + e.message);
+                  } finally {
+                    setRequestingDeposit(false);
+                  }
+                }}
+              >
+                <Send className="h-4 w-4 mr-1" />
+                {requestingDeposit ? "Sending…" : "Request Deposit Payment"}
+              </Button>
             </div>
           )}
 
