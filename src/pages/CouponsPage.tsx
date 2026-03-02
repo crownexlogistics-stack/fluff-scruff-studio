@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { AppLayout } from "@/components/AppLayout";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -150,6 +151,7 @@ export default function CouponsPage() {
   };
 
   return (
+    <AppLayout>
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
@@ -379,5 +381,6 @@ export default function CouponsPage() {
         </DialogContent>
       </Dialog>
     </div>
+    </AppLayout>
   );
 }
