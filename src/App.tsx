@@ -26,6 +26,7 @@ import RulesPage from "./pages/RulesPage";
 import MessagesPage from "./pages/MessagesPage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import BookingEntryPage from "./pages/BookingEntryPage";
+import TermsPage from "./pages/TermsPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -43,6 +44,7 @@ const App = () => (
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/contract/sign/:staffId" element={<ContractSignPage />} />
           <Route path="/book" element={<BookingEntryPage />} />
+          <Route path="/terms" element={<TermsPage />} />
           <Route path="/hs/sign/:staffId" element={<HealthAndSafetySignPage />} />
 
           {/* Customer only */}

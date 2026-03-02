@@ -279,9 +279,11 @@ const CustomerHome = () => {
                 <Facebook className="h-5 w-5" />
               </a>
             </div>
-            <p className="text-xs text-background/40 font-body">
-              © {new Date().getFullYear()} Fluff & Scruff Studio
-            </p>
+            <div className="flex items-center gap-3 text-xs text-background/40 font-body">
+              <p>© {new Date().getFullYear()} Fluff & Scruff Studio</p>
+              <span>·</span>
+              <Link to="/terms" className="hover:text-background/70 transition-colors underline underline-offset-2">T&amp;C's</Link>
+            </div>
           </div>
         </div>
       </footer>
