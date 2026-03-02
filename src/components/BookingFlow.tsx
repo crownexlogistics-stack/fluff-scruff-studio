@@ -129,6 +129,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
   const [paymentType, setPaymentType] = useState<"deposit" | "full">("full");
   const [ageYears, setAgeYears] = useState<string>(dogAgeYears != null ? String(dogAgeYears) : "0");
   const [ageMonths, setAgeMonths] = useState<string>(dogAgeMonths != null ? String(dogAgeMonths) : "0");
+  const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null);
   const { data: termsContent } = useQuery({
     queryKey: ["site_config", "terms_and_conditions"],
     queryFn: async () => {
@@ -224,6 +225,40 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
     }
   }, [preselectedBreedId, breeds, selectedBreed]);
 
+  // Fetch groomers (staff with role containing "groomer" or similar)
+  const { data: groomers } = useQuery({
+    queryKey: ["groomers-for-booking"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("staff")
+        .select("id, name, role")
+        .ilike("role", "%groomer%")
+        .order("name");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // For returning customers: find the last groomer who served them
+  const { data: lastGroomerBooking } = useQuery({
+    queryKey: ["last-groomer", user?.email],
+    queryFn: async () => {
+      if (!user?.email) return null;
+      const { data, error } = await supabase
+        .from("bookings")
+        .select("staff_id")
+        .eq("customer_email", user.email)
+        .not("staff_id", "is", null)
+        .order("booking_date", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: isExistingCustomer && !!user?.email,
+  });
+
+  const lastGroomerId = lastGroomerBooking?.staff_id ?? null;
 
   // Fetch add-ons from DB
   const { data: dbAddOns } = useQuery({
@@ -461,6 +496,23 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
       }
     }
 
+    // Determine staff_id: returning customers choose, new customers get auto-assigned
+    let assignedStaffId: string | null = null;
+    if (isExistingCustomer && selectedStaffId) {
+      assignedStaffId = selectedStaffId;
+    } else if (groomers && groomers.length > 0) {
+      // Auto-assign: find groomers who don't have a booking at the same date/time
+      const { data: conflictingBookings } = await supabase
+        .from("bookings")
+        .select("staff_id")
+        .eq("booking_date", selectedDate!)
+        .eq("booking_time", selectedTime!)
+        .not("status", "eq", "Cancelled");
+      const busyStaffIds = new Set((conflictingBookings || []).map(b => b.staff_id).filter(Boolean));
+      const freeGroomer = groomers.find(g => !busyStaffIds.has(g.id));
+      assignedStaffId = freeGroomer?.id ?? groomers[0].id; // fallback to first groomer
+    }
+
     const { data: insertedBooking, error } = await supabase.from("bookings").insert({
       customer_name: guestForm.name,
       customer_phone: guestForm.phone || null,
@@ -468,6 +520,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
       dog_name: guestForm.dogName,
       breed_id: selectedBreed?.id ?? null,
       service_id: dbService?.id ?? null,
+      staff_id: assignedStaffId,
       booking_date: selectedDate!,
       booking_time: selectedTime!,
       total_price: totalPrice,
@@ -1073,6 +1126,58 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
               <div className="text-center">
                 <h2 className="text-xl font-heading text-foreground">Confirm & Pay</h2>
                 <p className="text-muted-foreground text-sm mt-1">Booking for <span className="font-semibold">{guestForm.dogName || "your pup"}</span></p>
+              </div>
+            )}
+
+            {/* Groomer picker for returning customers */}
+            {isExistingCustomer && groomers && groomers.length > 0 && (
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Choose your groomer</Label>
+                <div className="space-y-2">
+                  {groomers.map((g) => {
+                    const isLast = g.id === lastGroomerId;
+                    const isSelected = selectedStaffId === g.id;
+                    return (
+                      <button
+                        key={g.id}
+                        onClick={() => setSelectedStaffId(g.id)}
+                        className={`w-full flex items-center gap-3 rounded-xl border p-3.5 text-left transition-all duration-200
+                          ${isSelected
+                            ? 'border-accent bg-accent/10 shadow-sm'
+                            : 'border-border bg-card hover:border-accent/50 hover:shadow-sm'
+                          }`}
+                      >
+                        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors
+                          ${isSelected ? 'bg-accent text-accent-foreground' : 'bg-muted text-muted-foreground'}`}>
+                          {isSelected ? <Check className="h-4 w-4" /> : <span className="text-sm font-semibold">{g.name.charAt(0)}</span>}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-foreground text-sm">{g.name}</p>
+                          {isLast && (
+                            <p className="text-xs text-accent font-medium">✨ Groomed your dog last time</p>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                  <button
+                    onClick={() => setSelectedStaffId(null)}
+                    className={`w-full flex items-center gap-3 rounded-xl border p-3.5 text-left transition-all duration-200
+                      ${selectedStaffId === null
+                        ? 'border-accent bg-accent/10 shadow-sm'
+                        : 'border-border bg-card hover:border-accent/50 hover:shadow-sm'
+                      }`}
+                  >
+                    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors
+                      ${selectedStaffId === null ? 'bg-accent text-accent-foreground' : 'bg-muted text-muted-foreground'}`}>
+                      {selectedStaffId === null ? <Check className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-medium text-foreground text-sm">No preference</p>
+                      <p className="text-xs text-muted-foreground">We'll assign the best available groomer</p>
+                    </div>
+                  </button>
+                </div>
               </div>
             )}
 
