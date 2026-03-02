@@ -8,6 +8,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { logAudit } from "@/lib/auditLog";
 import type { BookingData } from "./BookingEvent";
 
 interface EditBlockDialogProps {
@@ -44,12 +45,14 @@ export function EditBlockDialog({ open, onOpenChange, block }: EditBlockDialogPr
       }).eq("id", block.id);
       if (error) throw error;
 
+      // Compute changes
+      const changes: string[] = [];
+      if (endTime !== originalEnd) changes.push(`time changed from ${originalStart}-${originalEnd} to ${originalStart}-${endTime}`);
+      if (notes.trim() !== block.notes) changes.push(`reason updated`);
+
       // Log amendment to HR notes
       const { data: { user } } = await supabase.auth.getUser();
       if (user && block.staff_id) {
-        const changes: string[] = [];
-        if (endTime !== originalEnd) changes.push(`time changed from ${originalStart}-${originalEnd} to ${originalStart}-${endTime}`);
-        if (notes.trim() !== block.notes) changes.push(`reason updated`);
         const hrNote = `✏️ BLOCK AMENDED — ${formattedDate} ${originalStart}-${endTime} — ${changes.join(", ")} — Current reason: ${notes.trim()}`;
         await supabase.from("staff_notes").insert({
           staff_id: block.staff_id,
@@ -57,12 +60,20 @@ export function EditBlockDialog({ open, onOpenChange, block }: EditBlockDialogPr
           note: hrNote,
         });
       }
+
+      // Audit trail
+      logAudit({
+        staffId: block.staff_id,
+        action: "BLOCK_AMENDED",
+        details: `Amended block on ${formattedDate} ${originalStart}-${endTime}. ${changes.join(", ")}`,
+      });
     },
     onSuccess: () => {
-      toast.success("Block updated & amendment logged to HR notes");
+      toast.success("Block updated");
       queryClient.invalidateQueries({ queryKey: ["schedule-overrides"] });
       queryClient.invalidateQueries({ queryKey: ["groomer-overrides"] });
       queryClient.invalidateQueries({ queryKey: ["staff-notes"] });
+      queryClient.invalidateQueries({ queryKey: ["audit-logs"] });
       onOpenChange(false);
     },
     onError: (e: any) => toast.error(e.message),

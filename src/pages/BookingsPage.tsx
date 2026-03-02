@@ -2,6 +2,7 @@ import { useState, useMemo, useCallback } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { logAudit } from "@/lib/auditLog";
 import { startOfWeek, addWeeks, format, addDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { CalendarHeader } from "@/components/booking-calendar/CalendarHeader";
@@ -109,11 +110,18 @@ const BookingsPage = () => {
           note: hrNote,
         });
       }
+
+      logAudit({
+        staffId: block.staff_id,
+        action: "BLOCK_CANCELLED",
+        details: `Cancelled block on ${format(new Date(block.booking_date), "dd MMM yyyy")} ${block.booking_time.slice(0, 5)}-${block.end_time?.slice(0, 5) || "?"}`,
+      });
     },
     onSuccess: () => {
-      toast.success("Block cancelled & logged to HR notes");
+      toast.success("Block cancelled");
       queryClient.invalidateQueries({ queryKey: ["schedule-overrides"] });
       queryClient.invalidateQueries({ queryKey: ["staff-notes"] });
+      queryClient.invalidateQueries({ queryKey: ["audit-logs"] });
     },
     onError: (e: any) => toast.error(e.message),
   });
