@@ -14,3 +14,6 @@ verify_jwt = false
 
 [functions.receive-reply]
 verify_jwt = false
+
+[functions.create-deposit-checkout]
+verify_jwt = false
