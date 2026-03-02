@@ -175,11 +175,11 @@ const BookingsPage = () => {
       const { error } = await (supabase.from("bookings") as any).update({ status: "Completed", final_charge: finalCharge, is_groomers_own_customer: isOwnCustomer }).eq("id", bookingId);
       if (error) throw error;
 
-      // Find the booking to calculate commission
+      // Find the booking to calculate commission on TOTAL SERVICE PRICE (not final charge)
       const booking = bookings.find(b => b.id === bookingId);
       if (booking && booking.staff_id) {
         const rate = isOwnCustomer ? 0.5 : 0.4;
-        const totalPrice = finalCharge;
+        const totalPrice = Number(booking.total_price);
         const groomerPay = Math.round(totalPrice * rate * 100) / 100;
         const studioShare = Math.round((totalPrice - groomerPay) * 100) / 100;
 
