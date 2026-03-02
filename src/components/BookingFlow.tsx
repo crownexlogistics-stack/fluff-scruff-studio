@@ -501,16 +501,35 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
     if (isExistingCustomer && selectedStaffId) {
       assignedStaffId = selectedStaffId;
     } else if (groomers && groomers.length > 0) {
-      // Auto-assign: find groomers who don't have a booking at the same date/time
-      const { data: conflictingBookings } = await supabase
-        .from("bookings")
-        .select("staff_id")
-        .eq("booking_date", selectedDate!)
-        .eq("booking_time", selectedTime!)
-        .not("status", "eq", "Cancelled");
-      const busyStaffIds = new Set((conflictingBookings || []).map(b => b.staff_id).filter(Boolean));
+      const [bookingsAtTimeRes, blockedAtTimeRes] = await Promise.all([
+        supabase
+          .from("bookings")
+          .select("staff_id")
+          .eq("booking_date", selectedDate!)
+          .eq("booking_time", selectedTime!)
+          .not("status", "in", "(Cancelled,No Show)"),
+        supabase
+          .from("staff_schedule_overrides")
+          .select("staff_id")
+          .eq("override_date", selectedDate!)
+          .eq("is_working", false)
+          .lte("start_time", selectedTime!)
+          .gt("end_time", selectedTime!),
+      ]);
+
+      const busyStaffIds = new Set([
+        ...(bookingsAtTimeRes.data || []).map((b: any) => b.staff_id).filter(Boolean),
+        ...(blockedAtTimeRes.data || []).map((b: any) => b.staff_id).filter(Boolean),
+      ]);
+
       const freeGroomer = groomers.find(g => !busyStaffIds.has(g.id));
-      assignedStaffId = freeGroomer?.id ?? groomers[0].id; // fallback to first groomer
+      if (!freeGroomer) {
+        setAlertMessage("No groomer is available for this time slot. Please choose another time.");
+        setIsSubmitting(false);
+        return;
+      }
+
+      assignedStaffId = freeGroomer.id;
     }
 
     const { data: insertedBooking, error } = await supabase.from("bookings").insert({
@@ -639,14 +658,14 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
     return slots;
   };
 
-  // Fetch existing bookings for the selected date to check availability
+  // Fetch existing appointments for selected date to check availability
   const { data: existingBookingsForDate } = useQuery({
     queryKey: ["bookings-for-date", selectedDate],
     queryFn: async () => {
       if (!selectedDate) return [];
       const { data, error } = await supabase
         .from("bookings")
-        .select("booking_time, staff_id, service_id, breed_id, status")
+        .select("booking_time, staff_id, status, services(duration_minutes), breeds(duration_minutes)")
         .eq("booking_date", selectedDate)
         .not("status", "in", "(Cancelled,No Show)");
       if (error) throw error;
@@ -655,26 +674,55 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
     enabled: !!selectedDate,
   });
 
-  // Check if a time slot is fully booked (all groomers busy)
-  const isSlotFullyBooked = (slotTime: string) => {
-    if (!existingBookingsForDate || !groomers || groomers.length === 0) return false;
-    const slotMins = parseInt(slotTime.split(":")[0]) * 60 + parseInt(slotTime.split(":")[1]);
-    const slotEnd = slotMins + serviceDuration;
+  // Fetch blocked overrides for selected date
+  const { data: blockedOverridesForDate } = useQuery({
+    queryKey: ["blocked-overrides-for-date", selectedDate],
+    queryFn: async () => {
+      if (!selectedDate) return [];
+      const { data, error } = await supabase
+        .from("staff_schedule_overrides")
+        .select("staff_id, start_time, end_time")
+        .eq("override_date", selectedDate)
+        .eq("is_working", false);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!selectedDate,
+  });
 
-    // Count how many groomers have a conflicting booking at this time
+  const parseTimeToMinutes = (time: string) => {
+    const [h, m] = (time || "00:00").split(":");
+    return (parseInt(h || "0", 10) * 60) + parseInt(m || "0", 10);
+  };
+
+  // Check if a time slot is fully booked (all groomers busy from appointments or blocked time)
+  const isSlotFullyBooked = (slotTime: string) => {
+    if (!groomers || groomers.length === 0) return false;
+
+    const slotStart = parseTimeToMinutes(slotTime);
+    const slotEnd = slotStart + serviceDuration;
+
     let busyCount = 0;
+
     for (const groomer of groomers) {
-      const hasConflict = existingBookingsForDate.some(b => {
+      const hasBookingConflict = (existingBookingsForDate || []).some((b: any) => {
         if (b.staff_id !== groomer.id) return false;
-        const bMins = parseInt((b.booking_time || "00:00").split(":")[0]) * 60 + parseInt((b.booking_time || "00:00").split(":")[1]);
-        // Assume existing booking duration ~90 mins (1.5hr default) — use breed duration if available
-        const bDuration = 90;
-        const bEnd = bMins + bDuration;
-        // Overlap check
-        return slotMins < bEnd && slotEnd > bMins;
+        const bookingStart = parseTimeToMinutes(b.booking_time);
+        const bookingDuration = Number(b.services?.duration_minutes ?? b.breeds?.duration_minutes ?? 90);
+        const bookingEnd = bookingStart + bookingDuration;
+        return slotStart < bookingEnd && slotEnd > bookingStart;
       });
-      if (hasConflict) busyCount++;
+
+      const hasBlockConflict = (blockedOverridesForDate || []).some((ov: any) => {
+        if (ov.staff_id !== groomer.id) return false;
+        const blockStart = parseTimeToMinutes(ov.start_time);
+        const blockEnd = parseTimeToMinutes(ov.end_time || ov.start_time);
+        return slotStart < blockEnd && slotEnd > blockStart;
+      });
+
+      if (hasBookingConflict || hasBlockConflict) busyCount++;
     }
+
     return busyCount >= groomers.length;
   };
 
