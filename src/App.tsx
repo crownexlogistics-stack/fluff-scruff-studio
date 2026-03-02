@@ -25,6 +25,7 @@ import RiskAssessmentsPage from "./pages/RiskAssessmentsPage";
 import RulesPage from "./pages/RulesPage";
 import TermsEditorPage from "./pages/TermsEditorPage";
 import MessagesPage from "./pages/MessagesPage";
+import CouponsPage from "./pages/CouponsPage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { ScrollToTop } from "./components/ScrollToTop";
 import BookingEntryPage from "./pages/BookingEntryPage";
@@ -60,6 +61,7 @@ const App = () => (
           <Route path="/admin" element={<ProtectedRoute allowedRoles={["manager", "director"]}><AdminDashboard /></ProtectedRoute>} />
           <Route path="/admin/users" element={<ProtectedRoute allowedRoles={["director"]}><AdminUsersPage /></ProtectedRoute>} />
           <Route path="/admin/terms" element={<ProtectedRoute allowedRoles={["director"]}><TermsEditorPage /></ProtectedRoute>} />
+          <Route path="/admin/coupons" element={<ProtectedRoute allowedRoles={["director"]}><CouponsPage /></ProtectedRoute>} />
           <Route path="/breeds" element={<ProtectedRoute allowedRoles={["director"]}><BreedsPage /></ProtectedRoute>} />
           <Route path="/add-ons" element={<ProtectedRoute allowedRoles={["manager", "director"]}><AddOnsPage /></ProtectedRoute>} />
           
