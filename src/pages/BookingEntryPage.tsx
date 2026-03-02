@@ -1,0 +1,436 @@
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ArrowLeft, PawPrint, LogIn, UserPlus, Dog, Plus, Search, ChevronRight } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { BookingFlow } from "@/components/BookingFlow";
+import logo from "@/assets/logo-transparent.png";
+
+interface PetWithBreed {
+  id: string;
+  pet_name: string;
+  notes: string | null;
+  breed_id: string | null;
+  breed_name?: string;
+}
+
+const BookingEntryPage = () => {
+  const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
+  const { toast } = useToast();
+
+  // Auth form state (for inline login/signup)
+  const [authMode, setAuthMode] = useState<"choose" | "login" | "signup" | "forgot">("choose");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  // Pet selection / add-pet state
+  const [showAddPet, setShowAddPet] = useState(false);
+  const [newPetName, setNewPetName] = useState("");
+  const [breedSearch, setBreedSearch] = useState("");
+  const [selectedBreedId, setSelectedBreedId] = useState<string | null>(null);
+
+  // Booking flow state
+  const [activeBooking, setActiveBooking] = useState<{ petId: string; breedId: string | null; petName: string } | null>(null);
+
+  // Fetch customer pets
+  const { data: pets = [], refetch: refetchPets } = useQuery({
+    queryKey: ["customer-pets", user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data, error } = await supabase
+        .from("customer_pets")
+        .select("id, pet_name, notes, breed_id, breeds(name)")
+        .eq("user_id", user.id)
+        .order("created_at");
+      if (error) throw error;
+      return (data || []).map((p: any) => ({
+        id: p.id,
+        pet_name: p.pet_name,
+        notes: p.notes,
+        breed_id: p.breed_id,
+        breed_name: p.breeds?.name || null,
+      })) as PetWithBreed[];
+    },
+    enabled: !!user,
+  });
+
+  // Fetch breeds for breed picker
+  const { data: breeds = [] } = useQuery({
+    queryKey: ["breeds-list"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("breeds").select("id, name").order("name");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const filteredBreeds = breedSearch.length > 0
+    ? breeds.filter(b => b.name.toLowerCase().includes(breedSearch.toLowerCase()))
+    : [];
+
+  // Auth handlers
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    setSubmitting(false);
+    if (error) {
+      toast({ title: "Login failed", description: error.message, variant: "destructive" });
+    }
+    // On success, user state updates automatically
+  };
+
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { full_name: fullName },
+        emailRedirectTo: `${window.location.origin}/book`,
+      },
+    });
+    setSubmitting(false);
+    if (error) {
+      toast({ title: "Sign up failed", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Check your email", description: "We've sent a confirmation link. Please verify to continue." });
+    }
+  };
+
+  const handleForgot = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setSubmitting(false);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Email sent", description: "Check your inbox for a password reset link." });
+    }
+  };
+
+  // Add pet handler
+  const handleAddPet = async () => {
+    if (!user || !newPetName.trim()) return;
+    const { error } = await supabase.from("customer_pets").insert({
+      user_id: user.id,
+      pet_name: newPetName.trim(),
+      breed_id: selectedBreedId,
+    });
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: `${newPetName.trim()} added!` });
+      setNewPetName("");
+      setSelectedBreedId(null);
+      setBreedSearch("");
+      setShowAddPet(false);
+      refetchPets();
+    }
+  };
+
+  // Select pet and start booking
+  const selectPetForBooking = (pet: PetWithBreed) => {
+    setActiveBooking({ petId: pet.id, breedId: pet.breed_id, petName: pet.pet_name });
+  };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
+  // If booking flow is active, show it
+  if (activeBooking) {
+    return (
+      <BookingFlow
+        service="Grooming"
+        onClose={() => setActiveBooking(null)}
+        preselectedBreedId={activeBooking.breedId}
+        preselectedPetName={activeBooking.petName}
+      />
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <nav className="sticky top-0 z-50 glass border-b border-border/50">
+        <div className="max-w-2xl mx-auto px-4 sm:px-6 h-16 flex items-center gap-3">
+          <button onClick={() => navigate("/")} className="text-muted-foreground hover:text-foreground transition-colors">
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <img src={logo} alt="Fluff & Scruff" className="h-10 w-auto" />
+        </div>
+      </nav>
+
+      <div className="max-w-lg mx-auto px-4 sm:px-6 py-10">
+        {/* NOT LOGGED IN — show login/register choice */}
+        {!user && (
+          <>
+            {authMode === "choose" && (
+              <div className="space-y-8 animate-fade-in">
+                <div className="text-center">
+                  <div className="flex items-center justify-center w-16 h-16 rounded-full bg-accent/10 mx-auto mb-4">
+                    <PawPrint className="h-7 w-7 text-accent" />
+                  </div>
+                  <h1 className="text-2xl sm:text-3xl font-heading text-foreground">Let's Book Your Pup In</h1>
+                  <p className="text-muted-foreground text-sm mt-2 max-w-xs mx-auto">
+                    Sign in to your account or create one to get started
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  <button
+                    onClick={() => setAuthMode("login")}
+                    className="w-full rounded-2xl border-2 border-border/60 bg-card p-5 text-left hover:border-primary/40 hover:shadow-lg hover:shadow-black/[0.04] transition-all duration-300 group"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                        <LogIn className="h-5 w-5 text-primary" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-semibold text-foreground">Returning Customer</p>
+                        <p className="text-sm text-muted-foreground">Sign in to your account</p>
+                      </div>
+                      <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                    </div>
+                  </button>
+
+                  <button
+                    onClick={() => setAuthMode("signup")}
+                    className="w-full rounded-2xl border-2 border-border/60 bg-card p-5 text-left hover:border-accent/40 hover:shadow-lg hover:shadow-black/[0.04] transition-all duration-300 group"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-accent/10">
+                        <UserPlus className="h-5 w-5 text-accent" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-semibold text-foreground">New Here?</p>
+                        <p className="text-sm text-muted-foreground">Create an account to book</p>
+                      </div>
+                      <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-accent transition-colors" />
+                    </div>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {authMode === "login" && (
+              <div className="space-y-6 animate-fade-in">
+                <button onClick={() => setAuthMode("choose")} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
+                  <ArrowLeft className="h-4 w-4" /> Back
+                </button>
+                <div className="text-center">
+                  <h1 className="text-2xl font-heading text-foreground">Welcome Back</h1>
+                  <p className="text-muted-foreground text-sm mt-1">Sign in to continue booking</p>
+                </div>
+                <form onSubmit={handleLogin} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="hello@example.com" required />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Password</Label>
+                    <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required minLength={6} />
+                  </div>
+                  <Button type="submit" className="w-full" disabled={submitting}>
+                    {submitting ? "Signing in…" : "Sign In"}
+                  </Button>
+                </form>
+                <div className="text-center text-sm space-y-2">
+                  <button onClick={() => setAuthMode("forgot")} className="text-muted-foreground hover:text-foreground transition-colors">Forgot password?</button>
+                  <p className="text-muted-foreground">Don't have an account?{" "}
+                    <button onClick={() => setAuthMode("signup")} className="text-foreground font-medium hover:underline">Sign up</button>
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {authMode === "signup" && (
+              <div className="space-y-6 animate-fade-in">
+                <button onClick={() => setAuthMode("choose")} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
+                  <ArrowLeft className="h-4 w-4" /> Back
+                </button>
+                <div className="text-center">
+                  <h1 className="text-2xl font-heading text-foreground">Create Your Account</h1>
+                  <p className="text-muted-foreground text-sm mt-1">Quick setup, then we'll book your pup in</p>
+                </div>
+                <form onSubmit={handleSignup} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="fullName">Full Name</Label>
+                    <Input id="fullName" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Your name" required />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="signupEmail">Email</Label>
+                    <Input id="signupEmail" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="hello@example.com" required />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="signupPassword">Password</Label>
+                    <Input id="signupPassword" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required minLength={6} />
+                  </div>
+                  <Button type="submit" className="w-full" disabled={submitting}>
+                    {submitting ? "Creating account…" : "Create Account"}
+                  </Button>
+                </form>
+                <div className="text-center text-sm">
+                  <p className="text-muted-foreground">Already have an account?{" "}
+                    <button onClick={() => setAuthMode("login")} className="text-foreground font-medium hover:underline">Sign in</button>
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {authMode === "forgot" && (
+              <div className="space-y-6 animate-fade-in">
+                <button onClick={() => setAuthMode("login")} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
+                  <ArrowLeft className="h-4 w-4" /> Back to sign in
+                </button>
+                <div className="text-center">
+                  <h1 className="text-2xl font-heading text-foreground">Reset Password</h1>
+                  <p className="text-muted-foreground text-sm mt-1">We'll send you a link to reset it</p>
+                </div>
+                <form onSubmit={handleForgot} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="forgotEmail">Email</Label>
+                    <Input id="forgotEmail" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="hello@example.com" required />
+                  </div>
+                  <Button type="submit" className="w-full" disabled={submitting}>
+                    {submitting ? "Sending…" : "Send Reset Link"}
+                  </Button>
+                </form>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* LOGGED IN — show pet selector */}
+        {user && (
+          <div className="space-y-6 animate-fade-in">
+            <div className="text-center">
+              <div className="flex items-center justify-center w-16 h-16 rounded-full bg-accent/10 mx-auto mb-4">
+                <PawPrint className="h-7 w-7 text-accent" />
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-heading text-foreground">Who's Getting Pampered?</h1>
+              <p className="text-muted-foreground text-sm mt-2">Select a pet or add a new one</p>
+            </div>
+
+            {/* Existing pets */}
+            {pets.length > 0 && (
+              <div className="space-y-3">
+                {pets.map((pet) => (
+                  <button
+                    key={pet.id}
+                    onClick={() => selectPetForBooking(pet)}
+                    className="w-full rounded-2xl border-2 border-border/60 bg-card p-4 text-left hover:border-accent/40 hover:shadow-lg hover:shadow-black/[0.04] transition-all duration-300 group"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-accent/10">
+                        <Dog className="h-5 w-5 text-accent" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-semibold text-foreground">{pet.pet_name}</p>
+                        <p className="text-sm text-muted-foreground">{pet.breed_name || "Breed not set"}</p>
+                      </div>
+                      <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-accent transition-colors" />
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Add new pet */}
+            {!showAddPet ? (
+              <button
+                onClick={() => setShowAddPet(true)}
+                className="w-full rounded-2xl border-2 border-dashed border-border/60 bg-card/50 p-4 text-center hover:border-accent/40 transition-all duration-300"
+              >
+                <div className="flex items-center justify-center gap-2 text-muted-foreground">
+                  <Plus className="h-5 w-5" />
+                  <span className="font-medium">Add a New Dog</span>
+                </div>
+              </button>
+            ) : (
+              <div className="rounded-2xl border-2 border-accent/30 bg-card p-5 space-y-4 animate-fade-in">
+                <h3 className="font-semibold text-foreground flex items-center gap-2">
+                  <PawPrint className="h-4 w-4 text-accent" /> Add a New Dog
+                </h3>
+                <div className="space-y-2">
+                  <Label>Dog's Name</Label>
+                  <Input
+                    value={newPetName}
+                    onChange={(e) => setNewPetName(e.target.value)}
+                    placeholder="e.g. Buddy"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Breed</Label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
+                    <Input
+                      placeholder="Search breed…"
+                      value={breedSearch}
+                      onChange={(e) => { setBreedSearch(e.target.value); setSelectedBreedId(null); }}
+                      className="pl-10"
+                    />
+                  </div>
+                  {selectedBreedId && (
+                    <p className="text-sm text-accent font-medium">
+                      ✓ {breeds.find(b => b.id === selectedBreedId)?.name}
+                    </p>
+                  )}
+                  {breedSearch.length > 0 && !selectedBreedId && (
+                    <div className="border rounded-xl max-h-40 overflow-y-auto bg-card shadow-lg">
+                      {filteredBreeds.length > 0 ? filteredBreeds.map(b => (
+                        <button
+                          key={b.id}
+                          onClick={() => { setSelectedBreedId(b.id); setBreedSearch(b.name); }}
+                          className="w-full text-left px-3 py-2 text-sm hover:bg-muted/50 transition-colors border-b border-border/30 last:border-0"
+                        >
+                          {b.name}
+                        </button>
+                      )) : (
+                        <p className="px-3 py-2 text-sm text-muted-foreground">No breeds found</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => { setShowAddPet(false); setNewPetName(""); setBreedSearch(""); setSelectedBreedId(null); }} className="flex-1">
+                    Cancel
+                  </Button>
+                  <Button onClick={handleAddPet} disabled={!newPetName.trim()} className="flex-1">
+                    Add Dog
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* No pets prompt */}
+            {pets.length === 0 && !showAddPet && (
+              <div className="text-center py-6">
+                <p className="text-muted-foreground text-sm">Add your first dog to get started with booking</p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default BookingEntryPage;

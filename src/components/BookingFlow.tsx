@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { ArrowLeft, Search, Dog, ChevronRight, PawPrint, Save, Move, Sparkles, Check, ChevronLeft, Calendar, Info, X } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,6 +15,8 @@ type Step = "sub-service" | "breed" | "calendar" | "addons" | "guest-details" | 
 interface BookingFlowProps {
   service: string;
   onClose: () => void;
+  preselectedBreedId?: string | null;
+  preselectedPetName?: string;
 }
 
 const subServices = [
@@ -68,8 +70,12 @@ function getMonday(date: Date): Date {
 const WEEKDAYS_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
-export function BookingFlow({ service, onClose }: BookingFlowProps) {
-  const [step, setStep] = useState<Step>(service === "Grooming" ? "sub-service" : "breed");
+export function BookingFlow({ service, onClose, preselectedBreedId, preselectedPetName }: BookingFlowProps) {
+  // If breed is preselected, skip to sub-service (for grooming) or calendar
+  const initialStep: Step = preselectedBreedId
+    ? (service === "Grooming" ? "sub-service" : "calendar")
+    : (service === "Grooming" ? "sub-service" : "breed");
+  const [step, setStep] = useState<Step>(initialStep);
   const [selectedSub, setSelectedSub] = useState<string | null>(null);
   const [breedSearch, setBreedsSearch] = useState("");
   const [selectedBreed, setSelectedBreed] = useState<any>(null);
@@ -77,7 +83,7 @@ export function BookingFlow({ service, onClose }: BookingFlowProps) {
   const [infoPopup, setInfoPopup] = useState<{ name: string; description: string } | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
-  const [guestForm, setGuestForm] = useState({ name: "", phone: "", email: "", dogName: "" });
+  const [guestForm, setGuestForm] = useState({ name: "", phone: "", email: "", dogName: preselectedPetName || "" });
   const queryClient = useQueryClient();
 
   // Week-strip state
@@ -131,6 +137,15 @@ export function BookingFlow({ service, onClose }: BookingFlowProps) {
       return data;
     },
   });
+
+  // Auto-select breed if preselected
+  useEffect(() => {
+    if (preselectedBreedId && breeds && !selectedBreed) {
+      const breed = breeds.find(b => b.id === preselectedBreedId);
+      if (breed) setSelectedBreed(breed);
+    }
+  }, [preselectedBreedId, breeds, selectedBreed]);
+
 
   // Fetch add-ons from DB
   const { data: dbAddOns } = useQuery({
