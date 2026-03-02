@@ -39,6 +39,7 @@ export interface GroomerCalendarBooking {
   service_id?: string;
   breed_id?: string;
   final_charge?: number | null;
+  stripe_payment_id?: string | null;
 }
 
 type UserRole = string | null;
@@ -141,37 +142,59 @@ function OwnBookingPopover({ booking, color, onViewOrder, onEditAppointment, onC
           <Badge variant={
             booking.status === "Confirmed" ? "default" :
             booking.status === "Completed" ? "secondary" :
-            booking.status === "No Show" || booking.status === "Cancelled" ? "destructive" : "secondary"
+            booking.status === "No Show" || booking.status === "Cancelled" || booking.status === "Refunded" ? "destructive" : "secondary"
           }>
             {booking.status}
           </Badge>
           {(() => {
+            if (booking.status === "Refunded") {
+              return <Badge variant="outline">Refunded</Badge>;
+            }
             if (deposit >= total && total > 0) {
               return (
                 <Badge className="bg-emerald-600 text-white hover:bg-emerald-600">
-                  <CheckCircle2 className="h-3 w-3 mr-1" /> PAID IN FULL
+                  <CheckCircle2 className="h-3 w-3 mr-1" /> All Paid Online
                 </Badge>
               );
             }
             if (deposit > 0) {
-              return <Badge variant="secondary">DEPOSIT £{deposit.toFixed(2)}</Badge>;
+              return <Badge variant="secondary">Deposit Paid</Badge>;
             }
             return <Badge variant="destructive">NOT PAID</Badge>;
           })()}
         </div>
 
         {/* Paid in full callout */}
-        {deposit >= total && total > 0 && (
+        {deposit >= total && total > 0 && booking.status !== "Refunded" && (
           <div className="bg-emerald-50 border border-emerald-200 rounded-md px-3 py-2 text-xs text-emerald-800 flex items-center gap-2">
             <CheckCircle2 className="h-4 w-4 shrink-0" />
             <span>Customer paid in full online — nothing to charge on the day.</span>
           </div>
         )}
 
-        {/* Partial deposit */}
-        {deposit > 0 && deposit < total && (
-          <div className="bg-amber-50 border border-amber-200 rounded-md px-3 py-2 text-xs text-amber-800">
-            Deposit of £{deposit.toFixed(2)} paid — remaining balance of £{(total - deposit).toFixed(2)} due on the day.
+        {/* Deposit paid — financial breakdown */}
+        {deposit > 0 && deposit < total && booking.status !== "Refunded" && (
+          <div className="bg-amber-50 border border-amber-200 rounded-md px-3 py-2 text-xs text-amber-800 space-y-1">
+            <div className="flex justify-between">
+              <span>Total Cost</span>
+              <span className="font-semibold">£{total.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Deposit Paid</span>
+              <span className="font-semibold">£{deposit.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between border-t border-amber-300 pt-1 mt-1">
+              <span className="font-medium">Remaining Balance</span>
+              <span className="font-bold">£{(total - deposit).toFixed(2)}</span>
+            </div>
+            <p className="text-[10px] text-amber-600 mt-1">Due at the salon on the day of appointment.</p>
+          </div>
+        )}
+
+        {/* Stripe Transaction ID */}
+        {booking.stripe_payment_id && (
+          <div className="text-[10px] text-muted-foreground font-mono truncate">
+            Stripe: {booking.stripe_payment_id}
           </div>
         )}
 

@@ -169,6 +169,7 @@ export type Database = {
           service_id: string | null
           staff_id: string | null
           status: string
+          stripe_payment_id: string | null
           total_price: number
         }
         Insert: {
@@ -189,6 +190,7 @@ export type Database = {
           service_id?: string | null
           staff_id?: string | null
           status?: string
+          stripe_payment_id?: string | null
           total_price?: number
         }
         Update: {
@@ -209,6 +211,7 @@ export type Database = {
           service_id?: string | null
           staff_id?: string | null
           status?: string
+          stripe_payment_id?: string | null
           total_price?: number
         }
         Relationships: [
