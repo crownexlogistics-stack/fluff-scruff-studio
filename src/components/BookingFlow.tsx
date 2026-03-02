@@ -126,6 +126,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
   const [couponLoading, setCouponLoading] = useState(false);
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [paymentType, setPaymentType] = useState<"deposit" | "full">("full");
   const [ageYears, setAgeYears] = useState<string>(dogAgeYears != null ? String(dogAgeYears) : "0");
   const [ageMonths, setAgeMonths] = useState<string>(dogAgeMonths != null ? String(dogAgeMonths) : "0");
   const { data: termsContent } = useQuery({
@@ -377,7 +378,12 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
     setSelectedAddOns(prev => prev.includes(id) ? prev.filter(a => a !== id) : [...prev, id]);
   };
 
-  const handleGuestSubmit = async () => {
+  const handlePayment = (type: "deposit" | "full") => {
+    setPaymentType(type);
+    handleGuestSubmit(type);
+  };
+
+  const handleGuestSubmit = async (selectedPaymentType: "deposit" | "full" = "full") => {
     if (!guestForm.name.trim() || !guestForm.dogName.trim()) {
       setAlertMessage("Please fill in your name and dog's name");
       return;
@@ -509,6 +515,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
           service_name: serviceType,
           total_price: totalPrice,
           booking_id: insertedBooking.id,
+          payment_type: selectedPaymentType,
         },
       });
 
@@ -516,8 +523,9 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
         throw new Error(checkoutData?.error || "Failed to create payment session");
       }
 
-      // Update booking with expected deposit
-      await supabase.from("bookings").update({ deposit_paid: depositAmount }).eq("id", insertedBooking.id);
+      // Update booking with expected payment amount
+      const paidAmount = selectedPaymentType === "full" ? totalPrice : depositAmount;
+      await supabase.from("bookings").update({ deposit_paid: paidAmount }).eq("id", insertedBooking.id);
 
       window.location.href = checkoutData.url;
       return;
@@ -1040,8 +1048,12 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
               )}
               <div className="border-t border-border/40 pt-3 space-y-1.5">
                 <div className="flex justify-between items-center text-sm">
-                  <span className="text-muted-foreground">You pay today (60% deposit)</span>
-                  <span className="font-semibold text-foreground">£{depositAmount.toFixed(2)}</span>
+                  <span className="text-muted-foreground">Total Price</span>
+                  <span className="font-semibold text-foreground">£{totalPrice.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-muted-foreground">60% Deposit option</span>
+                  <span className="font-medium text-muted-foreground">£{depositAmount.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-muted-foreground">Remaining after service</span>
@@ -1178,9 +1190,26 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
               </span>
             </label>
 
-            <Button onClick={handleGuestSubmit} disabled={!acceptedTerms || isSubmitting} className="w-full h-14 text-base rounded-xl" size="lg">
-              {isSubmitting ? "Processing..." : isExistingCustomer ? `Pay Deposit` : isNewCustomer ? `Create Account & Pay Deposit` : `Pay Deposit`} £{depositAmount.toFixed(2)}
-            </Button>
+            <div className="space-y-3">
+              <Button
+                onClick={() => handlePayment("full")}
+                disabled={!acceptedTerms || isSubmitting}
+                className="w-full h-14 text-base rounded-xl"
+                size="lg"
+              >
+                {isSubmitting ? "Processing..." : `Pay Full Amount`} £{totalPrice.toFixed(2)}
+              </Button>
+              <Button
+                onClick={() => handlePayment("deposit")}
+                disabled={!acceptedTerms || isSubmitting}
+                variant="outline"
+                className="w-full h-14 text-base rounded-xl border-2"
+                size="lg"
+              >
+                {isSubmitting ? "Processing..." : `Pay 60% Deposit`} £{depositAmount.toFixed(2)}
+              </Button>
+              <p className="text-xs text-center text-muted-foreground">Remaining balance of £{remainingAmount.toFixed(2)} due after your appointment</p>
+            </div>
             </div>
           </div>
         )}

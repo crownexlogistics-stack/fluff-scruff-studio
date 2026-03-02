@@ -25,17 +25,20 @@ serve(async (req) => {
       service_name,
       total_price,
       booking_id,
+      payment_type, // "deposit" or "full"
     } = await req.json();
 
     if (!total_price || !booking_id) {
       throw new Error("Missing required fields: total_price and booking_id");
     }
 
-    // Calculate 60% deposit in pence (Stripe uses smallest currency unit)
-    const depositAmount = Math.round(total_price * 0.6 * 100);
+    const isFullPayment = payment_type === "full";
+    const paymentAmount = isFullPayment
+      ? Math.round(total_price * 100)
+      : Math.round(total_price * 0.6 * 100);
 
-    if (depositAmount < 30) {
-      throw new Error("Deposit amount too small for Stripe (minimum 30p)");
+    if (paymentAmount < 30) {
+      throw new Error("Payment amount too small for Stripe (minimum 30p)");
     }
 
     // Check if customer already exists in Stripe
@@ -52,6 +55,14 @@ serve(async (req) => {
 
     const origin = req.headers.get("origin") || "https://fluff-scruff-studio.lovable.app";
 
+    const label = isFullPayment
+      ? `Full Payment — ${service_name || "Dog Grooming"}`
+      : `Deposit — ${service_name || "Dog Grooming"}`;
+
+    const description = isFullPayment
+      ? `Full payment for ${dog_name || "your pup"}'s appointment`
+      : `60% deposit for ${dog_name || "your pup"}'s appointment`;
+
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       customer_email: customerId ? undefined : customer_email || undefined,
@@ -60,23 +71,24 @@ serve(async (req) => {
           price_data: {
             currency: "gbp",
             product_data: {
-              name: `Deposit — ${service_name || "Dog Grooming"}`,
-              description: `60% deposit for ${dog_name || "your pup"}'s appointment`,
+              name: label,
+              description,
             },
-            unit_amount: depositAmount,
+            unit_amount: paymentAmount,
           },
           quantity: 1,
         },
       ],
       mode: "payment",
-      success_url: `${origin}/book?deposit_paid=true&booking_id=${booking_id}`,
+      success_url: `${origin}/booking-success?booking_id=${booking_id}&payment_type=${payment_type || "deposit"}`,
       cancel_url: `${origin}/book?deposit_cancelled=true&booking_id=${booking_id}`,
       metadata: {
         booking_id,
         customer_name: customer_name || "",
         dog_name: dog_name || "",
         total_price: String(total_price),
-        deposit_amount: String(total_price * 0.6),
+        payment_type: payment_type || "deposit",
+        payment_amount: String(paymentAmount / 100),
       },
     });
 
@@ -86,7 +98,7 @@ serve(async (req) => {
     });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("Error creating deposit checkout:", errorMessage);
+    console.error("Error creating checkout:", errorMessage);
     return new Response(JSON.stringify({ error: errorMessage }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,

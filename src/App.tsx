@@ -31,6 +31,7 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 import { ScrollToTop } from "./components/ScrollToTop";
 import BookingEntryPage from "./pages/BookingEntryPage";
 import TermsPage from "./pages/TermsPage";
+import BookingSuccessPage from "./pages/BookingSuccessPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -51,6 +52,7 @@ const App = () => (
           <Route path="/book" element={<BookingEntryPage />} />
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/hs/sign/:staffId" element={<HealthAndSafetySignPage />} />
+          <Route path="/booking-success" element={<BookingSuccessPage />} />
 
           {/* Customer only */}
           <Route path="/my-pets" element={<ProtectedRoute allowedRoles={["customer", "manager", "director"]}><MyPetsPage /></ProtectedRoute>} />
