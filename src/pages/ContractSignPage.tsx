@@ -250,8 +250,15 @@ const ContractSignPage = () => {
                   )}
                 </div>
               </div>
-              <p className="text-sm text-muted-foreground pt-4">
-                You can close this page now. If you have any questions, please contact the studio.
+              <Separator />
+              <div className="bg-accent/10 rounded-xl p-5 space-y-2">
+                <h3 className="font-heading text-lg font-bold">📧 Check Your Email!</h3>
+                <p className="text-sm text-muted-foreground">
+                  We've sent you an email with a link to <strong>set your password</strong> and access your Staff Portal, where you can view your bookings, messages, and more.
+                </p>
+              </div>
+              <p className="text-xs text-muted-foreground pt-2">
+                If you don't see the email, check your spam folder. Any questions? Contact the studio.
               </p>
             </CardContent>
           </Card>

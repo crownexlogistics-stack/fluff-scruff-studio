@@ -95,6 +95,99 @@ serve(async (req) => {
       }).eq("id", staff_id);
 
       if (error) throw error;
+
+      // After H&S is signed (both documents done), create auth account and send password setup email
+      try {
+        const { data: staff } = await supabase.from("staff").select("*").eq("id", staff_id).single();
+        
+        if (staff?.email && !staff.auth_user_id) {
+          // Create auth user
+          const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+            email: staff.email,
+            email_confirm: true,
+            user_metadata: { full_name: staff.name },
+          });
+
+          if (authError) {
+            console.error("Auth user creation error:", authError);
+          } else if (authData.user) {
+            const userId = authData.user.id;
+
+            // Link auth user to staff record
+            await supabase.from("staff").update({ auth_user_id: userId }).eq("id", staff_id);
+
+            // Assign role based on staff role
+            const roleMap: Record<string, string> = {
+              groomer: "groomer",
+              manager: "manager",
+              director: "director",
+              volunteer: "volunteer",
+              work_placement: "work_placement",
+            };
+            const appRole = roleMap[staff.role] || "groomer";
+            
+            // Delete default customer role and insert correct one
+            await supabase.from("user_roles").delete().eq("user_id", userId);
+            await supabase.from("user_roles").insert({ user_id: userId, role: appRole });
+
+            // Generate password reset link
+            const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
+              type: "recovery",
+              email: staff.email,
+              options: {
+                redirectTo: "https://fluff-scruff-studio.lovable.app/reset-password",
+              },
+            });
+
+            if (linkError) {
+              console.error("Link generation error:", linkError);
+            } else {
+              // Send account setup email via SendGrid
+              const SENDGRID_API_KEY = Deno.env.get("SENDGRID_API_KEY");
+              if (SENDGRID_API_KEY && linkData?.properties?.action_link) {
+                const logoUrl = "https://fluff-scruff-studio.lovable.app/logo-transparent.png";
+                const portalName = appRole === "manager" || appRole === "director" ? "Management Dashboard" : "Staff Portal";
+
+                await fetch("https://api.sendgrid.com/v3/mail/send", {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${SENDGRID_API_KEY}`,
+                  },
+                  body: JSON.stringify({
+                    personalizations: [{ to: [{ email: staff.email }] }],
+                    from: { email: "info@fluffandscruff.co.uk", name: "Fluff & Scruff Studio" },
+                    reply_to: { email: "info@fluffandscruff.co.uk", name: "Fluff & Scruff Studio" },
+                    subject: `Set Up Your ${portalName} Account — Fluff & Scruff Studio`,
+                    content: [{ type: "text/html", value: `
+                      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
+                        <div style="text-align: center; padding: 16px 0;">
+                          <img src="${logoUrl}" alt="Fluff & Scruff Studio" style="height: 60px; width: auto;" />
+                        </div>
+                        <h2 style="color: #1a1a1a;">Welcome to the Team! 🎉</h2>
+                        <p>Hi <strong>${staff.name}</strong>,</p>
+                        <p>Both your contract and Health & Safety policy have been signed successfully. Your <strong>${portalName}</strong> account is now ready!</p>
+                        <p>Click the button below to set your password and access your portal:</p>
+                        <p style="margin: 24px 0; text-align: center;">
+                          <a href="${linkData.properties.action_link}" style="background-color: #3d4147; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: bold; font-size: 16px;">
+                            Set Your Password
+                          </a>
+                        </p>
+                        <p style="color: #666; font-size: 14px;">Once you've set your password, you can log in at any time from our website to view your schedule, messages, and more.</p>
+                        <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
+                        <p style="color: #999; font-size: 12px;">Fluff & Scruff Studio · 138 Hillview Avenue, Hornchurch RM11 2DL</p>
+                      </div>
+                    ` }],
+                  }),
+                });
+              }
+            }
+          }
+        }
+      } catch (accountErr) {
+        console.error("Account creation error:", accountErr);
+      }
+
     } else {
       return new Response(JSON.stringify({ error: "Invalid document_type" }), {
         status: 400,
