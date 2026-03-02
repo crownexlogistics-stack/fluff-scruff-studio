@@ -13,6 +13,7 @@ import { EditBlockDialog } from "@/components/booking-calendar/EditBlockDialog";
 import { CheckoutDialog } from "@/components/booking-calendar/CheckoutDialog";
 import { ViewOrderDialog } from "@/components/booking-calendar/ViewOrderDialog";
 import { OvertimeDialog } from "@/components/booking-calendar/OvertimeDialog";
+import { EditOvertimeDialog } from "@/components/booking-calendar/EditOvertimeDialog";
 import { EditAppointmentDialog } from "@/components/booking-calendar/EditAppointmentDialog";
 import type { BookingData } from "@/components/booking-calendar/BookingEvent";
 import { toast } from "sonner";
@@ -48,6 +49,8 @@ const BookingsPage = () => {
   const [cancelBooking, setCancelBookingState] = useState<BookingData | null>(null);
   const [overtimeOpen, setOvertimeOpen] = useState(false);
   const [overtimeDefaults, setOvertimeDefaults] = useState<{ date?: Date; hour?: number; staffId?: string }>({});
+  const [editOvertimeOpen, setEditOvertimeOpen] = useState(false);
+  const [editingOvertime, setEditingOvertime] = useState<BookingData | null>(null);
 
   const weekEnd = addDays(weekStart, 6);
 
@@ -94,19 +97,18 @@ const BookingsPage = () => {
         .from("staff_schedule_overrides")
         .select("*, staff(name, id)")
         .gte("override_date", format(weekStart, "yyyy-MM-dd"))
-        .lte("override_date", format(weekEnd, "yyyy-MM-dd"))
-        .eq("is_working", false);
+        .lte("override_date", format(weekEnd, "yyyy-MM-dd"));
       if (error) throw error;
       return (data || []).map((o: any) => ({
         id: o.id,
-        customer_name: o.note || "Blocked",
+        customer_name: o.is_working ? (o.note || "Overtime") : (o.note || "Blocked"),
         dog_name: "",
         booking_date: o.override_date,
         booking_time: o.start_time || "09:00",
         end_time: o.end_time || undefined,
         total_price: 0,
         deposit_paid: 0,
-        status: "Blocked",
+        status: o.is_working ? "Overtime" : "Blocked",
         notes: o.note,
         customer_email: null,
         customer_phone: null,
@@ -114,7 +116,8 @@ const BookingsPage = () => {
         staff_id: o.staff?.id ?? o.staff_id,
         breed_name: "",
         service_name: "",
-        is_block: true,
+        is_block: !o.is_working,
+        is_overtime: o.is_working,
       })) as BookingData[];
     },
   });
@@ -136,6 +139,28 @@ const BookingsPage = () => {
     },
     onSuccess: () => {
       toast.success("Block cancelled");
+      queryClient.invalidateQueries({ queryKey: ["schedule-overrides"] });
+      queryClient.invalidateQueries({ queryKey: ["staff-notes"] });
+      queryClient.invalidateQueries({ queryKey: ["audit-logs"] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  // Cancel overtime mutation
+  const cancelOvertimeMutation = useMutation({
+    mutationFn: async (overtime: BookingData) => {
+      const { error } = await supabase.from("staff_schedule_overrides").delete().eq("id", overtime.id);
+      if (error) throw error;
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user && overtime.staff_id) {
+        const formattedDate = format(new Date(overtime.booking_date), "dd MMM yyyy");
+        const hrNote = `🚫 OVERTIME CANCELLED — ${formattedDate} ${overtime.booking_time.slice(0, 5)}-${overtime.end_time?.slice(0, 5) || "?"} — Note: ${overtime.notes || "Overtime"}`;
+        await supabase.from("staff_notes").insert({ staff_id: overtime.staff_id, created_by: user.id, note: hrNote });
+      }
+      logAudit({ staffId: overtime.staff_id, action: "OVERTIME_CANCELLED", details: `Cancelled overtime on ${format(new Date(overtime.booking_date), "dd MMM yyyy")} ${overtime.booking_time.slice(0, 5)}-${overtime.end_time?.slice(0, 5) || "?"}` });
+    },
+    onSuccess: () => {
+      toast.success("Overtime removed — slots hidden from customers");
       queryClient.invalidateQueries({ queryKey: ["schedule-overrides"] });
       queryClient.invalidateQueries({ queryKey: ["staff-notes"] });
       queryClient.invalidateQueries({ queryKey: ["audit-logs"] });
@@ -223,6 +248,15 @@ const BookingsPage = () => {
     cancelBlockMutation.mutate(block);
   }, [cancelBlockMutation]);
 
+  const handleEditOvertime = useCallback((overtime: BookingData) => {
+    setEditingOvertime(overtime);
+    setEditOvertimeOpen(true);
+  }, []);
+
+  const handleCancelOvertime = useCallback((overtime: BookingData) => {
+    cancelOvertimeMutation.mutate(overtime);
+  }, [cancelOvertimeMutation]);
+
   const handleViewOrder = useCallback((booking: BookingData) => {
     setViewOrderBooking(booking);
     setViewOrderOpen(true);
@@ -283,6 +317,8 @@ const BookingsPage = () => {
           onOvertime={handleOvertime}
           onEditBlock={handleEditBlock}
           onCancelBlock={handleCancelBlock}
+          onEditOvertime={handleEditOvertime}
+          onCancelOvertime={handleCancelOvertime}
           onViewOrder={handleViewOrder}
           onEditAppointment={handleEditAppointment}
           onCancelBooking={handleCancelBooking}
@@ -306,6 +342,12 @@ const BookingsPage = () => {
         defaultDate={overtimeDefaults.date}
         defaultHour={overtimeDefaults.hour}
         defaultStaffId={overtimeDefaults.staffId}
+      />
+
+      <EditOvertimeDialog
+        open={editOvertimeOpen}
+        onOpenChange={setEditOvertimeOpen}
+        overtime={editingOvertime}
       />
 
       <EditBlockDialog
