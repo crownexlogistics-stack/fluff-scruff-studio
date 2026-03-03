@@ -16,7 +16,7 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    let from = "";
+    let rawFrom = "";
     let body = "";
     let sid = "";
 
@@ -25,14 +25,20 @@ serve(async (req) => {
     if (contentType.includes("application/x-www-form-urlencoded")) {
       // Twilio sends form-encoded data
       const formData = await req.formData();
-      from = (formData.get("From") as string) || "";
+      rawFrom = (formData.get("From") as string) || "";
       body = (formData.get("Body") as string) || "";
       sid = (formData.get("MessageSid") as string) || "";
     } else {
       const json = await req.json();
-      from = json.From || json.from || "";
+      rawFrom = json.From || json.from || "";
       body = json.Body || json.body || "";
       sid = json.MessageSid || json.sid || "";
+    }
+
+    // Normalize E.164 UK numbers (+44...) to local format (0...) to match bookings
+    let from = rawFrom;
+    if (from.startsWith("+44")) {
+      from = "0" + from.slice(3);
     }
 
     if (!from || !body) {
