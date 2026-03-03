@@ -123,12 +123,13 @@ The HTML email MUST follow this professional structure:
    c. HEADLINE: Bold, compelling headline related to the campaign
    d. BODY TEXT: 2-3 short paragraphs of persuasive marketing copy. Warm, friendly tone. Reference dogs and grooming naturally.
    e. CTA BUTTON: A prominent "Book Now" button linking to ${bookingUrl || "https://fluff-scruff-studio.lovable.app/book"} — styled with background #2D3142, white text, rounded corners, large padding
-   f. FOOTER: Salon address "138 Hillview Avenue, Hornchurch RM11 2DL", phone, and an unsubscribe link placeholder {{UNSUBSCRIBE_URL}}
+   f. FOOTER: Salon address "138 Hillview Avenue, Hornchurch RM11 2DL", landline phone 01708 606655 (always show this first), WhatsApp/mobile +44 7476 452782, and an unsubscribe link placeholder {{UNSUBSCRIBE_URL}}
 
 4. Use a warm, professional color palette: primary #2D3142, accent #E8D5B7, text #333333
 5. Use web-safe fonts: Georgia for headings, Arial for body
 6. Make it mobile-responsive with fluid widths
 7. Include proper alt text for accessibility
+8. The landline 01708 606655 must ALWAYS be displayed as the primary contact number
 
 CRITICAL: Return ONLY the JSON object. No explanations, no markdown formatting.`;
 
