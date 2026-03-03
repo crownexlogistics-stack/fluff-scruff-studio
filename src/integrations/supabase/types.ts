@@ -565,6 +565,7 @@ export type Database = {
           html_body: string
           id: string
           prompt: string | null
+          scheduled_at: string | null
           segment: string
           sent_at: string | null
           status: string
@@ -578,6 +579,7 @@ export type Database = {
           html_body: string
           id?: string
           prompt?: string | null
+          scheduled_at?: string | null
           segment?: string
           sent_at?: string | null
           status?: string
@@ -591,6 +593,7 @@ export type Database = {
           html_body?: string
           id?: string
           prompt?: string | null
+          scheduled_at?: string | null
           segment?: string
           sent_at?: string | null
           status?: string
