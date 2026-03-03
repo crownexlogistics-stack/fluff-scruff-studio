@@ -10,25 +10,25 @@ import type { CustomerContact } from "@/pages/MessagesPage";
 const quickTemplates = [
   {
     label: "No answer on call",
-    text: "Hi, we tried to reach you by phone but couldn't get through. Please call us back at 01708 606655 when you get a chance. Thank you!",
+    text: "Hi, this is Fluff & Scruff Studio. We tried to call you regarding your appointment but couldn't get through. Please call us back on 01708 606655 when you can. Thank you!",
     isNoAnswer: true,
     variant: "destructive" as const,
   },
   {
     label: "Running late",
-    text: "Hi, just to let you know we're running slightly behind schedule today. We'll have your pup ready as soon as possible. Thank you for your patience!",
+    text: "Hi from Fluff & Scruff Studio. Just to let you know we are running about 15 minutes behind schedule today. Sorry for the wait!",
   },
   {
     label: "Ready for collection",
-    text: "Great news! Your pup is all groomed and ready for collection. We look forward to seeing you soon!",
+    text: "Hi! Your dog is all finished and looking great at Fluff & Scruff Studio. They are ready for collection now!",
   },
   {
     label: "Booking reminder",
-    text: "Just a friendly reminder about your upcoming appointment with Fluff & Scruff Studio. We look forward to seeing you and your pup!",
+    text: "Hi, this is a reminder from Fluff & Scruff Studio about your appointment today. See you soon!",
   },
   {
     label: "Thank you",
-    text: "Thank you for visiting Fluff & Scruff Studio today! We hope you and your pup are happy with the groom. See you next time!",
+    text: "Thank you for visiting Fluff & Scruff Studio today! We hope to see you and your pet again soon.",
   },
 ];
 
