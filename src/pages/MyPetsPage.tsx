@@ -84,7 +84,29 @@ const MyPetsPage = () => {
       return data;
     },
     enabled: !!user?.email,
+    refetchOnWindowFocus: true,
+    refetchInterval: 15000,
   });
+
+  useEffect(() => {
+    if (!user?.email) return;
+
+    const channel = supabase
+      .channel(`customer-bookings-${user.id}`)
+      .on("postgres_changes", {
+        event: "*",
+        schema: "public",
+        table: "bookings",
+        filter: `customer_email=eq.${user.email}`,
+      }, () => {
+        queryClient.invalidateQueries({ queryKey: ["my-bookings", user.email] });
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient, user?.email, user?.id]);
 
   // Auto-select first pet
   useEffect(() => {
@@ -142,11 +164,24 @@ const MyPetsPage = () => {
 
   const profilePhoto = photos.length > 0 ? photos[0].photo_url : null;
 
-  // Find next upcoming booking
-  const upcomingBooking = bookings.find((b: any) => {
-    const status = (b.status || "").trim();
-    return ["Confirmed", "Pending"].includes(status) && new Date(b.booking_date) >= new Date(new Date().toDateString());
-  });
+  const normalizeBookingStatus = (raw?: string | null) => (raw || "").trim().toLowerCase();
+  const isClosedBookingStatus = (raw?: string | null) => {
+    const status = normalizeBookingStatus(raw);
+    return status.includes("refund") || status.includes("cancel") || status === "completed" || status === "no show";
+  };
+
+  // Find next upcoming active booking
+  const upcomingBooking = [...bookings]
+    .filter((b: any) => {
+      const status = normalizeBookingStatus(b.status);
+      const appointmentDateTime = new Date(`${b.booking_date}T${b.booking_time || "09:00"}`);
+      return (status === "confirmed" || status === "pending") && !isClosedBookingStatus(b.status) && appointmentDateTime > new Date();
+    })
+    .sort((a: any, b: any) => {
+      const aTime = new Date(`${a.booking_date}T${a.booking_time || "09:00"}`).getTime();
+      const bTime = new Date(`${b.booking_date}T${b.booking_time || "09:00"}`).getTime();
+      return aTime - bTime;
+    })[0];
 
   const filteredBreeds = breedSearch.length > 0
     ? breeds.filter((b: any) => b.name.toLowerCase().includes(breedSearch.toLowerCase()))

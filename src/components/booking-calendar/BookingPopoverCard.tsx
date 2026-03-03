@@ -254,7 +254,7 @@ export function BookingPopoverCard({
       )}
 
       {/* Director-only Refund */}
-      {isDirector && deposit > 0 && booking.status !== "Refunded" && booking.status !== "Cancelled" && (
+      {isDirector && deposit > 0 && booking.status !== "Refunded" && (
         <div className="border-t pt-3">
           <Button
             variant="destructive"

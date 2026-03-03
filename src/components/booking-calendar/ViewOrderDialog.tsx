@@ -167,7 +167,7 @@ export function ViewOrderDialog({ open, onOpenChange, booking, userRole, onRefun
           )}
 
           {/* Director-only Refund button */}
-          {isDirector && deposit > 0 && booking.status !== "Refunded" && booking.status !== "Cancelled" && (
+          {isDirector && deposit > 0 && booking.status !== "Refunded" && (
             <Button
               variant="destructive"
               size="sm"
