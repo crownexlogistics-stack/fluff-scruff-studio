@@ -24,7 +24,7 @@ serve(async (req) => {
     const { data: { user }, error: userErr } = await supabase.auth.getUser(token);
     if (userErr || !user) throw new Error("Not authenticated");
 
-    const { campaignId, emails, subject, htmlBody } = await req.json();
+    const { campaignId, emails, subject, htmlBody, variantBSubject, abTestPercentage } = await req.json();
     if (!emails?.length || !subject || !htmlBody) {
       return new Response(JSON.stringify({ error: "emails, subject, and htmlBody required" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -40,67 +40,110 @@ serve(async (req) => {
 
     const unsubscribeBaseUrl = `${supabaseUrl}/functions/v1/handle-unsubscribe`;
 
-    let sent = 0;
+    // A/B test logic
+    const isABTest = variantBSubject && abTestPercentage && abTestPercentage > 0;
+    let groupA: string[] = validEmails;
+    let groupB: string[] = [];
+    let groupRemainder: string[] = [];
+
+    if (isABTest) {
+      // Shuffle emails for random split
+      const shuffled = [...validEmails].sort(() => Math.random() - 0.5);
+      const testSize = Math.floor(shuffled.length * (abTestPercentage / 100));
+      groupA = shuffled.slice(0, testSize);
+      groupB = shuffled.slice(testSize, testSize * 2);
+      groupRemainder = shuffled.slice(testSize * 2);
+    }
+
+    let sentA = 0;
+    let sentB = 0;
     const batchSize = 20;
 
-    for (let i = 0; i < validEmails.length; i += batchSize) {
-      const batch = validEmails.slice(i, i + batchSize);
+    // Send function
+    const sendBatch = async (emailList: string[], subjectLine: string, variant: string) => {
+      let count = 0;
+      for (let i = 0; i < emailList.length; i += batchSize) {
+        const batch = emailList.slice(i, i + batchSize);
+        const promises = batch.map(async (email: string) => {
+          const unsubUrl = `${unsubscribeBaseUrl}?email=${encodeURIComponent(email)}`;
+          let personalizedHtml = htmlBody.replace(/\{\{UNSUBSCRIBE_URL\}\}/g, unsubUrl);
+          if (campaignId) {
+            personalizedHtml = personalizedHtml.replace(
+              /(https?:\/\/[^"']*\/book)(?:\?([^"']*))?/g,
+              (match: string, base: string, existing: string) => {
+                const sep = existing ? `${base}?${existing}&` : `${base}?`;
+                return `${sep}utm_campaign=${campaignId}`;
+              }
+            );
+          }
 
-      const promises = batch.map(async (email: string) => {
-        const unsubUrl = `${unsubscribeBaseUrl}?email=${encodeURIComponent(email)}`;
-        // Inject UTM campaign tracking into booking links
-        let personalizedHtml = htmlBody.replace(/\{\{UNSUBSCRIBE_URL\}\}/g, unsubUrl);
-        if (campaignId) {
-          // Add utm_campaign param to any /book links
-          personalizedHtml = personalizedHtml.replace(
-            /(https?:\/\/[^"']*\/book)(?:\?([^"']*))?/g,
-            (match: string, base: string, existing: string) => {
-              const sep = existing ? `${base}?${existing}&` : `${base}?`;
-              return `${sep}utm_campaign=${campaignId}`;
-            }
-          );
-        }
-
-        const res = await fetch("https://api.sendgrid.com/v3/mail/send", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${SENDGRID_API_KEY}`,
-          },
-          body: JSON.stringify({
-            personalizations: [{ to: [{ email }] }],
-            from: { email: "info@fluffandscruff.co.uk", name: "Fluff & Scruff Studio" },
-            reply_to: { email: "info@fluffandscruff.co.uk" },
-            subject,
-            content: [{ type: "text/html", value: personalizedHtml }],
-            custom_args: campaignId ? { campaign_id: campaignId } : undefined,
-            tracking_settings: {
-              click_tracking: { enable: true },
-              open_tracking: { enable: true },
+          const res = await fetch("https://api.sendgrid.com/v3/mail/send", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${SENDGRID_API_KEY}`,
             },
-          }),
+            body: JSON.stringify({
+              personalizations: [{ to: [{ email }] }],
+              from: { email: "info@fluffandscruff.co.uk", name: "Fluff & Scruff Studio" },
+              reply_to: { email: "info@fluffandscruff.co.uk" },
+              subject: subjectLine,
+              content: [{ type: "text/html", value: personalizedHtml }],
+              custom_args: campaignId ? { campaign_id: campaignId, ab_variant: variant } : undefined,
+              tracking_settings: {
+                click_tracking: { enable: true },
+                open_tracking: { enable: true },
+              },
+            }),
+          });
+
+          if (res.ok) count++;
+          else console.error(`Failed to send to ${email}:`, await res.text());
         });
+        await Promise.all(promises);
+      }
+      return count;
+    };
 
-        if (res.ok) sent++;
-        else console.error(`Failed to send to ${email}:`, await res.text());
-      });
+    // Send to group A
+    sentA = await sendBatch(groupA, subject, "A");
 
-      await Promise.all(promises);
+    // Send to group B (if A/B test)
+    if (isABTest && groupB.length > 0) {
+      sentB = await sendBatch(groupB, variantBSubject, "B");
     }
+
+    const totalSent = sentA + sentB;
 
     // Update campaign record
     if (campaignId) {
-      await supabase.from("email_campaigns").update({
-        status: "sent",
-        emails_sent: sent,
+      const updateData: any = {
+        status: isABTest && groupRemainder.length > 0 ? "ab_testing" : "sent",
+        emails_sent: totalSent,
         sent_at: new Date().toISOString(),
-      }).eq("id", campaignId);
+        variant_a_sent: sentA,
+        variant_b_sent: sentB,
+      };
+
+      await supabase.from("email_campaigns").update(updateData).eq("id", campaignId);
 
       // Trigger attribution processing asynchronously
       supabase.functions.invoke("attribute-campaign-bookings").catch(() => {});
+
+      // If A/B test, schedule remainder send after 2 hours (handled by pick-ab-winner function)
+      if (isABTest && groupRemainder.length > 0) {
+        // Store remainder emails for later pickup
+        await supabase.from("site_config").upsert({
+          key: `ab_remainder_${campaignId}`,
+          value: { emails: groupRemainder, htmlBody },
+        });
+      }
     }
 
-    return new Response(JSON.stringify({ success: true, sent, skipped: emails.length - validEmails.length }), {
+    return new Response(JSON.stringify({
+      success: true, sent: totalSent, skipped: emails.length - validEmails.length,
+      abTest: isABTest ? { sentA, sentB, remainder: groupRemainder.length } : undefined,
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {

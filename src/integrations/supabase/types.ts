@@ -118,6 +118,74 @@ export type Database = {
           },
         ]
       }
+      automation_rules: {
+        Row: {
+          created_at: string
+          created_by: string
+          email_html: string
+          email_subject: string
+          id: string
+          is_active: boolean
+          name: string
+          trigger_config: Json
+          trigger_type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          email_html: string
+          email_subject: string
+          id?: string
+          is_active?: boolean
+          name: string
+          trigger_config?: Json
+          trigger_type: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          email_html?: string
+          email_subject?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          trigger_config?: Json
+          trigger_type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      automation_sends: {
+        Row: {
+          customer_email: string
+          id: string
+          rule_id: string
+          sent_at: string
+        }
+        Insert: {
+          customer_email: string
+          id?: string
+          rule_id: string
+          sent_at?: string
+        }
+        Update: {
+          customer_email?: string
+          id?: string
+          rule_id?: string
+          sent_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_sends_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "automation_rules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       booking_emails: {
         Row: {
           booking_id: string
@@ -611,6 +679,8 @@ export type Database = {
       }
       email_campaigns: {
         Row: {
+          ab_test_percentage: number | null
+          ab_winner: string | null
           clicks: number
           created_at: string
           created_by: string
@@ -627,8 +697,15 @@ export type Database = {
           unique_clicks: number
           unique_opens: number
           updated_at: string
+          variant_a_opens: number | null
+          variant_a_sent: number | null
+          variant_b_opens: number | null
+          variant_b_sent: number | null
+          variant_b_subject: string | null
         }
         Insert: {
+          ab_test_percentage?: number | null
+          ab_winner?: string | null
           clicks?: number
           created_at?: string
           created_by: string
@@ -645,8 +722,15 @@ export type Database = {
           unique_clicks?: number
           unique_opens?: number
           updated_at?: string
+          variant_a_opens?: number | null
+          variant_a_sent?: number | null
+          variant_b_opens?: number | null
+          variant_b_sent?: number | null
+          variant_b_subject?: string | null
         }
         Update: {
+          ab_test_percentage?: number | null
+          ab_winner?: string | null
           clicks?: number
           created_at?: string
           created_by?: string
@@ -663,6 +747,11 @@ export type Database = {
           unique_clicks?: number
           unique_opens?: number
           updated_at?: string
+          variant_a_opens?: number | null
+          variant_a_sent?: number | null
+          variant_b_opens?: number | null
+          variant_b_sent?: number | null
+          variant_b_subject?: string | null
         }
         Relationships: []
       }
@@ -1150,6 +1239,47 @@ export type Database = {
           value?: Json
         }
         Relationships: []
+      }
+      sms_messages: {
+        Row: {
+          body: string
+          booking_id: string | null
+          created_at: string
+          direction: string
+          id: string
+          phone_number: string
+          status: string
+          twilio_sid: string | null
+        }
+        Insert: {
+          body: string
+          booking_id?: string | null
+          created_at?: string
+          direction?: string
+          id?: string
+          phone_number: string
+          status?: string
+          twilio_sid?: string | null
+        }
+        Update: {
+          body?: string
+          booking_id?: string | null
+          created_at?: string
+          direction?: string
+          id?: string
+          phone_number?: string
+          status?: string
+          twilio_sid?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sms_messages_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       staff: {
         Row: {

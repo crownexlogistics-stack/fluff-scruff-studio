@@ -17,7 +17,8 @@ import {
   Sparkles, Send, Eye, Save, Users, UserMinus, Crown, UserX,
   Loader2, Mail, FileText, CheckCircle2, Wand2, Paperclip, X,
   Copy, Trash2, Clock, CalendarIcon, FolderOpen, Inbox, BookTemplate,
-  MoreHorizontal, AlertCircle, Palette, ImagePlus
+  MoreHorizontal, AlertCircle, Palette, ImagePlus, Zap, MessageSquare,
+  FlaskConical
 } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger
@@ -27,6 +28,8 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle
 } from "@/components/ui/alert-dialog";
 import { CampaignROIDashboard } from "./CampaignROIDashboard";
+import { AutomationsSection } from "./AutomationsSection";
+import { SMSSection } from "./SMSSection";
 
 type Segment = "all" | "one-timers" | "lost-regulars" | "vips";
 type CampaignFolder = "sent" | "drafts" | "templates" | "scheduled";
@@ -50,6 +53,10 @@ export function EmailMarketingSection() {
   const [showPreview, setShowPreview] = useState(false);
   const [selectedSegment, setSelectedSegment] = useState<Segment>("all");
   const [activeTab, setActiveTab] = useState("create");
+  // A/B testing state
+  const [abEnabled, setAbEnabled] = useState(false);
+  const [variantBSubject, setVariantBSubject] = useState("");
+  const [abTestPercentage, setAbTestPercentage] = useState(20);
   const [activeFolder, setActiveFolder] = useState<CampaignFolder>("sent");
 
   // AI Refine state
@@ -287,19 +294,27 @@ export function EmailMarketingSection() {
       if (targetEmails.length === 0) throw new Error("No customers in this segment");
 
       let campaignId = opts.campaignId;
+      const abData = abEnabled && variantBSubject.trim() ? {
+        variant_b_subject: variantBSubject,
+        ab_test_percentage: abTestPercentage,
+      } : {};
+
       if (!campaignId) {
         const { data: inserted, error: insertErr } = await supabase
           .from("email_campaigns")
-          .insert({ subject: generatedSubject, html_body: generatedHtml, prompt, segment: selectedSegment, status: "sending", created_by: user!.id })
+          .insert({ subject: generatedSubject, html_body: generatedHtml, prompt, segment: selectedSegment, status: "sending", created_by: user!.id, ...abData })
           .select("id").single();
         if (insertErr) throw insertErr;
         campaignId = inserted.id;
       } else {
-        await supabase.from("email_campaigns").update({ status: "sending" }).eq("id", campaignId);
+        await supabase.from("email_campaigns").update({ status: "sending", ...abData }).eq("id", campaignId);
       }
 
       const { data, error } = await supabase.functions.invoke("send-campaign", {
-        body: { campaignId, emails: targetEmails, subject: generatedSubject, htmlBody: generatedHtml },
+        body: {
+          campaignId, emails: targetEmails, subject: generatedSubject, htmlBody: generatedHtml,
+          ...(abEnabled && variantBSubject.trim() ? { variantBSubject, abTestPercentage } : {}),
+        },
       });
       if (error) throw error;
       if (data.error) throw new Error(data.error);
@@ -366,10 +381,12 @@ export function EmailMarketingSection() {
   return (
     <>
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList>
+        <TabsList className="flex-wrap">
           <TabsTrigger value="create" className="gap-1.5"><Sparkles className="h-3.5 w-3.5" /> Create</TabsTrigger>
-          <TabsTrigger value="campaigns" className="gap-1.5"><FolderOpen className="h-3.5 w-3.5" /> Campaign Library</TabsTrigger>
-          <TabsTrigger value="roi" className="gap-1.5"><Mail className="h-3.5 w-3.5" /> ROI & Attribution</TabsTrigger>
+          <TabsTrigger value="campaigns" className="gap-1.5"><FolderOpen className="h-3.5 w-3.5" /> Library</TabsTrigger>
+          <TabsTrigger value="roi" className="gap-1.5"><Mail className="h-3.5 w-3.5" /> ROI</TabsTrigger>
+          <TabsTrigger value="automations" className="gap-1.5"><Zap className="h-3.5 w-3.5" /> Automations</TabsTrigger>
+          <TabsTrigger value="sms" className="gap-1.5"><MessageSquare className="h-3.5 w-3.5" /> SMS</TabsTrigger>
         </TabsList>
 
         {/* ── CREATE TAB ─────────────────────────────── */}
@@ -416,9 +433,35 @@ export function EmailMarketingSection() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Subject Line</label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Subject Line {abEnabled ? "(Variant A)" : ""}</label>
+                    <Button variant="ghost" size="sm" className="gap-1 text-xs h-7" onClick={() => setAbEnabled(!abEnabled)}>
+                      <FlaskConical className="h-3 w-3" />
+                      {abEnabled ? "Disable A/B Test" : "A/B Test"}
+                    </Button>
+                  </div>
                   <Input value={generatedSubject} onChange={e => setGeneratedSubject(e.target.value)} />
                 </div>
+
+                {abEnabled && (
+                  <div className="space-y-3 border rounded-lg p-4 bg-muted/20">
+                    <div className="flex items-center gap-2">
+                      <FlaskConical className="h-4 w-4 text-primary" />
+                      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">A/B Subject Line Test</label>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs text-muted-foreground">Variant B Subject</label>
+                      <Input value={variantBSubject} onChange={e => setVariantBSubject(e.target.value)} placeholder="Alternative subject line to test..." />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs text-muted-foreground">Test group size: {abTestPercentage}% of audience per variant</label>
+                      <Input type="range" min={10} max={50} value={abTestPercentage} onChange={e => setAbTestPercentage(Number(e.target.value))} className="h-2" />
+                      <p className="text-[10px] text-muted-foreground">
+                        {abTestPercentage}% get Variant A, {abTestPercentage}% get Variant B. The remaining {100 - abTestPercentage * 2}% get the winner after 2 hours.
+                      </p>
+                    </div>
+                  </div>
+                )}
 
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Email Preview</label>
@@ -702,6 +745,16 @@ export function EmailMarketingSection() {
               ))}
             </div>
           )}
+        </TabsContent>
+
+        {/* ── AUTOMATIONS TAB ─────────────────── */}
+        <TabsContent value="automations">
+          <AutomationsSection />
+        </TabsContent>
+
+        {/* ── SMS TAB ─────────────────── */}
+        <TabsContent value="sms">
+          <SMSSection />
         </TabsContent>
       </Tabs>
 

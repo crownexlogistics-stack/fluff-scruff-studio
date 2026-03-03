@@ -23,7 +23,7 @@ serve(async (req) => {
     }
 
     // Group events by campaign for batch updates
-    const campaignUpdates = new Map<string, { opens: number; uniqueOpens: Set<string>; clicks: number; uniqueClicks: Set<string> }>();
+    const campaignUpdates = new Map<string, { opens: number; uniqueOpens: Set<string>; clicks: number; uniqueClicks: Set<string>; variantAOpens: Set<string>; variantBOpens: Set<string> }>();
 
     for (const event of events) {
       const campaignId = event.campaign_id;
@@ -47,13 +47,17 @@ serve(async (req) => {
       if (insertErr) continue;
 
       if (!campaignUpdates.has(campaignId)) {
-        campaignUpdates.set(campaignId, { opens: 0, uniqueOpens: new Set(), clicks: 0, uniqueClicks: new Set() });
+        campaignUpdates.set(campaignId, { opens: 0, uniqueOpens: new Set(), clicks: 0, uniqueClicks: new Set(), variantAOpens: new Set(), variantBOpens: new Set() });
       }
       const stats = campaignUpdates.get(campaignId)!;
 
       if (eventType === "open") {
         stats.opens++;
         stats.uniqueOpens.add(event.email);
+        // Track A/B variant opens
+        const variant = event.ab_variant;
+        if (variant === "A") stats.variantAOpens.add(event.email);
+        else if (variant === "B") stats.variantBOpens.add(event.email);
       } else if (eventType === "click") {
         stats.clicks++;
         stats.uniqueClicks.add(event.email);
@@ -84,12 +88,23 @@ serve(async (req) => {
         .eq("campaign_id", campaignId)
         .eq("event_type", "click");
 
-      await supabase.from("email_campaigns").update({
+      const updateData: any = {
         opens: (current.opens || 0) + stats.opens,
         unique_opens: uniqueOpenCount || 0,
         clicks: (current.clicks || 0) + stats.clicks,
         unique_clicks: uniqueClickCount || 0,
-      }).eq("id", campaignId);
+      };
+
+      // Update A/B variant opens if applicable
+      if (stats.variantAOpens.size > 0 || stats.variantBOpens.size > 0) {
+        const { data: campaign } = await supabase.from("email_campaigns").select("variant_a_opens, variant_b_opens").eq("id", campaignId).single();
+        if (campaign) {
+          updateData.variant_a_opens = (campaign.variant_a_opens || 0) + stats.variantAOpens.size;
+          updateData.variant_b_opens = (campaign.variant_b_opens || 0) + stats.variantBOpens.size;
+        }
+      }
+
+      await supabase.from("email_campaigns").update(updateData).eq("id", campaignId);
     }
 
     return new Response(JSON.stringify({ processed: events.length }), {
