@@ -7,7 +7,6 @@ import { Send, MessageSquare, ArrowLeft, Info } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { markConversationRead } from "@/hooks/useUnreadSmsCount";
 import type { CustomerContact } from "@/pages/MessagesPage";
 
 interface ChatWindowProps {
@@ -17,6 +16,7 @@ interface ChatWindowProps {
   pendingNoAnswer: boolean;
   onNoAnswerHandled: () => void;
   userId?: string;
+  senderName?: string;
   className?: string;
   onBack?: () => void;
   onInfoToggle?: () => void;
@@ -29,6 +29,7 @@ export function ChatWindow({
   pendingNoAnswer,
   onNoAnswerHandled,
   userId,
+  senderName,
   className,
   onBack,
   onInfoToggle,
@@ -53,6 +54,7 @@ export function ChatWindow({
         .from("sms_messages")
         .select("*")
         .eq("phone_number", customer!.customer_phone)
+        .eq("direction", "outbound")
         .order("created_at", { ascending: true });
       if (error) throw error;
       return data;
@@ -68,21 +70,16 @@ export function ChatWindow({
     }
   }, [messages]);
 
-  // Mark inbound messages as read when conversation is opened/updated
-  useEffect(() => {
-    if (customer?.customer_phone && messages?.some((m) => m.direction === "inbound" && !m.is_read)) {
-      markConversationRead(customer.customer_phone).then(() => {
-        queryClient.invalidateQueries({ queryKey: ["sms-unread-counts"] });
-      });
-    }
-  }, [customer?.customer_phone, messages, queryClient]);
-
   const handleSend = async () => {
     if (!message.trim() || !customer?.customer_phone) return;
     setSending(true);
     try {
       const { error } = await supabase.functions.invoke("send-sms", {
-        body: { phone: customer.customer_phone, body: message.trim() },
+        body: {
+          phone: customer.customer_phone,
+          body: message.trim(),
+          senderName: senderName || "F&S Studio",
+        },
       });
       if (error) throw error;
 
@@ -100,6 +97,7 @@ export function ChatWindow({
       setMessage("");
       queryClient.invalidateQueries({ queryKey: ["sms-messages"] });
       queryClient.invalidateQueries({ queryKey: ["sms-last-messages"] });
+      queryClient.invalidateQueries({ queryKey: ["groomer-sms-last-messages"] });
       toast.success("Message sent");
     } catch (e: any) {
       toast.error(e.message || "Failed to send message");
@@ -139,7 +137,7 @@ export function ChatWindow({
         )}
       </div>
 
-      {/* Messages */}
+      {/* Messages - outbound only */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3 bg-muted/5">
         {!messages?.length ? (
           <div className="text-center text-sm text-muted-foreground py-8">
@@ -147,30 +145,12 @@ export function ChatWindow({
           </div>
         ) : (
           messages.map((m) => (
-            <div
-              key={m.id}
-              className={cn(
-                "flex",
-                m.direction === "outbound" ? "justify-end" : "justify-start"
-              )}
-            >
-              <div
-                className={cn(
-                  "max-w-[80%] md:max-w-[70%] rounded-2xl px-3.5 py-2 text-sm shadow-sm",
-                  m.direction === "outbound"
-                    ? "bg-primary text-primary-foreground rounded-br-md"
-                    : "bg-card border border-border rounded-bl-md"
-                )}
-              >
+            <div key={m.id} className="flex justify-end">
+              <div className="max-w-[80%] md:max-w-[70%] rounded-2xl px-3.5 py-2 text-sm shadow-sm bg-primary text-primary-foreground rounded-br-md">
                 <p className="whitespace-pre-wrap break-words">{m.body}</p>
-                <div
-                  className={cn(
-                    "flex items-center gap-1.5 mt-1 text-[10px]",
-                    m.direction === "outbound"
-                      ? "text-primary-foreground/60"
-                      : "text-muted-foreground"
-                  )}
-                >
+                <div className="flex items-center gap-1.5 mt-1 text-[10px] text-primary-foreground/60">
+                  <span>{(m as any).sent_by_name || "F&S Studio"}</span>
+                  <span>·</span>
                   <span>{format(new Date(m.created_at), "dd MMM, HH:mm")}</span>
                   {m.status === "failed" && (
                     <span className="text-destructive font-medium">· Failed</span>
@@ -213,6 +193,9 @@ export function ChatWindow({
             <Send className="h-4 w-4" />
           </Button>
         </div>
+        <p className="text-[10px] text-muted-foreground mt-1.5">
+          Note: Customers cannot reply to these branded notifications.
+        </p>
       </div>
     </div>
   );
