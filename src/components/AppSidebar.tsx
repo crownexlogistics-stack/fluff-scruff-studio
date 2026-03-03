@@ -1,7 +1,7 @@
 import {
   Dog, Users, Calendar, LayoutDashboard, Crown,
   UserPlus, CalendarClock, ChevronDown, Megaphone,
-  UsersRound, BarChart3, Tags, Search, Facebook, Mail,
+  UsersRound, BarChart3, Mail,
   LogOut, Sparkles, AlertTriangle, ShieldCheck, BookOpen,
   Inbox, FileText, Ticket, PoundSterling,
 } from "lucide-react";
@@ -51,15 +51,12 @@ const hrSubItems = [
 const marketingSubItems = [
   { title: "Customers", url: "/marketing/customers", icon: UsersRound },
   { title: "Booking Analytics", url: "/marketing/analytics", icon: BarChart3 },
-  { title: "Discounts", url: "/marketing/discounts", icon: Tags },
-  { title: "SEO", url: "/marketing/seo", icon: Search },
-  { title: "Social Campaigns", url: "/marketing/social", icon: Facebook },
+  { title: "Coupons", url: "/admin/coupons", icon: Ticket },
   { title: "Email Marketing", url: "/marketing/email", icon: Mail },
 ];
 
 const directorOnlyItems = [
   { title: "Users", url: "/admin/users", icon: Crown },
-  { title: "Coupons", url: "/admin/coupons", icon: Ticket },
   { title: "Terms & Conditions", url: "/admin/terms", icon: FileText },
 ];
 
