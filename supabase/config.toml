@@ -26,3 +26,12 @@ verify_jwt = false
 
 [functions.notify-groomer]
 verify_jwt = false
+
+[functions.generate-campaign-email]
+verify_jwt = false
+
+[functions.send-campaign]
+verify_jwt = false
+
+[functions.handle-unsubscribe]
+verify_jwt = false

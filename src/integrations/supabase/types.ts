@@ -557,6 +557,66 @@ export type Database = {
           },
         ]
       }
+      email_campaigns: {
+        Row: {
+          created_at: string
+          created_by: string
+          emails_sent: number
+          html_body: string
+          id: string
+          prompt: string | null
+          segment: string
+          sent_at: string | null
+          status: string
+          subject: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          emails_sent?: number
+          html_body: string
+          id?: string
+          prompt?: string | null
+          segment?: string
+          sent_at?: string | null
+          status?: string
+          subject: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          emails_sent?: number
+          html_body?: string
+          id?: string
+          prompt?: string | null
+          segment?: string
+          sent_at?: string | null
+          status?: string
+          subject?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      email_unsubscribes: {
+        Row: {
+          email: string
+          id: string
+          unsubscribed_at: string
+        }
+        Insert: {
+          email: string
+          id?: string
+          unsubscribed_at?: string
+        }
+        Update: {
+          email?: string
+          id?: string
+          unsubscribed_at?: string
+        }
+        Relationships: []
+      }
       groomer_recommendations: {
         Row: {
           created_at: string
