@@ -1,9 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Phone, Mail, User, FileText, Zap } from "lucide-react";
+import { Phone, Mail, User, FileText, Zap, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 import type { CustomerContact } from "@/pages/MessagesPage";
 
 const quickTemplates = [
@@ -34,9 +35,11 @@ const quickTemplates = [
 interface CustomerSidebarProps {
   customer: CustomerContact | null;
   onTemplateSelect: (text: string, isNoAnswer?: boolean) => void;
+  className?: string;
+  onBack?: () => void;
 }
 
-export function CustomerSidebar({ customer, onTemplateSelect }: CustomerSidebarProps) {
+export function CustomerSidebar({ customer, onTemplateSelect, className, onBack }: CustomerSidebarProps) {
   // Customer notes
   const { data: notes } = useQuery({
     queryKey: ["customer-notes-sidebar", customer?.customer_email],
@@ -69,14 +72,24 @@ export function CustomerSidebar({ customer, onTemplateSelect }: CustomerSidebarP
 
   if (!customer) {
     return (
-      <div className="w-72 border-l border-border bg-muted/20 flex items-center justify-center shrink-0">
+      <div className={cn("w-72 border-l border-border bg-muted/20 items-center justify-center shrink-0 hidden md:flex", className)}>
         <p className="text-xs text-muted-foreground">Select a customer</p>
       </div>
     );
   }
 
   return (
-    <div className="w-72 border-l border-border bg-muted/20 flex flex-col overflow-hidden shrink-0">
+    <div className={cn("w-full md:w-72 border-l border-border bg-muted/20 flex flex-col overflow-hidden md:shrink-0", className)}>
+      {/* Mobile back button */}
+      {onBack && (
+        <div className="md:hidden p-3 border-b border-border">
+          <Button variant="ghost" size="sm" className="gap-1.5" onClick={onBack}>
+            <ArrowLeft className="h-4 w-4" />
+            Back to chat
+          </Button>
+        </div>
+      )}
+
       {/* Customer Info */}
       <div className="p-4 border-b border-border space-y-3">
         <div className="flex items-center gap-2.5">

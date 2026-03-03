@@ -11,6 +11,7 @@ interface CustomerListProps {
   customers: CustomerContact[];
   selectedPhone: string | null;
   onSelect: (phone: string) => void;
+  className?: string;
 }
 
 function formatMessageDate(dateStr: string) {
@@ -20,7 +21,7 @@ function formatMessageDate(dateStr: string) {
   return format(d, "dd MMM");
 }
 
-export function CustomerList({ customers, selectedPhone, onSelect }: CustomerListProps) {
+export function CustomerList({ customers, selectedPhone, onSelect, className }: CustomerListProps) {
   const [search, setSearch] = useState("");
   const { unreadMap } = useUnreadSmsCount();
 
@@ -34,7 +35,7 @@ export function CustomerList({ customers, selectedPhone, onSelect }: CustomerLis
   });
 
   return (
-    <div className="w-80 border-r border-border flex flex-col bg-muted/30 shrink-0">
+    <div className={cn("w-full md:w-80 border-r border-border flex flex-col bg-muted/30 md:shrink-0", className)}>
       <div className="p-3 border-b border-border">
         <h2 className="font-heading font-bold text-lg mb-2">Messages</h2>
         <div className="relative">

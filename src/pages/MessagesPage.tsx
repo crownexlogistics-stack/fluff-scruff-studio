@@ -7,6 +7,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { CustomerList } from "@/components/messaging/CustomerList";
 import { ChatWindow } from "@/components/messaging/ChatWindow";
 import { CustomerSidebar } from "@/components/messaging/CustomerSidebar";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export interface CustomerContact {
   customer_name: string;
@@ -16,13 +17,17 @@ export interface CustomerContact {
   last_message_at?: string;
 }
 
+type MobilePanel = "list" | "chat" | "info";
+
 export default function MessagesPage() {
   const { user } = useAuth();
   const { role } = useUserRole(user?.id);
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
   const [selectedPhone, setSelectedPhone] = useState<string | null>(null);
   const [templateText, setTemplateText] = useState("");
   const [pendingNoAnswer, setPendingNoAnswer] = useState(false);
+  const [mobilePanel, setMobilePanel] = useState<MobilePanel>("list");
 
   // Groomer's staff record
   const { data: myStaff } = useQuery({
@@ -127,31 +132,51 @@ export default function MessagesPage() {
 
   const selected = customers.find((c) => c.customer_phone === selectedPhone) || null;
 
+  const handleSelect = (phone: string) => {
+    setSelectedPhone(phone);
+    if (isMobile) setMobilePanel("chat");
+  };
+
   const handleTemplateSelect = (text: string, isNoAnswer?: boolean) => {
     setTemplateText(text);
     setPendingNoAnswer(!!isNoAnswer);
+    if (isMobile) setMobilePanel("chat");
   };
 
   return (
     <AppLayout>
-      <div className="-m-4 md:-m-6 h-[calc(100vh-3.5rem)] flex">
-        <CustomerList
-          customers={customers}
-          selectedPhone={selectedPhone}
-          onSelect={setSelectedPhone}
-        />
-        <ChatWindow
-          customer={selected}
-          templateText={templateText}
-          onTemplateClear={() => setTemplateText("")}
-          pendingNoAnswer={pendingNoAnswer}
-          onNoAnswerHandled={() => setPendingNoAnswer(false)}
-          userId={user?.id}
-        />
-        <CustomerSidebar
-          customer={selected}
-          onTemplateSelect={handleTemplateSelect}
-        />
+      <div className="-m-4 md:-m-6 h-[calc(100vh-3.5rem)] flex overflow-hidden">
+        {/* Customer List - show on desktop always, on mobile only when panel=list */}
+        {(!isMobile || mobilePanel === "list") && (
+          <CustomerList
+            customers={customers}
+            selectedPhone={selectedPhone}
+            onSelect={handleSelect}
+          />
+        )}
+
+        {/* Chat Window - show on desktop always, on mobile only when panel=chat */}
+        {(!isMobile || mobilePanel === "chat") && (
+          <ChatWindow
+            customer={selected}
+            templateText={templateText}
+            onTemplateClear={() => setTemplateText("")}
+            pendingNoAnswer={pendingNoAnswer}
+            onNoAnswerHandled={() => setPendingNoAnswer(false)}
+            userId={user?.id}
+            onBack={() => setMobilePanel("list")}
+            onInfoToggle={() => setMobilePanel("info")}
+          />
+        )}
+
+        {/* Customer Sidebar - show on desktop always, on mobile only when panel=info */}
+        {(!isMobile || mobilePanel === "info") && (
+          <CustomerSidebar
+            customer={selected}
+            onTemplateSelect={handleTemplateSelect}
+            onBack={() => setMobilePanel("chat")}
+          />
+        )}
       </div>
     </AppLayout>
   );
