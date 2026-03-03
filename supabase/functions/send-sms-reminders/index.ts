@@ -6,6 +6,12 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const E164_REGEX = /^\+[1-9]\d{6,14}$/;
+
+function isValidE164(phone: string): boolean {
+  return E164_REGEX.test(phone.replace(/\s/g, ""));
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -27,6 +33,7 @@ serve(async (req) => {
     const now = new Date();
     const results: string[] = [];
     const errors: string[] = [];
+    const skipped: string[] = [];
 
     // 24h window: 23h to 24.5h from now
     const h24From = new Date(now.getTime() + 23 * 60 * 60 * 1000);
@@ -36,7 +43,7 @@ serve(async (req) => {
     const h2From = new Date(now.getTime() + 1.5 * 60 * 60 * 1000);
     const h2To = new Date(now.getTime() + 2.5 * 60 * 60 * 1000);
 
-    // Fetch confirmed bookings with phone numbers that haven't had reminders sent
+    // Fetch confirmed bookings with phone numbers that haven't had all reminders sent
     const { data: bookings, error } = await supabase
       .from("bookings")
       .select("id, booking_date, booking_time, customer_name, customer_phone, sms_24h_sent, sms_2h_sent")
@@ -48,22 +55,28 @@ serve(async (req) => {
     for (const b of bookings || []) {
       if (!b.customer_phone) continue;
 
-      const bookingDateTime = new Date(`${b.booking_date}T${b.booking_time}`);
+      // E.164 validation
+      const cleanPhone = b.customer_phone.replace(/\s/g, "");
+      if (!isValidE164(cleanPhone)) {
+        skipped.push(`Skipped ${b.customer_name}: invalid phone format "${b.customer_phone}" (must be E.164, e.g. +44...)`);
+        console.warn(`Skipping booking ${b.id}: phone "${b.customer_phone}" is not valid E.164`);
+        continue;
+      }
 
-      // Format time in 24h UK format (e.g. 14:00)
+      const bookingDateTime = new Date(`${b.booking_date}T${b.booking_time}`);
       const timeFormatted = b.booking_time.substring(0, 5);
 
       // Check 24h reminder
       if (!b.sms_24h_sent && bookingDateTime >= h24From && bookingDateTime <= h24To) {
-        const message = `Hi ${b.customer_name}, you have an upcoming grooming appointment at Fluff and Scruff Studio tomorrow at ${timeFormatted}. Address: 153 Hacton Lane, Hornchurch, Essex RM12 6PH. See you then!`;
-        
+        const message = `Hi ${b.customer_name}, reminder of your appt at Fluff and Scruff tomorrow at ${timeFormatted}. Address: 153 Hacton Lane, Hornchurch, Essex RM12 6PH. See you then!`;
+
         try {
-          await sendTwilioSms(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER, b.customer_phone, message);
-          
+          await sendTwilioSms(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER, cleanPhone, message);
+
           await supabase.from("bookings").update({ sms_24h_sent: true }).eq("id", b.id);
-          
+
           await supabase.from("sms_messages").insert({
-            phone_number: b.customer_phone,
+            phone_number: cleanPhone,
             body: message,
             direction: "outbound",
             status: "sent",
@@ -80,14 +93,14 @@ serve(async (req) => {
       // Check 2h reminder
       if (!b.sms_2h_sent && bookingDateTime >= h2From && bookingDateTime <= h2To) {
         const message = `Hi ${b.customer_name}, just a quick reminder of your appointment at Fluff and Scruff Studio in 2 hours (${timeFormatted}). See you soon!`;
-        
+
         try {
-          await sendTwilioSms(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER, b.customer_phone, message);
-          
+          await sendTwilioSms(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER, cleanPhone, message);
+
           await supabase.from("bookings").update({ sms_2h_sent: true }).eq("id", b.id);
-          
+
           await supabase.from("sms_messages").insert({
-            phone_number: b.customer_phone,
+            phone_number: cleanPhone,
             body: message,
             direction: "outbound",
             status: "sent",
@@ -103,7 +116,7 @@ serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ success: true, sent: results.length, results, errors }),
+      JSON.stringify({ success: true, sent: results.length, results, errors, skipped }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {

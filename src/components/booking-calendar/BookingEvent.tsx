@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { format } from "date-fns";
 import { getStaffColor } from "./staffColors";
-import { Pencil, Trash2, MoreHorizontal, Eye, PenLine, XCircle, Send, CheckCircle2, Clock } from "lucide-react";
+import { Pencil, Trash2, MoreHorizontal, Eye, PenLine, XCircle, Send, CheckCircle2, Clock, MessageSquare } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { logAudit } from "@/lib/auditLog";
@@ -36,6 +36,8 @@ export interface BookingData {
   final_charge?: number | null;
   stripe_payment_id?: string | null;
   is_groomers_own_customer?: boolean;
+  sms_24h_sent?: boolean;
+  sms_2h_sent?: boolean;
 }
 
 interface BookingEventProps {
@@ -284,6 +286,20 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
       {booking.stripe_payment_id && (
         <div className="text-[10px] text-muted-foreground font-mono truncate">
           Stripe: {booking.stripe_payment_id}
+        </div>
+      )}
+
+      {/* SMS Reminder Status */}
+      {!booking.is_block && !booking.is_overtime && (
+        <div className="flex items-center gap-3 text-xs">
+          <div className="flex items-center gap-1">
+            <MessageSquare className={cn("h-3 w-3", booking.sms_24h_sent ? "text-emerald-500" : "text-muted-foreground/40")} />
+            <span className={cn(booking.sms_24h_sent ? "text-emerald-600 font-medium" : "text-muted-foreground/50")}>24h SMS</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <MessageSquare className={cn("h-3 w-3", booking.sms_2h_sent ? "text-emerald-500" : "text-muted-foreground/40")} />
+            <span className={cn(booking.sms_2h_sent ? "text-emerald-600 font-medium" : "text-muted-foreground/50")}>2h SMS</span>
+          </div>
         </div>
       )}
 
