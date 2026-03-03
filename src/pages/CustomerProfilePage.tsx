@@ -20,8 +20,9 @@ import {
 import { Switch } from "@/components/ui/switch";
 import {
   ArrowLeft, Mail, Phone, Dog, Calendar, Send,
-  Pencil, Check, X, MessageSquare, MailOpen, Ban, CalendarPlus, UserCheck,
+  Pencil, Check, X, MessageSquare, MailOpen, Ban, CalendarPlus, UserCheck, ChevronDown, ChevronUp,
 } from "lucide-react";
+import { AdminPetTools } from "@/components/customer-profile/AdminPetTools";
 import { format, parseISO } from "date-fns";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -52,6 +53,7 @@ export default function CustomerProfilePage() {
   // Pet edit dialog
   const [editingPet, setEditingPet] = useState<any>(null);
   const [petForm, setPetForm] = useState({ pet_name: "", breed_id: "", dog_age_years: 0, dog_age_months: 0, notes: "" });
+  const [expandedPetId, setExpandedPetId] = useState<string | null>(null);
 
   // Booking edit dialog
   const [editingBooking, setEditingBooking] = useState<any>(null);
@@ -66,12 +68,12 @@ export default function CustomerProfilePage() {
     queryFn: async () => {
       const { data } = await supabase
         .from("staff")
-        .select("id")
+        .select("id, name")
         .eq("auth_user_id", user!.id)
         .maybeSingle();
       return data;
     },
-    enabled: isGroomer && !!user?.id,
+    enabled: !!user?.id,
   });
 
   // ── Data queries ──────────────────────────────────────────────────
@@ -640,20 +642,45 @@ export default function CustomerProfilePage() {
                 {visibleDogs.length > 0 ? (
                   <div className="space-y-2">
                     {visibleDogs.map((pet: any) => (
-                      <div
-                        key={pet.id}
-                        className={`flex items-center justify-between p-3 rounded-lg border ${canManageCustomer && !pet.is_from_booking ? "hover:bg-muted/30 cursor-pointer" : ""} transition-colors`}
-                        onClick={() => canManageCustomer && !pet.is_from_booking && openPetEdit(pet)}
-                      >
-                        <div>
-                          <p className="font-medium text-sm">{pet.pet_name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {(pet.breed as any)?.name || "Breed not set"}
-                            {pet.dog_age_years != null && ` • ${pet.dog_age_years}y ${pet.dog_age_months || 0}m`}
-                            {(pet.breed as any)?.size_category && ` • ${(pet.breed as any).size_category}`}
-                          </p>
+                      <div key={pet.id}>
+                        <div
+                          className={`flex items-center justify-between p-3 rounded-lg border ${canManageCustomer && !pet.is_from_booking ? "hover:bg-muted/30 cursor-pointer" : ""} transition-colors`}
+                          onClick={() => {
+                            if (canManageCustomer && !pet.is_from_booking) {
+                              setExpandedPetId(expandedPetId === pet.id ? null : pet.id);
+                            }
+                          }}
+                        >
+                          <div>
+                            <p className="font-medium text-sm">{pet.pet_name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {(pet.breed as any)?.name || "Breed not set"}
+                              {pet.dog_age_years != null && ` • ${pet.dog_age_years}y ${pet.dog_age_months || 0}m`}
+                              {(pet.breed as any)?.size_category && ` • ${(pet.breed as any).size_category}`}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            {canManageCustomer && !pet.is_from_booking && (
+                              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); openPetEdit(pet); }}>
+                                <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                              </Button>
+                            )}
+                            {canManageCustomer && !pet.is_from_booking && (
+                              expandedPetId === pet.id
+                                ? <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                                : <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                            )}
+                          </div>
                         </div>
-                        {canManageCustomer && !pet.is_from_booking && <Pencil className="h-3.5 w-3.5 text-muted-foreground" />}
+                        {expandedPetId === pet.id && canManageCustomer && !pet.is_from_booking && customerUserId && (
+                          <AdminPetTools
+                            petId={pet.id}
+                            petName={pet.pet_name}
+                            customerUserId={customerUserId}
+                            staffId={groomerStaff?.id || null}
+                            staffName={groomerStaff?.name || "Staff"}
+                          />
+                        )}
                       </div>
                     ))}
                   </div>

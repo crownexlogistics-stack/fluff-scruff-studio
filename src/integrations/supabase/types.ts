@@ -557,6 +557,45 @@ export type Database = {
           },
         ]
       }
+      groomer_recommendations: {
+        Row: {
+          created_at: string
+          id: string
+          pet_id: string
+          recommendation: string
+          staff_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          pet_id: string
+          recommendation: string
+          staff_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          pet_id?: string
+          recommendation?: string
+          staff_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "groomer_recommendations_pet_id_fkey"
+            columns: ["pet_id"]
+            isOneToOne: false
+            referencedRelation: "customer_pets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "groomer_recommendations_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       incident_report_recipients: {
         Row: {
           created_at: string
@@ -714,6 +753,47 @@ export type Database = {
             columns: ["staff_id"]
             isOneToOne: false
             referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pet_photos: {
+        Row: {
+          caption: string | null
+          created_at: string
+          groomer_name: string | null
+          id: string
+          pet_id: string
+          photo_url: string
+          uploaded_by_role: string
+          user_id: string
+        }
+        Insert: {
+          caption?: string | null
+          created_at?: string
+          groomer_name?: string | null
+          id?: string
+          pet_id: string
+          photo_url: string
+          uploaded_by_role?: string
+          user_id: string
+        }
+        Update: {
+          caption?: string | null
+          created_at?: string
+          groomer_name?: string | null
+          id?: string
+          pet_id?: string
+          photo_url?: string
+          uploaded_by_role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pet_photos_pet_id_fkey"
+            columns: ["pet_id"]
+            isOneToOne: false
+            referencedRelation: "customer_pets"
             referencedColumns: ["id"]
           },
         ]
