@@ -9,6 +9,7 @@ import { getStaffColor } from "./staffColors";
 import { Pencil, Trash2, MoreHorizontal, Eye, PenLine, XCircle, Send, CheckCircle2, RotateCcw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { logAudit } from "@/lib/auditLog";
 import type { BookingData } from "./BookingEvent";
 
 interface BookingPopoverCardProps {
@@ -61,6 +62,7 @@ export function BookingPopoverCard({
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       toast.success(`Refund of £${data.amount?.toFixed(2)} processed successfully`);
+      logAudit({ staffId: booking.staff_id, action: "REFUND_INITIATED", details: `Refund of £${data.amount?.toFixed(2)} processed for ${booking.customer_name} (${booking.dog_name}). Booking date: ${format(new Date(booking.booking_date), "dd MMM yyyy")}. Original deposit: £${Number(booking.deposit_paid).toFixed(2)}. Stripe Refund ID: ${data.refund_id || "N/A"}.` });
       onRefundComplete?.();
     } catch (e: any) {
       toast.error("Refund failed: " + e.message);
@@ -223,6 +225,7 @@ export function BookingPopoverCard({
                 });
                 if (error) throw error;
                 toast.success("Deposit request email sent to " + booking.customer_email);
+                logAudit({ staffId: booking.staff_id, action: "DEPOSIT_REQUEST_SENT", details: `Deposit request email sent to ${booking.customer_email} for ${booking.customer_name} (${booking.dog_name}). Total: £${Number(booking.total_price).toFixed(2)}.` });
               } catch (e: any) {
                 toast.error("Failed to send: " + e.message);
               } finally {
