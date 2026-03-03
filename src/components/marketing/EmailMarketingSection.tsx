@@ -17,7 +17,7 @@ import {
   Sparkles, Send, Eye, Save, Users, UserMinus, Crown, UserX,
   Loader2, Mail, FileText, CheckCircle2, Wand2, Paperclip, X,
   Copy, Trash2, Clock, CalendarIcon, FolderOpen, Inbox, BookTemplate,
-  MoreHorizontal, AlertCircle
+  MoreHorizontal, AlertCircle, Palette, ImagePlus
 } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger
@@ -442,27 +442,80 @@ export function EmailMarketingSection() {
                   <Textarea value={generatedHtml} onChange={e => setGeneratedHtml(e.target.value)} className="mt-2 min-h-[200px] font-mono text-xs" />
                 </details>
 
-                {/* AI Refine Section */}
-                <div className="border rounded-lg p-4 space-y-3 bg-muted/20">
-                  <div className="flex items-center gap-2">
-                    <Wand2 className="h-4 w-4 text-amber-500" />
-                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">AI Refine</label>
-                  </div>
-                  <Textarea placeholder="Tell AI what to change... e.g. 'Make the header pink', 'Add a winter theme'" value={refineInstruction} onChange={e => setRefineInstruction(e.target.value)} className="min-h-[70px] resize-none text-sm" />
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <Button onClick={() => refineMutation.mutate({ instruction: refineInstruction, imageBase64: refineImage })} disabled={!refineInstruction.trim() || refineMutation.isPending} size="sm" className="gap-1.5">
-                      {refineMutation.isPending ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Refining...</> : <><Wand2 className="h-3.5 w-3.5" /> Apply Changes</>}
-                    </Button>
+                {/* Visual Tools + AI Refine Section */}
+                <div className="border rounded-lg p-4 space-y-4 bg-muted/20">
+                  {/* Quick Tools Row */}
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Quick Tools</span>
+                    {/* Colour Picker */}
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" size="sm" className="gap-1.5">
+                          <Palette className="h-3.5 w-3.5" /> Brand Colour
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-64 space-y-3" align="start">
+                        <p className="text-xs font-medium text-muted-foreground">Pick a colour to apply via AI</p>
+                        <div className="grid grid-cols-6 gap-2">
+                          {["#2D3142","#E8D5B7","#4A90D9","#D94A4A","#4AD97A","#9B59B6","#F39C12","#1ABC9C","#E74C3C","#3498DB","#2C3E50","#F1C40F"].map(color => (
+                            <button key={color} className="w-8 h-8 rounded-md border border-border hover:scale-110 transition-transform" style={{ backgroundColor: color }}
+                              onClick={() => {
+                                setRefineInstruction(`Change the primary/header colour to ${color} and update all related elements to match`);
+                              }}
+                            />
+                          ))}
+                        </div>
+                        <div className="flex gap-2">
+                          <Input type="color" className="w-10 h-8 p-0.5 cursor-pointer" onChange={e => {
+                            setRefineInstruction(`Change the primary/header colour to ${e.target.value} and update all related elements to match`);
+                          }} />
+                          <span className="text-xs text-muted-foreground self-center">Custom colour</span>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+
+                    {/* Image Swap */}
                     <label className="cursor-pointer">
-                      <input type="file" accept="image/*" className="hidden" onChange={handleRefineImageUpload} />
-                      <Button variant="outline" size="sm" className="gap-1.5 pointer-events-none" tabIndex={-1}><Paperclip className="h-3.5 w-3.5" /> Attach Image</Button>
+                      <input type="file" accept="image/*" className="hidden" onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        if (file.size > 4 * 1024 * 1024) { toast.error("Image must be under 4MB"); return; }
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                          setRefineImage(reader.result as string);
+                          setRefineImageName(file.name);
+                          setRefineInstruction("Replace the hero/placeholder image section with this uploaded image. Make it full-width and properly centered.");
+                        };
+                        reader.readAsDataURL(file);
+                      }} />
+                      <Button variant="outline" size="sm" className="gap-1.5 pointer-events-none" tabIndex={-1}>
+                        <ImagePlus className="h-3.5 w-3.5" /> Swap Hero Image
+                      </Button>
                     </label>
-                    {refineImageName && (
-                      <div className="flex items-center gap-1.5 text-xs bg-muted px-2 py-1 rounded-md">
-                        <span className="truncate max-w-[150px]">{refineImageName}</span>
-                        <button onClick={() => { setRefineImage(null); setRefineImageName(""); }} className="hover:text-destructive"><X className="h-3 w-3" /></button>
-                      </div>
-                    )}
+                  </div>
+
+                  {/* AI Refine */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Wand2 className="h-4 w-4 text-amber-500" />
+                      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">AI Refine</label>
+                    </div>
+                    <Textarea placeholder="Tell AI what to change... e.g. 'Make the header pink', 'Add a winter theme'" value={refineInstruction} onChange={e => setRefineInstruction(e.target.value)} className="min-h-[70px] resize-none text-sm" />
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Button onClick={() => refineMutation.mutate({ instruction: refineInstruction, imageBase64: refineImage })} disabled={!refineInstruction.trim() || refineMutation.isPending} size="sm" className="gap-1.5">
+                        {refineMutation.isPending ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Refining...</> : <><Wand2 className="h-3.5 w-3.5" /> Apply Changes</>}
+                      </Button>
+                      <label className="cursor-pointer">
+                        <input type="file" accept="image/*" className="hidden" onChange={handleRefineImageUpload} />
+                        <Button variant="outline" size="sm" className="gap-1.5 pointer-events-none" tabIndex={-1}><Paperclip className="h-3.5 w-3.5" /> Attach Image</Button>
+                      </label>
+                      {refineImageName && (
+                        <div className="flex items-center gap-1.5 text-xs bg-muted px-2 py-1 rounded-md">
+                          <span className="truncate max-w-[150px]">{refineImageName}</span>
+                          <button onClick={() => { setRefineImage(null); setRefineImageName(""); }} className="hover:text-destructive"><X className="h-3 w-3" /></button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </CardContent>
@@ -601,6 +654,12 @@ export function EmailMarketingSection() {
                         {c.prompt && <span className="truncate max-w-[200px]">Prompt: {c.prompt}</span>}
                         <span>Segment: {c.segment}</span>
                         {c.status === "sent" && <span>{c.emails_sent} sent</span>}
+                        {c.status === "sent" && (c as any).unique_opens > 0 && (
+                          <span>{(((c as any).unique_opens / c.emails_sent) * 100).toFixed(1)}% opened</span>
+                        )}
+                        {c.status === "sent" && (c as any).unique_clicks > 0 && (
+                          <span>{(((c as any).unique_clicks / c.emails_sent) * 100).toFixed(1)}% clicked</span>
+                        )}
                         {c.status === "scheduled" && c.scheduled_at && (
                           <span className="flex items-center gap-1">
                             <Clock className="h-3 w-3" />
