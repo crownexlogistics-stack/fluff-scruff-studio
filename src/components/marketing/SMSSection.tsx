@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { MessageSquare, Send, Loader2, Phone, ArrowUpRight, ArrowDownLeft } from "lucide-react";
+import { MessageSquare, Send, Loader2, Phone, ArrowUpRight, ArrowDownLeft, Bell, CheckCircle2, AlertTriangle, Clock } from "lucide-react";
 
 export function SMSSection() {
   const queryClient = useQueryClient();
@@ -101,6 +101,9 @@ export function SMSSection() {
         </CardContent>
       </Card>
 
+      {/* Automated SMS Reminders Log */}
+      <SmsRemindersLog />
+
       {/* SMS History */}
       <Card>
         <CardHeader className="pb-3">
@@ -135,5 +138,99 @@ export function SMSSection() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function SmsRemindersLog() {
+  const { data: reminderMessages, isLoading } = useQuery({
+    queryKey: ["sms-reminder-logs"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("sms_messages")
+        .select("*, bookings(customer_name, booking_date, booking_time, status)")
+        .not("booking_id", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Separate automated reminders from manual SMS (reminders contain "reminder" in body)
+  const reminders = reminderMessages?.filter(m =>
+    m.body.toLowerCase().includes("reminder") || m.body.toLowerCase().includes("upcoming") || m.body.toLowerCase().includes("appt at fluff")
+  ) || [];
+
+  // Count stats
+  const sent24h = reminders.filter(m => m.body.toLowerCase().includes("tomorrow") || m.body.toLowerCase().includes("appt at fluff")).length;
+  const sent2h = reminders.filter(m => m.body.toLowerCase().includes("2 hours")).length;
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-lg flex items-center gap-2">
+          <Bell className="h-5 w-5 text-amber-500" /> Automated SMS Reminders
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Stats */}
+        <div className="grid grid-cols-3 gap-3">
+          <div className="border rounded-lg p-3 text-center">
+            <p className="text-2xl font-bold">{reminders.length}</p>
+            <p className="text-xs text-muted-foreground">Total Sent</p>
+          </div>
+          <div className="border rounded-lg p-3 text-center">
+            <p className="text-2xl font-bold text-amber-600">{sent24h}</p>
+            <p className="text-xs text-muted-foreground">24h Reminders</p>
+          </div>
+          <div className="border rounded-lg p-3 text-center">
+            <p className="text-2xl font-bold text-blue-600">{sent2h}</p>
+            <p className="text-xs text-muted-foreground">2h Reminders</p>
+          </div>
+        </div>
+
+        {isLoading ? (
+          <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin" /></div>
+        ) : !reminders.length ? (
+          <div className="text-center py-8">
+            <Clock className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
+            <p className="text-sm text-muted-foreground">No automated reminders sent yet.</p>
+            <p className="text-xs text-muted-foreground mt-1">Reminders run every 30 minutes for confirmed bookings with valid phone numbers.</p>
+          </div>
+        ) : (
+          <div className="space-y-2 max-h-[400px] overflow-y-auto">
+            {reminders.map(m => {
+              const is24h = m.body.toLowerCase().includes("tomorrow") || m.body.toLowerCase().includes("appt at fluff");
+              const booking = m.bookings as any;
+              return (
+                <div key={m.id} className="flex items-start gap-3 border rounded-lg p-3">
+                  <div className={`p-1.5 rounded-full shrink-0 ${m.status === "sent" ? "bg-emerald-100 text-emerald-600" : "bg-red-100 text-red-600"}`}>
+                    {m.status === "sent" ? <CheckCircle2 className="h-3.5 w-3.5" /> : <AlertTriangle className="h-3.5 w-3.5" />}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                      <p className="text-sm font-medium">{booking?.customer_name || m.phone_number}</p>
+                      <Badge variant={is24h ? "default" : "secondary"} className="text-[10px]">
+                        {is24h ? "24h Reminder" : "2h Reminder"}
+                      </Badge>
+                      <Badge variant={m.status === "sent" ? "outline" : "destructive"} className="text-[10px]">
+                        {m.status}
+                      </Badge>
+                    </div>
+                    {booking && (
+                      <p className="text-xs text-muted-foreground">
+                        Appt: {format(new Date(booking.booking_date), "d MMM yyyy")} at {booking.booking_time?.substring(0, 5)}
+                      </p>
+                    )}
+                    <p className="text-xs text-muted-foreground mt-0.5">{m.phone_number}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{format(new Date(m.created_at), "d MMM yyyy HH:mm")}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
