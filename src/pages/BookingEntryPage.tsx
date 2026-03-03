@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
@@ -32,6 +32,8 @@ const BookingEntryPage = () => {
   const [searchParams] = useSearchParams();
   const serviceParam = searchParams.get("service") || "Grooming";
   const hasSpecificService = searchParams.has("service");
+  const rebookDogName = searchParams.get("dogName");
+  const rebookBreedId = searchParams.get("breedId");
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
 
@@ -86,7 +88,25 @@ const BookingEntryPage = () => {
     enabled: !!user,
   });
 
-  // Fetch breeds for breed picker
+  // Auto-rebook: if URL has dogName + service, auto-select pet and jump to booking
+  const [rebookHandled, setRebookHandled] = useState(false);
+  useEffect(() => {
+    if (rebookHandled || !user || !rebookDogName || !hasSpecificService || pets.length === 0) return;
+    const matchedPet = pets.find(p => p.pet_name.toLowerCase() === rebookDogName.toLowerCase());
+    if (matchedPet) {
+      setRebookHandled(true);
+      const breedId = matchedPet.breed_id || rebookBreedId || null;
+      setActiveBooking({
+        petId: matchedPet.id,
+        breedId,
+        petName: matchedPet.pet_name,
+        service: serviceParam,
+        dogAgeYears: matchedPet.dog_age_years,
+        dogAgeMonths: matchedPet.dog_age_months,
+      });
+    }
+  }, [user, rebookDogName, hasSpecificService, pets, rebookHandled, serviceParam, rebookBreedId]);
+
   const { data: breeds = [] } = useQuery({
     queryKey: ["breeds-list"],
     queryFn: async () => {
