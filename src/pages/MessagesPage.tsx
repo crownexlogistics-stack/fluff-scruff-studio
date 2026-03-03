@@ -1,146 +1,157 @@
-import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState, useEffect, useMemo } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { useUserRole } from "@/hooks/useUserRole";
 import { supabase } from "@/integrations/supabase/client";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AppLayout } from "@/components/AppLayout";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Mail, MailOpen, Calendar, ChevronDown, ChevronUp } from "lucide-react";
-import { format } from "date-fns";
+import { CustomerList } from "@/components/messaging/CustomerList";
+import { ChatWindow } from "@/components/messaging/ChatWindow";
+import { CustomerSidebar } from "@/components/messaging/CustomerSidebar";
+
+export interface CustomerContact {
+  customer_name: string;
+  customer_phone: string;
+  customer_email: string | null;
+  last_message?: string;
+  last_message_at?: string;
+}
 
 export default function MessagesPage() {
+  const { user } = useAuth();
+  const { role } = useUserRole(user?.id);
   const queryClient = useQueryClient();
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [selectedPhone, setSelectedPhone] = useState<string | null>(null);
+  const [templateText, setTemplateText] = useState("");
+  const [pendingNoAnswer, setPendingNoAnswer] = useState(false);
 
-  const { data: messages, isLoading } = useQuery({
-    queryKey: ["customer-messages"],
+  // Groomer's staff record
+  const { data: myStaff } = useQuery({
+    queryKey: ["my-staff-record", user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("customer_messages")
-        .select("*, bookings(customer_name, dog_name, booking_date)")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
+      const { data } = await supabase
+        .from("staff")
+        .select("id")
+        .eq("auth_user_id", user!.id)
+        .maybeSingle();
       return data;
     },
+    enabled: !!user?.id && role === "groomer",
   });
 
-  const markRead = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from("customer_messages")
-        .update({ is_read: true })
-        .eq("id", id);
+  // Customer list from bookings
+  const { data: rawCustomers } = useQuery({
+    queryKey: ["msg-customers", role, myStaff?.id],
+    queryFn: async () => {
+      let query = supabase
+        .from("bookings")
+        .select("customer_name, customer_phone, customer_email")
+        .not("customer_phone", "is", null)
+        .order("booking_date", { ascending: false });
+
+      if (role === "groomer" && myStaff?.id) {
+        query = query.eq("staff_id", myStaff.id);
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
+
+      const map = new Map<string, CustomerContact>();
+      data?.forEach((b) => {
+        if (b.customer_phone && !map.has(b.customer_phone)) {
+          map.set(b.customer_phone, {
+            customer_name: b.customer_name,
+            customer_phone: b.customer_phone,
+            customer_email: b.customer_email,
+          });
+        }
+      });
+      return Array.from(map.values());
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["customer-messages"] }),
+    enabled: !!role && (role !== "groomer" || !!myStaff?.id),
   });
 
-  const toggleExpand = (id: string, isRead: boolean) => {
-    if (expandedId === id) {
-      setExpandedId(null);
-    } else {
-      setExpandedId(id);
-      if (!isRead) markRead.mutate(id);
-    }
-  };
+  // Last messages per phone for list preview
+  const { data: lastMsgMap } = useQuery({
+    queryKey: ["sms-last-messages"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("sms_messages")
+        .select("phone_number, body, created_at")
+        .order("created_at", { ascending: false });
 
-  const unreadCount = messages?.filter(m => !m.is_read).length ?? 0;
+      const map = new Map<string, { body: string; created_at: string }>();
+      data?.forEach((m) => {
+        if (!map.has(m.phone_number)) {
+          map.set(m.phone_number, { body: m.body, created_at: m.created_at });
+        }
+      });
+      return map;
+    },
+  });
+
+  // Enrich and sort customers
+  const customers = useMemo(() => {
+    if (!rawCustomers) return [];
+    return rawCustomers
+      .map((c) => ({
+        ...c,
+        last_message: lastMsgMap?.get(c.customer_phone)?.body,
+        last_message_at: lastMsgMap?.get(c.customer_phone)?.created_at,
+      }))
+      .sort((a, b) => {
+        if (a.last_message_at && b.last_message_at)
+          return new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime();
+        if (a.last_message_at) return -1;
+        if (b.last_message_at) return 1;
+        return a.customer_name.localeCompare(b.customer_name);
+      });
+  }, [rawCustomers, lastMsgMap]);
+
+  // Real-time subscription for SMS messages
+  useEffect(() => {
+    const channel = supabase
+      .channel("sms-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "sms_messages" },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["sms-messages"] });
+          queryClient.invalidateQueries({ queryKey: ["sms-last-messages"] });
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
+
+  const selected = customers.find((c) => c.customer_phone === selectedPhone) || null;
+
+  const handleTemplateSelect = (text: string, isNoAnswer?: boolean) => {
+    setTemplateText(text);
+    setPendingNoAnswer(!!isNoAnswer);
+  };
 
   return (
     <AppLayout>
-      <div className="p-6 max-w-4xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-heading font-bold">Messages</h1>
-            <p className="text-sm text-muted-foreground">
-              Customer replies to booking emails
-              {unreadCount > 0 && ` · ${unreadCount} unread`}
-            </p>
-          </div>
-        </div>
-
-        {isLoading ? (
-          <div className="text-center py-12 text-muted-foreground">Loading…</div>
-        ) : !messages?.length ? (
-          <div className="text-center py-12">
-            <Mail className="h-12 w-12 text-muted-foreground/40 mx-auto mb-3" />
-            <p className="text-muted-foreground">No messages yet</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Customer replies to booking emails will appear here
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {messages.map((msg: any) => (
-              <Card
-                key={msg.id}
-                className={`cursor-pointer transition-colors ${!msg.is_read ? "border-primary/30 bg-primary/[0.02]" : ""}`}
-                onClick={() => toggleExpand(msg.id, msg.is_read)}
-              >
-                <CardContent className="p-4">
-                  <div className="flex items-start gap-3">
-                    <div className="mt-0.5">
-                      {msg.is_read ? (
-                        <MailOpen className="h-4 w-4 text-muted-foreground" />
-                      ) : (
-                        <Mail className="h-4 w-4 text-primary" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className={`text-sm font-medium truncate ${!msg.is_read ? "text-foreground" : "text-muted-foreground"}`}>
-                          {msg.from_name || msg.from_email}
-                        </span>
-                        {!msg.is_read && <Badge variant="default" className="text-xs px-1.5 py-0">New</Badge>}
-                        <span className="text-xs text-muted-foreground ml-auto shrink-0">
-                          {format(new Date(msg.created_at), "dd MMM, HH:mm")}
-                        </span>
-                        {expandedId === msg.id ? (
-                          <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0" />
-                        ) : (
-                          <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
-                        )}
-                      </div>
-                      <p className={`text-sm ${!msg.is_read ? "font-medium" : ""}`}>
-                        {msg.subject || "(no subject)"}
-                      </p>
-                      {expandedId !== msg.id && msg.body && (
-                        <p className="text-xs text-muted-foreground truncate mt-1">
-                          {msg.body.slice(0, 120)}
-                        </p>
-                      )}
-                      {expandedId === msg.id && (
-                        <div className="mt-3 space-y-3 animate-fade-in">
-                          <div className="text-sm whitespace-pre-wrap bg-muted/50 rounded-lg p-3">
-                            {msg.body || "(empty message)"}
-                          </div>
-                          <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                            <span>{msg.from_email}</span>
-                            {msg.bookings && (
-                              <span className="flex items-center gap-1">
-                                <Calendar className="h-3 w-3" />
-                                {msg.bookings.customer_name} — {msg.bookings.dog_name} ({msg.bookings.booking_date})
-                              </span>
-                            )}
-                          </div>
-                          {!msg.is_read && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={(e) => { e.stopPropagation(); markRead.mutate(msg.id); }}
-                            >
-                              Mark as read
-                            </Button>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
+      <div className="-m-4 md:-m-6 h-[calc(100vh-3.5rem)] flex">
+        <CustomerList
+          customers={customers}
+          selectedPhone={selectedPhone}
+          onSelect={setSelectedPhone}
+        />
+        <ChatWindow
+          customer={selected}
+          templateText={templateText}
+          onTemplateClear={() => setTemplateText("")}
+          pendingNoAnswer={pendingNoAnswer}
+          onNoAnswerHandled={() => setPendingNoAnswer(false)}
+          userId={user?.id}
+        />
+        <CustomerSidebar
+          customer={selected}
+          onTemplateSelect={handleTemplateSelect}
+        />
       </div>
     </AppLayout>
   );
