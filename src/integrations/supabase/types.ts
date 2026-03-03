@@ -1255,6 +1255,7 @@ export type Database = {
           id: string
           is_read: boolean
           phone_number: string
+          sent_by_name: string | null
           status: string
           twilio_sid: string | null
         }
@@ -1266,6 +1267,7 @@ export type Database = {
           id?: string
           is_read?: boolean
           phone_number: string
+          sent_by_name?: string | null
           status?: string
           twilio_sid?: string | null
         }
@@ -1277,6 +1279,7 @@ export type Database = {
           id?: string
           is_read?: boolean
           phone_number?: string
+          sent_by_name?: string | null
           status?: string
           twilio_sid?: string | null
         }

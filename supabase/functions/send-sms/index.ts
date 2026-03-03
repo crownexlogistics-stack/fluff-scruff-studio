@@ -12,9 +12,9 @@ serve(async (req) => {
   try {
     const TWILIO_ACCOUNT_SID = Deno.env.get("TWILIO_ACCOUNT_SID");
     const TWILIO_AUTH_TOKEN = Deno.env.get("TWILIO_AUTH_TOKEN");
-    const TWILIO_PHONE_NUMBER = Deno.env.get("TWILIO_PHONE_NUMBER");
+    const MESSAGING_SERVICE_SID = "MG3c95c22cb05574f545cc1b32d9db4600";
 
-    if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || !TWILIO_PHONE_NUMBER) {
+    if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN) {
       throw new Error("Twilio credentials are not configured");
     }
 
@@ -22,20 +22,20 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { phone, body, bookingId } = await req.json();
+    const { phone, body, bookingId, senderName } = await req.json();
     if (!phone || !body) {
       return new Response(JSON.stringify({ error: "phone and body are required" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Send via Twilio REST API
+    // Send via Twilio REST API using Messaging Service SID
     const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`;
     const authHeader = btoa(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`);
 
     const params = new URLSearchParams();
     params.append("To", phone);
-    params.append("From", TWILIO_PHONE_NUMBER);
+    params.append("MessagingServiceSid", MESSAGING_SERVICE_SID);
     params.append("Body", body);
 
     const res = await fetch(twilioUrl, {
@@ -54,7 +54,7 @@ serve(async (req) => {
       throw new Error(twilioData.message || "Failed to send SMS");
     }
 
-    // Log to database
+    // Log to database with sender name
     await supabase.from("sms_messages").insert({
       phone_number: phone,
       body,
@@ -62,6 +62,7 @@ serve(async (req) => {
       status: twilioData.status || "sent",
       twilio_sid: twilioData.sid,
       booking_id: bookingId || null,
+      sent_by_name: senderName || "F&S Studio",
     });
 
     return new Response(JSON.stringify({ success: true, sid: twilioData.sid }), {

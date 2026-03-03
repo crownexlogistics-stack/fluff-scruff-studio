@@ -24,6 +24,15 @@ export default function MessagesPage() {
   const { role } = useUserRole(user?.id);
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
+
+  const { data: profile } = useQuery({
+    queryKey: ["my-profile", user?.id],
+    queryFn: async () => {
+      const { data } = await supabase.from("profiles").select("full_name").eq("id", user!.id).maybeSingle();
+      return data;
+    },
+    enabled: !!user?.id,
+  });
   const [selectedPhone, setSelectedPhone] = useState<string | null>(null);
   const [templateText, setTemplateText] = useState("");
   const [pendingNoAnswer, setPendingNoAnswer] = useState(false);
@@ -164,6 +173,7 @@ export default function MessagesPage() {
             pendingNoAnswer={pendingNoAnswer}
             onNoAnswerHandled={() => setPendingNoAnswer(false)}
             userId={user?.id}
+            senderName={profile?.full_name || undefined}
             onBack={() => setMobilePanel("list")}
             onInfoToggle={() => setMobilePanel("info")}
           />

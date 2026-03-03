@@ -23,6 +23,15 @@ export function GroomerMessagesTab({ staffId }: GroomerMessagesTabProps) {
   const [pendingNoAnswer, setPendingNoAnswer] = useState(false);
   const [mobilePanel, setMobilePanel] = useState<MobilePanel>("list");
 
+  const { data: staffRecord } = useQuery({
+    queryKey: ["staff-name", staffId],
+    queryFn: async () => {
+      const { data } = await supabase.from("staff").select("name").eq("id", staffId).maybeSingle();
+      return data;
+    },
+    enabled: !!staffId,
+  });
+
   // Customers from groomer's bookings only
   const { data: rawCustomers } = useQuery({
     queryKey: ["groomer-msg-customers", staffId],
@@ -133,6 +142,7 @@ export function GroomerMessagesTab({ staffId }: GroomerMessagesTabProps) {
           pendingNoAnswer={pendingNoAnswer}
           onNoAnswerHandled={() => setPendingNoAnswer(false)}
           userId={user?.id}
+          senderName={staffRecord?.name || undefined}
           onBack={() => setMobilePanel("list")}
           onInfoToggle={() => setMobilePanel("info")}
         />
