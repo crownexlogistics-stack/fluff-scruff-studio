@@ -92,7 +92,7 @@ serve(async (req) => {
           <p style="color: #666;">If the button doesn't work, copy and paste this link into your browser:</p>
           <p style="color: #2563eb; word-break: break-all;">${signing_url}</p>
           <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
-          <p style="color: #999; font-size: 12px;">Fluff & Scruff Studio · 138 Hillview Avenue, Hornchurch RM11 2DL</p>
+          <p style="color: #999; font-size: 12px;">Fluff & Scruff Studio · 138 Hillview Avenue, Hornchurch RM11 2DL · 01708 606655</p>
         </div>
       `);
 
@@ -127,7 +127,7 @@ serve(async (req) => {
             </a>
           </p>
           <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
-          <p style="color: #999; font-size: 12px;">Fluff & Scruff Studio · 138 Hillview Avenue, Hornchurch RM11 2DL</p>
+          <p style="color: #999; font-size: 12px;">Fluff & Scruff Studio · 138 Hillview Avenue, Hornchurch RM11 2DL · 01708 606655</p>
         </div>
       `);
 
@@ -156,7 +156,7 @@ serve(async (req) => {
           <p style="color: #666;">If the button doesn't work, copy and paste this link into your browser:</p>
           <p style="color: #2563eb; word-break: break-all;">${signing_url}</p>
           <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
-          <p style="color: #999; font-size: 12px;">Fluff & Scruff Studio · 138 Hillview Avenue, Hornchurch RM11 2DL</p>
+          <p style="color: #999; font-size: 12px;">Fluff & Scruff Studio · 138 Hillview Avenue, Hornchurch RM11 2DL · 01708 606655</p>
         </div>
       `);
 
@@ -195,7 +195,7 @@ serve(async (req) => {
             </a>
           </p>
           <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
-          <p style="color: #999; font-size: 12px;">Fluff & Scruff Studio · 138 Hillview Avenue, Hornchurch RM11 2DL</p>
+          <p style="color: #999; font-size: 12px;">Fluff & Scruff Studio · 138 Hillview Avenue, Hornchurch RM11 2DL · 01708 606655</p>
         </div>
       `);
 
@@ -231,7 +231,7 @@ serve(async (req) => {
           </p>
           <p style="color: #666; font-size: 14px;">If you didn't expect this, please contact the salon.</p>
           <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
-          <p style="color: #999; font-size: 12px;">Fluff & Scruff Studio · 138 Hillview Avenue, Hornchurch RM11 2DL</p>
+          <p style="color: #999; font-size: 12px;">Fluff & Scruff Studio · 138 Hillview Avenue, Hornchurch RM11 2DL · 01708 606655</p>
         </div>
       `);
 

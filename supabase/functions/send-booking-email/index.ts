@@ -82,11 +82,12 @@ serve(async (req) => {
           </table>
           <p style="background: #f8f8f8; padding: 16px; border-radius: 8px; margin: 16px 0;">
             📍 <strong>Fluff & Scruff Studio</strong><br/>
-            138 Hillview Avenue, Hornchurch RM11 2DL
+            138 Hillview Avenue, Hornchurch RM11 2DL<br/>
+            📞 <a href="tel:01708606655" style="color: #1a1a1a;">01708 606655</a> · WhatsApp: <a href="https://wa.me/447476452782" style="color: #1a1a1a;">+44 7476 452782</a>
           </p>
           <p style="color: #666;">Need to make changes or cancel? You can do this from your profile up to 48 hours before your appointment. If your appointment is less than 48 hours away, please call or email us directly at <a href="mailto:info@fluffandscruff.co.uk" style="color: #1a1a1a;">info@fluffandscruff.co.uk</a>.</p>
           <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
-          <p style="color: #999; font-size: 12px;">Fluff & Scruff Studio · 138 Hillview Avenue, Hornchurch RM11 2DL</p>
+          <p style="color: #999; font-size: 12px;">Fluff & Scruff Studio · 138 Hillview Avenue, Hornchurch RM11 2DL · 01708 606655</p>
         </div>
       `;
     } else if (email_type === "reminder_24h") {
@@ -102,11 +103,12 @@ serve(async (req) => {
           <p><strong>Service:</strong> ${serviceName}</p>
           <p style="background: #f8f8f8; padding: 16px; border-radius: 8px;">
             📍 <strong>Fluff & Scruff Studio</strong><br/>
-            138 Hillview Avenue, Hornchurch RM11 2DL
+            138 Hillview Avenue, Hornchurch RM11 2DL<br/>
+            📞 <a href="tel:01708606655" style="color: #1a1a1a;">01708 606655</a> · WhatsApp: <a href="https://wa.me/447476452782" style="color: #1a1a1a;">+44 7476 452782</a>
           </p>
           <p style="color: #666;">Need to reschedule? Reply to this email and we'll help.</p>
           <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
-          <p style="color: #999; font-size: 12px;">Fluff & Scruff Studio · 138 Hillview Avenue, Hornchurch RM11 2DL</p>
+          <p style="color: #999; font-size: 12px;">Fluff & Scruff Studio · 138 Hillview Avenue, Hornchurch RM11 2DL · 01708 606655</p>
         </div>
       `;
     } else if (email_type === "reminder_2h") {
@@ -118,11 +120,12 @@ serve(async (req) => {
           <p><strong>${booking.dog_name}</strong> is due at the studio at <strong>${timeFormatted}</strong> today.</p>
           <p style="background: #f8f8f8; padding: 16px; border-radius: 8px;">
             📍 <strong>Fluff & Scruff Studio</strong><br/>
-            138 Hillview Avenue, Hornchurch RM11 2DL
+            138 Hillview Avenue, Hornchurch RM11 2DL<br/>
+            📞 <a href="tel:01708606655" style="color: #1a1a1a;">01708 606655</a> · WhatsApp: <a href="https://wa.me/447476452782" style="color: #1a1a1a;">+44 7476 452782</a>
           </p>
           <p style="color: #666;">Running late? Reply to this email to let us know.</p>
           <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
-          <p style="color: #999; font-size: 12px;">Fluff & Scruff Studio · 138 Hillview Avenue, Hornchurch RM11 2DL</p>
+          <p style="color: #999; font-size: 12px;">Fluff & Scruff Studio · 138 Hillview Avenue, Hornchurch RM11 2DL · 01708 606655</p>
         </div>
       `;
     } else if (email_type === "appointment_updated") {
@@ -141,11 +144,12 @@ serve(async (req) => {
           </table>
           <p style="background: #f8f8f8; padding: 16px; border-radius: 8px; margin: 16px 0;">
             📍 <strong>Fluff & Scruff Studio</strong><br/>
-            138 Hillview Avenue, Hornchurch RM11 2DL
+            138 Hillview Avenue, Hornchurch RM11 2DL<br/>
+            📞 <a href="tel:01708606655" style="color: #1a1a1a;">01708 606655</a> · WhatsApp: <a href="https://wa.me/447476452782" style="color: #1a1a1a;">+44 7476 452782</a>
           </p>
           <p style="color: #666;">Questions? Simply reply to this email and we'll help.</p>
           <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
-          <p style="color: #999; font-size: 12px;">Fluff & Scruff Studio · 138 Hillview Avenue, Hornchurch RM11 2DL</p>
+          <p style="color: #999; font-size: 12px;">Fluff & Scruff Studio · 138 Hillview Avenue, Hornchurch RM11 2DL · 01708 606655</p>
         </div>
       `;
     } else {

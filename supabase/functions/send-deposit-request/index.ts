@@ -140,11 +140,12 @@ serve(async (req) => {
 
         <p style="background: #f8f8f8; padding: 16px; border-radius: 8px; margin: 16px 0;">
           📍 <strong>Fluff & Scruff Studio</strong><br/>
-          138 Hillview Avenue, Hornchurch RM11 2DL
+          138 Hillview Avenue, Hornchurch RM11 2DL<br/>
+          📞 <a href="tel:01708606655" style="color: #1a1a1a;">01708 606655</a> · WhatsApp: <a href="https://wa.me/447476452782" style="color: #1a1a1a;">+44 7476 452782</a>
         </p>
         <p style="color: #666;">Questions? Reply to this email and we'll help.</p>
         <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
-        <p style="color: #999; font-size: 12px;">Fluff & Scruff Studio · 138 Hillview Avenue, Hornchurch RM11 2DL</p>
+        <p style="color: #999; font-size: 12px;">Fluff & Scruff Studio · 138 Hillview Avenue, Hornchurch RM11 2DL · 01708 606655</p>
       </div>
     `;
 

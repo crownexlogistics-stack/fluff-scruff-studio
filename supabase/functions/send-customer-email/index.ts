@@ -38,7 +38,7 @@ serve(async (req) => {
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
         ${body.replace(/\n/g, "<br/>")}
         <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
-        <p style="color: #999; font-size: 12px;">Fluff & Scruff Studio · 138 Hillview Avenue, Hornchurch RM11 2DL</p>
+        <p style="color: #999; font-size: 12px;">Fluff & Scruff Studio · 138 Hillview Avenue, Hornchurch RM11 2DL · 01708 606655</p>
       </div>
     `;
 
