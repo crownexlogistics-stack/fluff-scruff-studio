@@ -230,7 +230,7 @@ function OwnBookingPopover({ booking, color, onViewOrder, onEditAppointment, onC
         )}
 
         {/* Request Deposit for unpaid appointments */}
-        {deposit === 0 && booking.customer_email && booking.status !== "Cancelled" && booking.status !== "No Show" && (
+        {deposit === 0 && booking.customer_email && booking.status !== "Cancelled" && booking.status !== "No Show" && booking.status !== "Refunded" && (
           <div className="border-t pt-3">
             <Button
               variant="outline"
@@ -413,7 +413,8 @@ export function GroomerCalendar({ currentDate, daysToShow, staff, bookings, curr
 
                         const isCancelled = booking.status === "Cancelled";
                         const isNoShow = booking.status === "No Show";
-                        const isGhost = isNoShow || isCancelled;
+                        const isRefunded = booking.status === "Refunded";
+                        const isGhost = isNoShow || isCancelled || isRefunded;
                         const height = isGhost ? 16 : durationHours * SLOT_HEIGHT;
                         const color = isGhost ? { bg: "bg-muted", text: "text-muted-foreground" } : getStaffColor(staffIdx);
 
@@ -539,7 +540,7 @@ export function GroomerCalendar({ currentDate, daysToShow, staff, bookings, curr
                                >
                                  {isGhost ? (
                                    <p className="font-medium truncate">
-                                     {booking.customer_name} — {isCancelled ? "Cancelled" : "No Show"}
+                                     {booking.customer_name} — {isRefunded ? "Refunded" : isCancelled ? "Cancelled" : "No Show"}
                                    </p>
                                  ) : (
                                    <>

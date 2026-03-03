@@ -562,7 +562,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
           .from("bookings")
           .select("booking_time, staff_id, services(duration_minutes), breeds(duration_minutes)")
           .eq("booking_date", selectedDate!)
-          .not("status", "in", "(Cancelled,No Show)"),
+          .not("status", "in", "(Cancelled,No Show,Refunded)"),
         supabase
           .from("staff_schedule_overrides")
           .select("staff_id, override_date, start_time, end_time, is_working")
@@ -711,7 +711,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
         .from("bookings")
         .select("booking_time, staff_id, status, services(duration_minutes), breeds(duration_minutes)")
         .eq("booking_date", selectedDate)
-        .not("status", "in", "(Cancelled,No Show)");
+        .not("status", "in", "(Cancelled,No Show,Refunded)");
       if (error) throw error;
       return (data || []) as ExistingBooking[];
     },

@@ -61,7 +61,8 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
   const [requestingDeposit, setRequestingDeposit] = useState(false);
   const isCancelled = booking.status === "Cancelled";
   const isNoShow = booking.status === "No Show";
-  const isGhost = isNoShow || isCancelled;
+  const isRefunded = booking.status === "Refunded";
+  const isGhost = isNoShow || isCancelled || isRefunded;
   const color = isGhost ? { bg: "bg-muted", text: "text-muted-foreground" } : getStaffColor(staffIndex);
   const timeParts = booking.booking_time.split(":");
   const hour = parseInt(timeParts[0]);
@@ -194,7 +195,7 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
         >
           {isGhost ? (
             <p className="font-medium truncate text-[10px]">
-              {booking.customer_name} — {isCancelled ? "Cancelled" : "No Show"}
+              {booking.customer_name} — {isRefunded ? "Refunded" : isCancelled ? "Cancelled" : "No Show"}
             </p>
           ) : (
             <>
@@ -324,7 +325,7 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
           )}
 
           {/* Request Deposit for internally booked, unpaid appointments */}
-          {Number(booking.deposit_paid) === 0 && booking.customer_email && booking.status !== "Cancelled" && booking.status !== "No Show" && (
+          {Number(booking.deposit_paid) === 0 && booking.customer_email && booking.status !== "Cancelled" && booking.status !== "No Show" && booking.status !== "Refunded" && (
             <div className="border-t pt-3">
               <Button
                 variant="outline"
@@ -382,7 +383,7 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
             <Button variant="outline" size="sm" onClick={() => onBookAgain?.(booking)}>
               Book Again
             </Button>
-            {booking.status !== "Completed" && booking.status !== "No Show" && booking.status !== "Cancelled" && (
+            {booking.status !== "Completed" && booking.status !== "No Show" && booking.status !== "Cancelled" && booking.status !== "Refunded" && (
               <Button size="sm" onClick={() => onCheckout?.(booking)}>
                 Check Out
               </Button>
