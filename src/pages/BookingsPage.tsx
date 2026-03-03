@@ -28,8 +28,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { CustomerSearchBar } from "@/components/booking-calendar/CustomerSearchBar";
+import { useAuth } from "@/hooks/useAuth";
+import { useUserRole } from "@/hooks/useUserRole";
 
 const BookingsPage = () => {
+  const { user } = useAuth();
+  const { role: userRole } = useUserRole(user?.id);
   const queryClient = useQueryClient();
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -261,18 +265,20 @@ const BookingsPage = () => {
   // Cancel booking mutation
   const cancelBookingMutation = useMutation({
     mutationFn: async (booking: BookingData) => {
-      const { error } = await supabase.from("bookings").update({ status: "Cancelled" }).eq("id", booking.id);
+      // Use cancel-with-refund edge function for auto-refund if 48h+ away
+      const { data, error } = await supabase.functions.invoke("cancel-booking-with-refund", {
+        body: { booking_id: booking.id, cancelled_by: "staff" },
+      });
       if (error) throw error;
-      logAudit({ staffId: booking.staff_id, action: "BOOKING_CANCELLED", details: `Cancelled booking for ${booking.customer_name} (${booking.dog_name}) on ${format(new Date(booking.booking_date), "dd MMM yyyy")} at ${booking.booking_time?.slice(0, 5) || "?"}. Total: £${Number(booking.total_price).toFixed(2)}. Deposit: £${Number(booking.deposit_paid).toFixed(2)}.` });
-      // Notify groomer
-      if (booking.staff_id) {
-        supabase.functions.invoke("notify-groomer", {
-          body: { booking_id: booking.id, notification_type: "booking_cancelled" },
-        }).catch(() => {});
-      }
+      if (data?.error) throw new Error(data.error);
+      return { booking, result: data };
     },
-    onSuccess: () => {
-      toast.success("Booking cancelled");
+    onSuccess: ({ booking, result }) => {
+      if (result?.refunded) {
+        toast.success(`Booking cancelled. Refund of £${result.refund_amount?.toFixed(2)} processed automatically (48h+ policy). Please advise the customer: "Your appointment has been cancelled and your deposit has been refunded. It should appear in your account within 5-10 business days."`);
+      } else {
+        toast.success(`Booking cancelled. Deposit of £${Number(booking.deposit_paid).toFixed(2)} retained (within 48h). Please advise the customer: "Your appointment has been cancelled. As per our policy, the deposit is non-refundable for cancellations within 48 hours."`);
+      }
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
       queryClient.invalidateQueries({ queryKey: ["audit-logs"] });
       setCancelConfirmOpen(false);
@@ -426,6 +432,8 @@ const BookingsPage = () => {
         open={viewOrderOpen}
         onOpenChange={setViewOrderOpen}
         booking={viewOrderBooking}
+        userRole={userRole}
+        onRefundComplete={() => queryClient.invalidateQueries({ queryKey: ["bookings"] })}
       />
 
       <EditAppointmentDialog

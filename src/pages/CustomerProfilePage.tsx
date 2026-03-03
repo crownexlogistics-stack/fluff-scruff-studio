@@ -29,6 +29,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { logAudit } from "@/lib/auditLog";
 import { NewAppointmentDialog } from "@/components/customer-profile/NewAppointmentDialog";
+import { ViewOrderDialog } from "@/components/booking-calendar/ViewOrderDialog";
 
 export default function CustomerProfilePage() {
   const { email } = useParams<{ email: string }>();
@@ -49,6 +50,8 @@ export default function CustomerProfilePage() {
   const [newMessage, setNewMessage] = useState("");
   const [emailSubject, setEmailSubject] = useState("");
   const [emailBody, setEmailBody] = useState("");
+  const [viewBookingOpen, setViewBookingOpen] = useState(false);
+  const [viewBookingData, setViewBookingData] = useState<any>(null);
 
   // Pet edit dialog
   const [editingPet, setEditingPet] = useState<any>(null);
@@ -741,7 +744,15 @@ export default function CustomerProfilePage() {
                     {upcomingBookings.length > 0 ? (
                       <div className="space-y-2">
                         {upcomingBookings.map((b) => (
-                          <BookingRow key={b.id} booking={b} onEdit={canManageCustomer ? () => openBookingEdit(b) : undefined} onCancel={canManageCustomer ? () => cancelBookingMutation.mutate(b.id) : undefined} showActions={canManageCustomer} />
+                          <BookingRow key={b.id} booking={b} onEdit={canManageCustomer ? () => openBookingEdit(b) : undefined} onCancel={canManageCustomer ? () => cancelBookingMutation.mutate(b.id) : undefined} showActions={canManageCustomer} onClick={() => {
+                            setViewBookingData({
+                              ...b,
+                              staff_name: (b.staff as any)?.name || "Unassigned",
+                              breed_name: (b.breed as any)?.name || "",
+                              service_name: (b.service as any)?.name || "",
+                            });
+                            setViewBookingOpen(true);
+                          }} />
                         ))}
                       </div>
                     ) : <EmptyBookings />}
@@ -750,7 +761,15 @@ export default function CustomerProfilePage() {
                     {pastBookings.length > 0 ? (
                       <div className="space-y-2">
                         {pastBookings.map((b) => (
-                          <BookingRow key={b.id} booking={b} />
+                          <BookingRow key={b.id} booking={b} onClick={() => {
+                            setViewBookingData({
+                              ...b,
+                              staff_name: (b.staff as any)?.name || "Unassigned",
+                              breed_name: (b.breed as any)?.name || "",
+                              service_name: (b.service as any)?.name || "",
+                            });
+                            setViewBookingOpen(true);
+                          }} />
                         ))}
                       </div>
                     ) : <EmptyBookings />}
@@ -999,6 +1018,15 @@ export default function CustomerProfilePage() {
         serviceId={bookings?.find((b) => !!b.service_id)?.service_id || ""}
         lastStaffId={bookings?.find((b) => !!b.staff_id)?.staff_id || ""}
       />
+
+      {/* ═══ VIEW BOOKING DETAILS DIALOG ═══ */}
+      <ViewOrderDialog
+        open={viewBookingOpen}
+        onOpenChange={setViewBookingOpen}
+        booking={viewBookingData}
+        userRole={role}
+        onRefundComplete={() => queryClient.invalidateQueries({ queryKey: ["customer-profile-bookings", decodedEmail] })}
+      />
     </Layout>
   );
 }
@@ -1016,13 +1044,16 @@ function MiniStat({ label, value }: { label: string; value: string }) {
   );
 }
 
-function BookingRow({ booking, onEdit, onCancel, showActions }: { booking: any; onEdit?: () => void; onCancel?: () => void; showActions?: boolean }) {
+function BookingRow({ booking, onEdit, onCancel, showActions, onClick }: { booking: any; onEdit?: () => void; onCancel?: () => void; showActions?: boolean; onClick?: () => void }) {
   const staffName = (booking.staff as any)?.name;
   const serviceName = (booking.service as any)?.name;
   const breedName = (booking.breed as any)?.name;
+  const deposit = Number(booking.deposit_paid);
+  const total = Number(booking.total_price);
+  const balanceDue = Math.max(0, total - deposit);
 
   return (
-    <div className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/30 transition-colors">
+    <div className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/30 transition-colors cursor-pointer" onClick={onClick}>
       <div className="min-w-0">
         <p className="text-sm font-medium">
           {serviceName || "Service"} — {booking.dog_name}
@@ -1037,13 +1068,18 @@ function BookingRow({ booking, onEdit, onCancel, showActions }: { booking: any; 
         <Badge variant={booking.status === "Confirmed" ? "default" : booking.status === "Completed" ? "secondary" : booking.status === "No Show" || booking.status === "Cancelled" ? "destructive" : "secondary"}>
           {booking.status}
         </Badge>
-        <span className="text-sm font-medium">£{Number(booking.total_price).toFixed(2)}</span>
+        <div className="text-right">
+          <span className="text-sm font-medium block">£{total.toFixed(2)}</span>
+          {balanceDue > 0 && booking.status !== "Cancelled" && booking.status !== "Refunded" && (
+            <span className="text-[10px] text-muted-foreground">Due: £{balanceDue.toFixed(2)}</span>
+          )}
+        </div>
         {showActions && (
           <>
-            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={onEdit} title="Edit">
+            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); onEdit?.(); }} title="Edit">
               <Pencil className="h-3.5 w-3.5" />
             </Button>
-            <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={onCancel} title="Cancel">
+            <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={(e) => { e.stopPropagation(); onCancel?.(); }} title="Cancel">
               <Ban className="h-3.5 w-3.5" />
             </Button>
           </>

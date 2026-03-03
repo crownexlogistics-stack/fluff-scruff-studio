@@ -151,6 +151,9 @@ export function BookingPopoverCard({
               <Badge variant="secondary">Deposit Paid</Badge>
             );
           }
+          if ((booking as any).stripe_payment_id && deposit === 0) {
+            return <Badge className="bg-amber-500 text-white hover:bg-amber-500">Deposit Requested</Badge>;
+          }
           return <Badge variant="destructive">NOT PAID</Badge>;
         })()}
       </div>
