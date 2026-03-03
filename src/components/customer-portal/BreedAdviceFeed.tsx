@@ -4,6 +4,7 @@ import { Bookmark, RefreshCw, Sparkles, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
+import { useState } from "react";
 
 interface BreedAdviceFeedProps {
   breedId: string | null;
@@ -20,13 +21,14 @@ interface AdviceTopic {
 export function BreedAdviceFeed({ breedId, breedName, userId }: BreedAdviceFeedProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  const { data: topics = [], isLoading, refetch, isFetching } = useQuery({
-    queryKey: ["breed-advice", breedId],
+  const { data: topics = [], isLoading, isFetching } = useQuery({
+    queryKey: ["breed-advice", breedId, refreshKey],
     queryFn: async () => {
       if (!breedId || !breedName) return [];
       const { data, error } = await supabase.functions.invoke("generate-breed-advice", {
-        body: { breed_id: breedId, breed_name: breedName },
+        body: { breed_id: breedId, breed_name: breedName, force_refresh: refreshKey > 0 },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -36,6 +38,10 @@ export function BreedAdviceFeed({ breedId, breedName, userId }: BreedAdviceFeedP
     staleTime: 1000 * 60 * 60,
     retry: 1,
   });
+
+  const handleRefresh = () => {
+    setRefreshKey((k) => k + 1);
+  };
 
   const { data: savedTitles = [] } = useQuery({
     queryKey: ["saved-advice-titles", userId],
@@ -90,7 +96,7 @@ export function BreedAdviceFeed({ breedId, breedName, userId }: BreedAdviceFeedP
           variant="ghost"
           size="sm"
           className="h-7 text-xs gap-1 text-muted-foreground"
-          onClick={() => refetch()}
+          onClick={handleRefresh}
           disabled={isFetching}
         >
           {isFetching ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
@@ -98,7 +104,7 @@ export function BreedAdviceFeed({ breedId, breedName, userId }: BreedAdviceFeedP
         </Button>
       </div>
 
-      {isLoading ? (
+      {isLoading || isFetching ? (
         <div className="flex flex-col items-center justify-center py-10 gap-3">
           <Loader2 className="h-6 w-6 animate-spin text-accent" />
           <p className="text-sm text-muted-foreground">Generating advice for your {breedName}...</p>
@@ -113,7 +119,7 @@ export function BreedAdviceFeed({ breedId, breedName, userId }: BreedAdviceFeedP
             const isSaved = savedTitles.includes(topic.title);
             return (
               <motion.div
-                key={idx}
+                key={`${refreshKey}-${idx}`}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: idx * 0.15, ease: "easeOut" }}

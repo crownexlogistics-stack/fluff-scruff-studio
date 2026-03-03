@@ -10,27 +10,29 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { breed_name, breed_id } = await req.json();
+    const { breed_name, breed_id, force_refresh } = await req.json();
     if (!breed_name || !breed_id) throw new Error("breed_name and breed_id required");
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    // Check cache first
-    const { data: cached } = await supabase
-      .from("breed_advice_cache")
-      .select("*")
-      .eq("breed_id", breed_id)
-      .gt("expires_at", new Date().toISOString())
-      .order("generated_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    // Check cache first (skip if force_refresh)
+    if (!force_refresh) {
+      const { data: cached } = await supabase
+        .from("breed_advice_cache")
+        .select("*")
+        .eq("breed_id", breed_id)
+        .gt("expires_at", new Date().toISOString())
+        .order("generated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-    if (cached) {
-      return new Response(JSON.stringify({ topics: cached.topics, cached: true }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      if (cached) {
+        return new Response(JSON.stringify({ topics: cached.topics, cached: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
     // Generate new advice via Lovable AI
