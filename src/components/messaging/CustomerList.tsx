@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { format, isToday, isYesterday } from "date-fns";
 import { cn } from "@/lib/utils";
+import { useUnreadSmsCount } from "@/hooks/useUnreadSmsCount";
 import type { CustomerContact } from "@/pages/MessagesPage";
 
 interface CustomerListProps {
@@ -20,6 +22,7 @@ function formatMessageDate(dateStr: string) {
 
 export function CustomerList({ customers, selectedPhone, onSelect }: CustomerListProps) {
   const [search, setSearch] = useState("");
+  const { unreadMap } = useUnreadSmsCount();
 
   const filtered = customers.filter((c) => {
     const q = search.toLowerCase();
@@ -60,14 +63,24 @@ export function CustomerList({ customers, selectedPhone, onSelect }: CustomerLis
               onClick={() => onSelect(c.customer_phone)}
             >
               <div className="flex items-center justify-between gap-2">
-                <span className="font-medium text-sm truncate">
+                <span className={cn(
+                  "font-medium text-sm truncate",
+                  (unreadMap.get(c.customer_phone) || 0) > 0 && "font-bold"
+                )}>
                   {c.customer_name}
                 </span>
-                {c.last_message_at && (
-                  <span className="text-[10px] text-muted-foreground shrink-0">
-                    {formatMessageDate(c.last_message_at)}
-                  </span>
-                )}
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {(unreadMap.get(c.customer_phone) || 0) > 0 && (
+                    <Badge variant="destructive" className="h-5 min-w-5 px-1.5 text-[10px] font-bold rounded-full">
+                      {unreadMap.get(c.customer_phone)}
+                    </Badge>
+                  )}
+                  {c.last_message_at && (
+                    <span className="text-[10px] text-muted-foreground">
+                      {formatMessageDate(c.last_message_at)}
+                    </span>
+                  )}
+                </div>
               </div>
               {c.last_message && (
                 <p className="text-xs text-muted-foreground truncate mt-0.5">

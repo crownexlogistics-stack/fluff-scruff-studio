@@ -8,6 +8,8 @@ import {
 import logo from "@/assets/logo-transparent.png";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/hooks/useAuth";
+import { useUnreadSmsCount } from "@/hooks/useUnreadSmsCount";
+import { Badge } from "@/components/ui/badge";
 import { useUserRole } from "@/hooks/useUserRole";
 import {
   Sidebar,
@@ -65,6 +67,7 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
   const { user, signOut } = useAuth();
   const { role } = useUserRole(user?.id);
+  const { totalUnread } = useUnreadSmsCount();
 
   return (
     <Sidebar collapsible="icon">
@@ -100,7 +103,12 @@ export function AppSidebar() {
                       activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
                     >
                       <item.icon className="mr-2 h-4 w-4" />
-                      {!collapsed && <span>{item.title}</span>}
+                      {!collapsed && <span className="flex-1">{item.title}</span>}
+                      {item.url === "/messages" && totalUnread > 0 && (
+                        <Badge variant="destructive" className="ml-auto h-5 min-w-5 px-1.5 text-[10px] font-bold rounded-full">
+                          {totalUnread > 99 ? "99+" : totalUnread}
+                        </Badge>
+                      )}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
