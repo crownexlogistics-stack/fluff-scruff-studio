@@ -60,7 +60,7 @@ serve(async (req) => {
       const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
       const amountPaid = paymentIntent.amount_received / 100; // Convert pence to pounds
 
-      // Get current booking to check total
+      // Get current booking to check total and avoid reopening closed bookings
       const { data: booking } = await supabaseAdmin
         .from("bookings")
         .select("customer_name, total_price, status")
@@ -68,16 +68,26 @@ serve(async (req) => {
         .single();
 
       const total = booking ? Number(booking.total_price) : 0;
-      const newStatus = amountPaid >= total && total > 0 ? "Confirmed" : "Confirmed";
+      const normalizedStatus = (booking?.status || "").trim().toLowerCase();
+      const isClosedStatus =
+        normalizedStatus.includes("refund") ||
+        normalizedStatus.includes("cancel") ||
+        normalizedStatus === "completed" ||
+        normalizedStatus === "no show";
 
-      // Save the payment intent ID AND the actual deposit amount
+      const updatePayload: { stripe_payment_id: string; deposit_paid: number; status?: string } = {
+        stripe_payment_id: paymentIntentId,
+        deposit_paid: amountPaid,
+      };
+
+      if (!isClosedStatus) {
+        updatePayload.status = "Confirmed";
+      }
+
+      // Save payment details, but never overwrite closed states like Cancelled/Refunded
       await supabaseAdmin
         .from("bookings")
-        .update({
-          stripe_payment_id: paymentIntentId,
-          deposit_paid: amountPaid,
-          status: newStatus,
-        })
+        .update(updatePayload)
         .eq("id", booking_id);
 
       if (booking) {

@@ -58,20 +58,52 @@ serve(async (req) => {
     if (bookingError || !booking) throw new Error("Booking not found");
     if (!booking.stripe_payment_id) throw new Error("No Stripe payment found for this booking");
 
+    const normalizedStatus = (booking.status || "").trim().toLowerCase();
+    if (normalizedStatus.includes("refund")) {
+      throw new Error("Booking is already refunded");
+    }
+
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
 
-    // Process refund via Stripe
-    const refund = await stripe.refunds.create({
-      payment_intent: booking.stripe_payment_id,
-    });
+    let refund: Stripe.Refund;
+
+    // Process refund via Stripe (idempotent fallback for already-refunded intents)
+    try {
+      refund = await stripe.refunds.create({
+        payment_intent: booking.stripe_payment_id,
+      });
+    } catch (stripeError: any) {
+      const message = String(stripeError?.message || "").toLowerCase();
+      const alreadyRefunded =
+        message.includes("already been refunded") ||
+        message.includes("already refunded") ||
+        message.includes("charge has already been refunded");
+
+      if (!alreadyRefunded) throw stripeError;
+
+      const existingRefunds = await stripe.refunds.list({
+        payment_intent: booking.stripe_payment_id,
+        limit: 1,
+      });
+
+      if (!existingRefunds.data.length) {
+        throw new Error("Payment appears refunded in Stripe but no refund record was returned");
+      }
+
+      refund = existingRefunds.data[0];
+    }
 
     const refundAmount = refund.amount / 100;
 
-    // Update booking status
-    await supabaseAdmin
+    // Update booking status (must succeed)
+    const { error: updateError } = await supabaseAdmin
       .from("bookings")
       .update({ status: "Refunded" })
       .eq("id", booking_id);
+
+    if (updateError) {
+      throw new Error(`Refunded in Stripe but failed to update booking status: ${updateError.message}`);
+    }
 
     // Log audit trail
     await supabaseAdmin
