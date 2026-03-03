@@ -30,6 +30,11 @@ const quickTemplates = [
     label: "Thank you",
     text: "Thank you for visiting Fluff & Scruff Studio today! We hope to see you and your pet again soon.",
   },
+  {
+    label: "Review request",
+    text: "Hi! It was a pleasure seeing you and your dog at Fluff & Scruff Studio today. If you have a moment, we would really appreciate it if you could leave us a quick review on Google here: https://g.page/r/CSjHrD5mAbRBEBM/review - Thank you so much for your support!",
+    icon: "⭐",
+  },
 ];
 
 interface CustomerSidebarProps {
