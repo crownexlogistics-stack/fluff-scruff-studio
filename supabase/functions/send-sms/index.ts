@@ -22,11 +22,19 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { phone, body, bookingId, senderName } = await req.json();
-    if (!phone || !body) {
+    const { phone: rawPhone, body, bookingId, senderName } = await req.json();
+    if (!rawPhone || !body) {
       return new Response(JSON.stringify({ error: "phone and body are required" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // Convert UK local numbers to E.164 format
+    let phone = rawPhone.trim();
+    if (phone.startsWith("0")) {
+      phone = "+44" + phone.slice(1);
+    } else if (!phone.startsWith("+")) {
+      phone = "+44" + phone;
     }
 
     // Send via Twilio REST API using Messaging Service SID
