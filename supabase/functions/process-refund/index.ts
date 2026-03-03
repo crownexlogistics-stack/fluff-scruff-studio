@@ -20,23 +20,26 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    // Verify the caller is a director
+    // Verify the caller is authenticated
     const authHeader = req.headers.get("authorization");
-    if (!authHeader) throw new Error("Not authenticated");
+    if (!authHeader?.startsWith("Bearer ")) throw new Error("Not authenticated");
 
     const supabaseAuth = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
-      global: { headers: { authorization: authHeader } },
+      global: { headers: { Authorization: authHeader } },
     });
 
-    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
-    if (authError || !user) throw new Error("Not authenticated");
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await supabaseAuth.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims) throw new Error("Not authenticated");
+
+    const userId = claimsData.claims.sub as string;
 
     // Check director role
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
     const { data: roleData } = await supabaseAdmin
       .from("user_roles")
       .select("role")
-      .eq("user_id", user.id)
+      .eq("user_id", userId)
       .eq("role", "director")
       .maybeSingle();
 
@@ -72,7 +75,7 @@ serve(async (req) => {
     await supabaseAdmin
       .from("audit_logs")
       .insert({
-        user_id: user.id,
+        user_id: userId,
         action: "REFUND_PROCESSED",
         details: `Refunded £${(refund.amount / 100).toFixed(2)} for ${booking.customer_name}. Stripe Refund ID: ${refund.id}. Original Payment: ${booking.stripe_payment_id}`,
       });

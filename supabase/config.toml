@@ -56,3 +56,24 @@ verify_jwt = false
 
 [functions.receive-sms]
 verify_jwt = false
+
+[functions.process-refund]
+verify_jwt = false
+
+[functions.record-payment]
+verify_jwt = false
+
+[functions.cancel-booking-with-refund]
+verify_jwt = false
+
+[functions.calculate-commission]
+verify_jwt = false
+
+[functions.attribute-campaign-bookings]
+verify_jwt = false
+
+[functions.sign-document]
+verify_jwt = false
+
+[functions.google-reviews]
+verify_jwt = false
