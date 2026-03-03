@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { logAudit } from "@/lib/auditLog";
-import { format, addDays, startOfDay } from "date-fns";
+import { format, addDays, startOfDay, startOfWeek } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -46,7 +46,7 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
   const isMobile = useIsMobile();
   const queryClient = useQueryClient();
   const [viewMode, setViewMode] = useState<ViewMode>(() => isMobile ? "3day" : "7day");
-  const [currentDate, setCurrentDate] = useState(() => startOfDay(new Date()));
+  const [currentDate, setCurrentDate] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
 
   // Dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -324,13 +324,13 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
       {/* Controls */}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-1">
-          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setCurrentDate(d => addDays(d, -daysToShow))}>
+          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setCurrentDate(d => addDays(d, viewMode === "7day" ? -7 : -daysToShow))}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setCurrentDate(startOfDay(new Date()))}>
+          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setCurrentDate(viewMode === "7day" ? startOfWeek(new Date(), { weekStartsOn: 1 }) : startOfDay(new Date()))}>
             Today
           </Button>
-          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setCurrentDate(d => addDays(d, daysToShow))}>
+          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setCurrentDate(d => addDays(d, viewMode === "7day" ? 7 : daysToShow))}>
             <ChevronRight className="h-4 w-4" />
           </Button>
           <span className="text-sm font-medium ml-2">
@@ -343,7 +343,7 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
         <div className="flex items-center gap-1 bg-muted rounded-lg p-0.5">
           <Button variant={viewMode === "1day" ? "default" : "ghost"} size="sm" className="h-7 text-xs" onClick={() => setViewMode("1day")}>1 Day</Button>
           <Button variant={viewMode === "3day" ? "default" : "ghost"} size="sm" className="h-7 text-xs" onClick={() => setViewMode("3day")}>3 Day</Button>
-          <Button variant={viewMode === "7day" ? "default" : "ghost"} size="sm" className="h-7 text-xs" onClick={() => setViewMode("7day")}>7 Day</Button>
+          <Button variant={viewMode === "7day" ? "default" : "ghost"} size="sm" className="h-7 text-xs" onClick={() => { setViewMode("7day"); setCurrentDate(startOfWeek(new Date(), { weekStartsOn: 1 })); }}>7 Day</Button>
           <Button variant={viewMode === "list" ? "default" : "ghost"} size="sm" className="h-7 text-xs gap-1" onClick={() => setViewMode("list")}>
             <List className="h-3 w-3" /> List
           </Button>
