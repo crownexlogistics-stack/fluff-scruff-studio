@@ -6,21 +6,27 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { ArrowLeft, Search, CalendarPlus } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Search, Dog } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import logo from "@/assets/logo-transparent.png";
+import { CustomerHeader } from "@/components/customer-portal/CustomerHeader";
+import { BottomNavDock, type PortalTab } from "@/components/customer-portal/BottomNavDock";
 import { PetStoryIcons } from "@/components/my-account/PetStoryIcons";
 import { PetHeroCard } from "@/components/my-account/PetHeroCard";
+import { UpcomingAppointmentCard } from "@/components/customer-portal/UpcomingAppointmentCard";
+import { BreedAdviceFeed } from "@/components/customer-portal/BreedAdviceFeed";
+import { BookingsTab } from "@/components/customer-portal/BookingsTab";
+import { PicturesTab } from "@/components/customer-portal/PicturesTab";
+import { AdviceTab } from "@/components/customer-portal/AdviceTab";
 import { PawsitiveGallery } from "@/components/my-account/PawsitiveGallery";
 import { GroomersCorner } from "@/components/my-account/GroomersCorner";
-import { BookingTimeline } from "@/components/my-account/BookingTimeline";
 
 const MyPetsPage = () => {
   const { user, signOut } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = useState<PortalTab>("pets");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [petName, setPetName] = useState("");
   const [breedSearch, setBreedSearch] = useState("");
@@ -49,24 +55,21 @@ const MyPetsPage = () => {
         .eq("user_id", user!.id)
         .order("created_at");
       if (error) throw error;
-      return data.map((p: any) => ({
-        ...p,
-        breed_name: p.breeds?.name || null,
-      }));
+      return data.map((p: any) => ({ ...p, breed_name: p.breeds?.name || null }));
     },
     enabled: !!user?.id,
   });
 
-  // Fetch bookings
+  // Fetch bookings with financial data
   const { data: bookings = [] } = useQuery({
     queryKey: ["my-bookings", user?.email],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("bookings")
-        .select("id, dog_name, booking_date, booking_time, status, service_id, breed_id, services(name), staff:staff_id(name)")
+        .select("id, dog_name, booking_date, booking_time, status, service_id, breed_id, total_price, deposit_paid, notes, customer_name, customer_email, customer_phone, services(name), staff:staff_id(name)")
         .eq("customer_email", user!.email)
         .order("booking_date", { ascending: false })
-        .limit(30);
+        .limit(50);
       if (error) throw error;
       return data;
     },
@@ -75,9 +78,7 @@ const MyPetsPage = () => {
 
   // Auto-select first pet
   useEffect(() => {
-    if (pets.length > 0 && !selectedPetId) {
-      setSelectedPetId(pets[0].id);
-    }
+    if (pets.length > 0 && !selectedPetId) setSelectedPetId(pets[0].id);
   }, [pets, selectedPetId]);
 
   const selectedPet = pets.find((p: any) => p.id === selectedPetId);
@@ -97,6 +98,23 @@ const MyPetsPage = () => {
     enabled: !!selectedPetId,
   });
 
+  // Fetch ALL photos for all pets (for Pictures tab)
+  const { data: allPhotos = [] } = useQuery({
+    queryKey: ["all-pet-photos", user?.id],
+    queryFn: async () => {
+      const petIds = pets.map((p: any) => p.id);
+      if (petIds.length === 0) return [];
+      const { data, error } = await supabase
+        .from("pet_photos")
+        .select("*")
+        .in("pet_id", petIds)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    enabled: pets.length > 0,
+  });
+
   // Fetch recommendations for selected pet
   const { data: recommendations = [] } = useQuery({
     queryKey: ["pet-recommendations", selectedPetId],
@@ -112,14 +130,16 @@ const MyPetsPage = () => {
     enabled: !!selectedPetId,
   });
 
-  // Get first photo as profile
   const profilePhoto = photos.length > 0 ? photos[0].photo_url : null;
-
-  // Count bookings for this pet
   const petBookings = selectedPet
     ? bookings.filter((b: any) => b.dog_name?.toLowerCase() === selectedPet.pet_name?.toLowerCase())
     : [];
-  const allPetBookings = selectedPet ? petBookings : bookings;
+
+  // Find next upcoming booking
+  const upcomingBooking = bookings.find((b: any) => {
+    const status = (b.status || "").trim();
+    return ["Confirmed", "Pending"].includes(status) && new Date(b.booking_date) >= new Date(new Date().toDateString());
+  });
 
   const filteredBreeds = breedSearch.length > 0
     ? breeds.filter((b: any) => b.name.toLowerCase().includes(breedSearch.toLowerCase()))
@@ -175,87 +195,16 @@ const MyPetsPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <nav className="sticky top-0 z-50 glass border-b border-border/50">
-        <div className="max-w-lg mx-auto px-4 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button onClick={() => navigate("/")} className="text-muted-foreground hover:text-foreground transition-colors">
-              <ArrowLeft className="h-5 w-5" />
-            </button>
-            <img src={logo} alt="Fluff & Scruff" className="h-9 w-auto" />
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => navigate("/book")}
-              className="text-primary-foreground font-semibold font-body text-sm px-6 py-2.5 rounded-full transition-all duration-300 shadow-md shadow-charcoal/15 hover:shadow-lg hover:shadow-charcoal/20 active:scale-[0.96]"
-              style={{ background: 'linear-gradient(135deg, hsl(220 10% 22%), hsl(220 10% 30%))' }}
-            >
-              <span className="flex items-center gap-1.5"><CalendarPlus className="h-3.5 w-3.5" /> Book</span>
-            </button>
-            <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={async () => { await signOut(); navigate("/"); }}>
-              Sign Out
-            </Button>
-          </div>
-        </div>
-      </nav>
+    <div className="min-h-screen bg-background pb-20">
+      <CustomerHeader user={user} signOut={signOut} />
 
       <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
-        {/* Pet Story Icons */}
+        {/* Pet Story Icons — always visible */}
         {loadingPets ? (
           <div className="flex justify-center py-8">
-            <div className="animate-spin h-6 w-6 border-4 border-primary border-t-transparent rounded-full" />
+            <div className="animate-spin h-6 w-6 border-4 border-accent border-t-transparent rounded-full" />
           </div>
-        ) : (
-          <PetStoryIcons
-            pets={pets.map((p: any) => ({
-              id: p.id,
-              pet_name: p.pet_name,
-              breed_name: p.breed_name,
-              profile_photo: photos.find((ph: any) => ph.pet_id === p.id)?.photo_url || null,
-            }))}
-            selectedPetId={selectedPetId}
-            onSelect={setSelectedPetId}
-            onAddPet={() => setDialogOpen(true)}
-          />
-        )}
-
-        {/* Selected Pet Content */}
-        {selectedPet && (
-          <>
-            {/* Hero Card */}
-            <PetHeroCard
-              petName={selectedPet.pet_name}
-              breedName={selectedPet.breed_name}
-              ageYears={selectedPet.dog_age_years}
-              ageMonths={selectedPet.dog_age_months}
-              profilePhoto={profilePhoto}
-              totalBookings={petBookings.length}
-              onUploadPhoto={() => profilePhotoRef.current?.click()}
-            />
-            <input ref={profilePhotoRef} type="file" accept="image/*" className="hidden" onChange={handleProfilePhotoUpload} />
-
-            {/* Pawsitive Gallery */}
-            {user && (
-              <PawsitiveGallery
-                petId={selectedPet.id}
-                petName={selectedPet.pet_name}
-                photos={photos}
-                userId={user.id}
-                onRefresh={refreshPhotos}
-              />
-            )}
-
-            {/* Groomer's Corner */}
-            <GroomersCorner
-              recommendations={recommendations}
-              petName={selectedPet.pet_name}
-            />
-          </>
-        )}
-
-        {/* No pets state */}
-        {!loadingPets && pets.length === 0 && (
+        ) : pets.length === 0 ? (
           <div className="text-center py-16">
             <div className="w-20 h-20 rounded-full bg-accent/10 flex items-center justify-center mx-auto mb-4">
               <span className="text-4xl">🐾</span>
@@ -266,11 +215,81 @@ const MyPetsPage = () => {
               Add Your First Pet
             </Button>
           </div>
-        )}
+        ) : (
+          <>
+            <PetStoryIcons
+              pets={pets.map((p: any) => ({
+                id: p.id,
+                pet_name: p.pet_name,
+                breed_name: p.breed_name,
+                profile_photo: allPhotos.find((ph: any) => ph.pet_id === p.id)?.photo_url || null,
+              }))}
+              selectedPetId={selectedPetId}
+              onSelect={setSelectedPetId}
+              onAddPet={() => setDialogOpen(true)}
+            />
 
-        {/* Booking Timeline */}
-        <BookingTimeline bookings={allPetBookings as any} />
+            {/* === PETS TAB (default) === */}
+            {activeTab === "pets" && selectedPet && (
+              <>
+                {/* Hero Card */}
+                <PetHeroCard
+                  petName={selectedPet.pet_name}
+                  breedName={selectedPet.breed_name}
+                  ageYears={selectedPet.dog_age_years}
+                  ageMonths={selectedPet.dog_age_months}
+                  profilePhoto={profilePhoto}
+                  totalBookings={petBookings.length}
+                  onUploadPhoto={() => profilePhotoRef.current?.click()}
+                />
+                <input ref={profilePhotoRef} type="file" accept="image/*" className="hidden" onChange={handleProfilePhotoUpload} />
+
+                {/* Upcoming Appointment */}
+                <UpcomingAppointmentCard booking={upcomingBooking || null} />
+
+                {/* AI Breed Advice Feed */}
+                {user && (
+                  <BreedAdviceFeed
+                    breedId={selectedPet.breed_id}
+                    breedName={selectedPet.breed_name}
+                    userId={user.id}
+                  />
+                )}
+
+                {/* Groomer's Corner */}
+                <GroomersCorner recommendations={recommendations} petName={selectedPet.pet_name} />
+              </>
+            )}
+
+            {/* === BOOKINGS TAB === */}
+            {activeTab === "bookings" && (
+              <BookingsTab bookings={bookings as any} userEmail={user?.email || undefined} />
+            )}
+
+            {/* === PICTURES TAB === */}
+            {activeTab === "pictures" && selectedPet && user && (
+              <>
+                <PawsitiveGallery
+                  petId={selectedPet.id}
+                  petName={selectedPet.pet_name}
+                  photos={photos}
+                  userId={user.id}
+                  onRefresh={refreshPhotos}
+                />
+                <PicturesTab photos={allPhotos} petName={selectedPet?.pet_name || "Your pet"} />
+              </>
+            )}
+
+            {/* === ADVICE TAB === */}
+            {activeTab === "advice" && user && (
+              <AdviceTab userId={user.id} />
+            )}
+          </>
+        )}
       </div>
+
+      {/* Bottom Nav Dock */}
+      <BottomNavDock activeTab={activeTab} onTabChange={setActiveTab} />
 
       {/* Add Pet Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
