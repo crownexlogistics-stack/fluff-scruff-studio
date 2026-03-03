@@ -5,18 +5,23 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { CustomerList } from "@/components/messaging/CustomerList";
 import { ChatWindow } from "@/components/messaging/ChatWindow";
 import { CustomerSidebar } from "@/components/messaging/CustomerSidebar";
+import { useIsMobile } from "@/hooks/use-mobile";
 import type { CustomerContact } from "@/pages/MessagesPage";
 
 interface GroomerMessagesTabProps {
   staffId: string;
 }
 
+type MobilePanel = "list" | "chat" | "info";
+
 export function GroomerMessagesTab({ staffId }: GroomerMessagesTabProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
   const [selectedPhone, setSelectedPhone] = useState<string | null>(null);
   const [templateText, setTemplateText] = useState("");
   const [pendingNoAnswer, setPendingNoAnswer] = useState(false);
+  const [mobilePanel, setMobilePanel] = useState<MobilePanel>("list");
 
   // Customers from groomer's bookings only
   const { data: rawCustomers } = useQuery({
@@ -45,7 +50,7 @@ export function GroomerMessagesTab({ staffId }: GroomerMessagesTabProps) {
     enabled: !!staffId,
   });
 
-  // Last messages per phone (RLS filters to groomer's customers)
+  // Last messages per phone
   const { data: lastMsgMap } = useQuery({
     queryKey: ["groomer-sms-last-messages"],
     queryFn: async () => {
@@ -100,30 +105,45 @@ export function GroomerMessagesTab({ staffId }: GroomerMessagesTabProps) {
 
   const selected = customers.find((c) => c.customer_phone === selectedPhone) || null;
 
+  const handleSelect = (phone: string) => {
+    setSelectedPhone(phone);
+    if (isMobile) setMobilePanel("chat");
+  };
+
   const handleTemplateSelect = (text: string, isNoAnswer?: boolean) => {
     setTemplateText(text);
     setPendingNoAnswer(!!isNoAnswer);
+    if (isMobile) setMobilePanel("chat");
   };
 
   return (
-    <div className="h-[calc(100vh-14rem)] flex border border-border rounded-lg overflow-hidden">
-      <CustomerList
-        customers={customers}
-        selectedPhone={selectedPhone}
-        onSelect={setSelectedPhone}
-      />
-      <ChatWindow
-        customer={selected}
-        templateText={templateText}
-        onTemplateClear={() => setTemplateText("")}
-        pendingNoAnswer={pendingNoAnswer}
-        onNoAnswerHandled={() => setPendingNoAnswer(false)}
-        userId={user?.id}
-      />
-      <CustomerSidebar
-        customer={selected}
-        onTemplateSelect={handleTemplateSelect}
-      />
+    <div className="h-[calc(100vh-14rem)] md:h-[calc(100vh-14rem)] flex border border-border rounded-lg overflow-hidden">
+      {(!isMobile || mobilePanel === "list") && (
+        <CustomerList
+          customers={customers}
+          selectedPhone={selectedPhone}
+          onSelect={handleSelect}
+        />
+      )}
+      {(!isMobile || mobilePanel === "chat") && (
+        <ChatWindow
+          customer={selected}
+          templateText={templateText}
+          onTemplateClear={() => setTemplateText("")}
+          pendingNoAnswer={pendingNoAnswer}
+          onNoAnswerHandled={() => setPendingNoAnswer(false)}
+          userId={user?.id}
+          onBack={() => setMobilePanel("list")}
+          onInfoToggle={() => setMobilePanel("info")}
+        />
+      )}
+      {(!isMobile || mobilePanel === "info") && (
+        <CustomerSidebar
+          customer={selected}
+          onTemplateSelect={handleTemplateSelect}
+          onBack={() => setMobilePanel("chat")}
+        />
+      )}
     </div>
   );
 }

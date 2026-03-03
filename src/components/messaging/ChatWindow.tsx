@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Send, MessageSquare } from "lucide-react";
+import { Send, MessageSquare, ArrowLeft, Info } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -17,6 +17,9 @@ interface ChatWindowProps {
   pendingNoAnswer: boolean;
   onNoAnswerHandled: () => void;
   userId?: string;
+  className?: string;
+  onBack?: () => void;
+  onInfoToggle?: () => void;
 }
 
 export function ChatWindow({
@@ -26,6 +29,9 @@ export function ChatWindow({
   pendingNoAnswer,
   onNoAnswerHandled,
   userId,
+  className,
+  onBack,
+  onInfoToggle,
 }: ChatWindowProps) {
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
@@ -104,7 +110,7 @@ export function ChatWindow({
 
   if (!customer) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-muted/10">
+      <div className={cn("flex-1 flex items-center justify-center bg-muted/10 hidden md:flex", className)}>
         <div className="text-center text-muted-foreground">
           <MessageSquare className="h-12 w-12 mx-auto mb-3 opacity-30" />
           <p className="text-sm">Select a customer to start messaging</p>
@@ -114,13 +120,23 @@ export function ChatWindow({
   }
 
   return (
-    <div className="flex-1 flex flex-col min-w-0">
+    <div className={cn("flex-1 flex flex-col min-w-0", className)}>
       {/* Header */}
-      <div className="h-14 border-b border-border flex items-center px-4 gap-3 shrink-0 bg-background">
-        <div>
-          <p className="font-medium text-sm">{customer.customer_name}</p>
+      <div className="h-14 border-b border-border flex items-center px-3 gap-2 shrink-0 bg-background">
+        {onBack && (
+          <Button variant="ghost" size="icon" className="shrink-0 md:hidden h-8 w-8" onClick={onBack}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+        )}
+        <div className="flex-1 min-w-0">
+          <p className="font-medium text-sm truncate">{customer.customer_name}</p>
           <p className="text-xs text-muted-foreground">{customer.customer_phone}</p>
         </div>
+        {onInfoToggle && (
+          <Button variant="ghost" size="icon" className="shrink-0 md:hidden h-8 w-8" onClick={onInfoToggle}>
+            <Info className="h-4 w-4" />
+          </Button>
+        )}
       </div>
 
       {/* Messages */}
@@ -140,7 +156,7 @@ export function ChatWindow({
             >
               <div
                 className={cn(
-                  "max-w-[70%] rounded-2xl px-3.5 py-2 text-sm shadow-sm",
+                  "max-w-[80%] md:max-w-[70%] rounded-2xl px-3.5 py-2 text-sm shadow-sm",
                   m.direction === "outbound"
                     ? "bg-primary text-primary-foreground rounded-br-md"
                     : "bg-card border border-border rounded-bl-md"
