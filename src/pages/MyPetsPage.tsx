@@ -232,17 +232,6 @@ const MyPetsPage = () => {
             {/* === PETS TAB (default) === */}
             {activeTab === "pets" && selectedPet && (
               <>
-                {/* Hero Card */}
-                <PetHeroCard
-                  petName={selectedPet.pet_name}
-                  breedName={selectedPet.breed_name}
-                  ageYears={selectedPet.dog_age_years}
-                  ageMonths={selectedPet.dog_age_months}
-                  profilePhoto={profilePhoto}
-                  totalBookings={petBookings.length}
-                  onUploadPhoto={() => profilePhotoRef.current?.click()}
-                />
-                <input ref={profilePhotoRef} type="file" accept="image/*" className="hidden" onChange={handleProfilePhotoUpload} />
 
                 {/* Upcoming Appointment */}
                 <UpcomingAppointmentCard booking={upcomingBooking || null} />
