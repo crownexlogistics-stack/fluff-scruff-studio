@@ -186,9 +186,13 @@ const MyPetsPage = () => {
             <img src={logo} alt="Fluff & Scruff" className="h-9 w-auto" />
           </div>
           <div className="flex items-center gap-2">
-            <Button size="sm" className="h-8 gap-1.5 bg-accent text-accent-foreground" onClick={() => navigate("/book")}>
-              <CalendarPlus className="h-3.5 w-3.5" /> Book
-            </Button>
+            <button
+              onClick={() => navigate("/book")}
+              className="text-primary-foreground font-semibold font-body text-sm px-6 py-2.5 rounded-full transition-all duration-300 shadow-md shadow-charcoal/15 hover:shadow-lg hover:shadow-charcoal/20 active:scale-[0.96]"
+              style={{ background: 'linear-gradient(135deg, hsl(220 10% 22%), hsl(220 10% 30%))' }}
+            >
+              <span className="flex items-center gap-1.5"><CalendarPlus className="h-3.5 w-3.5" /> Book</span>
+            </button>
             <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={async () => { await signOut(); navigate("/"); }}>
               Sign Out
             </Button>
