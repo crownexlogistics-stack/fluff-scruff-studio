@@ -53,3 +53,6 @@ verify_jwt = false
 
 [functions.send-sms-reminders]
 verify_jwt = false
+
+[functions.receive-sms]
+verify_jwt = false
