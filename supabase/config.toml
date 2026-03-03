@@ -41,3 +41,12 @@ verify_jwt = false
 
 [functions.sendgrid-webhook]
 verify_jwt = false
+
+[functions.send-sms]
+verify_jwt = false
+
+[functions.run-automations]
+verify_jwt = false
+
+[functions.pick-ab-winner]
+verify_jwt = false
