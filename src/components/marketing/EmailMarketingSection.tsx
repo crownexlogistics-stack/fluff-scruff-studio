@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import {
   Sparkles, Send, Eye, Save, Users, UserMinus, Crown, UserX,
-  Loader2, Mail, FileText, CheckCircle2, AlertCircle
+  Loader2, Mail, FileText, CheckCircle2, AlertCircle, Wand2, Paperclip, X
 } from "lucide-react";
 
 type Segment = "all" | "one-timers" | "lost-regulars" | "vips";
@@ -36,6 +36,11 @@ export function EmailMarketingSection() {
   const [showPreview, setShowPreview] = useState(false);
   const [selectedSegment, setSelectedSegment] = useState<Segment>("all");
   const [activeTab, setActiveTab] = useState("create");
+
+  // AI Refine state
+  const [refineInstruction, setRefineInstruction] = useState("");
+  const [refineImage, setRefineImage] = useState<string | null>(null);
+  const [refineImageName, setRefineImageName] = useState("");
 
   // Fetch all bookings for segmentation
   const { data: bookings } = useQuery({
@@ -135,6 +140,46 @@ export function EmailMarketingSection() {
     },
     onError: (err: Error) => toast.error(err.message),
   });
+
+  // AI Refine mutation
+  const refineMutation = useMutation({
+    mutationFn: async ({ instruction, imageBase64 }: { instruction: string; imageBase64?: string | null }) => {
+      const { data, error } = await supabase.functions.invoke("generate-campaign-email", {
+        body: {
+          mode: "refine",
+          currentHtml: generatedHtml,
+          editInstruction: instruction,
+          imageBase64: imageBase64 || undefined,
+        },
+      });
+      if (error) throw error;
+      if (data.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: (data) => {
+      if (data.subject) setGeneratedSubject(data.subject);
+      if (data.html) setGeneratedHtml(data.html);
+      if (data.previewText) setPreviewText(data.previewText);
+      setRefineInstruction("");
+      setRefineImage(null);
+      setRefineImageName("");
+      toast.success("Email refined successfully!");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const handleRefineImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 4 * 1024 * 1024) {
+      toast.error("Image must be under 4MB");
+      return;
+    }
+    setRefineImageName(file.name);
+    const reader = new FileReader();
+    reader.onloadend = () => setRefineImage(reader.result as string);
+    reader.readAsDataURL(file);
+  };
 
   // Save as draft
   const saveDraftMutation = useMutation({
@@ -310,6 +355,48 @@ export function EmailMarketingSection() {
                   className="mt-2 min-h-[200px] font-mono text-xs"
                 />
               </details>
+
+              {/* AI Refine Section */}
+              <div className="border rounded-lg p-4 space-y-3 bg-muted/20">
+                <div className="flex items-center gap-2">
+                  <Wand2 className="h-4 w-4 text-amber-500" />
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">AI Refine</label>
+                </div>
+                <Textarea
+                  placeholder="Tell AI what to change... e.g. 'Make the header pink', 'Add a winter theme', 'Use the attached image as the hero banner'"
+                  value={refineInstruction}
+                  onChange={e => setRefineInstruction(e.target.value)}
+                  className="min-h-[70px] resize-none text-sm"
+                />
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Button
+                    onClick={() => refineMutation.mutate({ instruction: refineInstruction, imageBase64: refineImage })}
+                    disabled={!refineInstruction.trim() || refineMutation.isPending}
+                    size="sm"
+                    className="gap-1.5"
+                  >
+                    {refineMutation.isPending ? (
+                      <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Refining...</>
+                    ) : (
+                      <><Wand2 className="h-3.5 w-3.5" /> Apply Changes</>
+                    )}
+                  </Button>
+                  <label className="cursor-pointer">
+                    <input type="file" accept="image/*" className="hidden" onChange={handleRefineImageUpload} />
+                    <Button variant="outline" size="sm" className="gap-1.5 pointer-events-none" tabIndex={-1}>
+                      <Paperclip className="h-3.5 w-3.5" /> Attach Image
+                    </Button>
+                  </label>
+                  {refineImageName && (
+                    <div className="flex items-center gap-1.5 text-xs bg-muted px-2 py-1 rounded-md">
+                      <span className="truncate max-w-[150px]">{refineImageName}</span>
+                      <button onClick={() => { setRefineImage(null); setRefineImageName(""); }} className="hover:text-destructive">
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
             </CardContent>
           </Card>
         )}
