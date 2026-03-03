@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { UsersRound, BarChart3, Tags, Search, Facebook, Mail } from "lucide-react";
 import { CustomersSection } from "@/components/marketing/CustomersSection";
+import { EmailMarketingSection } from "@/components/marketing/EmailMarketingSection";
 
 const Placeholder = ({ title, icon: Icon }: { title: string; icon: React.ElementType }) => (
   <Card>
@@ -34,7 +35,7 @@ export default function MarketingPage() {
           <Route path="discounts" element={<Placeholder title="Discounts" icon={Tags} />} />
           <Route path="seo" element={<Placeholder title="SEO" icon={Search} />} />
           <Route path="social" element={<Placeholder title="Facebook & Instagram Campaigns" icon={Facebook} />} />
-          <Route path="email" element={<Placeholder title="Email Marketing" icon={Mail} />} />
+          <Route path="email" element={<EmailMarketingSection />} />
         </Routes>
       </div>
     </AppLayout>
