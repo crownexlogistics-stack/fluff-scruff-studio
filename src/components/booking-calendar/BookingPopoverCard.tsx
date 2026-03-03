@@ -6,7 +6,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { getStaffColor } from "./staffColors";
-import { Pencil, Trash2, MoreHorizontal, Eye, PenLine, XCircle, Send, CheckCircle2, RotateCcw } from "lucide-react";
+import { Pencil, Trash2, MoreHorizontal, Eye, PenLine, XCircle, Send, CheckCircle2, RotateCcw, MessageSquare } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { logAudit } from "@/lib/auditLog";
@@ -189,7 +189,17 @@ export function BookingPopoverCard({
         </div>
       )}
 
-      {/* Details */}
+      {/* SMS Reminder Status */}
+      <div className="flex items-center gap-3 text-xs">
+        <div className="flex items-center gap-1">
+          <MessageSquare className={cn("h-3 w-3", (booking as any).sms_24h_sent ? "text-emerald-500" : "text-muted-foreground/40")} />
+          <span className={cn((booking as any).sms_24h_sent ? "text-emerald-600 font-medium" : "text-muted-foreground/50")}>24h SMS</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <MessageSquare className={cn("h-3 w-3", (booking as any).sms_2h_sent ? "text-emerald-500" : "text-muted-foreground/40")} />
+          <span className={cn((booking as any).sms_2h_sent ? "text-emerald-600 font-medium" : "text-muted-foreground/50")}>2h SMS</span>
+        </div>
+      </div>
       <div className="text-sm space-y-1">
         <p>{format(new Date(booking.booking_date), "EEE, MMM d")} • {booking.booking_time.slice(0, 5)}</p>
       </div>
