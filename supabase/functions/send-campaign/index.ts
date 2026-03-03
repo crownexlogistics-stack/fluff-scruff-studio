@@ -48,7 +48,18 @@ serve(async (req) => {
 
       const promises = batch.map(async (email: string) => {
         const unsubUrl = `${unsubscribeBaseUrl}?email=${encodeURIComponent(email)}`;
-        const personalizedHtml = htmlBody.replace(/\{\{UNSUBSCRIBE_URL\}\}/g, unsubUrl);
+        // Inject UTM campaign tracking into booking links
+        let personalizedHtml = htmlBody.replace(/\{\{UNSUBSCRIBE_URL\}\}/g, unsubUrl);
+        if (campaignId) {
+          // Add utm_campaign param to any /book links
+          personalizedHtml = personalizedHtml.replace(
+            /(https?:\/\/[^"']*\/book)(?:\?([^"']*))?/g,
+            (match: string, base: string, existing: string) => {
+              const sep = existing ? `${base}?${existing}&` : `${base}?`;
+              return `${sep}utm_campaign=${campaignId}`;
+            }
+          );
+        }
 
         const res = await fetch("https://api.sendgrid.com/v3/mail/send", {
           method: "POST",
@@ -79,6 +90,9 @@ serve(async (req) => {
         emails_sent: sent,
         sent_at: new Date().toISOString(),
       }).eq("id", campaignId);
+
+      // Trigger attribution processing asynchronously
+      supabase.functions.invoke("attribute-campaign-bookings").catch(() => {});
     }
 
     return new Response(JSON.stringify({ success: true, sent, skipped: emails.length - validEmails.length }), {

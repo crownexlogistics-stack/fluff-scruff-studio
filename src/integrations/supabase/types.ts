@@ -155,6 +155,7 @@ export type Database = {
           booking_date: string
           booking_time: string
           breed_id: string | null
+          campaign_id: string | null
           created_at: string
           customer_email: string | null
           customer_name: string
@@ -176,6 +177,7 @@ export type Database = {
           booking_date: string
           booking_time: string
           breed_id?: string | null
+          campaign_id?: string | null
           created_at?: string
           customer_email?: string | null
           customer_name: string
@@ -197,6 +199,7 @@ export type Database = {
           booking_date?: string
           booking_time?: string
           breed_id?: string | null
+          campaign_id?: string | null
           created_at?: string
           customer_email?: string | null
           customer_name?: string
@@ -220,6 +223,13 @@ export type Database = {
             columns: ["breed_id"]
             isOneToOne: false
             referencedRelation: "breeds"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookings_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "email_campaigns"
             referencedColumns: ["id"]
           },
           {
@@ -270,6 +280,48 @@ export type Database = {
           size_category?: string
         }
         Relationships: []
+      }
+      campaign_attributions: {
+        Row: {
+          attribution_type: string
+          booking_id: string
+          campaign_id: string
+          created_at: string
+          id: string
+          revenue: number
+        }
+        Insert: {
+          attribution_type?: string
+          booking_id: string
+          campaign_id: string
+          created_at?: string
+          id?: string
+          revenue?: number
+        }
+        Update: {
+          attribution_type?: string
+          booking_id?: string
+          campaign_id?: string
+          created_at?: string
+          id?: string
+          revenue?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_attributions_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_attributions_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "email_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       commission_records: {
         Row: {

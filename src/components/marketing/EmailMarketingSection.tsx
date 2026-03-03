@@ -26,6 +26,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle
 } from "@/components/ui/alert-dialog";
+import { CampaignROIDashboard } from "./CampaignROIDashboard";
 
 type Segment = "all" | "one-timers" | "lost-regulars" | "vips";
 type CampaignFolder = "sent" | "drafts" | "templates" | "scheduled";
@@ -368,6 +369,7 @@ export function EmailMarketingSection() {
         <TabsList>
           <TabsTrigger value="create" className="gap-1.5"><Sparkles className="h-3.5 w-3.5" /> Create</TabsTrigger>
           <TabsTrigger value="campaigns" className="gap-1.5"><FolderOpen className="h-3.5 w-3.5" /> Campaign Library</TabsTrigger>
+          <TabsTrigger value="roi" className="gap-1.5"><Mail className="h-3.5 w-3.5" /> ROI & Attribution</TabsTrigger>
         </TabsList>
 
         {/* ── CREATE TAB ─────────────────────────────── */}
@@ -548,6 +550,11 @@ export function EmailMarketingSection() {
               </CardContent>
             </Card>
           )}
+        </TabsContent>
+
+        {/* ── ROI & ATTRIBUTION TAB ─────────────────── */}
+        <TabsContent value="roi">
+          <CampaignROIDashboard />
         </TabsContent>
 
         {/* ── CAMPAIGN LIBRARY TAB ─────────────────────── */}
