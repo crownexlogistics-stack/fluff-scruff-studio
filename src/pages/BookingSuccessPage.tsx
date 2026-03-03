@@ -44,13 +44,11 @@ export default function BookingSuccessPage() {
   // Update booking status to Confirmed on successful payment, record Stripe payment, and send emails
   useEffect(() => {
     if (booking && booking.status === "Pending" && bookingId) {
-      supabase.from("bookings").update({ status: "Confirmed" }).eq("id", bookingId).then(() => {
-        queryClient.invalidateQueries({ queryKey: ["booking-success", bookingId] });
-      });
-
-      // Record Stripe payment intent ID for audit trail
+      // Record Stripe payment — this updates deposit_paid, stripe_payment_id, and status to Confirmed
       supabase.functions.invoke("record-payment", {
         body: { booking_id: bookingId },
+      }).then(() => {
+        queryClient.invalidateQueries({ queryKey: ["booking-success", bookingId] });
       }).catch(() => {});
 
       // Send confirmation email now that payment is confirmed

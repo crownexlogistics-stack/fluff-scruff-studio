@@ -56,24 +56,35 @@ serve(async (req) => {
     }
 
     if (paymentIntentId) {
-      // Save the payment intent ID to the booking
-      await supabaseAdmin
-        .from("bookings")
-        .update({ stripe_payment_id: paymentIntentId })
-        .eq("id", booking_id);
+      // Retrieve the actual amount paid from Stripe
+      const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+      const amountPaid = paymentIntent.amount_received / 100; // Convert pence to pounds
 
-      // Log the payment in audit
+      // Get current booking to check total
       const { data: booking } = await supabaseAdmin
         .from("bookings")
-        .select("customer_name, deposit_paid, total_price")
+        .select("customer_name, total_price, status")
         .eq("id", booking_id)
         .single();
+
+      const total = booking ? Number(booking.total_price) : 0;
+      const newStatus = amountPaid >= total && total > 0 ? "Confirmed" : "Confirmed";
+
+      // Save the payment intent ID AND the actual deposit amount
+      await supabaseAdmin
+        .from("bookings")
+        .update({
+          stripe_payment_id: paymentIntentId,
+          deposit_paid: amountPaid,
+          status: newStatus,
+        })
+        .eq("id", booking_id);
 
       if (booking) {
         await supabaseAdmin.from("audit_logs").insert({
           user_id: "00000000-0000-0000-0000-000000000000",
           action: "PAYMENT_RECORDED",
-          details: `Payment of £${Number(booking.deposit_paid).toFixed(2)} recorded for ${booking.customer_name}. Stripe Payment Intent: ${paymentIntentId}`,
+          details: `Payment of £${amountPaid.toFixed(2)} recorded for ${booking.customer_name}. Total: £${total.toFixed(2)}. Stripe Payment Intent: ${paymentIntentId}`,
         });
       }
     }
