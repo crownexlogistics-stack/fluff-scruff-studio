@@ -47,19 +47,27 @@ export function ChatWindow({
     }
   }, [templateText, onTemplateClear]);
 
+  // Normalize phone to E.164 for DB lookups
+  const normalizedPhone = (() => {
+    if (!customer?.customer_phone) return null;
+    const p = customer.customer_phone.trim();
+    if (p.startsWith("+")) return p;
+    if (p.startsWith("0")) return "+44" + p.slice(1);
+    return "+44" + p;
+  })();
+
   const { data: messages } = useQuery({
-    queryKey: ["sms-messages", customer?.customer_phone],
+    queryKey: ["sms-messages", normalizedPhone],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("sms_messages")
         .select("*")
-        .eq("phone_number", customer!.customer_phone)
-        .eq("direction", "outbound")
+        .eq("phone_number", normalizedPhone!)
         .order("created_at", { ascending: true });
       if (error) throw error;
       return data;
     },
-    enabled: !!customer?.customer_phone,
+    enabled: !!normalizedPhone,
     refetchInterval: 5000,
   });
 

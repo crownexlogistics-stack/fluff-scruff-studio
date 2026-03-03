@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { supabase } from "@/integrations/supabase/client";
@@ -103,14 +103,21 @@ export default function MessagesPage() {
     },
   });
 
+  const normalizePhone = useCallback((p: string) => {
+    const t = p.trim();
+    if (t.startsWith("+")) return t;
+    if (t.startsWith("0")) return "+44" + t.slice(1);
+    return "+44" + t;
+  }, []);
+
   // Enrich and sort customers
   const customers = useMemo(() => {
     if (!rawCustomers) return [];
     return rawCustomers
       .map((c) => ({
         ...c,
-        last_message: lastMsgMap?.get(c.customer_phone)?.body,
-        last_message_at: lastMsgMap?.get(c.customer_phone)?.created_at,
+        last_message: lastMsgMap?.get(normalizePhone(c.customer_phone))?.body,
+        last_message_at: lastMsgMap?.get(normalizePhone(c.customer_phone))?.created_at,
       }))
       .sort((a, b) => {
         if (a.last_message_at && b.last_message_at)
@@ -119,7 +126,7 @@ export default function MessagesPage() {
         if (b.last_message_at) return 1;
         return a.customer_name.localeCompare(b.customer_name);
       });
-  }, [rawCustomers, lastMsgMap]);
+  }, [rawCustomers, lastMsgMap, normalizePhone]);
 
   // Real-time subscription for SMS messages
   useEffect(() => {
