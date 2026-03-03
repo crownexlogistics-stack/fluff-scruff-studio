@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { format, isToday, isYesterday } from "date-fns";
 import { cn } from "@/lib/utils";
-import { useUnreadSmsCount } from "@/hooks/useUnreadSmsCount";
+import { useUnreadSmsCount, normalizePhoneToE164 } from "@/hooks/useUnreadSmsCount";
 import type { CustomerContact } from "@/pages/MessagesPage";
 
 interface CustomerListProps {
@@ -63,19 +63,19 @@ export function CustomerList({ customers, selectedPhone, onSelect, className }: 
               )}
               onClick={() => onSelect(c.customer_phone)}
             >
-              <div className="flex items-center justify-between gap-2">
-                <span className={cn(
-                  "font-medium text-sm truncate",
-                  (unreadMap.get(c.customer_phone) || 0) > 0 && "font-bold"
-                )}>
-                  {c.customer_name}
-                </span>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  {(unreadMap.get(c.customer_phone) || 0) > 0 && (
-                    <Badge variant="destructive" className="h-5 min-w-5 px-1.5 text-[10px] font-bold rounded-full">
-                      {unreadMap.get(c.customer_phone)}
-                    </Badge>
-                  )}
+                <div className="flex items-center justify-between gap-2">
+                  <span className={cn(
+                    "font-medium text-sm truncate",
+                    (unreadMap.get(normalizePhoneToE164(c.customer_phone)) || 0) > 0 && "font-bold"
+                  )}>
+                    {c.customer_name}
+                  </span>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {(unreadMap.get(normalizePhoneToE164(c.customer_phone)) || 0) > 0 && (
+                      <Badge variant="destructive" className="h-5 min-w-5 px-1.5 text-[10px] font-bold rounded-full">
+                        {unreadMap.get(normalizePhoneToE164(c.customer_phone))}
+                      </Badge>
+                    )}
                   {c.last_message_at && (
                     <span className="text-[10px] text-muted-foreground">
                       {formatMessageDate(c.last_message_at)}

@@ -2,6 +2,13 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
+export function normalizePhoneToE164(phoneNumber: string) {
+  const p = phoneNumber.trim();
+  if (p.startsWith("+")) return p;
+  if (p.startsWith("0")) return `+44${p.slice(1)}`;
+  return `+44${p}`;
+}
+
 export function useUnreadSmsCount() {
   const queryClient = useQueryClient();
 
@@ -16,7 +23,8 @@ export function useUnreadSmsCount() {
 
       const counts = new Map<string, number>();
       inbound?.forEach((m) => {
-        counts.set(m.phone_number, (counts.get(m.phone_number) || 0) + 1);
+        const normalized = normalizePhoneToE164(m.phone_number);
+        counts.set(normalized, (counts.get(normalized) || 0) + 1);
       });
 
       return counts;
@@ -45,7 +53,8 @@ export async function markConversationRead(phoneNumber: string) {
   await supabase
     .from("sms_messages")
     .update({ is_read: true })
-    .eq("phone_number", phoneNumber)
+    .eq("phone_number", normalizePhoneToE164(phoneNumber))
     .eq("direction", "inbound")
     .eq("is_read", false);
 }
+

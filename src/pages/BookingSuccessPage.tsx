@@ -113,7 +113,9 @@ export default function BookingSuccessPage() {
   const serviceName = (booking.service as any)?.name || "Grooming";
   const staffName = (booking.staff as any)?.name;
   const breedName = (booking.breed as any)?.name;
-  const isCancelled = booking.status === "Cancelled";
+  const status = (booking.status || "").trim();
+  const isRefunded = ["Refunded", "Refunded/Cancelled", "Cancelled/Refunded"].includes(status);
+  const isCancelled = status === "Cancelled" || isRefunded;
 
   return (
     <div className="min-h-screen bg-background">
@@ -146,8 +148,8 @@ export default function BookingSuccessPage() {
             <div className="flex items-center justify-center w-20 h-20 rounded-full bg-destructive/10 mx-auto">
               <Ban className="h-10 w-10 text-destructive" />
             </div>
-            <h1 className="text-2xl sm:text-3xl font-heading text-foreground">Booking Cancelled</h1>
-            <p className="text-muted-foreground text-sm">This appointment has been cancelled. Your deposit is non-refundable.</p>
+            <h1 className="text-2xl sm:text-3xl font-heading text-foreground">{isRefunded ? "Refunded & Cancelled" : "Booking Cancelled"}</h1>
+            <p className="text-muted-foreground text-sm">{isRefunded ? "Your refund has been processed and should arrive within 5–10 business days." : "This appointment has been cancelled. Your deposit is non-refundable."}</p>
           </div>
         )}
 
