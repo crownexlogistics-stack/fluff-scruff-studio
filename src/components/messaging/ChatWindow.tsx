@@ -7,6 +7,7 @@ import { Send, MessageSquare } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { markConversationRead } from "@/hooks/useUnreadSmsCount";
 import type { CustomerContact } from "@/pages/MessagesPage";
 
 interface ChatWindowProps {
@@ -60,6 +61,15 @@ export function ChatWindow({
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
+
+  // Mark inbound messages as read when conversation is opened/updated
+  useEffect(() => {
+    if (customer?.customer_phone && messages?.some((m) => m.direction === "inbound" && !m.is_read)) {
+      markConversationRead(customer.customer_phone).then(() => {
+        queryClient.invalidateQueries({ queryKey: ["sms-unread-counts"] });
+      });
+    }
+  }, [customer?.customer_phone, messages, queryClient]);
 
   const handleSend = async () => {
     if (!message.trim() || !customer?.customer_phone) return;
