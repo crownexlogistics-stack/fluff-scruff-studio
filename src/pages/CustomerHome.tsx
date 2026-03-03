@@ -167,7 +167,7 @@ const CustomerHome = () => {
               Book an Appointment
             </button>
             <a
-              href="tel:+441234567890"
+              href="tel:01708606655"
               className="flex items-center justify-center gap-2 border-2 border-foreground/8 bg-white/70 backdrop-blur-sm text-foreground font-semibold font-body text-base px-12 rounded-full hover:border-foreground/15 hover:bg-white/90 transition-all duration-300 active:scale-[0.97]"
               style={{ paddingTop: '0.9rem', paddingBottom: '0.9rem' }}
             >
@@ -201,7 +201,7 @@ const CustomerHome = () => {
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-heading text-foreground mb-3">Come Say Hello</h2>
             <p className="text-muted-foreground font-body max-w-sm mx-auto">We'd love to meet you and your pup!</p>
           </div>
-          <div className="grid sm:grid-cols-2 gap-6 max-w-2xl mx-auto">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-4xl mx-auto">
             <a
               href="https://www.google.com/maps/place/138+Hillview+Ave,+Hornchurch+RM11+2DL"
               target="_blank"
@@ -214,6 +214,19 @@ const CustomerHome = () => {
               <div>
                 <h3 className="font-semibold font-body text-foreground mb-1">Find Us</h3>
                 <p className="text-sm text-muted-foreground leading-relaxed">138 Hillview Avenue, Hornchurch RM11 2DL</p>
+              </div>
+            </a>
+            <a
+              href="tel:01708606655"
+              className="bg-card rounded-3xl border border-border/50 p-7 flex items-start gap-4 hover:shadow-xl hover:shadow-black/[0.04] hover:-translate-y-0.5 transition-all duration-300 shadow-sm shadow-black/[0.02] no-underline"
+            >
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-accent/8">
+                <Phone className="h-5 w-5 text-accent" />
+              </div>
+              <div>
+                <h3 className="font-semibold font-body text-foreground mb-1">Call Us</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">01708 606655</p>
+                <p className="text-xs text-muted-foreground mt-0.5">WhatsApp: +44 7476 452782</p>
               </div>
             </a>
             <div className="bg-card rounded-3xl border border-border/50 p-7 flex items-start gap-4 hover:shadow-xl hover:shadow-black/[0.04] hover:-translate-y-0.5 transition-all duration-300 shadow-sm shadow-black/[0.02]">

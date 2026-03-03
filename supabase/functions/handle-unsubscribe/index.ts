@@ -29,7 +29,7 @@ serve(async (req) => {
   <div style="font-size:48px;margin-bottom:16px;">🐾</div>
   <h1 style="color:#2D3142;margin-bottom:8px;">You've been unsubscribed</h1>
   <p style="color:#666;line-height:1.6;">You will no longer receive marketing emails from Fluff & Scruff Studio.</p>
-  <p style="color:#999;font-size:13px;margin-top:24px;">If this was a mistake, contact us at info@fluffandscruff.co.uk</p>
+  <p style="color:#999;font-size:13px;margin-top:24px;">If this was a mistake, contact us at info@fluffandscruff.co.uk or call 01708 606655</p>
 </div>
 </body>
 </html>`;
