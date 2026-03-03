@@ -151,8 +151,9 @@ export function BookingPopoverCard({
               <Badge variant="secondary">Deposit Paid</Badge>
             );
           }
+          // Has stripe_payment_id + deposit 0 = payment recorded but amount not synced (legacy)
           if ((booking as any).stripe_payment_id && deposit === 0) {
-            return <Badge className="bg-amber-500 text-white hover:bg-amber-500">Deposit Requested</Badge>;
+            return <Badge className="bg-emerald-600 text-white hover:bg-emerald-600">Payment Received</Badge>;
           }
           return <Badge variant="destructive">NOT PAID</Badge>;
         })()}
