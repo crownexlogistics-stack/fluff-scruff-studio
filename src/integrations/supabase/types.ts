@@ -236,6 +236,8 @@ export type Database = {
           notes: string | null
           referral_source: string | null
           service_id: string | null
+          sms_24h_sent: boolean
+          sms_2h_sent: boolean
           staff_id: string | null
           status: string
           stripe_payment_id: string | null
@@ -258,6 +260,8 @@ export type Database = {
           notes?: string | null
           referral_source?: string | null
           service_id?: string | null
+          sms_24h_sent?: boolean
+          sms_2h_sent?: boolean
           staff_id?: string | null
           status?: string
           stripe_payment_id?: string | null
@@ -280,6 +284,8 @@ export type Database = {
           notes?: string | null
           referral_source?: string | null
           service_id?: string | null
+          sms_24h_sent?: boolean
+          sms_2h_sent?: boolean
           staff_id?: string | null
           status?: string
           stripe_payment_id?: string | null

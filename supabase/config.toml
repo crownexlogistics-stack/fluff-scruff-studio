@@ -50,3 +50,6 @@ verify_jwt = false
 
 [functions.pick-ab-winner]
 verify_jwt = false
+
+[functions.send-sms-reminders]
+verify_jwt = false
