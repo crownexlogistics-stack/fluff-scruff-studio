@@ -322,6 +322,38 @@ export type Database = {
           },
         ]
       }
+      breed_advice_cache: {
+        Row: {
+          breed_id: string
+          expires_at: string
+          generated_at: string
+          id: string
+          topics: Json
+        }
+        Insert: {
+          breed_id: string
+          expires_at?: string
+          generated_at?: string
+          id?: string
+          topics?: Json
+        }
+        Update: {
+          breed_id?: string
+          expires_at?: string
+          generated_at?: string
+          id?: string
+          topics?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "breed_advice_cache_breed_id_fkey"
+            columns: ["breed_id"]
+            isOneToOne: false
+            referencedRelation: "breeds"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       breeds: {
         Row: {
           base_notes: string | null
@@ -1156,6 +1188,36 @@ export type Database = {
           id?: string
           status?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      saved_advice: {
+        Row: {
+          breed_name: string
+          content: string
+          created_at: string
+          icon: string | null
+          id: string
+          title: string
+          user_id: string
+        }
+        Insert: {
+          breed_name: string
+          content: string
+          created_at?: string
+          icon?: string | null
+          id?: string
+          title: string
+          user_id: string
+        }
+        Update: {
+          breed_name?: string
+          content?: string
+          created_at?: string
+          icon?: string | null
+          id?: string
+          title?: string
+          user_id?: string
         }
         Relationships: []
       }
