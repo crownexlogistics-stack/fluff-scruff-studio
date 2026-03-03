@@ -1,9 +1,9 @@
-import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Bookmark, RefreshCw, Sparkles, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { motion } from "framer-motion";
 
 interface BreedAdviceFeedProps {
   breedId: string | null;
@@ -21,7 +21,6 @@ export function BreedAdviceFeed({ breedId, breedName, userId }: BreedAdviceFeedP
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch advice (calls edge function which handles caching)
   const { data: topics = [], isLoading, refetch, isFetching } = useQuery({
     queryKey: ["breed-advice", breedId],
     queryFn: async () => {
@@ -34,11 +33,10 @@ export function BreedAdviceFeed({ breedId, breedName, userId }: BreedAdviceFeedP
       return (data?.topics || []) as AdviceTopic[];
     },
     enabled: !!breedId && !!breedName,
-    staleTime: 1000 * 60 * 60, // 1 hour client-side cache
+    staleTime: 1000 * 60 * 60,
     retry: 1,
   });
 
-  // Fetch saved advice IDs to check which are saved
   const { data: savedTitles = [] } = useQuery({
     queryKey: ["saved-advice-titles", userId],
     queryFn: async () => {
@@ -114,8 +112,11 @@ export function BreedAdviceFeed({ breedId, breedName, userId }: BreedAdviceFeedP
           {topics.map((topic, idx) => {
             const isSaved = savedTitles.includes(topic.title);
             return (
-              <div
+              <motion.div
                 key={idx}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: idx * 0.15, ease: "easeOut" }}
                 className="rounded-2xl border border-border/50 bg-card p-4 hover:shadow-md transition-shadow"
               >
                 <div className="flex items-start gap-3">
@@ -137,7 +138,7 @@ export function BreedAdviceFeed({ breedId, breedName, userId }: BreedAdviceFeedP
                     {isSaved ? "Saved" : "Save to My Advice"}
                   </Button>
                 </div>
-              </div>
+              </motion.div>
             );
           })}
         </div>
