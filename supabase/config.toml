@@ -35,3 +35,6 @@ verify_jwt = false
 
 [functions.handle-unsubscribe]
 verify_jwt = false
+
+[functions.send-scheduled-campaigns]
+verify_jwt = false
