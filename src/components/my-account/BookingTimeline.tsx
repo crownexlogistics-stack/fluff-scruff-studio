@@ -11,6 +11,8 @@ interface Booking {
   booking_time: string;
   status: string;
   services?: { name: string } | null;
+  service_id?: string | null;
+  breed_id?: string | null;
   staff?: { name: string } | null;
 }
 
@@ -131,7 +133,14 @@ export function BookingTimeline({ bookings }: BookingTimelineProps) {
                         size="sm"
                         variant="ghost"
                         className="mt-2 h-7 text-xs text-accent hover:text-accent gap-1"
-                        onClick={() => navigate("/book")}
+                        onClick={() => {
+                          const params = new URLSearchParams();
+                          const serviceName = (booking.services as any)?.name;
+                          if (serviceName) params.set("service", serviceName);
+                          if (booking.dog_name) params.set("dogName", booking.dog_name);
+                          if (booking.breed_id) params.set("breedId", booking.breed_id);
+                          navigate(`/book?${params.toString()}`);
+                        }}
                       >
                         <RotateCcw className="h-3 w-3" /> Rebook this Groom
                       </Button>

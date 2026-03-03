@@ -26,6 +26,8 @@ const MyPetsPage = () => {
   const [breedSearch, setBreedSearch] = useState("");
   const [selectedBreedId, setSelectedBreedId] = useState<string | null>(null);
   const [selectedPetId, setSelectedPetId] = useState<string | null>(null);
+  const profilePhotoRef = useRef<HTMLInputElement>(null);
+  const [uploadingProfile, setUploadingProfile] = useState(false);
 
   // Fetch breeds
   const { data: breeds = [] } = useQuery({
@@ -61,7 +63,7 @@ const MyPetsPage = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("bookings")
-        .select("id, dog_name, booking_date, booking_time, status, services(name), staff:staff_id(name)")
+        .select("id, dog_name, booking_date, booking_time, status, service_id, breed_id, services(name), staff:staff_id(name)")
         .eq("customer_email", user!.email)
         .order("booking_date", { ascending: false })
         .limit(30);
@@ -144,6 +146,34 @@ const MyPetsPage = () => {
 
   const refreshPhotos = () => queryClient.invalidateQueries({ queryKey: ["pet-photos", selectedPetId] });
 
+  const handleProfilePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user || !selectedPetId) return;
+    setUploadingProfile(true);
+    try {
+      const ext = file.name.split(".").pop();
+      const path = `${user.id}/${selectedPetId}/profile_${Date.now()}.${ext}`;
+      const { error: uploadError } = await supabase.storage.from("pet-photos").upload(path, file);
+      if (uploadError) throw uploadError;
+      const { data: { publicUrl } } = supabase.storage.from("pet-photos").getPublicUrl(path);
+      const { error: insertError } = await supabase.from("pet_photos").insert({
+        pet_id: selectedPetId,
+        user_id: user.id,
+        photo_url: publicUrl,
+        uploaded_by_role: "customer",
+        caption: "Profile photo",
+      });
+      if (insertError) throw insertError;
+      toast({ title: "Profile photo updated! 📸" });
+      refreshPhotos();
+    } catch (err: any) {
+      toast({ title: "Upload failed", description: err.message, variant: "destructive" });
+    } finally {
+      setUploadingProfile(false);
+      if (profilePhotoRef.current) profilePhotoRef.current.value = "";
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -197,7 +227,9 @@ const MyPetsPage = () => {
               ageMonths={selectedPet.dog_age_months}
               profilePhoto={profilePhoto}
               totalBookings={petBookings.length}
+              onUploadPhoto={() => profilePhotoRef.current?.click()}
             />
+            <input ref={profilePhotoRef} type="file" accept="image/*" className="hidden" onChange={handleProfilePhotoUpload} />
 
             {/* Pawsitive Gallery */}
             {user && (
