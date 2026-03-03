@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { ArrowLeft, Search, Dog, ChevronRight, PawPrint, Save, Move, Sparkles, Check, ChevronLeft, Calendar, Info, X, Lock, Ticket } from "lucide-react";
 import { generateAvailableSlots, dateHasAnyAvailability, findFreeGroomer, parseTimeToMinutes } from "@/lib/availability";
 import type { StaffAvailability, ScheduleOverride, ExistingBooking, Groomer } from "@/lib/availability";
@@ -82,6 +83,8 @@ const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "Ju
 
 export function BookingFlow({ service, onClose, preselectedBreedId, preselectedPetName, isNewCustomer, dogAgeYears, dogAgeMonths }: BookingFlowProps) {
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
+  const utmCampaignId = searchParams.get("utm_campaign") || null;
   const isExistingCustomer = !isNewCustomer && !!user;
   // Fetch matching service record from DB (for fixed-price services)
   const { data: dbService } = useQuery({
@@ -603,6 +606,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
       deposit_paid: 0,
       notes: guestForm.notes.trim() || null,
       status: "Pending",
+      campaign_id: utmCampaignId,
     }).select("id").single();
 
     if (error) {

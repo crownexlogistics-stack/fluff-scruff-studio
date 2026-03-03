@@ -1,0 +1,198 @@
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { TrendingUp, Target, PoundSterling, BarChart3, MousePointerClick, Clock } from "lucide-react";
+import { format } from "date-fns";
+
+interface Attribution {
+  campaign_id: string;
+  booking_id: string;
+  attribution_type: string;
+  revenue: number;
+  created_at: string;
+}
+
+interface CampaignWithStats {
+  id: string;
+  subject: string;
+  segment: string;
+  emails_sent: number;
+  sent_at: string | null;
+  status: string;
+  directBookings: number;
+  windowBookings: number;
+  totalBookings: number;
+  totalRevenue: number;
+  roi: number;
+}
+
+export function CampaignROIDashboard() {
+  const { data: campaigns } = useQuery({
+    queryKey: ["email-campaigns-sent"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("email_campaigns")
+        .select("id, subject, segment, emails_sent, sent_at, status")
+        .eq("status", "sent")
+        .order("sent_at", { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: attributions } = useQuery({
+    queryKey: ["campaign-attributions"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("campaign_attributions")
+        .select("campaign_id, booking_id, attribution_type, revenue, created_at");
+      if (error) throw error;
+      return data as Attribution[];
+    },
+  });
+
+  // Trigger attribution recalculation
+  const { refetch: refreshAttribution } = useQuery({
+    queryKey: ["trigger-attribution"],
+    queryFn: async () => {
+      await supabase.functions.invoke("attribute-campaign-bookings");
+      return true;
+    },
+    enabled: false,
+  });
+
+  // Build stats per campaign
+  const campaignStats: CampaignWithStats[] = (campaigns || []).map(c => {
+    const attrs = (attributions || []).filter(a => a.campaign_id === c.id);
+    const directBookings = attrs.filter(a => a.attribution_type === "direct").length;
+    const windowBookings = attrs.filter(a => a.attribution_type === "time_window").length;
+    const totalBookings = attrs.length;
+    const totalRevenue = attrs.reduce((sum, a) => sum + Number(a.revenue), 0);
+    const roi = c.emails_sent > 0 ? (totalBookings / c.emails_sent) * 100 : 0;
+
+    return { ...c, directBookings, windowBookings, totalBookings, totalRevenue, roi };
+  });
+
+  const totals = campaignStats.reduce(
+    (acc, c) => ({
+      campaigns: acc.campaigns + 1,
+      bookings: acc.bookings + c.totalBookings,
+      revenue: acc.revenue + c.totalRevenue,
+      emailsSent: acc.emailsSent + c.emails_sent,
+    }),
+    { campaigns: 0, bookings: 0, revenue: 0, emailsSent: 0 }
+  );
+
+  return (
+    <div className="space-y-6">
+      {/* Summary cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-muted-foreground mb-1">
+              <BarChart3 className="h-4 w-4" />
+              <span className="text-xs font-medium uppercase tracking-wider">Campaigns Sent</span>
+            </div>
+            <p className="text-2xl font-bold font-heading">{totals.campaigns}</p>
+            <p className="text-xs text-muted-foreground">{totals.emailsSent} total emails</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-muted-foreground mb-1">
+              <Target className="h-4 w-4" />
+              <span className="text-xs font-medium uppercase tracking-wider">Bookings Generated</span>
+            </div>
+            <p className="text-2xl font-bold font-heading">{totals.bookings}</p>
+            <p className="text-xs text-muted-foreground">
+              {totals.emailsSent > 0 ? ((totals.bookings / totals.emailsSent) * 100).toFixed(1) : "0"}% conversion
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-muted-foreground mb-1">
+              <PoundSterling className="h-4 w-4" />
+              <span className="text-xs font-medium uppercase tracking-wider">Revenue Attributed</span>
+            </div>
+            <p className="text-2xl font-bold font-heading">£{totals.revenue.toFixed(2)}</p>
+            <p className="text-xs text-muted-foreground">
+              {totals.bookings > 0 ? `£${(totals.revenue / totals.bookings).toFixed(2)} avg/booking` : "—"}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-muted-foreground mb-1">
+              <TrendingUp className="h-4 w-4" />
+              <span className="text-xs font-medium uppercase tracking-wider">Revenue per Email</span>
+            </div>
+            <p className="text-2xl font-bold font-heading">
+              £{totals.emailsSent > 0 ? (totals.revenue / totals.emailsSent).toFixed(2) : "0.00"}
+            </p>
+            <p className="text-xs text-muted-foreground">avg revenue per email sent</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Per-campaign breakdown */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <TrendingUp className="h-5 w-5" /> Campaign Performance
+            </CardTitle>
+            <button
+              onClick={() => refreshAttribution()}
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors underline"
+            >
+              Refresh attributions
+            </button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {campaignStats.length === 0 ? (
+            <p className="text-muted-foreground text-center py-8">No sent campaigns yet. Send your first campaign to see ROI data.</p>
+          ) : (
+            <div className="space-y-3">
+              {campaignStats.map(c => (
+                <div key={c.id} className="border rounded-lg p-4 space-y-2">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="min-w-0">
+                      <p className="font-medium text-sm truncate">{c.subject}</p>
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
+                        <span>Segment: {c.segment}</span>
+                        <span>{c.emails_sent} emails</span>
+                        {c.sent_at && <span>{format(new Date(c.sent_at), "d MMM yyyy")}</span>}
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-lg font-bold font-heading">£{c.totalRevenue.toFixed(2)}</p>
+                      <p className="text-xs text-muted-foreground">{c.totalBookings} booking{c.totalBookings !== 1 ? "s" : ""}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    <Badge variant="outline" className="gap-1 text-xs">
+                      <MousePointerClick className="h-3 w-3" />
+                      {c.directBookings} direct
+                    </Badge>
+                    <Badge variant="outline" className="gap-1 text-xs">
+                      <Clock className="h-3 w-3" />
+                      {c.windowBookings} within 7 days
+                    </Badge>
+                    <Badge variant={c.roi > 5 ? "default" : "secondary"} className="text-xs">
+                      {c.roi.toFixed(1)}% conversion
+                    </Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
