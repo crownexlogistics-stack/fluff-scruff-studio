@@ -177,12 +177,12 @@ const BookingsPage = () => {
 
       // Find the booking to calculate commission on TOTAL SERVICE PRICE (not final charge)
       const booking = bookings.find(b => b.id === bookingId);
-      if (booking && booking.staff_id) {
-        const rate = isOwnCustomer ? 0.5 : 0.4;
-        const totalPrice = Number(booking.total_price);
-        const groomerPay = Math.round(totalPrice * rate * 100) / 100;
-        const studioShare = Math.round((totalPrice - groomerPay) * 100) / 100;
+      const totalPrice = Number(booking?.total_price || 0);
+      const rate = isOwnCustomer ? 0.5 : 0.4;
+      const groomerPay = Math.round(totalPrice * rate * 100) / 100;
+      const studioShare = Math.round((totalPrice - groomerPay) * 100) / 100;
 
+      if (booking && booking.staff_id) {
         await supabase.from("commission_records").insert({
           booking_id: bookingId,
           staff_id: booking.staff_id,
@@ -196,7 +196,19 @@ const BookingsPage = () => {
         });
       }
 
-      logAudit({ action: "BOOKING_COMPLETED", details: `Completed booking ${bookingId}. Final charge: £${finalCharge.toFixed(2)}` });
+      const expectedRemaining = totalPrice - Number(booking?.deposit_paid || 0);
+      const chargeChanged = Math.abs(finalCharge - expectedRemaining) > 0.01;
+      const auditParts = [
+        `Completed booking for ${booking?.customer_name || "Unknown"} (${booking?.dog_name || "Unknown"}).`,
+        `Service: ${booking?.service_name || "Unknown"}.`,
+        `Total price: £${totalPrice.toFixed(2)}.`,
+        `Deposit: £${Number(booking?.deposit_paid || 0).toFixed(2)}.`,
+        chargeChanged
+          ? `⚠️ FINAL CHARGE ADJUSTED — Expected: £${expectedRemaining.toFixed(2)} → Actual: £${finalCharge.toFixed(2)}`
+          : `Final charge: £${finalCharge.toFixed(2)}.`,
+        `Commission: ${isOwnCustomer ? "Own Customer 50%" : "Standard 40%"} = £${groomerPay.toFixed(2)} groomer / £${studioShare.toFixed(2)} studio.`,
+      ];
+      logAudit({ staffId: booking?.staff_id, action: chargeChanged ? "BOOKING_COMPLETED_CHARGE_ADJUSTED" : "BOOKING_COMPLETED", details: auditParts.join(" ") });
     },
     onSuccess: () => {
       toast.success("Appointment completed");
@@ -233,7 +245,8 @@ const BookingsPage = () => {
         });
       }
 
-      logAudit({ action: "BOOKING_NO_SHOW", details: `Marked booking ${bookingId} as No Show` });
+      const noShowGroomerPay = booking ? Math.round(Number(booking.deposit_paid) * 0.5 * 100) / 100 : 0;
+      logAudit({ staffId: booking?.staff_id, action: "BOOKING_NO_SHOW", details: `No Show: ${booking?.customer_name || "Unknown"} (${booking?.dog_name || "Unknown"}) on ${booking ? format(new Date(booking.booking_date), "dd MMM yyyy") : "?"} at ${booking?.booking_time?.slice(0, 5) || "?"}. Deposit held: £${Number(booking?.deposit_paid || 0).toFixed(2)}. Groomer pay: £${noShowGroomerPay.toFixed(2)}.` });
       supabase.functions.invoke("send-booking-email", { body: { booking_id: bookingId, email_type: "no_show" } }).catch(() => {});
     },
     onSuccess: () => {
@@ -250,7 +263,7 @@ const BookingsPage = () => {
     mutationFn: async (booking: BookingData) => {
       const { error } = await supabase.from("bookings").update({ status: "Cancelled" }).eq("id", booking.id);
       if (error) throw error;
-      logAudit({ action: "BOOKING_CANCELLED", details: `Cancelled booking ${booking.id}` });
+      logAudit({ staffId: booking.staff_id, action: "BOOKING_CANCELLED", details: `Cancelled booking for ${booking.customer_name} (${booking.dog_name}) on ${format(new Date(booking.booking_date), "dd MMM yyyy")} at ${booking.booking_time?.slice(0, 5) || "?"}. Total: £${Number(booking.total_price).toFixed(2)}. Deposit: £${Number(booking.deposit_paid).toFixed(2)}.` });
       // Notify groomer
       if (booking.staff_id) {
         supabase.functions.invoke("notify-groomer", {

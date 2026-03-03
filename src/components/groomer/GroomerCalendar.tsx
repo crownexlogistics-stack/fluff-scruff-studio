@@ -9,6 +9,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { CalendarPlus, Ban, Clock, Pencil, Trash2, MoreHorizontal, Eye, PenLine, XCircle, Send, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { logAudit } from "@/lib/auditLog";
 import { useNavigate } from "react-router-dom";
 
 interface StaffMember {
@@ -244,6 +245,7 @@ function OwnBookingPopover({ booking, color, onViewOrder, onEditAppointment, onC
                   });
                   if (error) throw error;
                   toast.success("Deposit request email sent to " + booking.customer_email);
+                  logAudit({ staffId: booking.staff_id, action: "DEPOSIT_REQUEST_SENT", details: `Deposit request sent to ${booking.customer_email} for ${booking.customer_name} (${booking.dog_name}). Total: £${Number(booking.total_price).toFixed(2)}.` });
                 } catch (e: any) {
                   toast.error("Failed to send: " + e.message);
                 } finally {

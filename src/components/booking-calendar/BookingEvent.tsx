@@ -10,6 +10,7 @@ import { getStaffColor } from "./staffColors";
 import { Pencil, Trash2, MoreHorizontal, Eye, PenLine, XCircle, Send, CheckCircle2, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { logAudit } from "@/lib/auditLog";
 
 export interface BookingData {
   id: string;
@@ -324,6 +325,7 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
                     });
                     if (error) throw error;
                     toast.success("Deposit request email sent to " + booking.customer_email);
+                    logAudit({ staffId: booking.staff_id, action: "DEPOSIT_REQUEST_SENT", details: `Deposit request sent to ${booking.customer_email} for ${booking.customer_name} (${booking.dog_name}). Total: £${Number(booking.total_price).toFixed(2)}.` });
                   } catch (e: any) {
                     toast.error("Failed to send: " + e.message);
                   } finally {
