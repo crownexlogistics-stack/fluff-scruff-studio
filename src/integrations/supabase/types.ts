@@ -611,48 +611,98 @@ export type Database = {
       }
       email_campaigns: {
         Row: {
+          clicks: number
           created_at: string
           created_by: string
           emails_sent: number
           html_body: string
           id: string
+          opens: number
           prompt: string | null
           scheduled_at: string | null
           segment: string
           sent_at: string | null
           status: string
           subject: string
+          unique_clicks: number
+          unique_opens: number
           updated_at: string
         }
         Insert: {
+          clicks?: number
           created_at?: string
           created_by: string
           emails_sent?: number
           html_body: string
           id?: string
+          opens?: number
           prompt?: string | null
           scheduled_at?: string | null
           segment?: string
           sent_at?: string | null
           status?: string
           subject: string
+          unique_clicks?: number
+          unique_opens?: number
           updated_at?: string
         }
         Update: {
+          clicks?: number
           created_at?: string
           created_by?: string
           emails_sent?: number
           html_body?: string
           id?: string
+          opens?: number
           prompt?: string | null
           scheduled_at?: string | null
           segment?: string
           sent_at?: string | null
           status?: string
           subject?: string
+          unique_clicks?: number
+          unique_opens?: number
           updated_at?: string
         }
         Relationships: []
+      }
+      email_events: {
+        Row: {
+          campaign_id: string
+          created_at: string
+          email: string
+          event_type: string
+          id: string
+          sg_event_id: string | null
+          url: string | null
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string
+          email: string
+          event_type: string
+          id?: string
+          sg_event_id?: string | null
+          url?: string | null
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string
+          email?: string
+          event_type?: string
+          id?: string
+          sg_event_id?: string | null
+          url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_events_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "email_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       email_unsubscribes: {
         Row: {

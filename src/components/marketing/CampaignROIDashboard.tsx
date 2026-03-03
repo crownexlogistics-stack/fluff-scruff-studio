@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, Target, PoundSterling, BarChart3, MousePointerClick, Clock } from "lucide-react";
+import { TrendingUp, Target, PoundSterling, BarChart3, MousePointerClick, Clock, MailOpen, Link2 } from "lucide-react";
 import { format } from "date-fns";
 
 interface Attribution {
@@ -20,11 +20,17 @@ interface CampaignWithStats {
   emails_sent: number;
   sent_at: string | null;
   status: string;
+  opens: number;
+  unique_opens: number;
+  clicks: number;
+  unique_clicks: number;
   directBookings: number;
   windowBookings: number;
   totalBookings: number;
   totalRevenue: number;
   roi: number;
+  openRate: number;
+  clickRate: number;
 }
 
 export function CampaignROIDashboard() {
@@ -33,7 +39,7 @@ export function CampaignROIDashboard() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("email_campaigns")
-        .select("id, subject, segment, emails_sent, sent_at, status")
+        .select("id, subject, segment, emails_sent, sent_at, status, opens, unique_opens, clicks, unique_clicks")
         .eq("status", "sent")
         .order("sent_at", { ascending: false })
         .limit(50);
@@ -53,7 +59,6 @@ export function CampaignROIDashboard() {
     },
   });
 
-  // Trigger attribution recalculation
   const { refetch: refreshAttribution } = useQuery({
     queryKey: ["trigger-attribution"],
     queryFn: async () => {
@@ -63,7 +68,6 @@ export function CampaignROIDashboard() {
     enabled: false,
   });
 
-  // Build stats per campaign
   const campaignStats: CampaignWithStats[] = (campaigns || []).map(c => {
     const attrs = (attributions || []).filter(a => a.campaign_id === c.id);
     const directBookings = attrs.filter(a => a.attribution_type === "direct").length;
@@ -71,8 +75,10 @@ export function CampaignROIDashboard() {
     const totalBookings = attrs.length;
     const totalRevenue = attrs.reduce((sum, a) => sum + Number(a.revenue), 0);
     const roi = c.emails_sent > 0 ? (totalBookings / c.emails_sent) * 100 : 0;
+    const openRate = c.emails_sent > 0 ? ((c.unique_opens || 0) / c.emails_sent) * 100 : 0;
+    const clickRate = c.emails_sent > 0 ? ((c.unique_clicks || 0) / c.emails_sent) * 100 : 0;
 
-    return { ...c, directBookings, windowBookings, totalBookings, totalRevenue, roi };
+    return { ...c, directBookings, windowBookings, totalBookings, totalRevenue, roi, openRate, clickRate };
   });
 
   const totals = campaignStats.reduce(
@@ -81,29 +87,54 @@ export function CampaignROIDashboard() {
       bookings: acc.bookings + c.totalBookings,
       revenue: acc.revenue + c.totalRevenue,
       emailsSent: acc.emailsSent + c.emails_sent,
+      totalOpens: acc.totalOpens + (c.unique_opens || 0),
+      totalClicks: acc.totalClicks + (c.unique_clicks || 0),
     }),
-    { campaigns: 0, bookings: 0, revenue: 0, emailsSent: 0 }
+    { campaigns: 0, bookings: 0, revenue: 0, emailsSent: 0, totalOpens: 0, totalClicks: 0 }
   );
+
+  const avgOpenRate = totals.emailsSent > 0 ? (totals.totalOpens / totals.emailsSent) * 100 : 0;
+  const avgClickRate = totals.emailsSent > 0 ? (totals.totalClicks / totals.emailsSent) * 100 : 0;
 
   return (
     <div className="space-y-6">
       {/* Summary cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2 text-muted-foreground mb-1">
               <BarChart3 className="h-4 w-4" />
-              <span className="text-xs font-medium uppercase tracking-wider">Campaigns Sent</span>
+              <span className="text-xs font-medium uppercase tracking-wider">Campaigns</span>
             </div>
             <p className="text-2xl font-bold font-heading">{totals.campaigns}</p>
-            <p className="text-xs text-muted-foreground">{totals.emailsSent} total emails</p>
+            <p className="text-xs text-muted-foreground">{totals.emailsSent} emails</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-muted-foreground mb-1">
+              <MailOpen className="h-4 w-4" />
+              <span className="text-xs font-medium uppercase tracking-wider">Open Rate</span>
+            </div>
+            <p className="text-2xl font-bold font-heading">{avgOpenRate.toFixed(1)}%</p>
+            <p className="text-xs text-muted-foreground">{totals.totalOpens} unique opens</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-muted-foreground mb-1">
+              <Link2 className="h-4 w-4" />
+              <span className="text-xs font-medium uppercase tracking-wider">Click Rate</span>
+            </div>
+            <p className="text-2xl font-bold font-heading">{avgClickRate.toFixed(1)}%</p>
+            <p className="text-xs text-muted-foreground">{totals.totalClicks} unique clicks</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2 text-muted-foreground mb-1">
               <Target className="h-4 w-4" />
-              <span className="text-xs font-medium uppercase tracking-wider">Bookings Generated</span>
+              <span className="text-xs font-medium uppercase tracking-wider">Bookings</span>
             </div>
             <p className="text-2xl font-bold font-heading">{totals.bookings}</p>
             <p className="text-xs text-muted-foreground">
@@ -115,11 +146,11 @@ export function CampaignROIDashboard() {
           <CardContent className="p-4">
             <div className="flex items-center gap-2 text-muted-foreground mb-1">
               <PoundSterling className="h-4 w-4" />
-              <span className="text-xs font-medium uppercase tracking-wider">Revenue Attributed</span>
+              <span className="text-xs font-medium uppercase tracking-wider">Revenue</span>
             </div>
             <p className="text-2xl font-bold font-heading">£{totals.revenue.toFixed(2)}</p>
             <p className="text-xs text-muted-foreground">
-              {totals.bookings > 0 ? `£${(totals.revenue / totals.bookings).toFixed(2)} avg/booking` : "—"}
+              {totals.bookings > 0 ? `£${(totals.revenue / totals.bookings).toFixed(2)} avg` : "—"}
             </p>
           </CardContent>
         </Card>
@@ -127,12 +158,12 @@ export function CampaignROIDashboard() {
           <CardContent className="p-4">
             <div className="flex items-center gap-2 text-muted-foreground mb-1">
               <TrendingUp className="h-4 w-4" />
-              <span className="text-xs font-medium uppercase tracking-wider">Revenue per Email</span>
+              <span className="text-xs font-medium uppercase tracking-wider">Rev/Email</span>
             </div>
             <p className="text-2xl font-bold font-heading">
               £{totals.emailsSent > 0 ? (totals.revenue / totals.emailsSent).toFixed(2) : "0.00"}
             </p>
-            <p className="text-xs text-muted-foreground">avg revenue per email sent</p>
+            <p className="text-xs text-muted-foreground">per email sent</p>
           </CardContent>
         </Card>
       </div>
@@ -175,6 +206,14 @@ export function CampaignROIDashboard() {
                   </div>
 
                   <div className="flex flex-wrap gap-2">
+                    <Badge variant="outline" className="gap-1 text-xs">
+                      <MailOpen className="h-3 w-3" />
+                      {c.openRate.toFixed(1)}% opened
+                    </Badge>
+                    <Badge variant="outline" className="gap-1 text-xs">
+                      <Link2 className="h-3 w-3" />
+                      {c.clickRate.toFixed(1)}% clicked
+                    </Badge>
                     <Badge variant="outline" className="gap-1 text-xs">
                       <MousePointerClick className="h-3 w-3" />
                       {c.directBookings} direct

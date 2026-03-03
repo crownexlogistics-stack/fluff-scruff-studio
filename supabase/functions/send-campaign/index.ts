@@ -73,6 +73,11 @@ serve(async (req) => {
             reply_to: { email: "info@fluffandscruff.co.uk" },
             subject,
             content: [{ type: "text/html", value: personalizedHtml }],
+            custom_args: campaignId ? { campaign_id: campaignId } : undefined,
+            tracking_settings: {
+              click_tracking: { enable: true },
+              open_tracking: { enable: true },
+            },
           }),
         });
 
