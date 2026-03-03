@@ -28,7 +28,11 @@ export function BookingTimeline({ bookings }: BookingTimelineProps) {
     const daysUntil = differenceInDays(bookingDate, new Date());
     const isFuture = !isPast(bookingDate) || isToday(bookingDate);
 
-    switch (booking.status) {
+    const status = (booking.status || "").trim();
+    const isRefunded = ["Refunded", "Refunded/Cancelled", "Cancelled/Refunded"].includes(status);
+    const isCancelled = status === "Cancelled" || isRefunded;
+
+    switch (status) {
       case "Confirmed":
       case "Pending":
         if (isFuture) {
@@ -48,7 +52,7 @@ export function BookingTimeline({ bookings }: BookingTimelineProps) {
           icon: <CalendarCheck className="h-4 w-4" />,
           color: "border-muted bg-muted/30",
           dotColor: "bg-muted-foreground/40 ring-muted",
-          badge: <Badge variant="secondary" className="text-[10px]">{booking.status}</Badge>,
+          badge: <Badge variant="secondary" className="text-[10px]">{status}</Badge>,
         };
       case "Completed":
         return {
@@ -60,12 +64,14 @@ export function BookingTimeline({ bookings }: BookingTimelineProps) {
         };
       case "Cancelled":
       case "Refunded":
+      case "Refunded/Cancelled":
+      case "Cancelled/Refunded":
         return {
           icon: <XCircle className="h-4 w-4" />,
           color: "border-destructive/20 bg-destructive/5",
           dotColor: "bg-destructive/50 ring-destructive/10",
           badge: <Badge variant="destructive" className="text-[10px] gap-1">
-            <XCircle className="h-3 w-3" /> {booking.status === "Refunded" ? "Refunded & Cancelled" : "Cancelled"}
+            <XCircle className="h-3 w-3" /> {isRefunded ? "Refunded & Cancelled" : "Cancelled"}
           </Badge>,
         };
       case "No Show":
