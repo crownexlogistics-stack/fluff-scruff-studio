@@ -76,14 +76,21 @@ export default function BookingSuccessPage() {
   const cancelMutation = useMutation({
     mutationFn: async () => {
       if (!bookingId) return;
-      const { error } = await supabase.from("bookings").update({ status: "Cancelled" }).eq("id", bookingId);
+      const { data, error } = await supabase.functions.invoke("cancel-booking-with-refund", {
+        body: { booking_id: bookingId, cancelled_by: "customer" },
+      });
       if (error) throw error;
-      logAudit({ action: "BOOKING_CANCELLED_BY_CUSTOMER", details: `Customer cancelled booking ${bookingId}` });
+      if (data?.error) throw new Error(data.error);
+      return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       setCancelDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ["booking-success", bookingId] });
-      toast.success("Booking cancelled. Please note your deposit is non-refundable.");
+      if (data?.refunded) {
+        toast.success(`Booking cancelled. Your refund of £${data.refund_amount?.toFixed(2)} is on its way and will appear in your account within 5-10 business days.`);
+      } else {
+        toast.success("Booking cancelled. Your deposit is non-refundable as this is within 48 hours of your appointment.");
+      }
     },
     onError: () => toast.error("Failed to cancel booking"),
   });
@@ -277,7 +284,12 @@ export default function BookingSuccessPage() {
             </p>
             <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/5 border border-destructive/20">
               <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
-              <p className="text-xs text-destructive">Your deposit of £{Number(booking.deposit_paid).toFixed(2)} is non-refundable as per our Terms & Conditions.</p>
+              <p className="text-xs text-destructive">
+                {canAmend
+                  ? `Since your appointment is more than 48 hours away, your deposit of £${Number(booking.deposit_paid).toFixed(2)} will be refunded automatically.`
+                  : `Your deposit of £${Number(booking.deposit_paid).toFixed(2)} is non-refundable as this cancellation is within 48 hours of your appointment, as per our Terms & Conditions.`
+                }
+              </p>
             </div>
           </div>
           <DialogFooter>
