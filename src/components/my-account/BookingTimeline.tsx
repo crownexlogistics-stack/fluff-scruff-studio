@@ -59,11 +59,14 @@ export function BookingTimeline({ bookings }: BookingTimelineProps) {
           showRebook: true,
         };
       case "Cancelled":
+      case "Refunded":
         return {
           icon: <XCircle className="h-4 w-4" />,
           color: "border-destructive/20 bg-destructive/5",
           dotColor: "bg-destructive/50 ring-destructive/10",
-          badge: <Badge variant="destructive" className="text-[10px] gap-1"><XCircle className="h-3 w-3" /> Cancelled</Badge>,
+          badge: <Badge variant="destructive" className="text-[10px] gap-1">
+            <XCircle className="h-3 w-3" /> {booking.status === "Refunded" ? "Refunded & Cancelled" : "Cancelled"}
+          </Badge>,
         };
       case "No Show":
         return {
