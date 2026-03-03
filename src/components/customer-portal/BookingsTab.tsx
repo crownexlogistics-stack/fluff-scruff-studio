@@ -40,6 +40,21 @@ export function BookingsTab({ bookings, userEmail }: BookingsTabProps) {
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [bookingToCancel, setBookingToCancel] = useState<Booking | null>(null);
 
+  const normalizeStatus = (raw?: string | null) => (raw || "").trim().toLowerCase();
+  const isRefundedStatus = (raw?: string | null) => normalizeStatus(raw).includes("refund");
+  const isCancelledStatus = (raw?: string | null) => {
+    const status = normalizeStatus(raw);
+    return status.includes("cancel") || isRefundedStatus(raw);
+  };
+  const isClosedStatus = (raw?: string | null) => {
+    const status = normalizeStatus(raw);
+    return isCancelledStatus(raw) || status === "completed" || status === "no show";
+  };
+  const isActiveStatus = (raw?: string | null) => {
+    const status = normalizeStatus(raw);
+    return (status === "confirmed" || status === "pending") && !isClosedStatus(raw);
+  };
+
   const cancelMutation = useMutation({
     mutationFn: async (bookingId: string) => {
       const { data, error } = await supabase.functions.invoke("cancel-booking-with-refund", {
@@ -59,7 +74,15 @@ export function BookingsTab({ bookings, userEmail }: BookingsTabProps) {
         toast.success("Cancelled. Deposit non-refundable (within 48 hours).");
       }
     },
-    onError: () => toast.error("Failed to cancel"),
+    onError: (error: any) => {
+      queryClient.invalidateQueries({ queryKey: ["my-bookings"] });
+      const message = error?.message || "Failed to cancel";
+      if (message.toLowerCase().includes("already cancelled")) {
+        toast.error("This booking was already cancelled/refunded. Refreshing your bookings now.");
+        return;
+      }
+      toast.error("Failed to cancel");
+    },
   });
 
   const getStatusBadge = (booking: Booking) => {
@@ -68,24 +91,20 @@ export function BookingsTab({ bookings, userEmail }: BookingsTabProps) {
     const isFuture = !isPast(bookingDate) || isToday(bookingDate);
     const daysUntil = differenceInDays(bookingDate, new Date());
 
-    if (["Refunded", "Refunded/Cancelled", "Cancelled/Refunded"].includes(status)) {
+    if (isRefundedStatus(status)) {
       return <Badge variant="destructive" className="text-[10px]">Refunded & Cancelled</Badge>;
     }
-    if (status === "Cancelled") return <Badge variant="destructive" className="text-[10px]">Cancelled</Badge>;
-    if (status === "No Show") return <Badge className="bg-orange-100 text-orange-700 border-0 text-[10px]">No Show</Badge>;
-    if (status === "Completed") return <Badge variant="secondary" className="text-[10px]">Complete</Badge>;
-    if ((status === "Confirmed" || status === "Pending") && isFuture) {
+    if (isCancelledStatus(status)) return <Badge variant="destructive" className="text-[10px]">Cancelled</Badge>;
+    if (normalizeStatus(status) === "no show") return <Badge className="bg-orange-100 text-orange-700 border-0 text-[10px]">No Show</Badge>;
+    if (normalizeStatus(status) === "completed") return <Badge variant="secondary" className="text-[10px]">Complete</Badge>;
+    if (isActiveStatus(status) && isFuture) {
       const text = isToday(bookingDate) ? "Today! 🎉" : daysUntil === 1 ? "Tomorrow!" : `${daysUntil} days`;
       return <Badge className="bg-green-100 text-green-700 border-0 text-[10px]">{text}</Badge>;
     }
     return <Badge variant="secondary" className="text-[10px]">{status}</Badge>;
   };
 
-  const canCancel = (booking: Booking) => {
-    const status = (booking.status || "").trim();
-    if (["Cancelled", "Refunded", "Refunded/Cancelled", "Cancelled/Refunded", "Completed", "No Show"].includes(status)) return false;
-    return true;
-  };
+  const canCancel = (booking: Booking) => !isClosedStatus(booking.status);
 
   const canAmend = (booking: Booking) => {
     return differenceInHours(parseISO(booking.booking_date + "T" + (booking.booking_time || "09:00")), new Date()) >= 48;
@@ -113,7 +132,7 @@ export function BookingsTab({ bookings, userEmail }: BookingsTabProps) {
             const deposit = Number(booking.deposit_paid);
             const balance = Math.max(0, total - deposit);
             const status = (booking.status || "").trim();
-            const isActive = ["Confirmed", "Pending"].includes(status);
+            const isActive = isActiveStatus(status);
             const serviceName = (booking.services as any)?.name || "Grooming";
             const staffName = (booking.staff as any)?.name;
 
@@ -149,7 +168,7 @@ export function BookingsTab({ bookings, userEmail }: BookingsTabProps) {
                 </div>
 
                 {/* Action buttons */}
-                {isActive && (
+                {isActive && canCancel(booking) && (
                   <div className="flex gap-2 mt-3 pt-2 border-t border-border/30">
                     <Button
                       size="sm"
