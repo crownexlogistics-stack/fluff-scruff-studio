@@ -1253,6 +1253,7 @@ export type Database = {
           created_at: string
           direction: string
           id: string
+          is_read: boolean
           phone_number: string
           status: string
           twilio_sid: string | null
@@ -1263,6 +1264,7 @@ export type Database = {
           created_at?: string
           direction?: string
           id?: string
+          is_read?: boolean
           phone_number: string
           status?: string
           twilio_sid?: string | null
@@ -1273,6 +1275,7 @@ export type Database = {
           created_at?: string
           direction?: string
           id?: string
+          is_read?: boolean
           phone_number?: string
           status?: string
           twilio_sid?: string | null

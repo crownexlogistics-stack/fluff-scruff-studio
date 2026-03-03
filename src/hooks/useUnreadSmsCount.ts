@@ -8,34 +8,15 @@ export function useUnreadSmsCount() {
   const { data: unreadMap } = useQuery({
     queryKey: ["sms-unread-counts"],
     queryFn: async () => {
-      // Get all inbound messages that have no outbound reply after them
       const { data: inbound } = await supabase
         .from("sms_messages")
-        .select("phone_number, created_at")
+        .select("phone_number")
         .eq("direction", "inbound")
-        .order("created_at", { ascending: false });
+        .eq("is_read", false);
 
-      const { data: outbound } = await supabase
-        .from("sms_messages")
-        .select("phone_number, created_at")
-        .eq("direction", "outbound")
-        .order("created_at", { ascending: false });
-
-      // Build map of last outbound per phone
-      const lastOutbound = new Map<string, string>();
-      outbound?.forEach((m) => {
-        if (!lastOutbound.has(m.phone_number)) {
-          lastOutbound.set(m.phone_number, m.created_at);
-        }
-      });
-
-      // Count inbound messages after last outbound per phone
       const counts = new Map<string, number>();
       inbound?.forEach((m) => {
-        const lastOut = lastOutbound.get(m.phone_number);
-        if (!lastOut || new Date(m.created_at) > new Date(lastOut)) {
-          counts.set(m.phone_number, (counts.get(m.phone_number) || 0) + 1);
-        }
+        counts.set(m.phone_number, (counts.get(m.phone_number) || 0) + 1);
       });
 
       return counts;
@@ -57,4 +38,14 @@ export function useUnreadSmsCount() {
   const totalUnread = unreadMap ? Array.from(unreadMap.values()).reduce((a, b) => a + b, 0) : 0;
 
   return { unreadMap: unreadMap || new Map<string, number>(), totalUnread };
+}
+
+/** Mark all inbound messages for a phone number as read */
+export async function markConversationRead(phoneNumber: string) {
+  await supabase
+    .from("sms_messages")
+    .update({ is_read: true })
+    .eq("phone_number", phoneNumber)
+    .eq("direction", "inbound")
+    .eq("is_read", false);
 }
