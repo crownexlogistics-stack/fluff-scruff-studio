@@ -1,62 +1,54 @@
-## Fix: Booking Flow - Auto-Login on Signup + Stripe Payment
 
-### Problem
-When a new customer clicks "Create Account & Pay Deposit":
-1. The signup requires email verification, so the user is NOT logged in after `signUp`
-2. This causes the `customer_pets` insert to fail (RLS requires authenticated user)
-3. The flow may also fail at other points because the session is not established
-4. After Stripe payment redirects back, the user is not logged in
 
-### Solution
+## Booking Flow UI Overhaul — Pet-Themed Animations
 
-**1. Enable auto-confirm for email signups (database config)**
-- Use the `configure-auth` tool to disable email confirmation requirement so users are immediately confirmed and logged in after signup
+This plan adds playful, on-brand animations to the booking flow while preserving all existing logic (Stripe, puppy auto-switch, back navigation).
 
-**2. Update `handleGuestSubmit` in `BookingFlow.tsx`**
-- After `signUp`, immediately sign in the user with `signInWithPassword` to ensure a session is established
-- This guarantees the user is authenticated before the booking insert and Stripe redirect
-- When Stripe redirects back to the app, the session persists (stored in localStorage) so the user is already logged in
-- Remove the "check your email" messaging since verification is no longer needed
+---
 
-**3. Flow after fix:**
-- Customer fills in details, clicks "Create Account & Pay Deposit"
-- Account is created and auto-confirmed (no email verification)
-- User is immediately signed in
-- Booking is saved to the database
-- User is redirected to Stripe for payment
-- After payment, user returns to the app already logged in
+### 1. Walking Paw Progress Bar
 
-### Technical Details
+- Add a **paw-print step indicator** at the top of the BookingFlow, below the header.
+- Define the steps as an ordered array (e.g. `["sub-service", "breed", "calendar", "addons", "guest-details"]`), filtered based on whether the flow needs breed/addons.
+- Render a row of `PawPrint` icons — completed steps use the brand accent color, current step is highlighted, future steps are greyed out (`text-muted-foreground/30`).
+- Use `framer-motion`'s `layoutId` on a small underline/highlight element that animates smoothly between paw positions as the step changes, creating the "walking" effect.
+- Each paw tilts slightly (`rotate: -15deg` → `15deg`) using a short spring animation on the active paw.
 
-**File: `src/components/BookingFlow.tsx`**
-- After `supabase.auth.signUp()`, add `supabase.auth.signInWithPassword()` to establish the session
-- Update success toast to remove email verification mention
-- Keep the pet insert logic as-is (it will now work since user is authenticated)
+### 2. Tail Wag Loading Animation
 
-## Rule: Numeric Inputs — Free Format Only
+- Create a small `TailWagSpinner` component using an inline SVG of a simplified dog tail.
+- Animate with `framer-motion` using a repeating `rotate` keyframe (`[-20, 20, -20]` on loop) with `duration: 0.4s`.
+- Replace the existing CSS spinner (line 825: `animate-spin h-8 w-8 border-4...`) and the "Processing..." text in submit buttons with this component.
 
-**PERMANENT RULE**: All numeric input fields across the entire application MUST use the `NumericInput` component (`@/components/ui/numeric-input`), NOT `<Input type="number">`.
+### 3. Bouncy Page Transitions (Framer Motion)
 
-### Why
-- No browser spinner arrows (up/down buttons)
-- Clean free-format text field that only accepts digits and decimal points
-- Uses `inputMode="decimal"` for mobile numeric keyboard
-- Consistent UX across all forms
+- Wrap each step's content block in a `<motion.div>` with `AnimatePresence` and keyed by `step`.
+- Entry: `initial={{ x: 80, opacity: 0 }}`, `animate={{ x: 0, opacity: 1 }}` with `type: "spring", stiffness: 300, damping: 25`.
+- Exit: `exit={{ x: -80, opacity: 0 }}` with a fast tween.
+- Track navigation direction (forward/back) to reverse the slide direction when going back (slide in from left instead of right).
 
-### How
-```tsx
-import { NumericInput } from "@/components/ui/numeric-input";
+### 4. Back Button & Puppy Logic
 
-<NumericInput
-  value={form.price}
-  onValueChange={(v) => setForm({ ...form, price: v })}
-  allowDecimals={true}    // default true, set false for integers
-  placeholder="0"
-/>
-```
+- The existing `goBack` function already resets state per step — no changes needed there.
+- For the **Puppy Special "pop" effect**: when `showPuppyPopup` closes and the calendar step appears, add a `motion.div` around the "Puppy Special" service name in the calendar's summary card with `animate={{ scale: [1, 1.15, 1] }}` and a sparkle keyframe, triggered when `puppySwitched` is true.
 
-### Never do this
-```tsx
-// ❌ WRONG — creates spinner arrows
-<Input type="number" value={...} onChange={...} />
-```
+### 5. Styling Constraints
+
+- All animations use `duration: 0.3–0.5s` max.
+- Spring transitions use high stiffness (300+) and moderate damping (25+) for snappy feel.
+- No layout shifts — all animated elements have fixed dimensions or use `layout` prop.
+
+---
+
+### Files to Edit
+
+| File | Change |
+|------|--------|
+| `src/components/BookingFlow.tsx` | Add `AnimatePresence`, `motion.div` wrappers per step, paw progress bar component, tail wag spinner, direction tracking for transitions, sparkle effect on puppy switch |
+
+### Technical Notes
+
+- `framer-motion` is already installed.
+- The `TailWagSpinner` and `PawProgressBar` will be inline components within `BookingFlow.tsx` to keep changes contained.
+- No database or edge function changes needed.
+
