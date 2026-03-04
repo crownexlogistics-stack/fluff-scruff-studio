@@ -86,33 +86,6 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
   const [searchParams] = useSearchParams();
   const utmCampaignId = searchParams.get("utm_campaign") || null;
   const isExistingCustomer = !isNewCustomer && !!user;
-  // Fetch matching service record from DB (for fixed-price services)
-  const { data: dbService } = useQuery({
-    queryKey: ["service-record", service],
-    queryFn: async () => {
-      // Try to find a service matching the name
-      const { data, error } = await supabase
-        .from("services")
-        .select("id, name, fixed_price, duration_minutes")
-        .eq("is_active", true)
-        .ilike("name", `%${service}%`)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
-    },
-    enabled: service !== "Grooming",
-  });
-
-  const isFixedPrice = service !== "Grooming" && dbService?.fixed_price != null;
-  // Only Grooming and Puppy Special need breed selection
-  const needsBreed = service === "Grooming" || service === "Puppy Special";
-
-  // If breed is preselected, skip to sub-service (for grooming) or calendar
-  const getInitialStep = (): Step => {
-    if (!needsBreed) return "calendar";
-    if (preselectedBreedId) return service === "Grooming" ? "sub-service" : "calendar";
-    return service === "Grooming" ? "sub-service" : "breed";
-  };
 
   const [step, setStep] = useState<Step>(null);
   const [selectedSub, setSelectedSub] = useState<string | null>(null);
@@ -135,6 +108,39 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
   const [ageYears, setAgeYears] = useState<string>(dogAgeYears != null ? String(dogAgeYears) : "0");
   const [ageMonths, setAgeMonths] = useState<string>(dogAgeMonths != null ? String(dogAgeMonths) : "0");
   const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null);
+  const [puppySwitched, setPuppySwitched] = useState(false);
+  const [showPuppyPopup, setShowPuppyPopup] = useState(false);
+
+  // Track if we auto-switched to Puppy Special
+  const effectiveService = puppySwitched ? "Puppy Special" : service;
+
+  // Fetch matching service record from DB (for fixed-price services)
+  const { data: dbService } = useQuery({
+    queryKey: ["service-record", effectiveService],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("services")
+        .select("id, name, fixed_price, duration_minutes")
+        .eq("is_active", true)
+        .ilike("name", `%${effectiveService}%`)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: effectiveService !== "Grooming",
+  });
+
+  const isFixedPrice = effectiveService !== "Grooming" && dbService?.fixed_price != null;
+  // Only Grooming and Puppy Special need breed selection
+  const needsBreed = effectiveService === "Grooming" || effectiveService === "Puppy Special";
+
+  // If breed is preselected, skip to sub-service (for grooming) or calendar
+  const getInitialStep = (): Step => {
+    if (!needsBreed) return "calendar";
+    if (preselectedBreedId) return effectiveService === "Grooming" ? "sub-service" : "calendar";
+    return effectiveService === "Grooming" ? "sub-service" : "breed";
+  };
+
   const { data: termsContent } = useQuery({
     queryKey: ["site_config", "terms_and_conditions"],
     queryFn: async () => {
@@ -363,7 +369,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
     ? breeds?.filter((b) => b.name.toLowerCase().includes(breedSearch.toLowerCase()))
     : breeds;
 
-  const serviceType = selectedSub ?? service;
+  const serviceType = puppySwitched ? "Puppy Special" : (selectedSub ?? service);
   const basePrice = isFixedPrice
     ? Number(dbService!.fixed_price)
     : selectedBreed
@@ -460,6 +466,20 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
   };
 
   const handleBreedAndAgeContinue = () => {
+    const years = parseInt(ageYears, 10);
+    const months = parseInt(ageMonths, 10);
+    const isPuppy = years === 0 && months <= 6;
+
+    // Auto-switch to Puppy Special if dog is 6 months or younger
+    // and the current service is Full Groom or Bath & Brush
+    if (isPuppy && (selectedSub === "Full Groom" || selectedSub === "Bath & Brush" || service === "Grooming")) {
+      setPuppySwitched(true);
+      setSelectedSub(null); // Clear sub-service since Puppy Special is its own service
+      setShowPuppyPopup(true);
+      // Don't advance step yet — popup will handle it
+      return;
+    }
+
     setStep("calendar");
   };
 
@@ -672,35 +692,50 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
   const goBack = useCallback(() => {
     if (step === "guest-details" && isFixedPrice) {
       setStep("calendar");
+      setSelectedDate(null);
+      setSelectedTime(null);
+      setSelectedStaffId(null);
     } else if (step === "guest-details") {
       setStep("addons");
+      setSelectedAddOns([]);
     } else if (step === "addons") {
       setStep("calendar");
+      setSelectedDate(null);
       setSelectedTime(null);
+      setSelectedStaffId(null);
     } else if (step === "calendar" && needsBreed) {
-      // If age was provided externally (existing customer), go back to breed search
-      // Otherwise the breed step shows age picker when breed is selected
+      // Always go back to age picker (breed still selected) or breed search
       if (dogAgeYears != null || dogAgeMonths != null) {
         setStep("breed");
         setSelectedBreed(null);
         setBreedsSearch("");
       } else {
-        // Go back to age picker (breed is still selected)
         setStep("breed");
+        // Keep selectedBreed to show age picker, but reset age
+        setAgeYears("0");
+        setAgeMonths("0");
       }
       setSelectedDate(null);
       setSelectedTime(null);
+      setSelectedStaffId(null);
+      // If we auto-switched to Puppy Special, undo it
+      if (puppySwitched) {
+        setPuppySwitched(false);
+      }
     } else if (step === "breed" && selectedBreed) {
       // From age picker, go back to breed search
       setSelectedBreed(null);
       setBreedsSearch("");
-    } else if (step === "breed" && service === "Grooming") {
+      setAgeYears("0");
+      setAgeMonths("0");
+    } else if (step === "breed" && (service === "Grooming" || effectiveService === "Grooming")) {
       setStep("sub-service");
       setSelectedSub(null);
+      setPuppySwitched(false);
     } else {
       onClose();
     }
-  }, [step, service, onClose]);
+  }, [step, service, effectiveService, onClose, needsBreed, dogAgeYears, dogAgeMonths, selectedBreed, puppySwitched, isFixedPrice]);
 
   // Fetch existing appointments for selected date to check availability
   const { data: existingBookingsForDate } = useQuery({
@@ -1444,6 +1479,30 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
             <p className="text-sm text-muted-foreground">{alertMessage}</p>
             <div className="pt-2">
               <Button className="w-full" onClick={() => setAlertMessage(null)}>OK</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Puppy Special Auto-Switch Popup */}
+        <Dialog open={showPuppyPopup} onOpenChange={() => {}}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="font-heading flex items-center gap-2">
+                <PawPrint className="h-5 w-5 text-accent" />
+                Puppy Special! 🐾
+              </DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-muted-foreground">
+              Because your dog is 6 months or younger, we've updated your service to our <span className="font-semibold text-foreground">"Puppy Special"</span> to ensure the best care for your pup!
+            </p>
+            <p className="text-xs text-muted-foreground">
+              This service is specially designed for young puppies with a gentle, introductory grooming experience.
+            </p>
+            <div className="pt-2">
+              <Button className="w-full" onClick={() => { setShowPuppyPopup(false); setStep("calendar"); }}>
+                <Sparkles className="h-4 w-4 mr-2" />
+                Got it, continue!
+              </Button>
             </div>
           </DialogContent>
         </Dialog>
