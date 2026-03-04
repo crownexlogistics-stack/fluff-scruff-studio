@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, PawPrint, LogIn, UserPlus, Dog, Plus, Search, ChevronRight } from "lucide-react";
+import { ArrowLeft, PawPrint, LogIn, LogOut, UserPlus, Dog, Plus, Search, ChevronRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { BookingFlow } from "@/components/BookingFlow";
 import { ServiceJourney } from "@/components/ServiceJourney";
@@ -282,11 +282,30 @@ const BookingEntryPage = () => {
     return (
       <div className="min-h-screen bg-background">
         <nav className="sticky top-0 z-50 glass border-b border-border/50">
-          <div className="max-w-2xl mx-auto px-4 sm:px-6 h-16 flex items-center gap-3">
-            <button onClick={() => setNewCustomerBooking(false)} className="text-muted-foreground hover:text-foreground transition-colors">
-              <ArrowLeft className="h-5 w-5" />
+          <div className="max-w-2xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+            <button onClick={() => setNewCustomerBooking(false)} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors">
+              <ArrowLeft className="h-4 w-4" />
+              <span className="text-sm font-medium">Back</span>
             </button>
-            <img src={logo} alt="Fluff & Scruff" className="h-10 w-auto" />
+            <div className="flex items-center gap-2">
+              {user ? (
+                <button
+                  onClick={async () => { await supabase.auth.signOut(); }}
+                  className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <LogOut className="h-4 w-4" />
+                  <span className="hidden sm:inline">Sign Out</span>
+                </button>
+              ) : (
+                <button
+                  onClick={() => { setNewCustomerBooking(false); setAuthMode("login"); }}
+                  className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <LogIn className="h-4 w-4" />
+                  <span>Sign In</span>
+                </button>
+              )}
+            </div>
           </div>
         </nav>
         <ServiceJourney services={allServices} onSelectService={(title) => setNewCustomerService(title)} />
@@ -298,16 +317,35 @@ const BookingEntryPage = () => {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <nav className="sticky top-0 z-50 glass border-b border-border/50">
-        <div className="max-w-2xl mx-auto px-4 sm:px-6 h-16 flex items-center gap-3">
+        <div className="max-w-2xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <button onClick={() => {
             if (missingInfoStep) { setMissingInfoStep(false); return; }
             if (selectedPet && selectedServiceForPet) { setSelectedServiceForPet(null); return; }
             if (selectedPet) { setSelectedPet(null); return; }
             navigate("/");
-          }} className="text-muted-foreground hover:text-foreground transition-colors">
-            <ArrowLeft className="h-5 w-5" />
+          }} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors">
+            <ArrowLeft className="h-4 w-4" />
+            <span className="text-sm font-medium">Back</span>
           </button>
-          <img src={logo} alt="Fluff & Scruff" className="h-10 w-auto" />
+          <div className="flex items-center gap-2">
+            {user ? (
+              <button
+                onClick={async () => { await supabase.auth.signOut(); navigate("/"); }}
+                className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <LogOut className="h-4 w-4" />
+                <span>Sign Out</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => setAuthMode("login")}
+                className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <LogIn className="h-4 w-4" />
+                <span>Sign In</span>
+              </button>
+            )}
+          </div>
         </div>
       </nav>
 
