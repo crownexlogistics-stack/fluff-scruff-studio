@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,11 +10,109 @@ import { Separator } from "@/components/ui/separator";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
-import { CheckCircle, Calendar, Clock, Dog, MapPin, ArrowLeft, Pencil, Ban, AlertTriangle } from "lucide-react";
+import { Calendar, Clock, Dog, MapPin, ArrowLeft, Pencil, Ban, AlertTriangle, CalendarPlus, Share2 } from "lucide-react";
 import { format, parseISO, differenceInHours } from "date-fns";
 import { toast } from "sonner";
-import { logAudit } from "@/lib/auditLog";
+import { motion } from "framer-motion";
+import confetti from "canvas-confetti";
 import logo from "@/assets/logo-transparent.png";
+
+// ─── Happy Dog Animation (inline SVG) ──────────────────────────────
+function HappyDogAnimation() {
+  return (
+    <motion.div
+      className="relative w-32 h-32 mx-auto"
+      initial={{ scale: 0, rotate: -10 }}
+      animate={{ scale: 1, rotate: 0 }}
+      transition={{ type: "spring", stiffness: 300, damping: 20, delay: 0.2 }}
+    >
+      <svg viewBox="0 0 128 128" className="w-full h-full">
+        {/* Body */}
+        <motion.ellipse
+          cx="64" cy="80" rx="32" ry="24"
+          fill="hsl(var(--accent))"
+          opacity={0.85}
+          animate={{ ry: [24, 22, 24] }}
+          transition={{ repeat: Infinity, duration: 0.6 }}
+        />
+        {/* Head */}
+        <motion.circle
+          cx="64" cy="48" r="22"
+          fill="hsl(var(--accent))"
+          animate={{ cy: [48, 44, 48] }}
+          transition={{ repeat: Infinity, duration: 0.6 }}
+        />
+        {/* Left ear */}
+        <motion.ellipse
+          cx="46" cy="34" rx="8" ry="14"
+          fill="hsl(var(--accent))"
+          opacity={0.7}
+          transform="rotate(-15, 46, 34)"
+          animate={{ ry: [14, 12, 14] }}
+          transition={{ repeat: Infinity, duration: 0.5, delay: 0.1 }}
+        />
+        {/* Right ear */}
+        <motion.ellipse
+          cx="82" cy="34" rx="8" ry="14"
+          fill="hsl(var(--accent))"
+          opacity={0.7}
+          transform="rotate(15, 82, 34)"
+          animate={{ ry: [14, 12, 14] }}
+          transition={{ repeat: Infinity, duration: 0.5, delay: 0.15 }}
+        />
+        {/* Eyes */}
+        <circle cx="56" cy="46" r="3" fill="hsl(var(--background))" />
+        <circle cx="72" cy="46" r="3" fill="hsl(var(--background))" />
+        <circle cx="57" cy="45" r="1.2" fill="hsl(var(--foreground))" />
+        <circle cx="73" cy="45" r="1.2" fill="hsl(var(--foreground))" />
+        {/* Nose */}
+        <ellipse cx="64" cy="54" rx="4" ry="3" fill="hsl(var(--foreground))" opacity={0.7} />
+        {/* Mouth / smile */}
+        <path d="M58 58 Q64 64 70 58" fill="none" stroke="hsl(var(--foreground))" strokeWidth="1.5" opacity={0.5} />
+        {/* Tail */}
+        <motion.path
+          d="M96 76 Q108 60 100 48"
+          fill="none"
+          stroke="hsl(var(--accent))"
+          strokeWidth="5"
+          strokeLinecap="round"
+          animate={{ d: ["M96 76 Q108 60 100 48", "M96 76 Q112 68 108 52", "M96 76 Q108 60 100 48"] }}
+          transition={{ repeat: Infinity, duration: 0.4 }}
+        />
+        {/* Front legs */}
+        <motion.line x1="52" y1="100" x2="48" y2="116" stroke="hsl(var(--accent))" strokeWidth="5" strokeLinecap="round"
+          animate={{ y2: [116, 112, 116] }}
+          transition={{ repeat: Infinity, duration: 0.6 }}
+        />
+        <motion.line x1="76" y1="100" x2="80" y2="116" stroke="hsl(var(--accent))" strokeWidth="5" strokeLinecap="round"
+          animate={{ y2: [116, 112, 116] }}
+          transition={{ repeat: Infinity, duration: 0.6, delay: 0.15 }}
+        />
+      </svg>
+    </motion.div>
+  );
+}
+
+// ─── Add to Calendar helpers ────────────────────────────────────────
+function buildGoogleCalendarUrl(booking: any) {
+  const start = `${booking.booking_date.replace(/-/g, "")}T${(booking.booking_time || "09:00:00").replace(/:/g, "").slice(0, 6)}00`;
+  const endDate = new Date(`${booking.booking_date}T${booking.booking_time || "09:00:00"}`);
+  endDate.setHours(endDate.getHours() + 1);
+  const end = `${endDate.getFullYear()}${String(endDate.getMonth() + 1).padStart(2, "0")}${String(endDate.getDate()).padStart(2, "0")}T${String(endDate.getHours()).padStart(2, "0")}${String(endDate.getMinutes()).padStart(2, "0")}00`;
+  const title = encodeURIComponent(`Dog Grooming - ${booking.dog_name}`);
+  const details = encodeURIComponent("Fluff & Scruff Studio — Your booking is confirmed!");
+  const location = encodeURIComponent("Fluff & Scruff Studio");
+  return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${start}/${end}&details=${details}&location=${location}`;
+}
+
+function buildICalUrl(booking: any) {
+  const start = `${booking.booking_date.replace(/-/g, "")}T${(booking.booking_time || "09:00:00").replace(/:/g, "").slice(0, 6)}00`;
+  const endDate = new Date(`${booking.booking_date}T${booking.booking_time || "09:00:00"}`);
+  endDate.setHours(endDate.getHours() + 1);
+  const end = `${endDate.getFullYear()}${String(endDate.getMonth() + 1).padStart(2, "0")}${String(endDate.getDate()).padStart(2, "0")}T${String(endDate.getHours()).padStart(2, "0")}${String(endDate.getMinutes()).padStart(2, "0")}00`;
+  const ics = `BEGIN:VCALENDAR\nVERSION:2.0\nBEGIN:VEVENT\nDTSTART:${start}\nDTEND:${end}\nSUMMARY:Dog Grooming - ${booking.dog_name}\nLOCATION:Fluff & Scruff Studio\nDESCRIPTION:Your booking is confirmed!\nEND:VEVENT\nEND:VCALENDAR`;
+  return `data:text/calendar;charset=utf-8,${encodeURIComponent(ics)}`;
+}
 
 export default function BookingSuccessPage() {
   const [searchParams] = useSearchParams();
@@ -23,6 +121,7 @@ export default function BookingSuccessPage() {
   const queryClient = useQueryClient();
   const bookingId = searchParams.get("booking_id");
   const paymentType = searchParams.get("payment_type") || "deposit";
+  const confettiFired = useRef(false);
 
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
 
@@ -41,23 +140,44 @@ export default function BookingSuccessPage() {
     enabled: !!bookingId,
   });
 
-  // Update booking status to Confirmed on successful payment, record Stripe payment, and send emails
+  // Fire confetti on mount
+  useEffect(() => {
+    if (booking && !confettiFired.current) {
+      const status = (booking.status || "").trim().toLowerCase();
+      const isCancelled = status === "cancelled" || status.includes("refund");
+      if (!isCancelled) {
+        confettiFired.current = true;
+        // Small delay so the page renders first
+        setTimeout(() => {
+          const accent = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim();
+          // Parse HSL and create brand colors
+          const colors = ["#e87c3a", "#f5a623", "#ff6b35", "#ffd700", "#ff8c42"];
+          confetti({
+            particleCount: 100,
+            spread: 80,
+            origin: { y: 0.4 },
+            colors,
+            disableForReducedMotion: true,
+          });
+        }, 500);
+      }
+    }
+  }, [booking]);
+
+  // Update booking status on successful payment
   useEffect(() => {
     if (booking && booking.status === "Pending" && bookingId) {
-      // Record Stripe payment — this updates deposit_paid, stripe_payment_id, and status to Confirmed
       supabase.functions.invoke("record-payment", {
         body: { booking_id: bookingId },
       }).then(() => {
         queryClient.invalidateQueries({ queryKey: ["booking-success", bookingId] });
       }).catch(() => {});
 
-      // Send confirmation email now that payment is confirmed
       if (booking.customer_email) {
         supabase.functions.invoke("send-booking-email", {
           body: { booking_id: bookingId, email_type: "confirmation" },
         }).catch(() => {});
       }
-      // Notify groomer of new booking
       if (booking.staff_id) {
         supabase.functions.invoke("notify-groomer", {
           body: { booking_id: bookingId, notification_type: "new_booking" },
@@ -66,7 +186,6 @@ export default function BookingSuccessPage() {
     }
   }, [booking, bookingId]);
 
-  // Check if within 48 hours
   const canAmend = booking
     ? differenceInHours(parseISO(booking.booking_date + "T" + (booking.booking_time || "09:00")), new Date()) >= 48
     : false;
@@ -96,7 +215,15 @@ export default function BookingSuccessPage() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
+        <motion.svg
+          width={48} height={48} viewBox="0 0 64 64"
+          animate={{ rotate: [-20, 20, -20] }}
+          transition={{ repeat: Infinity, duration: 0.4, ease: "easeInOut" }}
+          style={{ originX: "50%", originY: "100%" }}
+        >
+          <path d="M32 58 C32 58 28 40 20 28 C14 19 8 16 8 16 C8 16 18 12 26 20 C34 28 32 58 32 58Z" fill="hsl(var(--accent))" opacity={0.8} />
+          <path d="M32 58 C32 58 36 40 44 28 C50 19 56 16 56 16 C56 16 46 12 38 20 C30 28 32 58 32 58Z" fill="hsl(var(--accent))" opacity={0.5} />
+        </motion.svg>
       </div>
     );
   }
@@ -130,19 +257,34 @@ export default function BookingSuccessPage() {
       </nav>
 
       <div className="max-w-lg mx-auto px-4 sm:px-6 py-10 space-y-6">
-        {/* Success Header */}
+        {/* Success Header with animation */}
         {!isCancelled ? (
-          <div className="text-center space-y-3">
-            <div className="flex items-center justify-center w-20 h-20 rounded-full bg-emerald-100 dark:bg-emerald-900/30 mx-auto">
-              <CheckCircle className="h-10 w-10 text-emerald-600 dark:text-emerald-400" />
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-heading text-foreground">Booking Confirmed!</h1>
-            <p className="text-muted-foreground text-sm max-w-sm mx-auto">
-              {paymentType === "full"
-                ? "Your full payment has been received. You're all set!"
-                : "Your deposit has been received. The remaining balance is due after your appointment."}
-            </p>
-          </div>
+          <motion.div
+            className="text-center space-y-4"
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ type: "spring", stiffness: 300, damping: 25 }}
+          >
+            <HappyDogAnimation />
+            <motion.h1
+              className="text-2xl sm:text-3xl font-heading text-foreground"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.4, type: "spring", stiffness: 300, damping: 20 }}
+            >
+              Pawsome! Your Booking is Confirmed! 🎉
+            </motion.h1>
+            <motion.p
+              className="text-muted-foreground text-sm max-w-sm mx-auto"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.6 }}
+            >
+              We can't wait to see <strong>{booking.dog_name}</strong> on{" "}
+              <strong>{format(parseISO(booking.booking_date), "EEEE, dd MMMM yyyy")}</strong> at{" "}
+              <strong>{booking.booking_time?.slice(0, 5)}</strong>. Check your emails for your confirmation.
+            </motion.p>
+          </motion.div>
         ) : (
           <div className="text-center space-y-3">
             <div className="flex items-center justify-center w-20 h-20 rounded-full bg-destructive/10 mx-auto">
@@ -154,60 +296,107 @@ export default function BookingSuccessPage() {
         )}
 
         {/* Booking Details Card */}
-        <Card>
-          <CardContent className="p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="font-heading font-semibold text-lg">{serviceName}</h2>
-              <Badge variant={isCancelled ? "destructive" : "default"}>
-                {booking.status}
-              </Badge>
-            </div>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5, type: "spring", stiffness: 300, damping: 25 }}
+        >
+          <Card>
+            <CardContent className="p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="font-heading font-semibold text-lg">{serviceName}</h2>
+                <Badge variant={isCancelled ? "destructive" : "default"}>
+                  {booking.status}
+                </Badge>
+              </div>
 
-            <Separator />
+              <Separator />
 
-            <div className="space-y-3">
-              <div className="flex items-center gap-3 text-sm">
-                <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
-                <span>{format(parseISO(booking.booking_date), "EEEE, dd MMMM yyyy")}</span>
-              </div>
-              <div className="flex items-center gap-3 text-sm">
-                <Clock className="h-4 w-4 text-muted-foreground shrink-0" />
-                <span>{booking.booking_time?.slice(0, 5)}</span>
-              </div>
-              <div className="flex items-center gap-3 text-sm">
-                <Dog className="h-4 w-4 text-muted-foreground shrink-0" />
-                <span>{booking.dog_name}{breedName && ` (${breedName})`}</span>
-              </div>
-              {staffName && (
+              <div className="space-y-3">
                 <div className="flex items-center gap-3 text-sm">
-                  <MapPin className="h-4 w-4 text-muted-foreground shrink-0" />
-                  <span>with {staffName}</span>
+                  <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <span>{format(parseISO(booking.booking_date), "EEEE, dd MMMM yyyy")}</span>
                 </div>
-              )}
-            </div>
-
-            <Separator />
-
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Total Price</span>
-                <span className="font-medium">£{Number(booking.total_price).toFixed(2)}</span>
+                <div className="flex items-center gap-3 text-sm">
+                  <Clock className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <span>{booking.booking_time?.slice(0, 5)}</span>
+                </div>
+                <div className="flex items-center gap-3 text-sm">
+                  <Dog className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <span>{booking.dog_name}{breedName && ` (${breedName})`}</span>
+                </div>
+                {staffName && (
+                  <div className="flex items-center gap-3 text-sm">
+                    <MapPin className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <span>with {staffName}</span>
+                  </div>
+                )}
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">
-                  {paymentType === "full" ? "Paid in full" : "Deposit paid"}
-                </span>
-                <span className="font-semibold text-foreground">£{Number(booking.deposit_paid).toFixed(2)}</span>
-              </div>
-              {paymentType !== "full" && (
+
+              <Separator />
+
+              <div className="space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Remaining balance</span>
-                  <span className="font-medium">£{(Number(booking.total_price) - Number(booking.deposit_paid)).toFixed(2)}</span>
+                  <span className="text-muted-foreground">Total Price</span>
+                  <span className="font-medium">£{Number(booking.total_price).toFixed(2)}</span>
                 </div>
-              )}
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">
+                    {paymentType === "full" ? "Paid in full" : "Deposit paid"}
+                  </span>
+                  <span className="font-semibold text-foreground">£{Number(booking.deposit_paid).toFixed(2)}</span>
+                </div>
+                {paymentType !== "full" && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Remaining balance</span>
+                    <span className="font-medium">£{(Number(booking.total_price) - Number(booking.deposit_paid)).toFixed(2)}</span>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Add to Calendar & Social */}
+        {!isCancelled && (
+          <motion.div
+            className="space-y-3"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.7, type: "spring", stiffness: 300, damping: 25 }}
+          >
+            <div className="grid grid-cols-2 gap-3">
+              <a
+                href={buildGoogleCalendarUrl(booking)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 py-3 text-sm font-medium text-foreground hover:bg-muted transition-colors"
+              >
+                <CalendarPlus className="h-4 w-4 text-accent" />
+                Google Cal
+              </a>
+              <a
+                href={buildICalUrl(booking)}
+                download={`fluff-scruff-${booking.dog_name}.ics`}
+                className="flex items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 py-3 text-sm font-medium text-foreground hover:bg-muted transition-colors"
+              >
+                <CalendarPlus className="h-4 w-4 text-accent" />
+                Apple Cal
+              </a>
             </div>
-          </CardContent>
-        </Card>
+
+            {/* Share the Joy */}
+            <div className="rounded-2xl border border-border/40 bg-accent/5 p-4 text-center space-y-2">
+              <p className="text-sm font-medium text-foreground flex items-center justify-center gap-2">
+                <Share2 className="h-4 w-4 text-accent" />
+                Share the Joy!
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Tag us <a href="https://www.instagram.com/fluffandscruff.studio" target="_blank" rel="noopener noreferrer" className="text-accent font-semibold hover:underline">@fluffandscruff.studio</a> on Instagram when you arrive! 📸
+              </p>
+            </div>
+          </motion.div>
+        )}
 
         {/* Amend Options */}
         {!isCancelled && (
@@ -259,7 +448,7 @@ export default function BookingSuccessPage() {
             className="w-full h-12 rounded-xl"
             onClick={() => navigate("/my-pets")}
           >
-            View My Bookings
+            Go to My Page
           </Button>
           <Button
             variant="ghost"
