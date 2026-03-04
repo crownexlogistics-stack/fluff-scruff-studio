@@ -459,10 +459,13 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
     : breeds;
 
   const serviceType = puppySwitched ? "Puppy Special" : (selectedSub ?? service);
+  const isEstimatePrice = !isFixedPrice && selectedBreed && !selectedBreed.id;
   const basePrice = isFixedPrice
     ? Number(dbService!.fixed_price)
     : selectedBreed
-      ? (serviceType === "Bath & Brush" ? selectedBreed.price_bath_brush : selectedBreed.price_full_groom)
+      ? (serviceType === "Bath & Brush"
+        ? (selectedBreed.price_bath_brush || 52)
+        : (selectedBreed.price_full_groom || 52))
       : 0;
   const serviceDuration = isFixedPrice
     ? (dbService!.duration_minutes ?? 60)
@@ -1010,7 +1013,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
                           <p className="text-muted-foreground text-sm mb-3">No breeds match "{breedSearch}"</p>
                           <Button
                             variant="outline"
-                            onClick={() => handleBreedSelect({ id: null, name: "Breed Not Listed", size_category: "Medium", duration_minutes: 60, price_bath_brush: 0, price_full_groom: 0 })}
+            onClick={() => handleBreedSelect({ id: null, name: "Breed Not Listed", size_category: "Medium", duration_minutes: 60, price_bath_brush: 52, price_full_groom: 52 })}
                             className="rounded-xl"
                           >
                             Continue without breed
@@ -1018,7 +1021,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
                         </div>
                       )}
                       <button
-                        onClick={() => handleBreedSelect({ id: null, name: "Breed Not Listed", size_category: "Medium", duration_minutes: 60, price_bath_brush: 0, price_full_groom: 0 })}
+                        onClick={() => handleBreedSelect({ id: null, name: "Breed Not Listed", size_category: "Medium", duration_minutes: 60, price_bath_brush: 52, price_full_groom: 52 })}
                         className="w-full flex items-center gap-3 rounded-2xl border border-dashed border-border/60 px-4 py-3.5 text-left hover:border-accent/40 transition-all"
                       >
                         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-muted">
@@ -1113,8 +1116,15 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
                         {isFixedPrice ? `${formatDuration(serviceDuration)}` : `${selectedBreed?.name ?? "Breed Not Listed"}${selectedBreed ? ` · ${formatDuration(selectedBreed.duration_minutes)}` : ""}`}
                       </p>
                     </div>
-                    <p className="text-xl font-bold text-accent font-body tabular-nums">£{basePrice}</p>
+                    <p className="text-xl font-bold text-accent font-body tabular-nums">
+                      {isEstimatePrice ? "~" : ""}£{basePrice}
+                    </p>
                   </div>
+                  {isEstimatePrice && (
+                    <p className="text-[0.65rem] text-muted-foreground mt-2 leading-snug">
+                      <span className="font-semibold text-foreground">Estimated price only.</span> Your groomer will confirm the exact breed and final price upon arrival. The final cost may be higher or lower than £52 depending on coat condition and dog size.
+                    </p>
+                  )}
                 </div>
 
                 <div className="px-5 pt-4 pb-8">
@@ -1214,11 +1224,16 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
                 <div className="rounded-2xl bg-muted/50 border border-border/40 p-4">
                   <div className="flex justify-between items-center mb-1">
                     <p className="font-heading font-semibold text-foreground">{serviceType}</p>
-                    <p className="text-xl font-bold text-accent">£{totalPrice}</p>
+                    <p className="text-xl font-bold text-accent">{isEstimatePrice ? "~" : ""}£{totalPrice}</p>
                   </div>
                   <p className="text-sm text-muted-foreground">
                     {isFixedPrice ? "" : `${selectedBreed?.name ?? "Breed Not Listed"} • `}{formatSelectedDate(selectedDate!)} at {selectedTime}
                   </p>
+                  {isEstimatePrice && (
+                    <p className="text-[0.65rem] text-muted-foreground mt-1.5 leading-snug">
+                      Estimated price — final cost confirmed by groomer on arrival.
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -1263,7 +1278,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
 
                 <div className="pt-2">
                   <Button onClick={() => goToStep("guest-details", "forward")} className="w-full h-14 text-base rounded-xl" size="lg">
-                    Next £{totalPrice}
+                    Next {isEstimatePrice ? "~" : ""}£{totalPrice}
                   </Button>
                   <button onClick={() => goToStep("guest-details", "forward")} className="w-full text-center text-sm text-muted-foreground mt-3 hover:text-foreground transition-colors">
                     Skip extras
@@ -1302,11 +1317,18 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
                 <div className="rounded-2xl bg-muted/50 border border-border/40 p-4 space-y-3">
                   <div className="flex justify-between items-center">
                     <p className="font-heading font-semibold">{serviceType}</p>
-                    <p className="text-xl font-bold text-accent">£{totalPrice.toFixed(2)}</p>
+                    <p className="text-xl font-bold text-accent">{isEstimatePrice ? "~" : ""}£{totalPrice.toFixed(2)}</p>
                   </div>
                   <p className="text-sm text-muted-foreground">
                     {isFixedPrice ? "" : `${selectedBreed?.name ?? "Breed Not Listed"} • `}{formatSelectedDate(selectedDate!)} at {selectedTime}
                   </p>
+                  {isEstimatePrice && (
+                    <div className="rounded-xl bg-accent/5 border border-accent/20 p-2.5 mt-2">
+                      <p className="text-[0.7rem] text-muted-foreground leading-snug">
+                        <span className="font-semibold text-foreground">Estimated price only.</span> Your groomer will confirm the exact breed and final price upon arrival. The final cost may be higher or lower than £52 depending on coat condition and dog size.
+                      </p>
+                    </div>
+                  )}
                   {selectedAddOns.length > 0 && (
                     <p className="text-xs text-muted-foreground">+ {selectedAddOns.map(id => dbAddOns?.find(a => a.id === id)?.name).filter(Boolean).join(", ")}</p>
                   )}
@@ -1318,8 +1340,8 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
                   )}
                   <div className="border-t border-border/40 pt-3 space-y-1.5">
                     <div className="flex justify-between items-center text-sm">
-                      <span className="text-muted-foreground">Total Price</span>
-                      <span className="font-semibold text-foreground">£{totalPrice.toFixed(2)}</span>
+                      <span className="text-muted-foreground">{isEstimatePrice ? "Estimated Total" : "Total Price"}</span>
+                      <span className="font-semibold text-foreground">{isEstimatePrice ? "~" : ""}£{totalPrice.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between items-center text-sm">
                       <span className="text-muted-foreground">60% Deposit option</span>
