@@ -131,9 +131,18 @@ serve(async (req) => {
         </table>
 
         <div style="text-align: center; margin: 24px 0;">
-          <a href="${checkoutUrl}" style="display: inline-block; background-color: #1a1a1a; color: #ffffff; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 16px;">
-            Pay Deposit — £${depositDisplay}
-          </a>
+          <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin: 0 auto;">
+            <tr>
+              <td align="center" valign="middle" style="background-color: #1a1a1a; border-radius: 8px;">
+                <a href="${checkoutUrl}" target="_blank" style="display: inline-block; background-color: #1a1a1a; color: #ffffff; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 16px; mso-padding-alt: 0; text-underline-color: #1a1a1a;">
+                  <!--[if mso]><i style="mso-font-width:150%;mso-text-raise:22pt">&nbsp;</i><![endif]-->
+                  <span style="mso-text-raise:11pt;">Pay Deposit &mdash; &pound;${depositDisplay}</span>
+                  <!--[if mso]><i style="mso-font-width:150%">&nbsp;</i><![endif]-->
+                </a>
+              </td>
+            </tr>
+          </table>
+          <p style="color: #666; font-size: 12px; margin-top: 8px;">If the button above doesn't work, <a href="${checkoutUrl}" style="color: #1a1a1a; text-decoration: underline;">click here to pay your deposit</a>.</p>
         </div>
 
         <p style="color: #666; font-size: 13px;">This booking will only be confirmed once the deposit is received. The remaining balance of £${(totalPrice - depositAmount / 100).toFixed(2)} is due on the day of the appointment.</p>
