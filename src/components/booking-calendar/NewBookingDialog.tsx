@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { NumericInput } from "@/components/ui/numeric-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -33,6 +34,7 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
   const [isNewCustomer, setIsNewCustomer] = useState(false);
   const [customerSelected, setCustomerSelected] = useState(false);
   const [selectedDogs, setSelectedDogs] = useState<{ name: string; breed_id: string | null }[]>([]);
+  const [selectedAddOns, setSelectedAddOns] = useState<string[]>([]);
 
   const [form, setForm] = useState({
     customer_name: "",
@@ -55,6 +57,7 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
       setIsNewCustomer(false);
       setCustomerSelected(false);
       setSelectedDogs([]);
+      setSelectedAddOns([]);
       setForm(prev => ({
         ...prev,
         staff_id: defaultStaffId || prev.staff_id,
@@ -79,22 +82,94 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
   });
 
   const { data: services } = useQuery({
-    queryKey: ["services-list"],
+    queryKey: ["services-list-full"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("services").select("id, name").eq("is_active", true).order("name");
+      const { data, error } = await supabase.from("services").select("id, name, fixed_price").eq("is_active", true).order("name");
       if (error) throw error;
       return data;
     },
   });
 
   const { data: breeds } = useQuery({
-    queryKey: ["breeds-list"],
+    queryKey: ["breeds-list-full"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("breeds").select("id, name").order("name");
+      const { data, error } = await supabase.from("breeds").select("id, name, price_bath_brush, price_full_groom").order("name");
       if (error) throw error;
       return data;
     },
   });
+
+  const { data: servicePrices } = useQuery({
+    queryKey: ["service-prices"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("service_prices").select("*");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: addOns } = useQuery({
+    queryKey: ["add-ons-list"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("add_ons").select("id, name, price").eq("is_active", true).order("name");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: addOnServices } = useQuery({
+    queryKey: ["add-on-services"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("add_on_services").select("add_on_id, service_id");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Filter add-ons by selected service
+  const availableAddOns = (addOns || []).filter(ao => {
+    const links = (addOnServices || []).filter(l => l.add_on_id === ao.id);
+    // If no service links, available for all; otherwise check match
+    return links.length === 0 || links.some(l => l.service_id === form.service_id);
+  });
+
+  // Auto-fill price when service or breed changes
+  useEffect(() => {
+    if (!form.service_id) return;
+    const svc = services?.find(s => s.id === form.service_id);
+    let price = 0;
+
+    if (svc?.fixed_price) {
+      price = Number(svc.fixed_price);
+    } else if (form.breed_id) {
+      const sp = servicePrices?.find(p => p.service_id === form.service_id && p.breed_id === form.breed_id);
+      if (sp) {
+        price = Number(sp.price);
+      } else {
+        const breed = breeds?.find(b => b.id === form.breed_id);
+        if (breed) {
+          const name = svc?.name?.toLowerCase() || "";
+          if (name.includes("bath") && name.includes("brush")) {
+            price = Number(breed.price_bath_brush);
+          } else if (name.includes("full") || name.includes("groom")) {
+            price = Number(breed.price_full_groom);
+          }
+        }
+      }
+    }
+
+    // Add add-on prices
+    const addOnTotal = selectedAddOns.reduce((sum, id) => {
+      const ao = addOns?.find(a => a.id === id);
+      return sum + (ao ? Number(ao.price) : 0);
+    }, 0);
+
+    const totalPrice = price + addOnTotal;
+    if (totalPrice > 0) {
+      const deposit = Math.round(totalPrice * 0.6 * 100) / 100;
+      setForm(prev => ({ ...prev, total_price: totalPrice, deposit_paid: deposit }));
+    }
+  }, [form.service_id, form.breed_id, services, breeds, servicePrices, selectedAddOns, addOns]);
 
   const handleCustomerSelect = (customer: CustomerResult) => {
     setCustomerSelected(true);
@@ -122,6 +197,24 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
       dog_name: "",
       breed_id: "",
     }));
+  };
+
+  const handleClearCustomer = () => {
+    setCustomerSelected(false);
+    setIsNewCustomer(false);
+    setSelectedDogs([]);
+    setForm(prev => ({
+      ...prev,
+      customer_name: "",
+      customer_email: "",
+      customer_phone: "",
+      dog_name: "",
+      breed_id: "",
+    }));
+  };
+
+  const toggleAddOn = (id: string) => {
+    setSelectedAddOns(prev => prev.includes(id) ? prev.filter(a => a !== id) : [...prev, id]);
   };
 
   const createBooking = useMutation({
@@ -160,6 +253,13 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
           details: `Blocked ${formattedDate} ${form.booking_time.slice(0, 5)}-${form.end_time.slice(0, 5)} for ${staffName}. Reason: ${form.notes.trim()}`,
         });
       } else {
+        // Build notes with add-ons info
+        const addOnNames = selectedAddOns.map(id => addOns?.find(a => a.id === id)?.name).filter(Boolean);
+        const notesWithAddOns = [
+          form.notes,
+          addOnNames.length > 0 ? `Add-ons: ${addOnNames.join(", ")}` : "",
+        ].filter(Boolean).join("\n");
+
         const { data: insertedBooking, error } = await supabase.from("bookings").insert({
           customer_name: form.customer_name,
           dog_name: form.dog_name,
@@ -172,7 +272,7 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
           booking_time: form.booking_time,
           total_price: form.total_price,
           deposit_paid: form.deposit_paid,
-          notes: form.notes || null,
+          notes: notesWithAddOns || null,
           status: "Confirmed",
         }).select("id").single();
         if (error) throw error;
@@ -275,21 +375,12 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
             </>
           ) : (
             <>
-              {/* Customer Search Section */}
-              {!isNewCustomer && !customerSelected && (
-                <CustomerSearchInput
-                  onSelect={handleCustomerSelect}
-                  onAddNew={handleAddNew}
-                />
-              )}
-
-              {/* Selected customer chip with clear */}
-              {customerSelected && (
-                <CustomerSearchInput
-                  onSelect={handleCustomerSelect}
-                  onAddNew={handleAddNew}
-                />
-              )}
+              {/* Customer Search / Selected display */}
+              <CustomerSearchInput
+                onSelect={handleCustomerSelect}
+                onAddNew={handleClearCustomer}
+                initialSelectedName={customerSelected ? form.customer_name : null}
+              />
 
               {/* New customer manual entry */}
               {isNewCustomer && (
@@ -388,6 +479,25 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
                       </Select>
                     </div>
                   </div>
+
+                  {/* Add-ons */}
+                  {form.service_id && availableAddOns.length > 0 && (
+                    <div className="space-y-2">
+                      <Label>Add-ons</Label>
+                      <div className="grid grid-cols-1 gap-2">
+                        {availableAddOns.map(ao => (
+                          <label key={ao.id} className="flex items-center gap-2 rounded-md border px-3 py-2 cursor-pointer hover:bg-accent/50 transition-colors">
+                            <Checkbox
+                              checked={selectedAddOns.includes(ao.id)}
+                              onCheckedChange={() => toggleAddOn(ao.id)}
+                            />
+                            <span className="text-sm flex-1">{ao.name}</span>
+                            <span className="text-sm text-muted-foreground">£{Number(ao.price).toFixed(2)}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     <div className="space-y-1">
