@@ -14,11 +14,12 @@ interface AdminPetToolsProps {
   petId: string;
   petName: string;
   customerUserId: string;
+  customerEmail: string;
   staffId: string | null;
   staffName: string;
 }
 
-export function AdminPetTools({ petId, petName, customerUserId, staffId, staffName }: AdminPetToolsProps) {
+export function AdminPetTools({ petId, petName, customerUserId, customerEmail, staffId, staffName }: AdminPetToolsProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -87,6 +88,19 @@ export function AdminPetTools({ petId, petName, customerUserId, staffId, staffNa
       if (insertError) throw insertError;
       toast({ title: `Photo added to ${petName}'s gallery! 📸` });
       queryClient.invalidateQueries({ queryKey: ["admin-pet-photos", petId] });
+
+      // Notify the customer via email
+      try {
+        await supabase.functions.invoke("send-customer-email", {
+          body: {
+            customer_email: customerEmail,
+            subject: `New grooming photo of ${petName}! 📸`,
+            body: `Hi there!\n\n${staffName} has just uploaded a new photo of ${petName} to their gallery.\n\nLog in to your account to see the latest pictures:\nhttps://fluff-scruff-studio.lovable.app/my-pets\n\nFluff & Scruff Studio 🐾`,
+          },
+        });
+      } catch (emailErr) {
+        console.error("Failed to send photo notification email:", emailErr);
+      }
     } catch (err: any) {
       toast({ title: "Upload failed", description: err.message, variant: "destructive" });
     } finally {

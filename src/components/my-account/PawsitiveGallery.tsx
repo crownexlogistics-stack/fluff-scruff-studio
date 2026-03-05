@@ -117,10 +117,10 @@ export function PawsitiveGallery({ petId, petName, photos, userId, onRefresh }: 
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
               loading="lazy"
             />
-            {photo.uploaded_by_role === "groomer" && photo.groomer_name && (
+            {photo.uploaded_by_role === "groomer" && (
               <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-1.5">
                 <span className="text-[9px] text-white font-medium flex items-center gap-0.5">
-                  <Camera className="h-2.5 w-2.5" /> by {photo.groomer_name}
+                  <Camera className="h-2.5 w-2.5" /> {photo.groomer_name ? `by ${photo.groomer_name}` : "Groomer photo"}
                 </span>
               </div>
             )}
@@ -139,20 +139,18 @@ export function PawsitiveGallery({ petId, petName, photos, userId, onRefresh }: 
                 className="w-full max-h-[70vh] object-contain bg-black"
               />
               <div className="p-4 space-y-2">
-                {viewPhoto.uploaded_by_role === "groomer" && viewPhoto.groomer_name && (
-                  <Badge variant="secondary" className="gap-1">
-                    <Camera className="h-3 w-3" /> Groomed by {viewPhoto.groomer_name}
+                {viewPhoto.uploaded_by_role === "groomer" && (
+                  <Badge variant="secondary" className="gap-1 bg-accent/10 text-accent border-accent/20">
+                    <Camera className="h-3 w-3" /> {viewPhoto.groomer_name ? `Photo by ${viewPhoto.groomer_name}` : "Groomer photo"}
                   </Badge>
                 )}
                 {viewPhoto.caption && <p className="text-sm">{viewPhoto.caption}</p>}
-                {viewPhoto.uploaded_by_role === "customer" && (
-                  <button
-                    onClick={() => deletePhoto(viewPhoto)}
-                    className="text-xs text-destructive hover:underline"
-                  >
-                    Delete photo
-                  </button>
-                )}
+                <button
+                  onClick={() => deletePhoto(viewPhoto)}
+                  className="text-xs text-destructive hover:underline"
+                >
+                  Delete photo
+                </button>
               </div>
             </div>
           )}
