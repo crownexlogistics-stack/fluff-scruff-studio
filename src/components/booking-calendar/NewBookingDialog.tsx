@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { logAudit } from "@/lib/auditLog";
+import { CustomerSearchInput, type CustomerResult } from "./CustomerSearchInput";
 
 interface NewBookingDialogProps {
   open: boolean;
@@ -28,6 +29,10 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
   const timeStr = defaultHour != null ? `${String(defaultHour).padStart(2, "0")}:00` : "09:00";
   const defaultEndHour = defaultHour != null ? defaultHour + 1 : 10;
   const endTimeStr = `${String(defaultEndHour).padStart(2, "0")}:00`;
+
+  const [isNewCustomer, setIsNewCustomer] = useState(false);
+  const [customerSelected, setCustomerSelected] = useState(false);
+  const [selectedDogs, setSelectedDogs] = useState<{ name: string; breed_id: string | null }[]>([]);
 
   const [form, setForm] = useState({
     customer_name: "",
@@ -47,6 +52,9 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
 
   useEffect(() => {
     if (open) {
+      setIsNewCustomer(false);
+      setCustomerSelected(false);
+      setSelectedDogs([]);
       setForm(prev => ({
         ...prev,
         staff_id: defaultStaffId || prev.staff_id,
@@ -88,12 +96,38 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
     },
   });
 
+  const handleCustomerSelect = (customer: CustomerResult) => {
+    setCustomerSelected(true);
+    setIsNewCustomer(false);
+    setSelectedDogs(customer.dogs);
+    setForm(prev => ({
+      ...prev,
+      customer_name: customer.customer_name,
+      customer_email: customer.customer_email,
+      customer_phone: customer.customer_phone,
+      dog_name: customer.dogs[0]?.name || "",
+      breed_id: customer.dogs[0]?.breed_id || "",
+    }));
+  };
+
+  const handleAddNew = () => {
+    setIsNewCustomer(true);
+    setCustomerSelected(false);
+    setSelectedDogs([]);
+    setForm(prev => ({
+      ...prev,
+      customer_name: "",
+      customer_email: "",
+      customer_phone: "",
+      dog_name: "",
+      breed_id: "",
+    }));
+  };
+
   const createBooking = useMutation({
     mutationFn: async () => {
       if (mode === "block") {
-        if (!form.notes.trim()) {
-          throw new Error("A reason is required when blocking time.");
-        }
+        if (!form.notes.trim()) throw new Error("A reason is required when blocking time.");
 
         const { error } = await supabase.from("staff_schedule_overrides").insert({
           staff_id: form.staff_id,
@@ -108,7 +142,6 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
         const staffName = staff?.find(s => s.id === form.staff_id)?.name || "Unknown";
         const formattedDate = format(new Date(form.booking_date), "dd MMM yyyy");
 
-        // HR notes
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
           const hrNote = `⛔ TIME BLOCKED — ${formattedDate} from ${form.booking_time.slice(0, 5)} to ${form.end_time.slice(0, 5)} — Reason: ${form.notes.trim()}`;
@@ -121,7 +154,6 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
           } catch {}
         }
 
-        // Audit trail
         logAudit({
           staffId: form.staff_id,
           action: "TIME_BLOCKED",
@@ -147,14 +179,12 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
 
         const staffName = staff?.find(s => s.id === form.staff_id)?.name || "Unknown";
 
-        // Audit trail
         logAudit({
           staffId: form.staff_id || undefined,
           action: "BOOKING_CREATED",
           details: `Booking for ${form.customer_name} (${form.dog_name}) on ${form.booking_date} at ${form.booking_time.slice(0, 5)} with ${staffName}`,
         });
 
-        // Send confirmation email if customer has email
         if (form.customer_email && insertedBooking?.id) {
           supabase.functions.invoke("send-booking-email", {
             body: { booking_id: insertedBooking.id, email_type: "confirmation" },
@@ -245,82 +275,137 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
             </>
           ) : (
             <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                <div className="space-y-1">
-                  <Label>Date</Label>
-                  <Input type="date" value={form.booking_date} onChange={(e) => setForm({ ...form, booking_date: e.target.value })} />
-                </div>
-                <div className="space-y-1">
-                  <Label>Time</Label>
-                  <Input type="time" value={form.booking_time} onChange={(e) => setForm({ ...form, booking_time: e.target.value })} />
-                </div>
-              </div>
+              {/* Customer Search Section */}
+              {!isNewCustomer && !customerSelected && (
+                <CustomerSearchInput
+                  onSelect={handleCustomerSelect}
+                  onAddNew={handleAddNew}
+                />
+              )}
 
-              <div className="space-y-1">
-                <Label>Staff Member</Label>
-                <Select value={form.staff_id} onValueChange={(v) => setForm({ ...form, staff_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="Select staff" /></SelectTrigger>
-                  <SelectContent>
-                    {staff?.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
+              {/* Selected customer chip with clear */}
+              {customerSelected && (
+                <CustomerSearchInput
+                  onSelect={handleCustomerSelect}
+                  onAddNew={handleAddNew}
+                />
+              )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                <div className="space-y-1">
-                  <Label>Customer Name</Label>
-                  <Input value={form.customer_name} onChange={(e) => setForm({ ...form, customer_name: e.target.value })} />
+              {/* New customer manual entry */}
+              {isNewCustomer && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-medium">New Customer</Label>
+                    <Button type="button" variant="ghost" size="sm" onClick={() => { setIsNewCustomer(false); setCustomerSelected(false); }}>
+                      ← Back to search
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label>Customer Name</Label>
+                      <Input value={form.customer_name} onChange={(e) => setForm({ ...form, customer_name: e.target.value })} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Dog Name</Label>
+                      <Input value={form.dog_name} onChange={(e) => setForm({ ...form, dog_name: e.target.value })} />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label>Email</Label>
+                      <Input type="email" value={form.customer_email} onChange={(e) => setForm({ ...form, customer_email: e.target.value })} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Phone</Label>
+                      <Input value={form.customer_phone} onChange={(e) => setForm({ ...form, customer_phone: e.target.value })} />
+                    </div>
+                  </div>
                 </div>
+              )}
+
+              {/* Dog selector when customer is selected and has multiple dogs */}
+              {customerSelected && selectedDogs.length > 1 && (
                 <div className="space-y-1">
-                  <Label>Dog Name</Label>
-                  <Input value={form.dog_name} onChange={(e) => setForm({ ...form, dog_name: e.target.value })} />
-                </div>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                <div className="space-y-1">
-                  <Label>Email</Label>
-                  <Input type="email" value={form.customer_email} onChange={(e) => setForm({ ...form, customer_email: e.target.value })} />
-                </div>
-                <div className="space-y-1">
-                  <Label>Phone</Label>
-                  <Input value={form.customer_phone} onChange={(e) => setForm({ ...form, customer_phone: e.target.value })} />
-                </div>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                <div className="space-y-1">
-                  <Label>Service</Label>
-                  <Select value={form.service_id} onValueChange={(v) => setForm({ ...form, service_id: v })}>
-                    <SelectTrigger><SelectValue placeholder="Select service" /></SelectTrigger>
+                  <Label>Dog</Label>
+                  <Select
+                    value={form.dog_name}
+                    onValueChange={(v) => {
+                      const dog = selectedDogs.find(d => d.name === v);
+                      setForm(prev => ({ ...prev, dog_name: v, breed_id: dog?.breed_id || "" }));
+                    }}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Select dog" /></SelectTrigger>
                     <SelectContent>
-                      {services?.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                      {selectedDogs.map((d, i) => (
+                        <SelectItem key={i} value={d.name}>{d.name}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-1">
-                  <Label>Breed</Label>
-                  <Select value={form.breed_id} onValueChange={(v) => setForm({ ...form, breed_id: v })}>
-                    <SelectTrigger><SelectValue placeholder="Select breed" /></SelectTrigger>
-                    <SelectContent>
-                      {breeds?.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                <div className="space-y-1">
-                  <Label>Total Price (£)</Label>
-                  <NumericInput value={form.total_price} onValueChange={(v) => setForm({ ...form, total_price: v })} />
-                </div>
-                <div className="space-y-1">
-                  <Label>Deposit (£)</Label>
-                  <NumericInput value={form.deposit_paid} onValueChange={(v) => setForm({ ...form, deposit_paid: v })} />
-                </div>
-              </div>
+              )}
 
-              <div className="space-y-1">
-                <Label>Notes</Label>
-                <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} />
-              </div>
+              {/* Rest of form - always visible once customer is chosen */}
+              {(customerSelected || isNewCustomer) && (
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                    <div className="space-y-1">
+                      <Label>Date</Label>
+                      <Input type="date" value={form.booking_date} onChange={(e) => setForm({ ...form, booking_date: e.target.value })} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Time</Label>
+                      <Input type="time" value={form.booking_time} onChange={(e) => setForm({ ...form, booking_time: e.target.value })} />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label>Staff Member</Label>
+                    <Select value={form.staff_id} onValueChange={(v) => setForm({ ...form, staff_id: v })}>
+                      <SelectTrigger><SelectValue placeholder="Select staff" /></SelectTrigger>
+                      <SelectContent>
+                        {staff?.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                    <div className="space-y-1">
+                      <Label>Service</Label>
+                      <Select value={form.service_id} onValueChange={(v) => setForm({ ...form, service_id: v })}>
+                        <SelectTrigger><SelectValue placeholder="Select service" /></SelectTrigger>
+                        <SelectContent>
+                          {services?.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Breed</Label>
+                      <Select value={form.breed_id} onValueChange={(v) => setForm({ ...form, breed_id: v })}>
+                        <SelectTrigger><SelectValue placeholder="Select breed" /></SelectTrigger>
+                        <SelectContent>
+                          {breeds?.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                    <div className="space-y-1">
+                      <Label>Total Price (£)</Label>
+                      <NumericInput value={form.total_price} onValueChange={(v) => setForm({ ...form, total_price: v })} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Deposit (£)</Label>
+                      <NumericInput value={form.deposit_paid} onValueChange={(v) => setForm({ ...form, deposit_paid: v })} />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label>Notes</Label>
+                    <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} />
+                  </div>
+                </>
+              )}
             </>
           )}
         </div>
@@ -329,7 +414,7 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button
             onClick={() => createBooking.mutate()}
-            disabled={createBooking.isPending || blockDisabled}
+            disabled={createBooking.isPending || blockDisabled || (mode === "appointment" && !customerSelected && !isNewCustomer)}
           >
             {mode === "block" ? "Block Time" : "Create Booking"}
           </Button>
