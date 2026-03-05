@@ -34,6 +34,83 @@ const END_HOUR = 18;
 const HOURS = Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, i) => START_HOUR + i);
 const DAYS = Array.from({ length: 7 }, (_, i) => i);
 
+const DEFAULT_DURATION = 1.5; // hours
+
+function getBookingTimeRange(b: BookingData) {
+  const parts = b.booking_time.split(":");
+  const startMin = parseInt(parts[0]) * 60 + parseInt(parts[1] || "0");
+  let endMin: number;
+  if (b.end_time) {
+    const ep = b.end_time.split(":");
+    endMin = parseInt(ep[0]) * 60 + parseInt(ep[1] || "0");
+    if (endMin <= startMin) endMin = startMin + 60;
+  } else {
+    const isCancelled = b.status === "Cancelled" || b.status === "No Show" || b.status === "Refunded";
+    endMin = startMin + (isCancelled ? 15 : DEFAULT_DURATION * 60);
+  }
+  return { startMin, endMin };
+}
+
+interface LayoutInfo {
+  column: number;
+  totalColumns: number;
+}
+
+function computeOverlapLayout(dayBookings: BookingData[]): Map<string, LayoutInfo> {
+  const result = new Map<string, LayoutInfo>();
+  if (dayBookings.length === 0) return result;
+
+  // Get time ranges
+  const items = dayBookings.map(b => {
+    const { startMin, endMin } = getBookingTimeRange(b);
+    return { id: b.id, startMin, endMin };
+  }).sort((a, b) => a.startMin - b.startMin || a.endMin - b.endMin);
+
+  // Group into overlap clusters
+  const clusters: typeof items[] = [];
+  let currentCluster: typeof items = [];
+  let clusterEnd = -1;
+
+  for (const item of items) {
+    if (currentCluster.length === 0 || item.startMin < clusterEnd) {
+      currentCluster.push(item);
+      clusterEnd = Math.max(clusterEnd, item.endMin);
+    } else {
+      clusters.push(currentCluster);
+      currentCluster = [item];
+      clusterEnd = item.endMin;
+    }
+  }
+  if (currentCluster.length > 0) clusters.push(currentCluster);
+
+  // Assign columns within each cluster
+  for (const cluster of clusters) {
+    const columns: { endMin: number }[] = [];
+    for (const item of cluster) {
+      let placed = false;
+      for (let col = 0; col < columns.length; col++) {
+        if (item.startMin >= columns[col].endMin) {
+          columns[col].endMin = item.endMin;
+          result.set(item.id, { column: col, totalColumns: 0 });
+          placed = true;
+          break;
+        }
+      }
+      if (!placed) {
+        result.set(item.id, { column: columns.length, totalColumns: 0 });
+        columns.push({ endMin: item.endMin });
+      }
+    }
+    const totalCols = columns.length;
+    for (const item of cluster) {
+      const info = result.get(item.id)!;
+      info.totalColumns = totalCols;
+    }
+  }
+
+  return result;
+}
+
 export function WeeklyCalendar({ weekStart, staff, bookings, staffIndexMap, onBook, onBlock, onOvertime, onEditBlock, onCancelBlock, onEditOvertime, onCancelOvertime, onViewOrder, onEditAppointment, onCancelBooking, onBookAgain, onCheckout }: WeeklyCalendarProps) {
   const days = useMemo(() => DAYS.map(i => addDays(weekStart, i)), [weekStart]);
 
@@ -46,6 +123,14 @@ export function WeeklyCalendar({ weekStart, staff, bookings, staffIndexMap, onBo
     });
     return map;
   }, [bookings]);
+
+  const layoutByDate = useMemo(() => {
+    const map = new Map<string, Map<string, LayoutInfo>>();
+    bookingsByDate.forEach((dayBookings, dateStr) => {
+      map.set(dateStr, computeOverlapLayout(dayBookings));
+    });
+    return map;
+  }, [bookingsByDate]);
 
   return (
     <div className="border rounded-lg bg-card overflow-hidden">
@@ -72,6 +157,7 @@ export function WeeklyCalendar({ weekStart, staff, bookings, staffIndexMap, onBo
           {days.map((day) => {
             const dateStr = format(day, "yyyy-MM-dd");
             const dayBookings = bookingsByDate.get(dateStr) || [];
+            const dayLayout = layoutByDate.get(dateStr) || new Map();
 
             return (
               <div key={dateStr} className={cn("relative border-r last:border-r-0", isToday(day) && "bg-primary/5")}>
@@ -92,13 +178,16 @@ export function WeeklyCalendar({ weekStart, staff, bookings, staffIndexMap, onBo
 
                 {dayBookings.map(booking => {
                   const sIdx = staffIndexMap.get(booking.staff_name || "") ?? 0;
+                  const layout = dayLayout.get(booking.id);
                   return (
                     <BookingEvent
                       key={booking.id}
                       booking={booking}
                       staffIndex={sIdx}
                       startHour={START_HOUR}
-                      durationHours={1.5}
+                      durationHours={DEFAULT_DURATION}
+                      overlapColumn={layout?.column ?? 0}
+                      overlapTotalColumns={layout?.totalColumns ?? 1}
                       onEditBlock={onEditBlock}
                       onCancelBlock={onCancelBlock}
                       onEditOvertime={onEditOvertime}
