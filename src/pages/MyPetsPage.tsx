@@ -162,7 +162,8 @@ const MyPetsPage = () => {
     enabled: !!selectedPetId,
   });
 
-  const profilePhoto = photos.length > 0 ? photos[0].photo_url : null;
+  // Profile photo = most recent CUSTOMER-uploaded photo only (groomers can't change it)
+  const profilePhoto = photos.find((p: any) => p.uploaded_by_role === "customer")?.photo_url || null;
 
   const normalizeBookingStatus = (raw?: string | null) => (raw || "").trim().toLowerCase();
   const isClosedBookingStatus = (raw?: string | null) => {
@@ -327,7 +328,7 @@ const MyPetsPage = () => {
                 id: p.id,
                 pet_name: p.pet_name,
                 breed_name: p.breed_name,
-                profile_photo: allPhotos.find((ph: any) => ph.pet_id === p.id)?.photo_url || null,
+                profile_photo: allPhotos.find((ph: any) => ph.pet_id === p.id && ph.uploaded_by_role === "customer")?.photo_url || null,
               }))}
               selectedPetId={selectedPetId}
               onSelect={setSelectedPetId}

@@ -680,6 +680,7 @@ export default function CustomerProfilePage() {
                             petId={pet.id}
                             petName={pet.pet_name}
                             customerUserId={customerUserId}
+                            customerEmail={decodedEmail}
                             staffId={groomerStaff?.id || null}
                             staffName={groomerStaff?.name || "Staff"}
                           />

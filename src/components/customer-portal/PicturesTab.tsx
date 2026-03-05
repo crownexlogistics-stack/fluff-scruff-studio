@@ -41,10 +41,14 @@ export function PicturesTab({ photos, petName }: PicturesTabProps) {
               className="w-full h-full object-cover"
               loading="lazy"
             />
-            {(photo.caption || photo.groomer_name) && (
+            {photo.uploaded_by_role === "groomer" && (
+              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-2">
+                <p className="text-white text-[10px] font-medium">📸 {photo.groomer_name ? `by ${photo.groomer_name}` : "Groomer photo"}</p>
+              </div>
+            )}
+            {photo.uploaded_by_role !== "groomer" && (photo.caption || photo.groomer_name) && (
               <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity">
                 {photo.caption && <p className="text-white text-xs">{photo.caption}</p>}
-                {photo.groomer_name && <p className="text-white/70 text-[10px]">by {photo.groomer_name}</p>}
               </div>
             )}
           </div>
