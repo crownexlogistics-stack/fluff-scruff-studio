@@ -45,6 +45,8 @@ interface BookingEventProps {
   staffIndex: number;
   startHour: number;
   durationHours?: number;
+  overlapColumn?: number;
+  overlapTotalColumns?: number;
   onEditBlock?: (booking: BookingData) => void;
   onCancelBlock?: (booking: BookingData) => void;
   onEditOvertime?: (booking: BookingData) => void;
@@ -56,7 +58,7 @@ interface BookingEventProps {
   onCheckout?: (booking: BookingData) => void;
 }
 
-export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1, onEditBlock, onCancelBlock, onEditOvertime, onCancelOvertime, onViewOrder, onEditAppointment, onCancelBooking, onBookAgain, onCheckout }: BookingEventProps) {
+export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1, overlapColumn = 0, overlapTotalColumns = 1, onEditBlock, onCancelBlock, onEditOvertime, onCancelOvertime, onViewOrder, onEditAppointment, onCancelBooking, onBookAgain, onCheckout }: BookingEventProps) {
   const navigate = useNavigate();
   const [requestingDeposit, setRequestingDeposit] = useState(false);
   const isCancelled = booking.status === "Cancelled";
@@ -81,13 +83,22 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
   // No Show: shrink to thin strip
   const height = isGhost ? 16 : calculatedDuration * 64;
 
+  // Overlap layout: side-by-side columns
+  const colWidthPercent = 100 / overlapTotalColumns;
+  const leftPercent = overlapColumn * colWidthPercent;
+  const overlapStyle = {
+    top: `${topOffset}px`,
+    left: `calc(${leftPercent}% + 2px)`,
+    width: `calc(${colWidthPercent}% - 4px)`,
+  };
+
   if (booking.is_block) {
     return (
       <Popover>
         <PopoverTrigger asChild>
           <div
-            className={cn("absolute left-1 right-1 rounded-md px-2 py-1 text-xs font-medium cursor-pointer z-10 hover:opacity-90 transition-opacity", color.bg, color.text)}
-            style={{ top: `${topOffset}px`, height: `${calculatedDuration * 64}px`, minHeight: "28px" }}
+            className={cn("absolute rounded-md px-2 py-1 text-xs font-medium cursor-pointer z-10 hover:opacity-90 transition-opacity overflow-hidden", color.bg, color.text)}
+            style={{ ...overlapStyle, height: `${calculatedDuration * 64}px`, minHeight: "28px" }}
           >
             <p className="font-bold">Blocked</p>
             <p className="opacity-80">{booking.staff_name}</p>
@@ -134,8 +145,8 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
       <Popover>
         <PopoverTrigger asChild>
           <div
-            className="absolute left-1 right-1 rounded-md px-2 py-1 text-xs font-medium cursor-pointer z-10 hover:opacity-90 transition-opacity bg-emerald-100 text-emerald-900 border border-emerald-300"
-            style={{ top: `${topOffset}px`, height: `${calculatedDuration * 64}px`, minHeight: "28px" }}
+            className="absolute rounded-md px-2 py-1 text-xs font-medium cursor-pointer z-10 hover:opacity-90 transition-opacity bg-emerald-100 text-emerald-900 border border-emerald-300 overflow-hidden"
+            style={{ ...overlapStyle, height: `${calculatedDuration * 64}px`, minHeight: "28px" }}
           >
             <p className="font-bold flex items-center gap-1"><Clock className="h-3 w-3" /> Overtime</p>
             <p className="opacity-80">{booking.staff_name}</p>
@@ -187,11 +198,11 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
       <PopoverTrigger asChild>
         <div
           className={cn(
-            "absolute left-1 right-1 rounded-md px-2 py-1 text-xs cursor-pointer z-10 overflow-hidden transition-opacity hover:opacity-90",
+            "absolute rounded-md px-2 py-1 text-xs cursor-pointer z-10 overflow-hidden transition-opacity hover:opacity-90",
             color.bg, color.text,
             isGhost && "line-through opacity-50"
           )}
-          style={{ top: `${topOffset}px`, height: `${height}px`, minHeight: isGhost ? "16px" : "48px" }}
+          style={{ ...overlapStyle, height: `${height}px`, minHeight: isGhost ? "16px" : "48px" }}
         >
           {isGhost ? (
             <p className="font-medium truncate text-[10px]">
@@ -199,9 +210,11 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
             </p>
           ) : (
             <>
+              <p className="text-[10px] opacity-70">{booking.booking_time.slice(0, 5)}</p>
               <p className="font-bold truncate">{booking.service_name || "Appointment"}</p>
+              <p className="truncate">{booking.breed_name || booking.dog_name}</p>
               <p className="truncate">{booking.customer_name}</p>
-              <p className="opacity-80 truncate">with {booking.staff_name}</p>
+              <p className="opacity-80 truncate text-[10px]">With: {booking.staff_name}</p>
             </>
           )}
         </div>
