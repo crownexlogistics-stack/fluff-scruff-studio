@@ -193,6 +193,37 @@ const CustomerHome = () => {
       {/* Google Reviews */}
       <GoogleReviews />
 
+      {/* About Us */}
+      <section id="about" className="py-16 sm:py-24 lg:py-32">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6">
+          <div className="text-center mb-12 sm:mb-16">
+            <PawPrint className="h-6 w-6 text-accent mx-auto mb-3" />
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-heading text-foreground mb-4 leading-tight">
+              At Fluff&amp;Scruff, we put our love for pets and their owners into all that we do.
+            </h2>
+          </div>
+
+          <div className="space-y-8 max-w-3xl mx-auto">
+            <div className="bg-card rounded-3xl border border-border/50 p-8 sm:p-10 shadow-sm shadow-black/[0.02]">
+              <h3 className="text-2xl sm:text-3xl font-heading text-foreground mb-5">Our Story</h3>
+              <div className="space-y-5 text-muted-foreground font-body text-[0.95rem] sm:text-base leading-relaxed">
+                <p>
+                  F&amp;S Studio is a family-run business dedicated to providing top-notch dog grooming services. Our team is passionate about dogs and we take great care and pride in ensuring their safety, well-being and happiness. Our dog groomers have extensive experience and are trained to handle dogs of all breeds and sizes, from the tiniest teacup poodle to the largest Great Dane. We believe that every dog deserves the best and we are committed to delivering a top-quality service.
+                </p>
+                <p>
+                  Your furry pal deserves the very best, and that's what we provide here at F&amp;S Studio. Our experienced groomers are passionate about what they do and take great care in making sure every dog leaves our salon looking and feeling their best. We are dedicated to staying up-to-date with the latest dog grooming techniques and trends, so you can trust us to provide only the best care for your furry friend. Come see us today and let us help your dog look and feel great.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Divider */}
+      <div className="max-w-xs mx-auto">
+        <div className="h-px bg-border/60" />
+      </div>
+
       {/* Contact / Info */}
       <section id="contact" className="py-16 sm:py-24 lg:py-32">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
