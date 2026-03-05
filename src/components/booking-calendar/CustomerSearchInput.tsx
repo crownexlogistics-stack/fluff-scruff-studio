@@ -19,13 +19,19 @@ interface Props {
   onSelect: (customer: CustomerResult) => void;
   onAddNew: () => void;
   disabled?: boolean;
+  initialSelectedName?: string | null;
 }
 
-export function CustomerSearchInput({ onSelect, onAddNew, disabled }: Props) {
+export function CustomerSearchInput({ onSelect, onAddNew, disabled, initialSelectedName }: Props) {
   const [query, setQuery] = useState("");
   const [showResults, setShowResults] = useState(false);
-  const [selectedName, setSelectedName] = useState<string | null>(null);
+  const [selectedName, setSelectedName] = useState<string | null>(initialSelectedName || null);
   const wrapperRef = useRef<HTMLDivElement>(null);
+
+  // Sync with parent
+  useEffect(() => {
+    setSelectedName(initialSelectedName || null);
+  }, [initialSelectedName]);
 
   // Fetch distinct customers from bookings
   const { data: customers } = useQuery({

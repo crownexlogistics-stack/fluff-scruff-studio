@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { NumericInput } from "@/components/ui/numeric-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -34,6 +35,7 @@ export function NewAppointmentDialog({
   const [showDepositPrompt, setShowDepositPrompt] = useState(false);
   const [createdBookingId, setCreatedBookingId] = useState<string | null>(null);
   const [sendingDeposit, setSendingDeposit] = useState(false);
+  const [selectedAddOns, setSelectedAddOns] = useState<string[]>([]);
 
   // If opened from customer profile, we already have customer info
   const hasPrefilledCustomer = Boolean(customerName && customerEmail);
@@ -76,7 +78,7 @@ export function NewAppointmentDialog({
         deposit_paid: 0,
         notes: "",
       });
-      setShowDepositPrompt(false);
+      setSelectedAddOns([]);
       setCreatedBookingId(null);
     }
   }, [open, customerName, customerEmail, customerPhone, dogName, breedId, serviceId, lastStaffId]);
@@ -117,6 +119,34 @@ export function NewAppointmentDialog({
     },
   });
 
+  const { data: addOns } = useQuery({
+    queryKey: ["add-ons-list"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("add_ons").select("id, name, price").eq("is_active", true).order("name");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: addOnServices } = useQuery({
+    queryKey: ["add-on-services"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("add_on_services").select("add_on_id, service_id");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Filter add-ons by selected service
+  const availableAddOns = (addOns || []).filter(ao => {
+    const links = (addOnServices || []).filter(l => l.add_on_id === ao.id);
+    return links.length === 0 || links.some(l => l.service_id === form.service_id);
+  });
+
+  const toggleAddOn = (id: string) => {
+    setSelectedAddOns(prev => prev.includes(id) ? prev.filter(a => a !== id) : [...prev, id]);
+  };
+
   // Auto-fill price when service or breed changes
   useEffect(() => {
     if (!form.service_id) return;
@@ -142,11 +172,18 @@ export function NewAppointmentDialog({
       }
     }
 
-    if (price > 0) {
-      const deposit = Math.round(price * 0.6 * 100) / 100;
-      setForm(prev => ({ ...prev, total_price: price, deposit_paid: deposit }));
+    // Add add-on prices
+    const addOnTotal = selectedAddOns.reduce((sum, id) => {
+      const ao = addOns?.find(a => a.id === id);
+      return sum + (ao ? Number(ao.price) : 0);
+    }, 0);
+
+    const totalPrice = price + addOnTotal;
+    if (totalPrice > 0) {
+      const deposit = Math.round(totalPrice * 0.6 * 100) / 100;
+      setForm(prev => ({ ...prev, total_price: totalPrice, deposit_paid: deposit }));
     }
-  }, [form.service_id, form.breed_id, services, breeds, servicePrices]);
+  }, [form.service_id, form.breed_id, services, breeds, servicePrices, selectedAddOns, addOns]);
 
   const handleCustomerSelect = (customer: CustomerResult) => {
     setCustomerSelected(true);
@@ -183,6 +220,13 @@ export function NewAppointmentDialog({
       if (!form.booking_date) throw new Error("Date is required");
       if (!form.service_id) throw new Error("Service is required");
 
+      // Build notes with add-ons info
+      const addOnNames = selectedAddOns.map(id => addOns?.find(a => a.id === id)?.name).filter(Boolean);
+      const notesWithAddOns = [
+        form.notes,
+        addOnNames.length > 0 ? `Add-ons: ${addOnNames.join(", ")}` : "",
+      ].filter(Boolean).join("\n");
+
       const { data: insertedBooking, error } = await supabase.from("bookings").insert({
         customer_name: form.customer_name,
         dog_name: form.dog_name,
@@ -195,7 +239,7 @@ export function NewAppointmentDialog({
         booking_time: form.booking_time,
         total_price: form.total_price,
         deposit_paid: form.deposit_paid,
-        notes: form.notes || null,
+        notes: notesWithAddOns || null,
         status: "Confirmed",
       }).select("id").single();
       if (error) throw error;
@@ -302,6 +346,7 @@ export function NewAppointmentDialog({
             <CustomerSearchInput
               onSelect={handleCustomerSelect}
               onAddNew={handleAddNew}
+              initialSelectedName={customerSelected ? form.customer_name : null}
             />
           )}
 
@@ -410,8 +455,27 @@ export function NewAppointmentDialog({
                   <SelectContent>
                     {staff?.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
                   </SelectContent>
-                </Select>
+              </Select>
               </div>
+
+              {/* Add-ons */}
+              {form.service_id && availableAddOns.length > 0 && (
+                <div className="space-y-2">
+                  <Label>Add-ons</Label>
+                  <div className="grid grid-cols-1 gap-2">
+                    {availableAddOns.map(ao => (
+                      <label key={ao.id} className="flex items-center gap-2 rounded-md border px-3 py-2 cursor-pointer hover:bg-accent/50 transition-colors">
+                        <Checkbox
+                          checked={selectedAddOns.includes(ao.id)}
+                          onCheckedChange={() => toggleAddOn(ao.id)}
+                        />
+                        <span className="text-sm flex-1">{ao.name}</span>
+                        <span className="text-sm text-muted-foreground">£{Number(ao.price).toFixed(2)}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
