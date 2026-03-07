@@ -61,6 +61,7 @@ const marketingSubItems = [
 const directorOnlyItems = [
   { title: "Users", url: "/admin/users", icon: Crown },
   { title: "Terms & Conditions", url: "/admin/terms", icon: FileText },
+  { title: "Error Reports", url: "/admin/error-reports", icon: Bug },
 ];
 
 export function AppSidebar() {
