@@ -49,11 +49,11 @@ function PawProgressBar({ steps, currentStep }: { steps: Step[]; currentStep: St
                     ? "text-accent fill-accent"
                     : isCurrent
                     ? "text-accent"
-                    : "text-muted-foreground/30"
+                    : "text-border"
                 }`}
               />
             </motion.div>
-            <span className={`text-[0.6rem] font-body font-medium transition-colors duration-300 ${
+            <span className={`text-[0.6rem] font-body font-bold transition-colors duration-300 ${
               isCurrent ? "text-accent" : isCompleted ? "text-foreground" : "text-muted-foreground/40"
             }`}>
               {STEP_LABELS[s!] ?? ""}
