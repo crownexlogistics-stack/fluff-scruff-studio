@@ -39,6 +39,7 @@ export function EditAppointmentDialog({ open, onOpenChange, booking }: EditAppoi
       setForm({
         booking_date: booking.booking_date,
         booking_time: booking.booking_time.slice(0, 5),
+        duration_minutes: (booking as any).duration_minutes ?? 60,
         service_id: (booking as any).service_id || "",
         breed_id: (booking as any).breed_id || "",
         staff_id: booking.staff_id || "",
