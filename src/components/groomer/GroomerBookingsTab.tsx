@@ -84,7 +84,7 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
     queryFn: async () => {
       const { data, error } = await supabase
         .from("bookings")
-        .select("id, customer_name, dog_name, booking_date, booking_time, status, notes, staff_id, total_price, deposit_paid, customer_email, customer_phone, service_id, breed_id, final_charge, stripe_payment_id, services(name), breeds(name, duration_minutes)")
+        .select("id, customer_name, dog_name, booking_date, booking_time, status, notes, staff_id, total_price, deposit_paid, customer_email, customer_phone, service_id, breed_id, final_charge, stripe_payment_id, duration_minutes, services(name), breeds(name, duration_minutes)")
         .gte("booking_date", format(currentDate, "yyyy-MM-dd"))
         .lte("booking_date", format(endDate, "yyyy-MM-dd"))
         .order("booking_time");
