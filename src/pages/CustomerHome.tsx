@@ -20,18 +20,13 @@ const CustomerHome = () => {
   const { role, loading: roleLoading } = useUserRole(user?.id);
   const navigate = useNavigate();
   const [activeService, setActiveService] = useState<string | null>(null);
-
-  const isStaff = role === "manager" || role === "director" || role === "groomer";
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Redirect staff/admin away from public site to their back office
+  const isStaff = role === "manager" || role === "director" || role === "groomer";
+
   if (!authLoading && !roleLoading && user && isStaff) {
-    if (role === "manager" || role === "director") {
-      return <Navigate to="/admin" replace />;
-    }
-    if (role === "groomer") {
-      return <Navigate to="/portal" replace />;
-    }
+    if (role === "manager" || role === "director") return <Navigate to="/admin" replace />;
+    if (role === "groomer") return <Navigate to="/portal" replace />;
   }
 
   const getAccountLink = () => {
@@ -46,56 +41,33 @@ const CustomerHome = () => {
   const services = [
     { title: "Grooming", subtitle: "The ultimate pamper session — wash, dry, cut & style. Your pup leaves looking like a supermodel.", image: serviceFullGroom, imagePosition: "50% 43%" },
     { title: "Puppy Special", subtitle: "A gentle, fun first grooming experience. We go at their pace with loads of treats & cuddles.", image: servicePuppy, imagePosition: "50% 52%" },
-    { title: "Ultrasonic Teeth Cleaning", subtitle: "Fresh gums and pearly whites for your best friend. Say goodbye to bad breath.", image: serviceTeeth },
     { title: "Nail Trim & Filing", subtitle: "Quick, painless trim so those tippy-taps stay happy and healthy.", image: serviceNails, imagePosition: "48% 63%" },
+    { title: "Ultrasonic Teeth Cleaning", subtitle: "Fresh gums and pearly whites for your best friend. Say goodbye to bad breath.", image: serviceTeeth },
   ];
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      {/* Navigation */}
-      <nav className="sticky top-0 z-50 bg-white/75 backdrop-blur-2xl border-b border-border/20 shadow-[0_1px_8px_rgba(0,0,0,0.06)]">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-center justify-between" style={{ height: '4rem' }}>
-          <a href="#" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="cursor-pointer">
-            <img src={logo} alt="Fluff & Scruff" className="h-12 sm:h-14 w-auto" />
+      {/* ══════ NAVBAR ══════ */}
+      <nav className="sticky top-0 z-50 bg-background border-b border-border/30">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-center justify-between h-16">
+          <a href="#" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="flex items-center gap-2.5 cursor-pointer">
+            <img src={logo} alt="Fluff & Scruff" className="h-10 sm:h-12 w-auto" />
+            <div className="hidden sm:block">
+              <p className="font-heading text-base leading-tight text-foreground">Fluff &amp; Scruff</p>
+              <p className="font-body text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Grooming Studio</p>
+            </div>
           </a>
-          <div className="hidden sm:flex items-center gap-10 text-sm font-medium font-body">
-            <a href="#services" className="relative text-muted-foreground hover:text-foreground transition-colors duration-300 after:absolute after:left-0 after:bottom-[-4px] after:h-[2px] after:w-0 after:bg-accent after:transition-all after:duration-300 hover:after:w-full">Services</a>
-            <a href="#about" className="relative text-muted-foreground hover:text-foreground transition-colors duration-300 after:absolute after:left-0 after:bottom-[-4px] after:h-[2px] after:w-0 after:bg-accent after:transition-all after:duration-300 hover:after:w-full">About</a>
-            <a href="#contact" className="relative text-muted-foreground hover:text-foreground transition-colors duration-300 after:absolute after:left-0 after:bottom-[-4px] after:h-[2px] after:w-0 after:bg-accent after:transition-all after:duration-300 hover:after:w-full">Contact</a>
-            {accountLink && (
-              <Link to={accountLink} className="relative text-muted-foreground hover:text-foreground transition-colors duration-300 after:absolute after:left-0 after:bottom-[-4px] after:h-[2px] after:w-0 after:bg-accent after:transition-all after:duration-300 hover:after:w-full">My Account</Link>
-            )}
-          </div>
           <div className="flex items-center gap-3">
             <button
               onClick={() => navigate("/book")}
-              className="text-primary-foreground font-semibold font-body text-sm px-6 py-2.5 rounded-full transition-all duration-300 shadow-md shadow-charcoal/15 hover:shadow-lg hover:shadow-charcoal/20 active:scale-[0.96]"
-              style={{ background: 'linear-gradient(135deg, hsl(220 10% 22%), hsl(220 10% 30%))' }}
+              className="text-primary-foreground font-bold font-body text-sm px-6 py-2.5 bg-accent hover:bg-accent/90 transition-all duration-300 active:scale-[0.96]"
+              style={{ borderRadius: '30px' }}
             >
               Book Now
             </button>
-            {user ? (
-              isStaff || role === "customer" ? (
-                <button
-                  onClick={async () => { await signOut(); }}
-                  className="hidden sm:flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors duration-300 font-body"
-                >
-                  <LogOut className="h-4 w-4" /> Sign Out
-                </button>
-              ) : null
-            ) : (
-              <Link
-                to="/auth"
-                className="hidden sm:block text-muted-foreground/40 hover:text-muted-foreground transition-colors duration-300"
-                aria-label="Staff login"
-              >
-                <LogIn className="h-4 w-4" />
-              </Link>
-            )}
-            {/* Mobile hamburger */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="sm:hidden flex items-center justify-center h-10 w-10 rounded-lg text-foreground/70 hover:text-foreground transition-colors"
+              className="flex items-center justify-center h-10 w-10 rounded-full text-foreground/70 hover:text-foreground transition-colors"
               aria-label="Toggle menu"
             >
               {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -103,25 +75,21 @@ const CustomerHome = () => {
           </div>
         </div>
 
-        {/* Mobile dropdown menu */}
         {mobileMenuOpen && (
-          <div className="sm:hidden border-t border-border/30 bg-white/95 backdrop-blur-xl px-4 py-4 space-y-1 animate-in slide-in-from-top-2 duration-200">
-            <a href="#services" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2.5 rounded-lg text-sm font-medium font-body text-foreground/80 hover:bg-muted/50 transition-colors">Services</a>
-            <a href="#about" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2.5 rounded-lg text-sm font-medium font-body text-foreground/80 hover:bg-muted/50 transition-colors">About</a>
-            <a href="#contact" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2.5 rounded-lg text-sm font-medium font-body text-foreground/80 hover:bg-muted/50 transition-colors">Contact</a>
+          <div className="border-t border-border/30 bg-background px-4 py-4 space-y-1 animate-in slide-in-from-top-2 duration-200">
+            <a href="#services" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2.5 rounded-2xl text-sm font-semibold font-body text-foreground/80 hover:bg-muted/50 transition-colors">Services</a>
+            <a href="#about" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2.5 rounded-2xl text-sm font-semibold font-body text-foreground/80 hover:bg-muted/50 transition-colors">About</a>
+            <a href="#contact" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2.5 rounded-2xl text-sm font-semibold font-body text-foreground/80 hover:bg-muted/50 transition-colors">Contact</a>
             {accountLink && (
-              <Link to={accountLink} onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2.5 rounded-lg text-sm font-medium font-body text-foreground/80 hover:bg-muted/50 transition-colors">My Account</Link>
+              <Link to={accountLink} onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2.5 rounded-2xl text-sm font-semibold font-body text-foreground/80 hover:bg-muted/50 transition-colors">My Account</Link>
             )}
             <div className="pt-2 border-t border-border/30">
               {user ? (
-                <button
-                  onClick={async () => { setMobileMenuOpen(false); await signOut(); }}
-                  className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium font-body text-muted-foreground hover:bg-muted/50 transition-colors w-full"
-                >
+                <button onClick={async () => { setMobileMenuOpen(false); await signOut(); }} className="flex items-center gap-2 px-3 py-2.5 rounded-2xl text-sm font-semibold font-body text-muted-foreground hover:bg-muted/50 transition-colors w-full">
                   <LogOut className="h-4 w-4" /> Sign Out
                 </button>
               ) : (
-                <Link to="/auth" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium font-body text-muted-foreground hover:bg-muted/50 transition-colors">
+                <Link to="/auth" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2 px-3 py-2.5 rounded-2xl text-sm font-semibold font-body text-muted-foreground hover:bg-muted/50 transition-colors">
                   <LogIn className="h-4 w-4" /> Login
                 </Link>
               )}
@@ -130,158 +98,151 @@ const CustomerHome = () => {
         )}
       </nav>
 
-      {/* Hero Section */}
-      <section className="relative overflow-hidden">
-        <div className="relative w-full h-[48vh] sm:h-[62vh] md:h-[78vh]">
+      {/* ══════ HERO ══════ */}
+      <section className="relative">
+        <div className="relative w-full h-[220px] sm:h-[320px] overflow-hidden">
           <img
             src={heroDog}
             alt="Beautifully groomed dog at Fluff & Scruff studio"
-            className="w-full h-full object-cover object-center brightness-[1.08]"
+            className="w-full h-full object-cover"
+            style={{ objectPosition: 'center 40%' }}
           />
-          {/* Overlays — reduced for richer image on mobile */}
-          <div className="absolute inset-x-0 bottom-0 h-64 sm:h-80 bg-gradient-to-t from-background via-background/60 to-transparent" />
-          <div className="absolute inset-y-0 left-0 w-16 sm:w-24 bg-gradient-to-r from-background/10 to-transparent" />
-          <div className="absolute inset-y-0 right-0 w-16 sm:w-24 bg-gradient-to-l from-background/10 to-transparent" />
+          <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, transparent 40%, hsl(30 100% 98%) 100%)' }} />
         </div>
 
-        {/* Hero text */}
-        <div className="relative -mt-20 sm:-mt-36 z-10 max-w-2xl mx-auto px-5 sm:px-6 text-center pb-6 sm:pb-16">
-          <h1 className="text-[2.75rem] sm:text-7xl lg:text-8xl font-heading text-foreground leading-[1.08] tracking-tight drop-shadow-[0_2px_8px_rgba(0,0,0,0.12)]">
-            Fluff &amp; Scruff Studio
+        <div className="relative z-10 px-5 sm:px-6 text-center -mt-4 pb-2">
+          <h1 className="text-[28px] sm:text-4xl lg:text-5xl font-heading text-foreground leading-tight">
+            Where every pup leaves looking their absolute best ✨
           </h1>
-          <div className="w-16 sm:w-20 h-[2px] bg-accent/50 mx-auto mt-4 sm:mt-6 mb-3 sm:mb-5 rounded-full" />
-          <p className="text-[0.9rem] sm:text-lg text-muted-foreground font-body max-w-sm mx-auto leading-relaxed">
-            Where every pup leaves looking <em>and feeling</em> their absolute best.
-          </p>
-          {/* Inline trust line */}
-          <div className="flex items-center justify-center gap-1.5 mt-3">
+          <div className="flex items-center justify-center gap-1.5 mt-2">
             <div className="flex gap-0.5">
-              {[1,2,3,4,5].map(s => (
-                <Star key={s} className="h-3.5 w-3.5 text-accent fill-accent" />
-              ))}
+              {[1,2,3,4,5].map(s => <Star key={s} className="h-4 w-4 text-gold fill-gold" />)}
             </div>
-            <span className="text-xs font-body font-medium text-muted-foreground">
-              4.9 from 69+ Google reviews
-            </span>
+            <span className="text-xs font-body font-semibold text-muted-foreground">4.9 from 69+ Google reviews</span>
           </div>
-          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center mt-7 sm:mt-10">
+          <p className="text-[13px] sm:text-base text-muted-foreground font-body max-w-sm mx-auto leading-relaxed mt-2">
+            Your pup deserves the royal treatment 👑 We wash, snip, fluff and love every single dog that walks through our door.
+          </p>
+          <div className="flex flex-col gap-2 mt-3 max-w-md mx-auto">
             <button
               onClick={() => navigate("/book")}
-              className="font-semibold font-body text-base px-12 rounded-full text-primary-foreground transition-all duration-300 shadow-lg shadow-charcoal/20 hover:shadow-xl hover:shadow-charcoal/25 hover:-translate-y-0.5 active:scale-[0.97] active:shadow-md"
-              style={{
-                paddingTop: '1.1rem',
-                paddingBottom: '1.1rem',
-                background: 'linear-gradient(135deg, hsl(220 10% 22%), hsl(220 10% 30%))',
-              }}
+              className="w-full font-bold font-body text-base py-4 bg-accent text-accent-foreground hover:bg-accent/90 transition-all active:scale-[0.97] shadow-lg shadow-accent/20"
+              style={{ borderRadius: '30px' }}
             >
-              Book an Appointment
+              🐾 Book My Pup In!
             </button>
             <a
               href="tel:01708606655"
-              className="flex items-center justify-center gap-2 border-2 border-foreground/8 bg-white/70 backdrop-blur-sm text-foreground font-semibold font-body text-base px-12 rounded-full hover:border-foreground/15 hover:bg-white/90 transition-all duration-300 active:scale-[0.97]"
-              style={{ paddingTop: '0.9rem', paddingBottom: '0.9rem' }}
+              className="w-full flex items-center justify-center gap-2 font-bold font-body text-base py-4 bg-card text-foreground border-2 border-border hover:border-accent/40 transition-all active:scale-[0.97]"
+              style={{ borderRadius: '30px' }}
             >
-              <Phone className="h-4 w-4" />
-              Call Us
+              📞 Call Us
             </a>
           </div>
         </div>
       </section>
 
+      {/* ══════ TRUST BAR ══════ */}
+      <TrustStrip />
 
-      {/* Services Journey */}
+      {/* ══════ SERVICES ══════ */}
       <ServiceJourney
         services={services}
         onSelectService={(title) => navigate(`/book?service=${encodeURIComponent(title)}`)}
       />
 
-      {/* Divider */}
-      <div className="max-w-xs mx-auto">
-        <div className="h-px bg-border/60" />
-      </div>
-
-      {/* Google Reviews */}
+      {/* ══════ REVIEWS ══════ */}
       <GoogleReviews />
 
-      {/* About Us */}
-      <section id="about" className="py-16 sm:py-24 lg:py-32">
+      {/* ══════ ABOUT ══════ */}
+      <section id="about" className="py-12 sm:py-20 bg-background">
         <div className="max-w-4xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-12 sm:mb-16">
-            <PawPrint className="h-6 w-6 text-accent mx-auto mb-3" />
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-heading text-foreground mb-4 leading-tight">
-              At Fluff&amp;Scruff, we put our love for pets and their owners into all that we do.
+          <div className="text-center mb-8">
+            <p className="text-accent font-body text-xs uppercase tracking-[0.25em] mb-2 flex items-center justify-center gap-2">
+              🐾 Our Story 🐾
+            </p>
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-heading text-foreground">
+              We're obsessed with dogs. Genuinely.
             </h2>
           </div>
 
-          <div className="space-y-8 max-w-3xl mx-auto">
-            <div className="bg-card rounded-3xl border border-border/50 p-8 sm:p-10 shadow-sm shadow-black/[0.02]">
-              <h3 className="text-2xl sm:text-3xl font-heading text-foreground mb-5">Our Story</h3>
-              <div className="space-y-5 text-muted-foreground font-body text-[0.95rem] sm:text-base leading-relaxed">
-                <p>
-                  F&amp;S Studio is a family-run business dedicated to providing top-notch dog grooming services. Our team is passionate about dogs and we take great care and pride in ensuring their safety, well-being and happiness. Our dog groomers have extensive experience and are trained to handle dogs of all breeds and sizes, from the tiniest teacup poodle to the largest Great Dane. We believe that every dog deserves the best and we are committed to delivering a top-quality service.
-                </p>
-                <p>
-                  Your furry pal deserves the very best, and that's what we provide here at F&amp;S Studio. Our experienced groomers are passionate about what they do and take great care in making sure every dog leaves our salon looking and feeling their best. We are dedicated to staying up-to-date with the latest dog grooming techniques and trends, so you can trust us to provide only the best care for your furry friend. Come see us today and let us help your dog look and feel great.
-                </p>
-              </div>
+          <div className="bg-card p-6 sm:p-8 shadow-[0_4px_20px_rgba(0,0,0,0.06)]" style={{ borderRadius: '28px' }}>
+            <span className="inline-block bg-accent/10 text-accent font-body font-bold text-xs px-4 py-1.5 mb-4" style={{ borderRadius: '30px' }}>
+              🏡 Family-Run Business
+            </span>
+            <h3 className="font-heading text-lg text-foreground mb-3">Every dog deserves the very best care</h3>
+            <div className="space-y-4 text-muted-foreground font-body text-sm leading-relaxed">
+              <p>
+                F&amp;S Studio is a family-run business dedicated to providing top-notch dog grooming services. Our team is passionate about dogs and we take great care and pride in ensuring their safety, well-being and happiness. Our dog groomers have extensive experience and are trained to handle dogs of all breeds and sizes.
+              </p>
+              <p>
+                Your furry pal deserves the very best, and that's what we provide here at F&amp;S Studio. Our experienced groomers are passionate about what they do and take great care in making sure every dog leaves our salon looking and feeling their best.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2 mt-5">
+              {["✂️ All Breeds", "🌟 Expert Groomers", "💛 Dog Lovers", "📍 Hornchurch"].map(tag => (
+                <span key={tag} className="bg-warm-light text-accent font-body font-semibold text-xs px-4 py-2" style={{ borderRadius: '30px' }}>
+                  {tag}
+                </span>
+              ))}
             </div>
           </div>
         </div>
       </section>
 
-      {/* Divider */}
-      <div className="max-w-xs mx-auto">
-        <div className="h-px bg-border/60" />
-      </div>
-
-      {/* Contact / Info */}
-      <section id="contact" className="py-16 sm:py-24 lg:py-32">
+      {/* ══════ CONTACT ══════ */}
+      <section id="contact" className="py-12 sm:py-20 bg-background">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-16">
-            <PawPrint className="h-6 w-6 text-accent mx-auto mb-3" />
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-heading text-foreground mb-3">Come Say Hello</h2>
-            <p className="text-muted-foreground font-body max-w-sm mx-auto">We'd love to meet you and your pup!</p>
+          <div className="text-center mb-10">
+            <p className="text-accent font-body text-xs uppercase tracking-[0.25em] mb-2 flex items-center justify-center gap-2">
+              📍 Come Say Hello 📍
+            </p>
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-heading text-foreground">We'd love to meet you and your pup!</h2>
           </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-4xl mx-auto">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-4xl mx-auto">
             <a
               href="https://www.google.com/maps/place/138+Hillview+Ave,+Hornchurch+RM11+2DL"
               target="_blank"
               rel="noopener noreferrer"
-              className="bg-card rounded-3xl border border-border/50 p-7 flex items-start gap-4 hover:shadow-xl hover:shadow-black/[0.04] hover:-translate-y-0.5 transition-all duration-300 cursor-pointer no-underline shadow-sm shadow-black/[0.02]"
+              className="bg-card p-5 flex items-start gap-4 hover:shadow-lg transition-all duration-300 no-underline shadow-[0_4px_20px_rgba(0,0,0,0.06)]"
+              style={{ borderRadius: '20px' }}
             >
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-accent/8">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center bg-accent/10" style={{ borderRadius: '12px' }}>
                 <MapPin className="h-5 w-5 text-accent" />
               </div>
               <div>
-                <h3 className="font-semibold font-body text-foreground mb-1">Find Us</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">138 Hillview Avenue, Hornchurch RM11 2DL</p>
+                <h3 className="font-heading text-sm text-foreground mb-1">📍 Find Us</h3>
+                <p className="text-sm text-muted-foreground font-body leading-relaxed">138 Hillview Avenue, Hornchurch RM11 2DL</p>
               </div>
             </a>
             <a
               href="tel:01708606655"
-              className="bg-card rounded-3xl border border-border/50 p-7 flex items-start gap-4 hover:shadow-xl hover:shadow-black/[0.04] hover:-translate-y-0.5 transition-all duration-300 shadow-sm shadow-black/[0.02] no-underline"
+              className="bg-card p-5 flex items-start gap-4 hover:shadow-lg transition-all duration-300 no-underline shadow-[0_4px_20px_rgba(0,0,0,0.06)]"
+              style={{ borderRadius: '20px' }}
             >
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-accent/8">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center bg-accent/10" style={{ borderRadius: '12px' }}>
                 <Phone className="h-5 w-5 text-accent" />
               </div>
               <div>
-                <h3 className="font-semibold font-body text-foreground mb-1">Call Us</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">01708 606655</p>
-                <p className="text-xs text-muted-foreground mt-0.5">WhatsApp: +44 7476 452782</p>
+                <h3 className="font-heading text-sm text-foreground mb-1">📞 Call Us</h3>
+                <p className="text-sm text-muted-foreground font-body leading-relaxed">01708 606655</p>
+                <p className="text-xs text-muted-foreground mt-0.5 font-body">WhatsApp: +44 7476 452782</p>
               </div>
             </a>
-            <div className="bg-card rounded-3xl border border-border/50 p-7 flex items-start gap-4 hover:shadow-xl hover:shadow-black/[0.04] hover:-translate-y-0.5 transition-all duration-300 shadow-sm shadow-black/[0.02]">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-accent/8">
+            <div
+              className="bg-card p-5 flex items-start gap-4 shadow-[0_4px_20px_rgba(0,0,0,0.06)]"
+              style={{ borderRadius: '20px' }}
+            >
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center bg-accent/10" style={{ borderRadius: '12px' }}>
                 <Clock className="h-5 w-5 text-accent" />
               </div>
               <div>
-                <h3 className="font-semibold font-body text-foreground mb-1">Opening Hours</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">Tue – Sat · 10:00am – 5:00pm</p>
+                <h3 className="font-heading text-sm text-foreground mb-1">🕐 Opening Hours</h3>
+                <p className="text-sm text-muted-foreground font-body leading-relaxed">Tue – Sat · 10:00am – 5:00pm</p>
               </div>
             </div>
           </div>
-          {/* Embedded Google Map */}
-          <div className="max-w-2xl mx-auto mt-8 rounded-3xl overflow-hidden border border-border/50 shadow-sm shadow-black/[0.02]">
+          <div className="max-w-2xl mx-auto mt-6 overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.06)]" style={{ borderRadius: '20px' }}>
             <iframe
               title="Fluff & Scruff Studio location"
               src="https://maps.google.com/maps?q=138+Hillview+Ave,+Hornchurch+RM11+2DL,+UK&output=embed"
@@ -295,59 +256,49 @@ const CustomerHome = () => {
         </div>
       </section>
 
-      {/* CTA Banner — refined gradient with texture */}
-      <section className="py-16 sm:py-24 lg:py-32 relative overflow-hidden" style={{ background: 'linear-gradient(135deg, hsl(24 75% 55%), hsl(28 80% 58%), hsl(20 70% 52%))' }}>
-        {/* Subtle texture overlay */}
-        <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: 'radial-gradient(circle at 20% 50%, rgba(255,255,255,0.3) 0%, transparent 50%), radial-gradient(circle at 80% 50%, rgba(0,0,0,0.1) 0%, transparent 50%)' }} />
-        <div className="relative max-w-3xl mx-auto px-4 sm:px-6 text-center space-y-8">
-          <div className="flex justify-center gap-3">
-            <PawPrint className="h-6 w-6 opacity-50" />
-            <PawPrint className="h-5 w-5 opacity-30" />
-            <PawPrint className="h-6 w-6 opacity-50" />
-          </div>
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-heading text-white">Ready for a Pamper Day?</h2>
-          <p className="text-white/85 font-body text-lg max-w-md mx-auto leading-relaxed">
-            Give your dog the spa day they deserve. Book online in seconds.
-          </p>
+      {/* ══════ CTA BANNER ══════ */}
+      <section className="py-12 sm:py-20 relative overflow-hidden bg-accent">
+        <div className="absolute inset-0 opacity-5" style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M12 2C7.58 2 4 5.58 4 10c0 2.24.92 4.27 2.4 5.72L12 22l5.6-6.28A7.96 7.96 0 0020 10c0-4.42-3.58-8-8-8z'/%3E%3C/svg%3E\")" }} />
+        <div className="relative max-w-3xl mx-auto px-4 sm:px-6 text-center space-y-4">
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-heading text-white">
+            Your dog called. They want a spa day. 📞
+          </h2>
+          <p className="text-white/90 font-body text-base">Book online in 60 seconds.</p>
           <button
             onClick={() => navigate("/book")}
-            className="bg-white text-charcoal font-semibold font-body text-base px-12 py-5 rounded-full hover:bg-white/95 transition-all duration-300 shadow-xl shadow-black/10 hover:shadow-2xl hover:shadow-black/15 hover:-translate-y-0.5"
+            className="bg-white text-accent font-bold font-body text-base px-10 py-4 hover:bg-white/95 transition-all active:scale-[0.97] shadow-xl"
+            style={{ borderRadius: '30px' }}
           >
-            Book Now
+            Let's Get Fluffy! 🐶
           </button>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="bg-foreground text-background py-12">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
-            <div className="flex items-center gap-3">
-              <img src={logo} alt="Fluff & Scruff" className="h-10 w-auto brightness-0 invert" />
-            </div>
-            <div className="flex items-center gap-4">
-              <a href="https://www.instagram.com/fluffandscruff.studio/?hl=en" target="_blank" rel="noopener noreferrer" className="flex h-10 w-10 items-center justify-center rounded-full bg-background/10 hover:bg-accent/30 transition-colors duration-300">
-                <Instagram className="h-5 w-5" />
-              </a>
-              <a href="https://www.facebook.com/p/FluffScruff-studio-61553637233998/" target="_blank" rel="noopener noreferrer" className="flex h-10 w-10 items-center justify-center rounded-full bg-background/10 hover:bg-accent/30 transition-colors duration-300">
-                <Facebook className="h-5 w-5" />
-              </a>
-            </div>
-            <div className="flex items-center gap-3 text-xs text-background/40 font-body">
-              <p>© {new Date().getFullYear()} Fluff & Scruff Studio</p>
-              <span>·</span>
-              <Link to="/terms" className="hover:text-background/70 transition-colors underline underline-offset-2">T&amp;C's</Link>
-            </div>
+      {/* ══════ FOOTER ══════ */}
+      <footer className="py-10" style={{ background: 'hsl(20 60% 12%)' }}>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 text-center space-y-4">
+          <div className="flex items-center justify-center gap-2">
+            <img src={logo} alt="Fluff & Scruff" className="h-10 w-auto brightness-0 invert" />
+            <p className="font-heading text-base text-white">Fluff &amp; Scruff Studio</p>
+          </div>
+          <div className="flex items-center justify-center gap-3">
+            <a href="https://www.instagram.com/fluffandscruff.studio/?hl=en" target="_blank" rel="noopener noreferrer" className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 hover:bg-accent/30 transition-colors">
+              <Instagram className="h-5 w-5 text-white" />
+            </a>
+            <a href="https://www.facebook.com/p/FluffScruff-studio-61553637233998/" target="_blank" rel="noopener noreferrer" className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 hover:bg-accent/30 transition-colors">
+              <Facebook className="h-5 w-5 text-white" />
+            </a>
+          </div>
+          <div className="flex items-center justify-center gap-3 text-xs text-white/40 font-body">
+            <Link to="/terms" className="hover:text-white/70 transition-colors underline underline-offset-2">T&amp;C's</Link>
+            <span>·</span>
+            <p>© {new Date().getFullYear()} Fluff &amp; Scruff Studio</p>
           </div>
         </div>
       </footer>
 
-      {/* Booking Flow */}
       {activeService && (
-        <BookingFlow
-          service={activeService}
-          onClose={() => setActiveService(null)}
-        />
+        <BookingFlow service={activeService} onClose={() => setActiveService(null)} />
       )}
     </div>
   );

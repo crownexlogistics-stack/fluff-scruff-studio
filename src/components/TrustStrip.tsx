@@ -17,32 +17,33 @@ export function TrustStrip() {
         if (error) throw error;
         if (result) setData({ rating: result.rating, totalReviews: result.totalReviews });
       } catch {
-        // silently fail — strip just won't show
+        // silently fail
       }
     }
     fetch();
   }, []);
 
-  if (!data) return null;
+  const rating = data?.rating ?? 4.9;
+  const reviews = data?.totalReviews ?? 69;
 
   return (
-    <div className="flex items-center justify-center gap-3 py-5 bg-background">
-      <div className="flex gap-0.5">
-        {[1, 2, 3, 4, 5].map((star) => (
-          <Star
-            key={star}
-            className={`h-4 w-4 ${
-              star <= Math.round(data.rating)
-                ? "text-accent fill-accent"
-                : "text-border"
-            }`}
-          />
+    <div className="mx-5 sm:mx-6 mt-3 mb-2" style={{ borderRadius: '20px', background: 'hsl(20 60% 12%)' }}>
+      <div className="flex items-center justify-center gap-0 py-3 px-2">
+        {[
+          { value: `${rating}★`, label: "GOOGLE" },
+          { value: `${reviews}+`, label: "REVIEWS" },
+          { value: "3yrs", label: "EST." },
+          { value: "ALL", label: "BREEDS" },
+        ].map((stat, i) => (
+          <div key={stat.label} className="flex items-center">
+            {i > 0 && <div className="w-px h-6 bg-white/20 mx-2 sm:mx-3" />}
+            <div className="text-center">
+              <p className="font-heading text-sm sm:text-base text-gold leading-none">{stat.value}</p>
+              <p className="font-body text-[8px] sm:text-[9px] uppercase tracking-wider text-white/70 mt-0.5">{stat.label}</p>
+            </div>
+          </div>
         ))}
       </div>
-      <span className="text-sm font-body text-foreground font-semibold">{data.rating}</span>
-      <span className="text-sm font-body text-muted-foreground">
-        · {data.totalReviews} reviews on Google
-      </span>
     </div>
   );
 }
