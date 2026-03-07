@@ -42,6 +42,7 @@ export interface GroomerCalendarBooking {
   breed_id?: string;
   final_charge?: number | null;
   stripe_payment_id?: string | null;
+  duration_minutes?: number | null;
 }
 
 type UserRole = string | null;
