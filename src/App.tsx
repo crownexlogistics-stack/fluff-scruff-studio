@@ -35,6 +35,7 @@ import TermsPage from "./pages/TermsPage";
 import BookingSuccessPage from "./pages/BookingSuccessPage";
 import NotFound from "./pages/NotFound";
 import ErrorReportsPage from "./pages/ErrorReportsPage";
+import SystemHealthPage from "./pages/SystemHealthPage";
 
 const queryClient = new QueryClient();
 
