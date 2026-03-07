@@ -1,0 +1,658 @@
+import { useState, useRef, useMemo } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { AppLayout } from "@/components/AppLayout";
+import { Upload, FileSpreadsheet, CheckCircle2, Users, Calendar, ChevronDown, ChevronRight, Pencil, Send, AlertCircle } from "lucide-react";
+import { toast } from "sonner";
+import Papa from "papaparse";
+import { format } from "date-fns";
+
+// ─── helpers ───
+function convertDate(ddmmyyyy: string): string {
+  const parts = ddmmyyyy?.trim().split("/");
+  if (!parts || parts.length !== 3) return ddmmyyyy;
+  return `${parts[2]}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}`;
+}
+
+function ignoreUnknown(val?: string): string | null {
+  if (!val || val.trim().toLowerCase() === "unknown") return null;
+  return val.trim();
+}
+
+// ─── types ───
+interface ParsedRow {
+  full_name: string;
+  email: string;
+  phone: string;
+  booking_date: string;
+  booking_time: string;
+  duration_minutes: number;
+  service_name: string;
+  staff_name: string;
+  payment_status: string;
+  dog_name: string | null;
+  dog_age: string | null;
+  dog_breed: string | null;
+  is_future_booking: boolean;
+}
+
+type BookingFilter = "all" | "future" | "past" | "not_paid" | "partly_paid";
+
+// ─── Import Tab ───
+function ImportTab() {
+  const queryClient = useQueryClient();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [parsed, setParsed] = useState<ParsedRow[]>([]);
+  const [importing, setImporting] = useState(false);
+  const [result, setResult] = useState<{ customers: number; bookings: number } | null>(null);
+
+  const summary = useMemo(() => {
+    if (!parsed.length) return null;
+    const emails = new Set(parsed.map((r) => r.email?.toLowerCase()).filter(Boolean));
+    const future = parsed.filter((r) => r.is_future_booking).length;
+    return { customers: emails.size, bookings: parsed.length, future };
+  }, [parsed]);
+
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setResult(null);
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (res) => {
+        const today = new Date().toISOString().slice(0, 10);
+        const rows: ParsedRow[] = res.data.map((row: any) => {
+          const bookingDate = convertDate(row["Session date"] || "");
+          return {
+            full_name: (row["bookings.booking_contact_full_name_val"] || "").trim(),
+            email: (row["bookings.booking_contact_email_val"] || "").trim().toLowerCase(),
+            phone: (row["bookings.booking_contact_phone_val"] || "").trim(),
+            booking_date: bookingDate,
+            booking_time: (row["Start time"] || "").trim(),
+            duration_minutes: parseInt(row["Minutes"] || "60", 10) || 60,
+            service_name: (row["Service name"] || "").trim(),
+            staff_name: (row["Staff name"] || "").trim(),
+            payment_status: (row["Payment status"] || "").trim(),
+            dog_name: ignoreUnknown(row["Form answer 2"]),
+            dog_age: ignoreUnknown(row["Form answer 3"]),
+            dog_breed: ignoreUnknown(row["Form answer 4"]),
+            is_future_booking: bookingDate >= today,
+          };
+        });
+        setParsed(rows);
+      },
+      error: () => toast.error("Failed to parse CSV"),
+    });
+  };
+
+  const confirmImport = async () => {
+    if (!parsed.length) return;
+    setImporting(true);
+    try {
+      // Deduplicate customers
+      const customerMap = new Map<string, { full_name: string; email: string; phone: string }>();
+      parsed.forEach((r) => {
+        if (r.email && !customerMap.has(r.email)) {
+          customerMap.set(r.email, { full_name: r.full_name, email: r.email, phone: r.phone });
+        }
+      });
+
+      // Insert customers
+      const customerRows = Array.from(customerMap.values());
+      const { data: insertedCustomers, error: custErr } = await supabase
+        .from("migrated_customers")
+        .upsert(customerRows, { onConflict: "email", ignoreDuplicates: true })
+        .select("id, email");
+      if (custErr) throw custErr;
+
+      // Fetch all migrated customers to get IDs
+      const { data: allCustomers, error: fetchErr } = await supabase
+        .from("migrated_customers")
+        .select("id, email");
+      if (fetchErr) throw fetchErr;
+
+      const emailToId = new Map<string, string>();
+      (allCustomers || []).forEach((c: any) => emailToId.set(c.email, c.id));
+
+      // Insert bookings
+      const bookingRows = parsed
+        .filter((r) => emailToId.has(r.email))
+        .map((r) => ({
+          migrated_customer_id: emailToId.get(r.email)!,
+          dog_name: r.dog_name,
+          dog_age: r.dog_age,
+          dog_breed: r.dog_breed,
+          service_name: r.service_name,
+          staff_name: r.staff_name,
+          booking_date: r.booking_date,
+          booking_time: r.booking_time,
+          duration_minutes: r.duration_minutes,
+          payment_status: r.payment_status,
+          is_future_booking: r.is_future_booking,
+        }));
+
+      // Insert in batches of 500
+      for (let i = 0; i < bookingRows.length; i += 500) {
+        const batch = bookingRows.slice(i, i + 500);
+        const { error: bookErr } = await supabase.from("migrated_bookings").insert(batch);
+        if (bookErr) throw bookErr;
+      }
+
+      setResult({ customers: customerRows.length, bookings: bookingRows.length });
+      setParsed([]);
+      queryClient.invalidateQueries({ queryKey: ["migrated-customers"] });
+      queryClient.invalidateQueries({ queryKey: ["migrated-bookings"] });
+      toast.success("Import complete!");
+    } catch (err: any) {
+      toast.error(err.message || "Import failed");
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Upload className="h-4 w-4" /> CSV Upload
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="p-4 rounded-lg bg-muted/50 border text-sm text-muted-foreground space-y-1">
+            <p className="font-medium text-foreground">Upload your Wix booking export CSV.</p>
+            <p>Expected columns from Wix: Session date, Start time, bookings.booking_contact_full_name_val, bookings.booking_contact_email_val, bookings.booking_contact_phone_val, Minutes, Service name, Staff name, Payment status, Form answer 2 (dog name), Form answer 3 (dog age), Form answer 4 (dog breed)</p>
+          </div>
+          <div>
+            <Input ref={fileRef} type="file" accept=".csv" onChange={handleFile} />
+          </div>
+        </CardContent>
+      </Card>
+
+      {parsed.length > 0 && summary && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Preview</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex gap-4 text-sm">
+              <Badge variant="secondary" className="gap-1"><Users className="h-3 w-3" /> {summary.customers} customers</Badge>
+              <Badge variant="secondary" className="gap-1"><Calendar className="h-3 w-3" /> {summary.bookings} bookings</Badge>
+              <Badge className="gap-1 bg-blue-100 text-blue-700 border-0">{summary.future} future</Badge>
+            </div>
+
+            <div className="overflow-auto max-h-80 border rounded-lg">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Service</TableHead>
+                    <TableHead>Dog</TableHead>
+                    <TableHead>Payment</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {parsed.slice(0, 10).map((r, i) => (
+                    <TableRow key={i}>
+                      <TableCell className="text-xs">{r.full_name}</TableCell>
+                      <TableCell className="text-xs">{r.email}</TableCell>
+                      <TableCell className="text-xs">{r.booking_date}</TableCell>
+                      <TableCell className="text-xs">{r.service_name}</TableCell>
+                      <TableCell className="text-xs">{r.dog_name || "—"}</TableCell>
+                      <TableCell className="text-xs">{r.payment_status}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+            {parsed.length > 10 && (
+              <p className="text-xs text-muted-foreground">Showing first 10 of {parsed.length} rows</p>
+            )}
+
+            <Button onClick={confirmImport} disabled={importing} className="w-full">
+              {importing ? "Importing…" : `Confirm Import (${summary.customers} customers, ${summary.bookings} bookings)`}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {result && (
+        <Card className="border-green-200 bg-green-50/50 dark:bg-green-950/10">
+          <CardContent className="py-6 text-center space-y-2">
+            <CheckCircle2 className="h-8 w-8 text-green-600 mx-auto" />
+            <p className="text-sm font-medium text-green-700">
+              ✅ {result.customers} customers and {result.bookings} bookings imported
+            </p>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+// ─── Bookings Tab ───
+function MigrationBookingsTab() {
+  const queryClient = useQueryClient();
+  const [filter, setFilter] = useState<BookingFilter>("all");
+  const [editBooking, setEditBooking] = useState<any | null>(null);
+  const [editTotal, setEditTotal] = useState("");
+  const [editDeposit, setEditDeposit] = useState("");
+  const [editPaymentStatus, setEditPaymentStatus] = useState("");
+  const [editNotes, setEditNotes] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const { data: bookings = [], isLoading } = useQuery({
+    queryKey: ["migrated-bookings"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("migrated_bookings")
+        .select("*, migrated_customers(full_name, email)")
+        .order("booking_date", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const filtered = useMemo(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    switch (filter) {
+      case "future": return bookings.filter((b: any) => b.booking_date >= today);
+      case "past": return bookings.filter((b: any) => b.booking_date < today);
+      case "not_paid": return bookings.filter((b: any) => (b.payment_status || "").toLowerCase() === "not paid");
+      case "partly_paid": return bookings.filter((b: any) => (b.payment_status || "").toLowerCase() === "partly paid");
+      default: return bookings;
+    }
+  }, [bookings, filter]);
+
+  const openEdit = (b: any) => {
+    setEditBooking(b);
+    setEditTotal(b.total_price?.toString() || "");
+    setEditDeposit(b.deposit_paid?.toString() || "");
+    setEditPaymentStatus(b.payment_status || "Not paid");
+    setEditNotes(b.notes || "");
+  };
+
+  const amountDue = useMemo(() => {
+    const total = parseFloat(editTotal) || 0;
+    const deposit = parseFloat(editDeposit) || 0;
+    return Math.max(0, total - deposit);
+  }, [editTotal, editDeposit]);
+
+  const saveEdit = async () => {
+    if (!editBooking) return;
+    setSaving(true);
+    try {
+      const total = parseFloat(editTotal) || null;
+      const deposit = parseFloat(editDeposit) || null;
+      const due = total != null && deposit != null ? Math.max(0, total - deposit) : null;
+      const { error } = await supabase
+        .from("migrated_bookings")
+        .update({
+          total_price: total,
+          deposit_paid: deposit,
+          amount_due: due,
+          payment_status: editPaymentStatus,
+          notes: editNotes || null,
+        })
+        .eq("id", editBooking.id);
+      if (error) throw error;
+      toast.success("Booking updated");
+      setEditBooking(null);
+      queryClient.invalidateQueries({ queryKey: ["migrated-bookings"] });
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-2">
+        {(["all", "future", "past", "not_paid", "partly_paid"] as BookingFilter[]).map((f) => (
+          <Button key={f} size="sm" variant={filter === f ? "default" : "outline"} onClick={() => setFilter(f)} className="text-xs capitalize">
+            {f.replace("_", " ")}
+          </Button>
+        ))}
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-8"><div className="animate-spin h-6 w-6 border-4 border-primary border-t-transparent rounded-full" /></div>
+      ) : (
+        <div className="overflow-auto border rounded-lg">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Date</TableHead>
+                <TableHead>Time</TableHead>
+                <TableHead>Customer</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Dog</TableHead>
+                <TableHead>Service</TableHead>
+                <TableHead>Staff</TableHead>
+                <TableHead>Payment</TableHead>
+                <TableHead>Total £</TableHead>
+                <TableHead>Deposit £</TableHead>
+                <TableHead>Due £</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filtered.map((b: any) => (
+                <TableRow key={b.id}>
+                  <TableCell className="text-xs whitespace-nowrap">{b.booking_date}</TableCell>
+                  <TableCell className="text-xs">{b.booking_time}</TableCell>
+                  <TableCell className="text-xs">{b.migrated_customers?.full_name}</TableCell>
+                  <TableCell className="text-xs">{b.migrated_customers?.email}</TableCell>
+                  <TableCell className="text-xs">{b.dog_name || "—"}</TableCell>
+                  <TableCell className="text-xs">{b.service_name}</TableCell>
+                  <TableCell className="text-xs">{b.staff_name || "—"}</TableCell>
+                  <TableCell className="text-xs">
+                    <Badge variant="secondary" className="text-[10px]">{b.payment_status || "—"}</Badge>
+                  </TableCell>
+                  <TableCell className="text-xs">{b.total_price != null ? `£${Number(b.total_price).toFixed(2)}` : "—"}</TableCell>
+                  <TableCell className="text-xs">{b.deposit_paid != null ? `£${Number(b.deposit_paid).toFixed(2)}` : "—"}</TableCell>
+                  <TableCell className="text-xs">{b.amount_due != null ? `£${Number(b.amount_due).toFixed(2)}` : "—"}</TableCell>
+                  <TableCell>
+                    <Button size="sm" variant="ghost" className="h-7 text-xs gap-1" onClick={() => openEdit(b)}>
+                      <Pencil className="h-3 w-3" /> Edit
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {filtered.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={12} className="text-center text-sm text-muted-foreground py-8">No bookings found</TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+
+      {/* Edit Dialog */}
+      <Dialog open={!!editBooking} onOpenChange={(open) => !open && setEditBooking(null)}>
+        {editBooking && (
+          <DialogContent className="max-w-md">
+            <DialogHeader><DialogTitle>Edit Migrated Booking</DialogTitle></DialogHeader>
+            <div className="space-y-4">
+              {/* Read-only info */}
+              <div className="space-y-1 text-sm bg-muted/50 rounded-lg p-3">
+                <p><span className="text-muted-foreground">Customer:</span> {editBooking.migrated_customers?.full_name}</p>
+                <p><span className="text-muted-foreground">Date:</span> {editBooking.booking_date} at {editBooking.booking_time}</p>
+                <p><span className="text-muted-foreground">Service:</span> {editBooking.service_name}</p>
+                <p><span className="text-muted-foreground">Staff:</span> {editBooking.staff_name || "—"}</p>
+                <p><span className="text-muted-foreground">Dog:</span> {editBooking.dog_name || "—"} {editBooking.dog_breed ? `(${editBooking.dog_breed})` : ""}</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Total Price £</Label>
+                  <Input type="number" step="0.01" value={editTotal} onChange={(e) => setEditTotal(e.target.value)} placeholder="0.00" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Deposit Paid £</Label>
+                  <Input type="number" step="0.01" value={editDeposit} onChange={(e) => setEditDeposit(e.target.value)} placeholder="0.00" />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between p-2 rounded bg-muted/30 text-sm">
+                <span className="text-muted-foreground">Amount Due:</span>
+                <span className="font-semibold">£{amountDue.toFixed(2)}</span>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs">Payment Status</Label>
+                <Select value={editPaymentStatus} onValueChange={setEditPaymentStatus}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Paid">Paid</SelectItem>
+                    <SelectItem value="Not paid">Not paid</SelectItem>
+                    <SelectItem value="Partly paid">Partly paid</SelectItem>
+                    <SelectItem value="Exempt">Exempt</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs">Notes</Label>
+                <Textarea value={editNotes} onChange={(e) => setEditNotes(e.target.value)} placeholder="Migration notes…" rows={3} />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditBooking(null)}>Cancel</Button>
+              <Button onClick={saveEdit} disabled={saving}>{saving ? "Saving…" : "Save"}</Button>
+            </DialogFooter>
+          </DialogContent>
+        )}
+      </Dialog>
+    </div>
+  );
+}
+
+// ─── Customers Tab ───
+function MigrationCustomersTab() {
+  const queryClient = useQueryClient();
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [sendingAll, setSendingAll] = useState(false);
+  const [sendingId, setSendingId] = useState<string | null>(null);
+
+  const { data: customers = [], isLoading } = useQuery({
+    queryKey: ["migrated-customers"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("migrated_customers")
+        .select("*")
+        .order("full_name");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: allBookings = [] } = useQuery({
+    queryKey: ["migrated-bookings-for-customers"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("migrated_bookings")
+        .select("migrated_customer_id, id, service_name, booking_date, booking_time, is_future_booking")
+        .order("booking_date", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const bookingsByCustomer = useMemo(() => {
+    const map = new Map<string, any[]>();
+    allBookings.forEach((b: any) => {
+      const list = map.get(b.migrated_customer_id) || [];
+      list.push(b);
+      map.set(b.migrated_customer_id, list);
+    });
+    return map;
+  }, [allBookings]);
+
+  const activatedCount = customers.filter((c: any) => c.status === "activated").length;
+  const progress = customers.length > 0 ? (activatedCount / customers.length) * 100 : 0;
+
+  const sendInvite = async (customer: any) => {
+    setSendingId(customer.id);
+    try {
+      // Call send-customer-email edge function to send invitation
+      const { error } = await supabase.functions.invoke("send-customer-email", {
+        body: {
+          customer_email: customer.email,
+          subject: "Welcome to Fluff & Scruff — Set Up Your Account",
+          body: `Hi ${customer.full_name || "there"},\n\nWe've moved to a new booking system! Your previous booking history has been imported.\n\nPlease create your account to view your history and book future appointments:\n\n${window.location.origin}/auth\n\nSee you soon!\n— The Fluff & Scruff Team`,
+        },
+      });
+      if (error) throw error;
+
+      await supabase
+        .from("migrated_customers")
+        .update({ status: "invited", invited_at: new Date().toISOString() })
+        .eq("id", customer.id);
+
+      queryClient.invalidateQueries({ queryKey: ["migrated-customers"] });
+      toast.success(`Invite sent to ${customer.email}`);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to send invite");
+    } finally {
+      setSendingId(null);
+    }
+  };
+
+  const sendAllPending = async () => {
+    const pending = customers.filter((c: any) => c.status === "pending");
+    if (!pending.length) return;
+    setSendingAll(true);
+    let sent = 0;
+    for (const c of pending) {
+      try {
+        await sendInvite(c);
+        sent++;
+      } catch {}
+    }
+    setSendingAll(false);
+    toast.success(`${sent} invites sent`);
+  };
+
+  const statusBadge = (status: string) => {
+    switch (status) {
+      case "activated": return <Badge className="bg-green-100 text-green-700 border-0 text-[10px]">Activated</Badge>;
+      case "invited": return <Badge className="bg-orange-100 text-orange-700 border-0 text-[10px]">Invited</Badge>;
+      default: return <Badge variant="secondary" className="text-[10px]">Pending</Badge>;
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="space-y-1 flex-1 mr-4">
+          <p className="text-sm text-muted-foreground">{activatedCount} of {customers.length} customers activated</p>
+          <Progress value={progress} className="h-2" />
+        </div>
+        <Button size="sm" onClick={sendAllPending} disabled={sendingAll} className="gap-1">
+          <Send className="h-3 w-3" />
+          {sendingAll ? "Sending…" : "Send All Pending Invites"}
+        </Button>
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-8"><div className="animate-spin h-6 w-6 border-4 border-primary border-t-transparent rounded-full" /></div>
+      ) : (
+        <div className="overflow-auto border rounded-lg">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead></TableHead>
+                <TableHead>Name</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Phone</TableHead>
+                <TableHead>Bookings</TableHead>
+                <TableHead>Future</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {customers.map((c: any) => {
+                const cBookings = bookingsByCustomer.get(c.id) || [];
+                const futureCount = cBookings.filter((b: any) => b.is_future_booking).length;
+                const isExpanded = expandedId === c.id;
+                return (
+                  <>
+                    <TableRow key={c.id} className="cursor-pointer" onClick={() => setExpandedId(isExpanded ? null : c.id)}>
+                      <TableCell className="w-8">
+                        {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                      </TableCell>
+                      <TableCell className="text-xs font-medium">{c.full_name || "—"}</TableCell>
+                      <TableCell className="text-xs">{c.email}</TableCell>
+                      <TableCell className="text-xs">{c.phone || "—"}</TableCell>
+                      <TableCell className="text-xs">{cBookings.length}</TableCell>
+                      <TableCell className="text-xs">{futureCount}</TableCell>
+                      <TableCell>{statusBadge(c.status)}</TableCell>
+                      <TableCell>
+                        {c.status !== "activated" && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs gap-1"
+                            disabled={sendingId === c.id}
+                            onClick={(e) => { e.stopPropagation(); sendInvite(c); }}
+                          >
+                            <Send className="h-3 w-3" />
+                            {sendingId === c.id ? "Sending…" : c.status === "invited" ? "Resend" : "Send Invite"}
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                    {isExpanded && cBookings.length > 0 && (
+                      <TableRow key={`${c.id}-exp`}>
+                        <TableCell colSpan={8} className="bg-muted/30 p-0">
+                          <div className="p-3 space-y-1">
+                            {cBookings.map((b: any) => (
+                              <div key={b.id} className="flex items-center gap-3 text-xs text-muted-foreground">
+                                <span>{b.booking_date}</span>
+                                <span>{b.booking_time}</span>
+                                <span className="font-medium text-foreground">{b.service_name}</span>
+                                {b.is_future_booking && <Badge className="bg-blue-100 text-blue-700 border-0 text-[9px]">Future</Badge>}
+                              </div>
+                            ))}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </>
+                );
+              })}
+              {customers.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center text-sm text-muted-foreground py-8">No customers imported yet</TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Page ───
+export default function MigrationPage() {
+  return (
+    <AppLayout>
+      <div className="p-6 max-w-7xl mx-auto space-y-6">
+        <div>
+          <h1 className="text-2xl font-heading font-bold text-foreground">Wix Migration</h1>
+          <p className="text-sm text-muted-foreground">Import customers and booking history from Wix</p>
+        </div>
+
+        <Tabs defaultValue="import">
+          <TabsList>
+            <TabsTrigger value="import">Import</TabsTrigger>
+            <TabsTrigger value="bookings">Bookings</TabsTrigger>
+            <TabsTrigger value="customers">Customers</TabsTrigger>
+          </TabsList>
+          <TabsContent value="import"><ImportTab /></TabsContent>
+          <TabsContent value="bookings"><MigrationBookingsTab /></TabsContent>
+          <TabsContent value="customers"><MigrationCustomersTab /></TabsContent>
+        </Tabs>
+      </div>
+    </AppLayout>
+  );
+}
