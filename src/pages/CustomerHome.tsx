@@ -142,8 +142,6 @@ const CustomerHome = () => {
         </div>
       </section>
 
-      {/* ══════ TRUST BAR ══════ */}
-      <TrustStrip />
 
       {/* ══════ SERVICES ══════ */}
       <div className="pt-10 sm:pt-16" />
