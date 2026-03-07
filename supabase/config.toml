@@ -77,3 +77,6 @@ verify_jwt = false
 
 [functions.google-reviews]
 verify_jwt = false
+
+[functions.run-e2e-tests]
+verify_jwt = false
