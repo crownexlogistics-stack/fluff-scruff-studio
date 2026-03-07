@@ -38,6 +38,7 @@ export interface BookingData {
   is_groomers_own_customer?: boolean;
   sms_24h_sent?: boolean;
   sms_2h_sent?: boolean;
+  duration_minutes?: number | null;
 }
 
 interface BookingEventProps {
