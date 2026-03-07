@@ -939,27 +939,28 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
                   </p>
                   <h2 className="text-xl sm:text-3xl font-heading text-foreground leading-tight">What type of groom?</h2>
                 </div>
-                <div className="grid sm:grid-cols-2 gap-5 sm:gap-8 max-w-4xl mx-auto">
+                <div className="space-y-4 max-w-lg mx-auto">
                   {subServices.map((opt, idx) => {
                     const pos = ADJUST_MODE
                       ? `${adjustPositions[idx].x}% ${adjustPositions[idx].y}%`
                       : getPosition(opt.label, opt.defaultPosition);
                     return (
-                      <button key={opt.label} onClick={ADJUST_MODE ? undefined : () => handleSubSelect(opt.label)} className="text-left group transition-colors duration-300">
-                        <div className="relative bg-card rounded-3xl overflow-hidden border border-border/40 transition-[box-shadow,border-color,transform] duration-500 hover:shadow-xl hover:shadow-black/[0.06] hover:border-border/60 hover:-translate-y-1 active:scale-[0.98] shadow-md shadow-black/[0.03]">
-                          <div className="relative overflow-hidden bg-card">
-                            <img src={opt.image} alt={opt.label} className="w-full aspect-[4/3] object-cover block" style={{ objectPosition: pos, maxHeight: '220px', cursor: ADJUST_MODE ? 'grab' : undefined, touchAction: ADJUST_MODE ? 'none' : undefined }}
+                      <button key={opt.label} onClick={ADJUST_MODE ? undefined : () => handleSubSelect(opt.label)} className="w-full text-left group transition-all duration-300">
+                        <div className="flex overflow-hidden bg-card hover:shadow-lg transition-all duration-300 active:scale-[0.98] shadow-[0_4px_20px_rgba(0,0,0,0.06)]" style={{ borderRadius: '24px' }}>
+                          <div className="relative w-[110px] shrink-0 overflow-hidden">
+                            <img src={opt.image} alt={opt.label} className="w-full h-full object-cover" style={{ objectPosition: pos, minHeight: '120px', cursor: ADJUST_MODE ? 'grab' : undefined, touchAction: ADJUST_MODE ? 'none' : undefined }}
                               onPointerDown={ADJUST_MODE ? (e) => { (e.target as HTMLElement).setPointerCapture(e.pointerId); dragRef.current = { idx, startX: e.clientX, startY: e.clientY, origX: adjustPositions[idx].x, origY: adjustPositions[idx].y }; } : undefined}
                               onPointerMove={ADJUST_MODE ? (e) => { if (!dragRef.current || dragRef.current.idx !== idx) return; const dx = e.clientX - dragRef.current.startX; const dy = e.clientY - dragRef.current.startY; const newX = Math.max(0, Math.min(100, dragRef.current.origX + dx * 0.15)); const newY = Math.max(0, Math.min(100, dragRef.current.origY + dy * 0.15)); setPositions(prev => { const arr = [...(prev ?? adjustPositions)]; arr[idx] = { x: newX, y: newY }; return arr; }); } : undefined}
                               onPointerUp={ADJUST_MODE ? () => { dragRef.current = null; } : undefined}
                             />
+                            <div className="absolute inset-y-0 right-0 w-6 bg-card" style={{ borderRadius: '50% 0 0 50% / 100% 0 0 100%' }} />
                           </div>
-                          <div className="p-5 sm:p-6 space-y-2">
-                            <h3 className="text-lg sm:text-xl font-heading text-foreground">{opt.label}</h3>
-                            <p className="text-sm text-muted-foreground font-body leading-relaxed">{opt.desc}</p>
-                            <div className="flex items-center gap-1.5 text-accent text-sm font-semibold font-body pt-1 group-hover:gap-2.5 transition-all">
+                          <div className="flex-1 py-3 pr-4 pl-1 flex flex-col justify-center min-w-0">
+                            <h3 className="text-base sm:text-lg font-heading text-foreground mb-0.5 group-hover:text-accent transition-colors">{opt.label}</h3>
+                            <p className="text-xs text-muted-foreground font-body leading-relaxed line-clamp-2 mb-1.5">{opt.desc}</p>
+                            <span className="text-accent font-body text-xs font-bold flex items-center gap-1 group-hover:gap-2 transition-all">
                               Select <ChevronRight className="h-3.5 w-3.5" />
-                            </div>
+                            </span>
                           </div>
                         </div>
                       </button>
