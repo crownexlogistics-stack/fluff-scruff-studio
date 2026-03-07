@@ -1056,6 +1056,113 @@ export type Database = {
         }
         Relationships: []
       }
+      migrated_bookings: {
+        Row: {
+          amount_due: number | null
+          booking_date: string
+          booking_time: string | null
+          deposit_paid: number | null
+          dog_age: string | null
+          dog_breed: string | null
+          dog_name: string | null
+          duration_minutes: number | null
+          id: string
+          imported_at: string
+          is_future_booking: boolean
+          migrated_customer_id: string
+          notes: string | null
+          payment_status: string | null
+          service_name: string
+          staff_name: string | null
+          supabase_booking_id: string | null
+          total_price: number | null
+        }
+        Insert: {
+          amount_due?: number | null
+          booking_date: string
+          booking_time?: string | null
+          deposit_paid?: number | null
+          dog_age?: string | null
+          dog_breed?: string | null
+          dog_name?: string | null
+          duration_minutes?: number | null
+          id?: string
+          imported_at?: string
+          is_future_booking?: boolean
+          migrated_customer_id: string
+          notes?: string | null
+          payment_status?: string | null
+          service_name: string
+          staff_name?: string | null
+          supabase_booking_id?: string | null
+          total_price?: number | null
+        }
+        Update: {
+          amount_due?: number | null
+          booking_date?: string
+          booking_time?: string | null
+          deposit_paid?: number | null
+          dog_age?: string | null
+          dog_breed?: string | null
+          dog_name?: string | null
+          duration_minutes?: number | null
+          id?: string
+          imported_at?: string
+          is_future_booking?: boolean
+          migrated_customer_id?: string
+          notes?: string | null
+          payment_status?: string | null
+          service_name?: string
+          staff_name?: string | null
+          supabase_booking_id?: string | null
+          total_price?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "migrated_bookings_migrated_customer_id_fkey"
+            columns: ["migrated_customer_id"]
+            isOneToOne: false
+            referencedRelation: "migrated_customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      migrated_customers: {
+        Row: {
+          activated_at: string | null
+          created_at: string
+          email: string | null
+          full_name: string | null
+          id: string
+          invited_at: string | null
+          phone: string | null
+          status: string
+          supabase_user_id: string | null
+        }
+        Insert: {
+          activated_at?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          invited_at?: string | null
+          phone?: string | null
+          status?: string
+          supabase_user_id?: string | null
+        }
+        Update: {
+          activated_at?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          invited_at?: string | null
+          phone?: string | null
+          status?: string
+          supabase_user_id?: string | null
+        }
+        Relationships: []
+      }
       payout_records: {
         Row: {
           amount: number
