@@ -181,15 +181,28 @@ export default function SystemHealthPage() {
       "notify-groomer", "record-payment", "cancel-booking-with-refund", "sign-document",
     ];
 
+    const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+    const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
     await Promise.all(
       edgeFunctions.map(async (fn) => {
         try {
           const start = Date.now();
-          const { error } = await supabase.functions.invoke(fn, {
-            body: { health_check: true },
-          });
+          const res = await fetch(
+            `https://${projectId}.supabase.co/functions/v1/${fn}`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                apikey: anonKey,
+                Authorization: `Bearer ${anonKey}`,
+              },
+              body: JSON.stringify({ health_check: true }),
+            }
+          );
           const elapsed = Date.now() - start;
-          // Even a 400 error means the function is running
+          await res.text(); // consume body
+          // Any HTTP response (even 400/500) means the function is deployed and running
           const status: CheckStatus = elapsed > 5000 ? "warning" : "pass";
           setChecks((prev) =>
             prev.map((c) =>
@@ -198,13 +211,14 @@ export default function SystemHealthPage() {
                     ...c,
                     status,
                     responseTime: elapsed,
-                    detail: elapsed > 5000 ? "Slow response" : "Responding",
+                    detail: elapsed > 5000 ? "Slow response" : `Responding (${res.status})`,
                     checkedAt: new Date().toISOString(),
                   }
                 : c
             )
           );
         } catch (e: any) {
+          // Network error = function truly unreachable
           setChecks((prev) =>
             prev.map((c) =>
               c.name === fn
