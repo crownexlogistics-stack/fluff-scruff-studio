@@ -62,6 +62,7 @@ const directorOnlyItems = [
   { title: "Users", url: "/admin/users", icon: Crown },
   { title: "Terms & Conditions", url: "/admin/terms", icon: FileText },
   { title: "Error Reports", url: "/admin/error-reports", icon: Bug },
+  { title: "System Health", url: "/admin/health", icon: Activity },
 ];
 
 export function AppSidebar() {
