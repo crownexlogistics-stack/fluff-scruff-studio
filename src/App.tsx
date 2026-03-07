@@ -36,6 +36,7 @@ import BookingSuccessPage from "./pages/BookingSuccessPage";
 import NotFound from "./pages/NotFound";
 import ErrorReportsPage from "./pages/ErrorReportsPage";
 import SystemHealthPage from "./pages/SystemHealthPage";
+import TestRunnerPage from "./pages/TestRunnerPage";
 import MigrationPage from "./pages/MigrationPage";
 import WelcomePage from "./pages/WelcomePage";
 
