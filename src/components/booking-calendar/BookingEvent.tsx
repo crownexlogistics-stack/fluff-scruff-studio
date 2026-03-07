@@ -64,6 +64,20 @@ interface BookingEventProps {
 export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1, overlapColumn = 0, overlapTotalColumns = 1, onEditBlock, onCancelBlock, onEditOvertime, onCancelOvertime, onViewOrder, onEditAppointment, onCancelBooking, onBookAgain, onCheckout }: BookingEventProps) {
   const navigate = useNavigate();
   const [requestingDeposit, setRequestingDeposit] = useState(false);
+  const [paymentLinkOpen, setPaymentLinkOpen] = useState(false);
+
+  // Fetch add-ons for this booking
+  const { data: bookingAddons } = useQuery({
+    queryKey: ["booking-addons-display", booking.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("booking_addons" as any)
+        .select("addon_id, add_ons(name, price)")
+        .eq("booking_id", booking.id);
+      if (error) return [];
+      return (data as any[]) || [];
+    },
+  });
   const isCancelled = booking.status === "Cancelled";
   const isNoShow = booking.status === "No Show";
   const isRefunded = booking.status === "Refunded";
