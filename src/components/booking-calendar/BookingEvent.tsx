@@ -7,10 +7,12 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { format } from "date-fns";
 import { getStaffColor } from "./staffColors";
-import { Pencil, Trash2, MoreHorizontal, Eye, PenLine, XCircle, Send, CheckCircle2, Clock, MessageSquare } from "lucide-react";
+import { Pencil, Trash2, MoreHorizontal, Eye, PenLine, XCircle, Send, CheckCircle2, Clock, MessageSquare, CreditCard, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { logAudit } from "@/lib/auditLog";
+import { useQuery } from "@tanstack/react-query";
+import { SendPaymentLinkDialog } from "./SendPaymentLinkDialog";
 
 export interface BookingData {
   id: string;
