@@ -25,6 +25,7 @@ export function EditAppointmentDialog({ open, onOpenChange, booking }: EditAppoi
   const [form, setForm] = useState({
     booking_date: "",
     booking_time: "",
+    duration_minutes: 60,
     service_id: "",
     breed_id: "",
     staff_id: "",
