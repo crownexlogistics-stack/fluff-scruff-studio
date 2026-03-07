@@ -36,6 +36,7 @@ import BookingSuccessPage from "./pages/BookingSuccessPage";
 import NotFound from "./pages/NotFound";
 import ErrorReportsPage from "./pages/ErrorReportsPage";
 import SystemHealthPage from "./pages/SystemHealthPage";
+import MigrationPage from "./pages/MigrationPage";
 
 const queryClient = new QueryClient();
 
@@ -84,6 +85,7 @@ const App = () => (
           <Route path="/marketing/*" element={<ProtectedRoute allowedRoles={["manager", "director"]}><MarketingPage /></ProtectedRoute>} />
           <Route path="/admin/error-reports" element={<ProtectedRoute allowedRoles={["manager", "director"]}><ErrorReportsPage /></ProtectedRoute>} />
           <Route path="/admin/health" element={<ProtectedRoute allowedRoles={["director"]}><SystemHealthPage /></ProtectedRoute>} />
+          <Route path="/admin/migration" element={<ProtectedRoute allowedRoles={["manager", "director"]}><MigrationPage /></ProtectedRoute>} />
 
           <Route path="*" element={<NotFound />} />
         </Routes>
