@@ -100,7 +100,7 @@ const CustomerHome = () => {
 
       {/* ══════ HERO ══════ */}
       <section className="relative">
-        <div className="relative w-full h-[220px] sm:h-[320px] overflow-hidden">
+        <div className="relative w-full h-[300px] sm:h-[400px] overflow-hidden">
           <img
             src={heroDog}
             alt="Beautifully groomed dog at Fluff & Scruff studio"
