@@ -27,7 +27,7 @@ export function TrustStrip() {
   const reviews = data?.totalReviews ?? 69;
 
   return (
-    <div className="mx-5 sm:mx-6 mt-3 mb-2" style={{ borderRadius: '20px', background: 'hsl(20 60% 12%)' }}>
+    <div className="mx-5 sm:mx-6 mt-3 mb-2" style={{ borderRadius: '20px', background: 'hsl(var(--warm-dark))' }}>
       <div className="flex items-center justify-center gap-0 py-3 px-2">
         {[
           { value: `${rating}★`, label: "GOOGLE" },

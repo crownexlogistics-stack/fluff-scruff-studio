@@ -48,7 +48,7 @@ const CustomerHome = () => {
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* ══════ NAVBAR ══════ */}
-      <nav className="sticky top-0 z-50 bg-background border-b border-border/30">
+      <nav className="sticky top-0 z-50 bg-background border-b border-border/10">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-center justify-between h-16">
           <a href="#" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="flex items-center gap-2.5 cursor-pointer">
             <img src={logo} alt="Fluff & Scruff" className="h-10 sm:h-12 w-auto" />
@@ -100,7 +100,7 @@ const CustomerHome = () => {
 
       {/* ══════ HERO ══════ */}
       <section className="relative">
-        <div className="relative w-full h-[220px] sm:h-[320px] overflow-hidden">
+        <div className="relative w-full h-[300px] sm:h-[400px] overflow-hidden">
           <img
             src={heroDog}
             alt="Beautifully groomed dog at Fluff & Scruff studio"
@@ -146,6 +146,7 @@ const CustomerHome = () => {
       <TrustStrip />
 
       {/* ══════ SERVICES ══════ */}
+      <div className="pt-10 sm:pt-16" />
       <ServiceJourney
         services={services}
         onSelectService={(title) => navigate(`/book?service=${encodeURIComponent(title)}`)}
