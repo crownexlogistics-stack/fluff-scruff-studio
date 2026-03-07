@@ -110,6 +110,7 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
         breed_id: b.breed_id,
         final_charge: b.final_charge,
         stripe_payment_id: b.stripe_payment_id ?? null,
+        duration_minutes: (b as any).duration_minutes ?? null,
         is_block: false,
         is_own: b.staff_id === staffId,
       })) as GroomerCalendarBooking[];
