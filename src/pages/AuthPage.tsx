@@ -7,9 +7,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserRole, type AppRole } from "@/hooks/useUserRole";
 import { Navigate } from "react-router-dom";
 import logo from "@/assets/logo-transparent.png";
 import { ArrowLeft } from "lucide-react";
+
+function getRoleRedirect(role: AppRole | null): string {
+  if (role === "manager" || role === "director") return "/admin";
+  if (role === "groomer") return "/portal";
+  return "/";
+}
 
 type Mode = "login" | "signup" | "forgot";
 
@@ -22,9 +29,10 @@ const AuthPage = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const { user, loading } = useAuth();
+  const { role, loading: roleLoading } = useUserRole(user?.id);
 
-  if (loading) return null;
-  if (user) return <Navigate to="/" replace />;
+  if (loading || (user && roleLoading)) return null;
+  if (user) return <Navigate to={getRoleRedirect(role)} replace />;
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
