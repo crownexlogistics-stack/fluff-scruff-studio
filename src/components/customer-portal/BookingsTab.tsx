@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { useNavigate } from "react-router-dom";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -39,6 +39,29 @@ export function BookingsTab({ bookings, userEmail }: BookingsTabProps) {
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [bookingToCancel, setBookingToCancel] = useState<Booking | null>(null);
+  const [selectedMigrated, setSelectedMigrated] = useState<any | null>(null);
+
+  // Fetch migrated bookings for this customer
+  const { data: migratedBookings = [] } = useQuery({
+    queryKey: ["my-migrated-bookings", userEmail],
+    queryFn: async () => {
+      if (!userEmail) return [];
+      const { data: customer } = await supabase
+        .from("migrated_customers")
+        .select("id")
+        .eq("email", userEmail.toLowerCase())
+        .maybeSingle();
+      if (!customer) return [];
+      const { data, error } = await supabase
+        .from("migrated_bookings")
+        .select("*")
+        .eq("migrated_customer_id", customer.id)
+        .order("booking_date", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!userEmail,
+  });
 
   const normalizeStatus = (raw?: string | null) => (raw || "").trim().toLowerCase();
   const isRefundedStatus = (raw?: string | null) => normalizeStatus(raw).includes("refund");
@@ -110,6 +133,18 @@ export function BookingsTab({ bookings, userEmail }: BookingsTabProps) {
     return differenceInHours(parseISO(booking.booking_date + "T" + (booking.booking_time || "09:00")), new Date()) >= 48;
   };
 
+  const today = new Date().toISOString().slice(0, 10);
+  const pastMigrated = migratedBookings.filter((b: any) => b.booking_date < today);
+  const futureMigrated = migratedBookings.filter((b: any) => b.booking_date >= today);
+
+  const getMigratedPaymentBadge = (status: string) => {
+    const s = (status || "").toLowerCase();
+    if (s === "paid") return <Badge className="bg-green-100 text-green-700 border-0 text-[10px]">Paid</Badge>;
+    if (s === "partly paid") return <Badge className="bg-orange-100 text-orange-700 border-0 text-[10px]">Partly Paid</Badge>;
+    if (s === "exempt") return <Badge variant="secondary" className="text-[10px]">Exempt</Badge>;
+    return <Badge variant="secondary" className="text-[10px]">Not Paid</Badge>;
+  };
+
   return (
     <div className="space-y-3">
       <h3 className="text-base font-heading font-semibold text-foreground flex items-center gap-2">
@@ -117,7 +152,7 @@ export function BookingsTab({ bookings, userEmail }: BookingsTabProps) {
         My Bookings
       </h3>
 
-      {bookings.length === 0 ? (
+      {bookings.length === 0 && migratedBookings.length === 0 ? (
         <div className="text-center py-10">
           <CalendarCheck className="h-10 w-10 text-muted-foreground/20 mx-auto mb-2" />
           <p className="text-sm text-muted-foreground">No bookings yet</p>
@@ -127,6 +162,7 @@ export function BookingsTab({ bookings, userEmail }: BookingsTabProps) {
         </div>
       ) : (
         <div className="space-y-3">
+          {/* Real bookings */}
           {bookings.map((booking) => {
             const total = Number(booking.total_price);
             const deposit = Number(booking.deposit_paid);
@@ -222,6 +258,72 @@ export function BookingsTab({ bookings, userEmail }: BookingsTabProps) {
               </button>
             );
           })}
+
+          {/* Future migrated bookings */}
+          {futureMigrated.length > 0 && (
+            <>
+              {bookings.length > 0 && <Separator className="my-2" />}
+              {futureMigrated.map((mb: any) => (
+                <button
+                  key={mb.id}
+                  onClick={() => setSelectedMigrated(mb)}
+                  className="w-full text-left rounded-2xl border border-blue-200 bg-blue-50/50 dark:bg-blue-950/10 p-4 transition-all hover:shadow-md"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <p className="text-sm font-semibold text-foreground truncate">{mb.service_name}</p>
+                        <Badge className="bg-blue-100 text-blue-700 border-0 text-[10px]">Upcoming</Badge>
+                        {getMigratedPaymentBadge(mb.payment_status)}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {mb.dog_name && `${mb.dog_name} • `}{format(new Date(mb.booking_date), "EEE d MMM")}
+                        {mb.booking_time && ` at ${mb.booking_time.slice(0, 5)}`}
+                        {mb.staff_name && ` • ${mb.staff_name}`}
+                      </p>
+                      {mb.amount_due != null && mb.amount_due > 0 && (
+                        <p className="text-[11px] mt-1 text-accent font-semibold">Due: £{Number(mb.amount_due).toFixed(2)}</p>
+                      )}
+                      <p className="text-[10px] text-muted-foreground/60 mt-1">Wix Booking</p>
+                    </div>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0 mt-1" />
+                  </div>
+                </button>
+              ))}
+            </>
+          )}
+
+          {/* Past migrated bookings */}
+          {pastMigrated.length > 0 && (
+            <>
+              {(bookings.length > 0 || futureMigrated.length > 0) && <Separator className="my-2" />}
+              <p className="text-xs text-muted-foreground font-medium">Previous Bookings (Wix)</p>
+              {pastMigrated.map((mb: any) => (
+                <button
+                  key={mb.id}
+                  onClick={() => setSelectedMigrated(mb)}
+                  className="w-full text-left rounded-2xl border border-border/30 bg-muted/30 p-4 transition-all hover:shadow-md"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <p className="text-sm font-semibold text-foreground truncate">{mb.service_name}</p>
+                        <Badge variant="secondary" className="text-[10px]">Completed</Badge>
+                        {getMigratedPaymentBadge(mb.payment_status)}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {mb.dog_name && `${mb.dog_name} • `}{format(new Date(mb.booking_date), "EEE d MMM")}
+                        {mb.booking_time && ` at ${mb.booking_time.slice(0, 5)}`}
+                        {mb.staff_name && ` • ${mb.staff_name}`}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground/60 mt-1">Wix Booking</p>
+                    </div>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0 mt-1" />
+                  </div>
+                </button>
+              ))}
+            </>
+          )}
         </div>
       )}
 
@@ -264,6 +366,38 @@ export function BookingsTab({ bookings, userEmail }: BookingsTabProps) {
                   </div>
                 </>
               )}
+            </div>
+          </DialogContent>
+        )}
+      </Dialog>
+
+      {/* Migrated Booking Detail Dialog */}
+      <Dialog open={!!selectedMigrated} onOpenChange={(open) => !open && setSelectedMigrated(null)}>
+        {selectedMigrated && (
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="font-heading">{selectedMigrated.service_name}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2 text-sm">
+                {selectedMigrated.dog_name && <div className="flex justify-between"><span className="text-muted-foreground">Dog</span><span>{selectedMigrated.dog_name}</span></div>}
+                {selectedMigrated.dog_breed && <div className="flex justify-between"><span className="text-muted-foreground">Breed</span><span>{selectedMigrated.dog_breed}</span></div>}
+                <div className="flex justify-between"><span className="text-muted-foreground">Date</span><span>{format(new Date(selectedMigrated.booking_date), "EEE d MMM yyyy")}</span></div>
+                {selectedMigrated.booking_time && <div className="flex justify-between"><span className="text-muted-foreground">Time</span><span>{selectedMigrated.booking_time.slice(0, 5)}</span></div>}
+                {selectedMigrated.staff_name && <div className="flex justify-between"><span className="text-muted-foreground">Groomer</span><span>{selectedMigrated.staff_name}</span></div>}
+                <div className="flex justify-between"><span className="text-muted-foreground">Payment</span>{getMigratedPaymentBadge(selectedMigrated.payment_status)}</div>
+              </div>
+              {(selectedMigrated.total_price != null || selectedMigrated.amount_due != null) && (
+                <>
+                  <Separator />
+                  <div className="space-y-2 text-sm">
+                    {selectedMigrated.total_price != null && <div className="flex justify-between"><span className="text-muted-foreground">Total</span><span className="font-semibold">£{Number(selectedMigrated.total_price).toFixed(2)}</span></div>}
+                    {selectedMigrated.deposit_paid != null && <div className="flex justify-between"><span className="text-muted-foreground">Deposit</span><span className="text-green-600">£{Number(selectedMigrated.deposit_paid).toFixed(2)}</span></div>}
+                    {selectedMigrated.amount_due != null && selectedMigrated.amount_due > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Due</span><span className="text-accent font-semibold">£{Number(selectedMigrated.amount_due).toFixed(2)}</span></div>}
+                  </div>
+                </>
+              )}
+              <div className="text-[10px] text-muted-foreground/60 text-center pt-2">Wix Booking — Read Only</div>
             </div>
           </DialogContent>
         )}
