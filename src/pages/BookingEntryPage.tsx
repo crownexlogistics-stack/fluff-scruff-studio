@@ -680,6 +680,7 @@ const BookingEntryPage = () => {
           </div>
         )}
       </div>
+      <ErrorReportButton />
     </div>
   );
 };

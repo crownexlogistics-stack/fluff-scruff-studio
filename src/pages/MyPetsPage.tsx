@@ -561,6 +561,7 @@ const MyPetsPage = () => {
           </div>
         </DialogContent>
       </Dialog>
+      <ErrorReportButton />
     </div>
   );
 };

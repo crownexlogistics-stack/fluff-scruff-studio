@@ -490,6 +490,7 @@ export default function BookingSuccessPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <ErrorReportButton />
     </div>
   );
 }
