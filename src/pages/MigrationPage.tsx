@@ -491,20 +491,11 @@ function MigrationCustomersTab() {
   const sendInvite = async (customer: any) => {
     setSendingId(customer.id);
     try {
-      // Call send-customer-email edge function to send invitation
-      const { error } = await supabase.functions.invoke("send-customer-email", {
-        body: {
-          customer_email: customer.email,
-          subject: "Welcome to Fluff & Scruff — Set Up Your Account",
-          body: `Hi ${customer.full_name || "there"},\n\nWe've moved to a new booking system! Your previous booking history has been imported.\n\nPlease create your account to view your history and book future appointments:\n\n${window.location.origin}/auth\n\nSee you soon!\n— The Fluff & Scruff Team`,
-        },
+      const { data, error } = await supabase.functions.invoke("send-migration-invite", {
+        body: { migrated_customer_id: customer.id },
       });
       if (error) throw error;
-
-      await supabase
-        .from("migrated_customers")
-        .update({ status: "invited", invited_at: new Date().toISOString() })
-        .eq("id", customer.id);
+      if (data?.error) throw new Error(data.error);
 
       queryClient.invalidateQueries({ queryKey: ["migrated-customers"] });
       toast.success(`Invite sent to ${customer.email}`);

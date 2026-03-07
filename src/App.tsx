@@ -37,6 +37,7 @@ import NotFound from "./pages/NotFound";
 import ErrorReportsPage from "./pages/ErrorReportsPage";
 import SystemHealthPage from "./pages/SystemHealthPage";
 import MigrationPage from "./pages/MigrationPage";
+import WelcomePage from "./pages/WelcomePage";
 
 const queryClient = new QueryClient();
 
@@ -57,6 +58,7 @@ const App = () => (
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/hs/sign/:staffId" element={<HealthAndSafetySignPage />} />
           <Route path="/booking-success" element={<BookingSuccessPage />} />
+          <Route path="/welcome" element={<WelcomePage />} />
 
           {/* Customer only */}
           <Route path="/my-pets" element={<ProtectedRoute allowedRoles={["customer", "manager", "director"]}><MyPetsPage /></ProtectedRoute>} />
