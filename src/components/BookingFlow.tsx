@@ -1530,6 +1530,14 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
                     </span>
                   </label>
 
+                  {/* No Cash Notice */}
+                  <div className="rounded-xl border p-4" style={{ backgroundColor: "#FFF3E0", borderColor: "#FF6B35" }}>
+                    <p className="text-sm font-medium" style={{ color: "#1a1a1a" }}>
+                      💳 We no longer accept cash payments. All payments are taken securely by card online. If you have any questions please call us on{" "}
+                      <a href="tel:01708606655" className="underline font-bold">01708 606655</a>.
+                    </p>
+                  </div>
+
                   <div className="space-y-3">
                     <Button
                       onClick={() => handlePayment("full")}

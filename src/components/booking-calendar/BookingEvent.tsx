@@ -7,10 +7,12 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { format } from "date-fns";
 import { getStaffColor } from "./staffColors";
-import { Pencil, Trash2, MoreHorizontal, Eye, PenLine, XCircle, Send, CheckCircle2, Clock, MessageSquare } from "lucide-react";
+import { Pencil, Trash2, MoreHorizontal, Eye, PenLine, XCircle, Send, CheckCircle2, Clock, MessageSquare, CreditCard, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { logAudit } from "@/lib/auditLog";
+import { useQuery } from "@tanstack/react-query";
+import { SendPaymentLinkDialog } from "./SendPaymentLinkDialog";
 
 export interface BookingData {
   id: string;
@@ -62,6 +64,20 @@ interface BookingEventProps {
 export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1, overlapColumn = 0, overlapTotalColumns = 1, onEditBlock, onCancelBlock, onEditOvertime, onCancelOvertime, onViewOrder, onEditAppointment, onCancelBooking, onBookAgain, onCheckout }: BookingEventProps) {
   const navigate = useNavigate();
   const [requestingDeposit, setRequestingDeposit] = useState(false);
+  const [paymentLinkOpen, setPaymentLinkOpen] = useState(false);
+
+  // Fetch add-ons for this booking
+  const { data: bookingAddons } = useQuery({
+    queryKey: ["booking-addons-display", booking.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("booking_addons" as any)
+        .select("addon_id, add_ons(name, price)")
+        .eq("booking_id", booking.id);
+      if (error) return [];
+      return (data as any[]) || [];
+    },
+  });
   const isCancelled = booking.status === "Cancelled";
   const isNoShow = booking.status === "No Show";
   const isRefunded = booking.status === "Refunded";
@@ -328,6 +344,17 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
           <div className="border-t pt-3">
             <p className="font-medium">{booking.service_name || "Service"} — {booking.breed_name || booking.dog_name}</p>
             <p className="text-sm text-muted-foreground">with {booking.staff_name}</p>
+            {/* Add-ons */}
+            {bookingAddons && bookingAddons.length > 0 && (
+              <div className="mt-1.5 flex flex-wrap gap-1">
+                {bookingAddons.map((ba: any) => (
+                  <Badge key={ba.addon_id} variant="secondary" className="text-[10px] gap-1">
+                    <Sparkles className="h-2.5 w-2.5" />
+                    {ba.add_ons?.name} · £{Number(ba.add_ons?.price || 0).toFixed(2)}
+                  </Badge>
+                ))}
+              </div>
+            )}
             <p className="text-sm font-medium mt-1">£{Number(booking.total_price).toFixed(2)}</p>
             {booking.is_groomers_own_customer && (
               <Badge className="mt-1 text-xs bg-violet-100 text-violet-700 hover:bg-violet-100 dark:bg-violet-900/30 dark:text-violet-400">Own Customer • 50%</Badge>
@@ -342,7 +369,7 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
 
           {/* Request Deposit for internally booked, unpaid appointments */}
           {Number(booking.deposit_paid) === 0 && booking.customer_email && booking.status !== "Cancelled" && booking.status !== "No Show" && booking.status !== "Refunded" && (
-            <div className="border-t pt-3">
+            <div className="border-t pt-3 space-y-2">
               <Button
                 variant="outline"
                 size="sm"
@@ -371,6 +398,22 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
               </Button>
             </div>
           )}
+
+          {/* Send Payment Link — when there's an amount due */}
+          {Number(booking.total_price) - Number(booking.deposit_paid) > 0 && booking.status !== "Cancelled" && booking.status !== "No Show" && booking.status !== "Refunded" && (
+            <div className={Number(booking.deposit_paid) === 0 ? "" : "border-t pt-3"}>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full"
+                onClick={() => setPaymentLinkOpen(true)}
+              >
+                <CreditCard className="h-4 w-4 mr-1" />
+                💳 Send Payment Link
+              </Button>
+            </div>
+          )}
+          <SendPaymentLinkDialog open={paymentLinkOpen} onOpenChange={setPaymentLinkOpen} booking={booking} />
 
           {/* Action bar */}
           <div className="border-t pt-3 flex flex-wrap items-center gap-2">

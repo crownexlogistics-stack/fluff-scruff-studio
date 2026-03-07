@@ -5,12 +5,13 @@ import { Input } from "@/components/ui/input";
 import { NumericInput } from "@/components/ui/numeric-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { logAudit } from "@/lib/auditLog";
-import { Mail } from "lucide-react";
+import { Mail, Sparkles } from "lucide-react";
 import type { BookingData } from "./BookingEvent";
 
 interface EditAppointmentDialogProps {
@@ -34,6 +35,24 @@ export function EditAppointmentDialog({ open, onOpenChange, booking }: EditAppoi
     notes: "",
   });
 
+  const [selectedAddonIds, setSelectedAddonIds] = useState<string[]>([]);
+  const [initialAddonIds, setInitialAddonIds] = useState<string[]>([]);
+
+  // Fetch existing booking add-ons when dialog opens
+  const { data: existingAddons } = useQuery({
+    queryKey: ["booking-addons", booking?.id],
+    queryFn: async () => {
+      if (!booking) return [];
+      const { data, error } = await supabase
+        .from("booking_addons" as any)
+        .select("addon_id")
+        .eq("booking_id", booking.id);
+      if (error) throw error;
+      return (data as any[])?.map((r: any) => r.addon_id as string) || [];
+    },
+    enabled: open && !!booking,
+  });
+
   useEffect(() => {
     if (open && booking) {
       setForm({
@@ -49,6 +68,13 @@ export function EditAppointmentDialog({ open, onOpenChange, booking }: EditAppoi
       });
     }
   }, [open, booking]);
+
+  useEffect(() => {
+    if (existingAddons) {
+      setSelectedAddonIds(existingAddons);
+      setInitialAddonIds(existingAddons);
+    }
+  }, [existingAddons]);
 
   const { data: staff } = useQuery({
     queryKey: ["staff-list"],
@@ -77,6 +103,33 @@ export function EditAppointmentDialog({ open, onOpenChange, booking }: EditAppoi
     },
   });
 
+  const { data: addOns } = useQuery({
+    queryKey: ["add-ons-list"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("add_ons").select("id, name, price").eq("is_active", true).order("name");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Calculate add-on price difference for total
+  const addOnTotal = addOns?.filter(a => selectedAddonIds.includes(a.id)).reduce((sum, a) => sum + Number(a.price), 0) || 0;
+  const prevAddOnTotal = addOns?.filter(a => initialAddonIds.includes(a.id)).reduce((sum, a) => sum + Number(a.price), 0) || 0;
+
+  const toggleAddon = (addonId: string) => {
+    const addon = addOns?.find(a => a.id === addonId);
+    if (!addon) return;
+    const price = Number(addon.price);
+
+    if (selectedAddonIds.includes(addonId)) {
+      setSelectedAddonIds(prev => prev.filter(id => id !== addonId));
+      setForm(prev => ({ ...prev, total_price: prev.total_price - price }));
+    } else {
+      setSelectedAddonIds(prev => [...prev, addonId]);
+      setForm(prev => ({ ...prev, total_price: prev.total_price + price }));
+    }
+  };
+
   const updateBooking = useMutation({
     mutationFn: async () => {
       if (!booking) return;
@@ -93,12 +146,32 @@ export function EditAppointmentDialog({ open, onOpenChange, booking }: EditAppoi
       } as any).eq("id", booking.id);
       if (error) throw error;
 
+      // Sync booking_addons: delete removed, insert added
+      const toRemove = initialAddonIds.filter(id => !selectedAddonIds.includes(id));
+      const toAdd = selectedAddonIds.filter(id => !initialAddonIds.includes(id));
+
+      if (toRemove.length > 0) {
+        await supabase
+          .from("booking_addons" as any)
+          .delete()
+          .eq("booking_id", booking.id)
+          .in("addon_id", toRemove);
+      }
+      if (toAdd.length > 0) {
+        await supabase
+          .from("booking_addons" as any)
+          .insert(toAdd.map(addon_id => ({
+            booking_id: booking.id,
+            addon_id,
+            added_by_staff: true,
+          })));
+      }
+
       logAudit({
         staffId: form.staff_id || undefined,
         action: "BOOKING_EDITED",
         details: `Edited booking for ${booking.customer_name} on ${form.booking_date} at ${form.booking_time}`,
       });
-      // Notify groomer of the edit
       if (form.staff_id) {
         supabase.functions.invoke("notify-groomer", {
           body: { booking_id: booking.id, notification_type: "booking_edited" },
@@ -110,6 +183,7 @@ export function EditAppointmentDialog({ open, onOpenChange, booking }: EditAppoi
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
       queryClient.invalidateQueries({ queryKey: ["groomer-bookings"] });
       queryClient.invalidateQueries({ queryKey: ["audit-logs"] });
+      queryClient.invalidateQueries({ queryKey: ["booking-addons"] });
       onOpenChange(false);
     },
     onError: (e: any) => toast.error(e.message),
@@ -214,6 +288,33 @@ export function EditAppointmentDialog({ open, onOpenChange, booking }: EditAppoi
               <Label>Deposit (£)</Label>
               <NumericInput value={form.deposit_paid} onValueChange={(v) => setForm({ ...form, deposit_paid: v })} />
             </div>
+          </div>
+
+          {/* Add-ons Sold in Salon */}
+          <div className="space-y-2">
+            <Label className="flex items-center gap-1.5">
+              <Sparkles className="h-4 w-4" />
+              Add-ons Sold in Salon
+            </Label>
+            <div className="border rounded-md p-3 space-y-2 max-h-40 overflow-y-auto">
+              {addOns && addOns.length > 0 ? addOns.map(addon => (
+                <label key={addon.id} className="flex items-center gap-3 cursor-pointer hover:bg-muted/50 rounded-md p-1.5 -mx-1.5 transition-colors">
+                  <Checkbox
+                    checked={selectedAddonIds.includes(addon.id)}
+                    onCheckedChange={() => toggleAddon(addon.id)}
+                  />
+                  <span className="flex-1 text-sm">{addon.name}</span>
+                  <span className="text-sm font-medium text-muted-foreground">£{Number(addon.price).toFixed(2)}</span>
+                </label>
+              )) : (
+                <p className="text-sm text-muted-foreground">No add-ons available</p>
+              )}
+            </div>
+            {selectedAddonIds.length > 0 && (
+              <p className="text-xs text-muted-foreground">
+                Add-ons total: £{addOnTotal.toFixed(2)}
+              </p>
+            )}
           </div>
 
           <div className="space-y-1">
