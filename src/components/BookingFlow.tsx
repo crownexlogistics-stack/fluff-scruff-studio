@@ -1538,6 +1538,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
                     </p>
                   </div>
 
+                  <div className="space-y-3">
                     <Button
                       onClick={() => handlePayment("full")}
                       disabled={!acceptedTerms || isSubmitting}
