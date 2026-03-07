@@ -3,7 +3,7 @@ import {
   UserPlus, CalendarClock, ChevronDown, Megaphone,
   UsersRound, BarChart3, Mail,
   LogOut, Sparkles, AlertTriangle, ShieldCheck, BookOpen,
-  Inbox, FileText, Ticket, PoundSterling, Bug,
+  Inbox, FileText, Ticket, PoundSterling, Bug, Activity,
 } from "lucide-react";
 import logo from "@/assets/logo-transparent.png";
 import { useNewErrorReportsCount } from "@/hooks/useNewErrorReportsCount";
@@ -62,6 +62,7 @@ const directorOnlyItems = [
   { title: "Users", url: "/admin/users", icon: Crown },
   { title: "Terms & Conditions", url: "/admin/terms", icon: FileText },
   { title: "Error Reports", url: "/admin/error-reports", icon: Bug },
+  { title: "System Health", url: "/admin/health", icon: Activity },
 ];
 
 export function AppSidebar() {
