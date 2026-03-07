@@ -3,9 +3,10 @@ import {
   UserPlus, CalendarClock, ChevronDown, Megaphone,
   UsersRound, BarChart3, Mail,
   LogOut, Sparkles, AlertTriangle, ShieldCheck, BookOpen,
-  Inbox, FileText, Ticket, PoundSterling,
+  Inbox, FileText, Ticket, PoundSterling, Bug,
 } from "lucide-react";
 import logo from "@/assets/logo-transparent.png";
+import { useNewErrorReportsCount } from "@/hooks/useNewErrorReportsCount";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/hooks/useAuth";
 import { useUnreadSmsCount } from "@/hooks/useUnreadSmsCount";
