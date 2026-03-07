@@ -424,6 +424,7 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
                           </div>
                           <p className="text-xs text-muted-foreground">
                             {isToday ? "Today" : format(new Date(b.booking_date), "EEE d MMM")} at {b.booking_time.slice(0, 5)}
+                            {b.duration_minutes ? ` · ${b.duration_minutes >= 60 ? `${Math.floor(b.duration_minutes / 60)}h${b.duration_minutes % 60 ? ` ${b.duration_minutes % 60}m` : ""}` : `${b.duration_minutes}m`}` : ""}
                           </p>
                           <div className="flex gap-1.5">
                             {b.service_name && <Badge variant="outline" className="text-[10px]">{b.service_name}</Badge>}
