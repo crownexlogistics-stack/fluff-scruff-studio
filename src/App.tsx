@@ -34,6 +34,7 @@ import BookingEntryPage from "./pages/BookingEntryPage";
 import TermsPage from "./pages/TermsPage";
 import BookingSuccessPage from "./pages/BookingSuccessPage";
 import NotFound from "./pages/NotFound";
+import ErrorReportsPage from "./pages/ErrorReportsPage";
 
 const queryClient = new QueryClient();
 
