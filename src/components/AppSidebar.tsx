@@ -3,7 +3,7 @@ import {
   UserPlus, CalendarClock, ChevronDown, Megaphone,
   UsersRound, BarChart3, Mail,
   LogOut, Sparkles, AlertTriangle, ShieldCheck, BookOpen,
-  Inbox, FileText, Ticket, PoundSterling, Bug, Activity,
+  Inbox, FileText, Ticket, PoundSterling, Bug, Activity, ArrowRightLeft,
 } from "lucide-react";
 import logo from "@/assets/logo-transparent.png";
 import { useNewErrorReportsCount } from "@/hooks/useNewErrorReportsCount";
