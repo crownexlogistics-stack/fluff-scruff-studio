@@ -892,20 +892,20 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
   return (
     <div className="fixed inset-0 z-50 bg-background animate-slide-up flex flex-col">
       {/* Header */}
-      <div className="glass sticky top-0 z-10 px-4 py-3 flex items-center gap-3 safe-area-top">
-        <button onClick={goBack} className="flex h-12 w-12 items-center justify-center rounded-2xl bg-muted active:scale-95 transition-transform touch-target">
-          <ArrowLeft className="h-5 w-5" />
+      <div className="bg-card sticky top-0 z-10 px-4 py-3 flex items-center gap-3 safe-area-top border-b border-border/30">
+        <button onClick={goBack} className="flex h-10 w-10 items-center justify-center bg-muted active:scale-95 transition-transform touch-target" style={{ borderRadius: '50%' }}>
+          <ArrowLeft className="h-5 w-5 text-muted-foreground" />
         </button>
         <div className="flex-1">
-          <h2 className="text-lg font-semibold font-body">
+          <h2 className="text-base font-heading text-foreground">
             {step === "sub-service" ? service : step === "guest-details" ? (isExistingCustomer ? "Confirm & Pay" : "Your Details") : step === "addons" ? "Extras" : selectedSub ?? service}
           </h2>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-muted-foreground font-body">
             {step === "sub-service" ? "Choose your style" : step === "breed" ? "Select breed" : step === "calendar" ? "Pick a date & time" : step === "addons" ? "Add the finishing touches" : "Almost done!"}
           </p>
         </div>
         {ADJUST_MODE && step === "sub-service" && (
-          <button onClick={() => saveMutation.mutate(adjustPositions)} disabled={saveMutation.isPending} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-accent text-accent-foreground text-sm font-semibold active:scale-95 transition-transform">
+          <button onClick={() => saveMutation.mutate(adjustPositions)} disabled={saveMutation.isPending} className="flex items-center gap-2 px-4 py-2 bg-accent text-accent-foreground text-sm font-bold font-body active:scale-95 transition-transform" style={{ borderRadius: '30px' }}>
             <Save className="h-4 w-4" /> {saveMutation.isPending ? "Saving…" : "Save"}
           </button>
         )}
@@ -927,20 +927,17 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
           >
             {/* Sub-service selection */}
             {step === "sub-service" && (
-              <div className="px-4 sm:px-6 py-8 sm:py-12">
+              <div className="px-4 sm:px-6 py-6 sm:py-10">
                 {ADJUST_MODE && (
                   <div className="flex items-center gap-2 justify-center mb-4 text-accent text-xs font-mono">
                     <Move className="h-3 w-3" /> Drag images to reposition, then tap Save
                   </div>
                 )}
-                <div className="text-center mb-8 sm:mb-12">
-                  <div className="flex items-center justify-center gap-2 mb-3">
-                    <PawPrint className="h-4 w-4 text-accent" />
-                    <p className="text-accent font-body text-xs uppercase tracking-[0.25em]">Grooming</p>
-                    <PawPrint className="h-4 w-4 text-accent" />
-                  </div>
-                  <h2 className="text-2xl sm:text-4xl font-heading text-foreground leading-tight">What type of groom?</h2>
-                  <div className="w-10 h-[2px] bg-accent/40 mx-auto mt-4 rounded-full" />
+                <div className="text-center mb-6 sm:mb-10">
+                  <p className="text-accent font-body text-xs uppercase tracking-[0.25em] mb-2 flex items-center justify-center gap-2">
+                    🐾 Grooming 🐾
+                  </p>
+                  <h2 className="text-xl sm:text-3xl font-heading text-foreground leading-tight">What type of groom?</h2>
                 </div>
                 <div className="grid sm:grid-cols-2 gap-5 sm:gap-8 max-w-4xl mx-auto">
                   {subServices.map((opt, idx) => {
