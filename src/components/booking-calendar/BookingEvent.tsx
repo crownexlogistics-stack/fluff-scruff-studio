@@ -344,6 +344,17 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
           <div className="border-t pt-3">
             <p className="font-medium">{booking.service_name || "Service"} — {booking.breed_name || booking.dog_name}</p>
             <p className="text-sm text-muted-foreground">with {booking.staff_name}</p>
+            {/* Add-ons */}
+            {bookingAddons && bookingAddons.length > 0 && (
+              <div className="mt-1.5 flex flex-wrap gap-1">
+                {bookingAddons.map((ba: any) => (
+                  <Badge key={ba.addon_id} variant="secondary" className="text-[10px] gap-1">
+                    <Sparkles className="h-2.5 w-2.5" />
+                    {ba.add_ons?.name} · £{Number(ba.add_ons?.price || 0).toFixed(2)}
+                  </Badge>
+                ))}
+              </div>
+            )}
             <p className="text-sm font-medium mt-1">£{Number(booking.total_price).toFixed(2)}</p>
             {booking.is_groomers_own_customer && (
               <Badge className="mt-1 text-xs bg-violet-100 text-violet-700 hover:bg-violet-100 dark:bg-violet-900/30 dark:text-violet-400">Own Customer • 50%</Badge>
@@ -358,7 +369,7 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
 
           {/* Request Deposit for internally booked, unpaid appointments */}
           {Number(booking.deposit_paid) === 0 && booking.customer_email && booking.status !== "Cancelled" && booking.status !== "No Show" && booking.status !== "Refunded" && (
-            <div className="border-t pt-3">
+            <div className="border-t pt-3 space-y-2">
               <Button
                 variant="outline"
                 size="sm"
@@ -387,6 +398,22 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
               </Button>
             </div>
           )}
+
+          {/* Send Payment Link — when there's an amount due */}
+          {Number(booking.total_price) - Number(booking.deposit_paid) > 0 && booking.status !== "Cancelled" && booking.status !== "No Show" && booking.status !== "Refunded" && (
+            <div className={Number(booking.deposit_paid) === 0 ? "" : "border-t pt-3"}>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full"
+                onClick={() => setPaymentLinkOpen(true)}
+              >
+                <CreditCard className="h-4 w-4 mr-1" />
+                💳 Send Payment Link
+              </Button>
+            </div>
+          )}
+          <SendPaymentLinkDialog open={paymentLinkOpen} onOpenChange={setPaymentLinkOpen} booking={booking} />
 
           {/* Action bar */}
           <div className="border-t pt-3 flex flex-wrap items-center gap-2">
