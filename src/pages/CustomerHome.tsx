@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Navigate } from "react-router-dom";
 import { Phone, MapPin, Clock, Instagram, Facebook, PawPrint, LogIn, LogOut, Star, Menu, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -17,12 +17,22 @@ import { TrustStrip } from "@/components/TrustStrip";
 
 const CustomerHome = () => {
   const { user, signOut, loading: authLoading } = useAuth();
-  const { role } = useUserRole(user?.id);
+  const { role, loading: roleLoading } = useUserRole(user?.id);
   const navigate = useNavigate();
   const [activeService, setActiveService] = useState<string | null>(null);
 
   const isStaff = role === "manager" || role === "director" || role === "groomer";
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Redirect staff/admin away from public site to their back office
+  if (!authLoading && !roleLoading && user && isStaff) {
+    if (role === "manager" || role === "director") {
+      return <Navigate to="/admin" replace />;
+    }
+    if (role === "groomer") {
+      return <Navigate to="/portal" replace />;
+    }
+  }
 
   const getAccountLink = () => {
     if (!user) return null;
