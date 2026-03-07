@@ -195,9 +195,9 @@ export default function TestRunnerPage() {
           <Card>
             <CardContent className="py-4 flex flex-wrap items-center gap-3">
               <Badge variant="secondary">{total} Total</Badge>
-              <Badge className="bg-green-600 text-white">{passed} Passed</Badge>
+              <Badge className="bg-primary text-primary-foreground">{passed} Passed</Badge>
               {failed > 0 && <Badge variant="destructive">{failed} Failed</Badge>}
-              {warnings > 0 && <Badge className="bg-yellow-500 text-white">{warnings} Warnings</Badge>}
+              {warnings > 0 && <Badge className="bg-accent text-accent-foreground">{warnings} Warnings</Badge>}
               <span className="ml-auto font-semibold text-sm">
                 {failed === 0 ? "✅ ALL TESTS PASSED" : `❌ ${failed} TESTS FAILED — ACTION REQUIRED`}
               </span>
