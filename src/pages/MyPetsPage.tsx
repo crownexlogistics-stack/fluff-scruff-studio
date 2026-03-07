@@ -301,6 +301,11 @@ const MyPetsPage = () => {
     }
   };
 
+  const customerName = user?.user_metadata?.full_name || user?.email?.split("@")[0] || "there";
+  const petMessage = selectedPet
+    ? `${selectedPet.pet_name} is looking forward to his next pamper 🐾`
+    : "Add a pet to get started! 🐾";
+
   return (
     <div className="min-h-screen bg-background pb-20">
       <CustomerHeader user={user} signOut={signOut} />
@@ -316,13 +321,28 @@ const MyPetsPage = () => {
               <span className="text-4xl">🐾</span>
             </div>
             <h2 className="text-xl font-heading font-bold text-foreground mb-1">No Pets Yet</h2>
-            <p className="text-sm text-muted-foreground mb-4">Add your furry friend to get started!</p>
-            <Button onClick={() => setDialogOpen(true)} className="bg-accent text-accent-foreground">
+            <p className="text-sm text-muted-foreground mb-4 font-body">Add your furry friend to get started!</p>
+            <Button onClick={() => setDialogOpen(true)} className="bg-accent text-accent-foreground" style={{ borderRadius: '30px' }}>
               Add Your First Pet
             </Button>
           </div>
         ) : (
           <>
+            {/* Greeting Section */}
+            {activeTab === "pets" && (
+              <div className="space-y-1">
+                <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-body font-semibold">
+                  Welcome Back
+                </p>
+                <h1 className="text-[32px] font-heading text-foreground leading-tight">
+                  Hey {customerName}! 👋
+                </h1>
+                <p className="text-sm text-muted-foreground font-body">
+                  {petMessage}
+                </p>
+              </div>
+            )}
+
             <PetStoryIcons
               pets={pets.map((p: any) => ({
                 id: p.id,
@@ -341,7 +361,7 @@ const MyPetsPage = () => {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-7 text-xs gap-1.5 text-muted-foreground hover:text-foreground"
+                  className="h-7 text-xs gap-1.5 text-muted-foreground hover:text-foreground font-body"
                   onClick={openEditDialog}
                 >
                   <Pencil className="h-3 w-3" />
@@ -354,6 +374,24 @@ const MyPetsPage = () => {
             {activeTab === "pets" && selectedPet && (
               <>
                 <UpcomingAppointmentCard booking={upcomingBooking || null} />
+
+                {/* Quick Action Buttons */}
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    { emoji: "📋", label: "Bookings", tab: "bookings" as PortalTab },
+                    { emoji: "📸", label: "Photos", tab: "pictures" as PortalTab },
+                    { emoji: "💡", label: "My Advice", tab: "advice" as PortalTab },
+                  ].map((action) => (
+                    <button
+                      key={action.tab}
+                      onClick={() => setActiveTab(action.tab)}
+                      className="bg-card rounded-[20px] p-4 flex flex-col items-center gap-2 shadow-sm hover:shadow-md transition-shadow"
+                    >
+                      <span className="text-2xl">{action.emoji}</span>
+                      <span className="text-[12px] font-bold font-body text-foreground">{action.label}</span>
+                    </button>
+                  ))}
+                </div>
 
                 {user && (
                   <BreedAdviceFeed

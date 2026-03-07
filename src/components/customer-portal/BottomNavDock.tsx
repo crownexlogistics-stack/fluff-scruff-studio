@@ -1,5 +1,3 @@
-import { Dog, CalendarCheck, Camera, Lightbulb } from "lucide-react";
-
 export type PortalTab = "pets" | "bookings" | "pictures" | "advice";
 
 interface BottomNavDockProps {
@@ -8,20 +6,19 @@ interface BottomNavDockProps {
   unreadAdvice?: number;
 }
 
-const tabs: { id: PortalTab; label: string; icon: typeof Dog }[] = [
-  { id: "pets", label: "My Pets", icon: Dog },
-  { id: "bookings", label: "My Bookings", icon: CalendarCheck },
-  { id: "pictures", label: "My Pictures", icon: Camera },
-  { id: "advice", label: "My Advice", icon: Lightbulb },
+const tabs: { id: PortalTab; label: string; emoji: string }[] = [
+  { id: "pets", label: "My Pets", emoji: "🐾" },
+  { id: "bookings", label: "Bookings", emoji: "📅" },
+  { id: "pictures", label: "Photos", emoji: "📸" },
+  { id: "advice", label: "Advice", emoji: "💡" },
 ];
 
 export function BottomNavDock({ activeTab, onTabChange }: BottomNavDockProps) {
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-2xl border-t border-border/30 shadow-[0_-2px_12px_rgba(0,0,0,0.06)]">
+    <div className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border/30 shadow-[0_-2px_12px_rgba(0,0,0,0.06)]">
       <div className="max-w-lg mx-auto flex">
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
-          const Icon = tab.icon;
           return (
             <button
               key={tab.id}
@@ -32,10 +29,8 @@ export function BottomNavDock({ activeTab, onTabChange }: BottomNavDockProps) {
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              <div className={`p-1 rounded-xl transition-colors ${isActive ? "bg-accent/10" : ""}`}>
-                <Icon className="h-5 w-5" />
-              </div>
-              <span className={`text-[10px] font-medium font-body ${isActive ? "text-accent" : ""}`}>
+              <span className="text-lg leading-none">{tab.emoji}</span>
+              <span className={`text-[10px] font-bold font-body ${isActive ? "text-accent" : "text-muted-foreground"}`}>
                 {tab.label}
               </span>
             </button>
