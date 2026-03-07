@@ -43,7 +43,8 @@ const AuthPage = () => {
       toast({ title: "Login failed", description: error.message, variant: "destructive" });
     } else {
       logAudit({ action: "LOGIN", details: `Logged in via email: ${email}` });
-      navigate("/");
+      // Role-based redirect handled by auth state change + useUserRole
+      // The component will re-render and Navigate will redirect appropriately
     }
   };
 
