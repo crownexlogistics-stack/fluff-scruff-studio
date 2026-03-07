@@ -34,6 +34,7 @@ import BookingEntryPage from "./pages/BookingEntryPage";
 import TermsPage from "./pages/TermsPage";
 import BookingSuccessPage from "./pages/BookingSuccessPage";
 import NotFound from "./pages/NotFound";
+import ErrorReportsPage from "./pages/ErrorReportsPage";
 
 const queryClient = new QueryClient();
 
@@ -80,6 +81,7 @@ const App = () => (
           <Route path="/messages" element={<ProtectedRoute allowedRoles={["manager", "director", "groomer"]}><MessagesPage /></ProtectedRoute>} />
           <Route path="/admin/customers/:email" element={<ProtectedRoute allowedRoles={["manager", "director", "groomer"]}><CustomerProfilePage /></ProtectedRoute>} />
           <Route path="/marketing/*" element={<ProtectedRoute allowedRoles={["manager", "director"]}><MarketingPage /></ProtectedRoute>} />
+          <Route path="/admin/error-reports" element={<ProtectedRoute allowedRoles={["manager", "director"]}><ErrorReportsPage /></ProtectedRoute>} />
 
           <Route path="*" element={<NotFound />} />
         </Routes>

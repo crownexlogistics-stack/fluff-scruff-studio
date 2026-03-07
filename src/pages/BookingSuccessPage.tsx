@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { motion } from "framer-motion";
 import confetti from "canvas-confetti";
 import logo from "@/assets/logo-transparent.png";
+import { ErrorReportButton } from "@/components/error-reporting/ErrorReportButton";
 
 // ─── Happy Dog Animation (inline SVG) ──────────────────────────────
 function HappyDogAnimation() {
@@ -489,6 +490,7 @@ export default function BookingSuccessPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <ErrorReportButton />
     </div>
   );
 }

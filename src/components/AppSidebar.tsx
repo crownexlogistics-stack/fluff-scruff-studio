@@ -3,9 +3,10 @@ import {
   UserPlus, CalendarClock, ChevronDown, Megaphone,
   UsersRound, BarChart3, Mail,
   LogOut, Sparkles, AlertTriangle, ShieldCheck, BookOpen,
-  Inbox, FileText, Ticket, PoundSterling,
+  Inbox, FileText, Ticket, PoundSterling, Bug,
 } from "lucide-react";
 import logo from "@/assets/logo-transparent.png";
+import { useNewErrorReportsCount } from "@/hooks/useNewErrorReportsCount";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/hooks/useAuth";
 import { useUnreadSmsCount } from "@/hooks/useUnreadSmsCount";
@@ -60,6 +61,7 @@ const marketingSubItems = [
 const directorOnlyItems = [
   { title: "Users", url: "/admin/users", icon: Crown },
   { title: "Terms & Conditions", url: "/admin/terms", icon: FileText },
+  { title: "Error Reports", url: "/admin/error-reports", icon: Bug },
 ];
 
 export function AppSidebar() {
@@ -68,6 +70,7 @@ export function AppSidebar() {
   const { user, signOut } = useAuth();
   const { role } = useUserRole(user?.id);
   const { totalUnread } = useUnreadSmsCount();
+  const newErrorCount = useNewErrorReportsCount();
 
   return (
     <Sidebar collapsible="icon">
@@ -214,13 +217,18 @@ export function AppSidebar() {
                 {directorOnlyItems.map((item) => (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton asChild>
-                      <NavLink
+                    <NavLink
                         to={item.url}
                         className="hover:bg-sidebar-accent/50 transition-colors"
                         activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
                       >
                         <item.icon className="mr-2 h-4 w-4" />
-                        {!collapsed && <span>{item.title}</span>}
+                        {!collapsed && <span className="flex-1">{item.title}</span>}
+                        {item.url === "/admin/error-reports" && newErrorCount > 0 && (
+                          <Badge variant="destructive" className="ml-auto h-5 min-w-5 px-1.5 text-[10px] font-bold rounded-full">
+                            {newErrorCount > 99 ? "99+" : newErrorCount}
+                          </Badge>
+                        )}
                       </NavLink>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
