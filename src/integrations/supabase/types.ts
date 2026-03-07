@@ -849,6 +849,54 @@ export type Database = {
         }
         Relationships: []
       }
+      error_reports: {
+        Row: {
+          admin_notes: string | null
+          browser_info: string | null
+          created_at: string
+          customer_email: string | null
+          customer_name: string | null
+          device_info: string | null
+          error_description: string
+          id: string
+          page_url: string
+          screenshot_url: string | null
+          status: string
+          steps_to_reproduce: string
+          user_id: string | null
+        }
+        Insert: {
+          admin_notes?: string | null
+          browser_info?: string | null
+          created_at?: string
+          customer_email?: string | null
+          customer_name?: string | null
+          device_info?: string | null
+          error_description: string
+          id?: string
+          page_url: string
+          screenshot_url?: string | null
+          status?: string
+          steps_to_reproduce: string
+          user_id?: string | null
+        }
+        Update: {
+          admin_notes?: string | null
+          browser_info?: string | null
+          created_at?: string
+          customer_email?: string | null
+          customer_name?: string | null
+          device_info?: string | null
+          error_description?: string
+          id?: string
+          page_url?: string
+          screenshot_url?: string | null
+          status?: string
+          steps_to_reproduce?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       groomer_recommendations: {
         Row: {
           created_at: string
