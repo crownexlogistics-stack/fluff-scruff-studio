@@ -22,10 +22,9 @@ serve(async (req) => {
     const authHeader = req.headers.get("authorization");
     if (!authHeader) throw new Error("Not authenticated");
 
-    const supabaseAuth = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
-      global: { headers: { authorization: authHeader } },
-    });
-    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
+    const token = authHeader.replace("Bearer ", "");
+    const supabaseAuth = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!);
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(token);
     if (authError || !user) throw new Error("Not authenticated");
 
     const { booking_id, cancelled_by } = await req.json();
