@@ -146,6 +146,7 @@ const CustomerHome = () => {
       <TrustStrip />
 
       {/* ══════ SERVICES ══════ */}
+      <div className="pt-10 sm:pt-16" />
       <ServiceJourney
         services={services}
         onSelectService={(title) => navigate(`/book?service=${encodeURIComponent(title)}`)}
