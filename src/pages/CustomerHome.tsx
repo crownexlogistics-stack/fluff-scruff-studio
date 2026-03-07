@@ -48,7 +48,7 @@ const CustomerHome = () => {
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* ══════ NAVBAR ══════ */}
-      <nav className="sticky top-0 z-50 bg-background border-b border-border/30">
+      <nav className="sticky top-0 z-50 bg-background border-b border-border/10">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-center justify-between h-16">
           <a href="#" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="flex items-center gap-2.5 cursor-pointer">
             <img src={logo} alt="Fluff & Scruff" className="h-10 sm:h-12 w-auto" />
