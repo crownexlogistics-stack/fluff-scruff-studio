@@ -83,13 +83,14 @@ export function EditAppointmentDialog({ open, onOpenChange, booking }: EditAppoi
       const { error } = await supabase.from("bookings").update({
         booking_date: form.booking_date,
         booking_time: form.booking_time,
+        duration_minutes: form.duration_minutes,
         service_id: form.service_id || null,
         breed_id: form.breed_id || null,
         staff_id: form.staff_id || null,
         total_price: form.total_price,
         deposit_paid: form.deposit_paid,
         notes: form.notes || null,
-      }).eq("id", booking.id);
+      } as any).eq("id", booking.id);
       if (error) throw error;
 
       logAudit({
