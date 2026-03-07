@@ -37,6 +37,7 @@ import NotFound from "./pages/NotFound";
 import ErrorReportsPage from "./pages/ErrorReportsPage";
 import SystemHealthPage from "./pages/SystemHealthPage";
 import MigrationPage from "./pages/MigrationPage";
+import WelcomePage from "./pages/WelcomePage";
 
 const queryClient = new QueryClient();
 
