@@ -157,6 +157,24 @@ export function EditAppointmentDialog({ open, onOpenChange, booking }: EditAppoi
           </div>
 
           <div className="space-y-1">
+            <Label>Appointment Duration</Label>
+            <Select value={String(form.duration_minutes)} onValueChange={(v) => setForm({ ...form, duration_minutes: Number(v) })}>
+              <SelectTrigger><SelectValue placeholder="Select duration" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="30">30 minutes</SelectItem>
+                <SelectItem value="45">45 minutes</SelectItem>
+                <SelectItem value="60">1 hour</SelectItem>
+                <SelectItem value="90">1 hour 30 minutes</SelectItem>
+                <SelectItem value="120">2 hours</SelectItem>
+                <SelectItem value="150">2 hours 30 minutes</SelectItem>
+                <SelectItem value="180">3 hours</SelectItem>
+                <SelectItem value="210">3 hours 30 minutes</SelectItem>
+                <SelectItem value="240">4 hours</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1">
             <Label>Staff Member</Label>
             <Select value={form.staff_id} onValueChange={(v) => setForm({ ...form, staff_id: v })}>
               <SelectTrigger><SelectValue placeholder="Select staff" /></SelectTrigger>
