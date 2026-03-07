@@ -13,6 +13,7 @@ import serviceNails from "@/assets/service-nails.jpg";
 import { ServiceJourney } from "@/components/ServiceJourney";
 import { GoogleReviews } from "@/components/GoogleReviews";
 import { BookingFlow } from "@/components/BookingFlow";
+import { ErrorReportButton } from "@/components/error-reporting/ErrorReportButton";
 import { TrustStrip } from "@/components/TrustStrip";
 
 const CustomerHome = () => {
