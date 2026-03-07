@@ -281,28 +281,20 @@ const BookingEntryPage = () => {
   if (newCustomerBooking && !newCustomerService) {
     return (
       <div className="min-h-screen bg-background">
-        <nav className="sticky top-0 z-50 glass border-b border-border/50">
+        <nav className="sticky top-0 z-50 bg-background border-b border-border/30">
           <div className="max-w-2xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
             <button onClick={() => setNewCustomerBooking(false)} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors">
               <ArrowLeft className="h-4 w-4" />
-              <span className="text-sm font-medium">Back</span>
+              <span className="text-sm font-semibold font-body">Back</span>
             </button>
             <div className="flex items-center gap-2">
               {user ? (
-                <button
-                  onClick={async () => { await supabase.auth.signOut(); }}
-                  className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <LogOut className="h-4 w-4" />
-                  <span className="hidden sm:inline">Sign Out</span>
+                <button onClick={async () => { await supabase.auth.signOut(); }} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors font-body">
+                  <LogOut className="h-4 w-4" /><span className="hidden sm:inline">Sign Out</span>
                 </button>
               ) : (
-                <button
-                  onClick={() => { setNewCustomerBooking(false); setAuthMode("login"); }}
-                  className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <LogIn className="h-4 w-4" />
-                  <span>Sign In</span>
+                <button onClick={() => { setNewCustomerBooking(false); setAuthMode("login"); }} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors font-body">
+                  <LogIn className="h-4 w-4" /><span>Sign In</span>
                 </button>
               )}
             </div>
