@@ -63,6 +63,7 @@ const directorOnlyItems = [
   { title: "Terms & Conditions", url: "/admin/terms", icon: FileText },
   { title: "Error Reports", url: "/admin/error-reports", icon: Bug },
   { title: "System Health", url: "/admin/health", icon: Activity },
+  { title: "Wix Migration", url: "/admin/migration", icon: ArrowRightLeft },
 ];
 
 export function AppSidebar() {
