@@ -46,7 +46,8 @@ function getBookingTimeRange(b: BookingData) {
     if (endMin <= startMin) endMin = startMin + 60;
   } else {
     const isCancelled = b.status === "Cancelled" || b.status === "No Show" || b.status === "Refunded";
-    endMin = startMin + (isCancelled ? 15 : DEFAULT_DURATION * 60);
+    const durationMins = b.duration_minutes || DEFAULT_DURATION * 60;
+    endMin = startMin + (isCancelled ? 15 : durationMins);
   }
   return { startMin, endMin };
 }
