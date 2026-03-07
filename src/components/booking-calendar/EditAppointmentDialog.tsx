@@ -25,6 +25,7 @@ export function EditAppointmentDialog({ open, onOpenChange, booking }: EditAppoi
   const [form, setForm] = useState({
     booking_date: "",
     booking_time: "",
+    duration_minutes: 60,
     service_id: "",
     breed_id: "",
     staff_id: "",
@@ -38,6 +39,7 @@ export function EditAppointmentDialog({ open, onOpenChange, booking }: EditAppoi
       setForm({
         booking_date: booking.booking_date,
         booking_time: booking.booking_time.slice(0, 5),
+        duration_minutes: (booking as any).duration_minutes ?? 60,
         service_id: (booking as any).service_id || "",
         breed_id: (booking as any).breed_id || "",
         staff_id: booking.staff_id || "",
@@ -81,13 +83,14 @@ export function EditAppointmentDialog({ open, onOpenChange, booking }: EditAppoi
       const { error } = await supabase.from("bookings").update({
         booking_date: form.booking_date,
         booking_time: form.booking_time,
+        duration_minutes: form.duration_minutes,
         service_id: form.service_id || null,
         breed_id: form.breed_id || null,
         staff_id: form.staff_id || null,
         total_price: form.total_price,
         deposit_paid: form.deposit_paid,
         notes: form.notes || null,
-      }).eq("id", booking.id);
+      } as any).eq("id", booking.id);
       if (error) throw error;
 
       logAudit({
@@ -151,6 +154,24 @@ export function EditAppointmentDialog({ open, onOpenChange, booking }: EditAppoi
               <Label>Time</Label>
               <Input type="time" value={form.booking_time} onChange={(e) => setForm({ ...form, booking_time: e.target.value })} />
             </div>
+          </div>
+
+          <div className="space-y-1">
+            <Label>Appointment Duration</Label>
+            <Select value={String(form.duration_minutes)} onValueChange={(v) => setForm({ ...form, duration_minutes: Number(v) })}>
+              <SelectTrigger><SelectValue placeholder="Select duration" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="30">30 minutes</SelectItem>
+                <SelectItem value="45">45 minutes</SelectItem>
+                <SelectItem value="60">1 hour</SelectItem>
+                <SelectItem value="90">1 hour 30 minutes</SelectItem>
+                <SelectItem value="120">2 hours</SelectItem>
+                <SelectItem value="150">2 hours 30 minutes</SelectItem>
+                <SelectItem value="180">3 hours</SelectItem>
+                <SelectItem value="210">3 hours 30 minutes</SelectItem>
+                <SelectItem value="240">4 hours</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-1">

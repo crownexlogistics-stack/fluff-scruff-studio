@@ -38,6 +38,7 @@ export interface BookingData {
   is_groomers_own_customer?: boolean;
   sms_24h_sent?: boolean;
   sms_2h_sent?: boolean;
+  duration_minutes?: number | null;
 }
 
 interface BookingEventProps {
@@ -78,6 +79,8 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
     const endMin = parseInt(endParts[1] || "0");
     calculatedDuration = (endHour + endMin / 60) - (hour + minutes / 60);
     if (calculatedDuration <= 0) calculatedDuration = 1;
+  } else if (booking.duration_minutes) {
+    calculatedDuration = booking.duration_minutes / 60;
   }
 
   // No Show: shrink to thin strip

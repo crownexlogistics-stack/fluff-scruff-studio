@@ -84,7 +84,7 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
     queryFn: async () => {
       const { data, error } = await supabase
         .from("bookings")
-        .select("id, customer_name, dog_name, booking_date, booking_time, status, notes, staff_id, total_price, deposit_paid, customer_email, customer_phone, service_id, breed_id, final_charge, stripe_payment_id, services(name), breeds(name, duration_minutes)")
+        .select("id, customer_name, dog_name, booking_date, booking_time, status, notes, staff_id, total_price, deposit_paid, customer_email, customer_phone, service_id, breed_id, final_charge, stripe_payment_id, duration_minutes, services(name), breeds(name, duration_minutes)")
         .gte("booking_date", format(currentDate, "yyyy-MM-dd"))
         .lte("booking_date", format(endDate, "yyyy-MM-dd"))
         .order("booking_time");
@@ -110,6 +110,7 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
         breed_id: b.breed_id,
         final_charge: b.final_charge,
         stripe_payment_id: b.stripe_payment_id ?? null,
+        duration_minutes: (b as any).duration_minutes ?? null,
         is_block: false,
         is_own: b.staff_id === staffId,
       })) as GroomerCalendarBooking[];
@@ -423,6 +424,7 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
                           </div>
                           <p className="text-xs text-muted-foreground">
                             {isToday ? "Today" : format(new Date(b.booking_date), "EEE d MMM")} at {b.booking_time.slice(0, 5)}
+                            {b.duration_minutes ? ` · ${b.duration_minutes >= 60 ? `${Math.floor(b.duration_minutes / 60)}h${b.duration_minutes % 60 ? ` ${b.duration_minutes % 60}m` : ""}` : `${b.duration_minutes}m`}` : ""}
                           </p>
                           <div className="flex gap-1.5">
                             {b.service_name && <Badge variant="outline" className="text-[10px]">{b.service_name}</Badge>}
