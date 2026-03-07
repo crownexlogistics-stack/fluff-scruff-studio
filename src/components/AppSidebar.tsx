@@ -70,6 +70,7 @@ export function AppSidebar() {
   const { user, signOut } = useAuth();
   const { role } = useUserRole(user?.id);
   const { totalUnread } = useUnreadSmsCount();
+  const newErrorCount = useNewErrorReportsCount();
 
   return (
     <Sidebar collapsible="icon">
