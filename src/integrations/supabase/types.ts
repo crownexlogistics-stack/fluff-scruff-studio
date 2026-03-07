@@ -186,6 +186,45 @@ export type Database = {
           },
         ]
       }
+      booking_addons: {
+        Row: {
+          added_at: string | null
+          added_by_staff: boolean | null
+          addon_id: string
+          booking_id: string
+          id: string
+        }
+        Insert: {
+          added_at?: string | null
+          added_by_staff?: boolean | null
+          addon_id: string
+          booking_id: string
+          id?: string
+        }
+        Update: {
+          added_at?: string | null
+          added_by_staff?: boolean | null
+          addon_id?: string
+          booking_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_addons_addon_id_fkey"
+            columns: ["addon_id"]
+            isOneToOne: false
+            referencedRelation: "add_ons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_addons_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       booking_emails: {
         Row: {
           booking_id: string
