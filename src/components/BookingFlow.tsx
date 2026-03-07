@@ -49,11 +49,11 @@ function PawProgressBar({ steps, currentStep }: { steps: Step[]; currentStep: St
                     ? "text-accent fill-accent"
                     : isCurrent
                     ? "text-accent"
-                    : "text-muted-foreground/30"
+                    : "text-border"
                 }`}
               />
             </motion.div>
-            <span className={`text-[0.6rem] font-body font-medium transition-colors duration-300 ${
+            <span className={`text-[0.6rem] font-body font-bold transition-colors duration-300 ${
               isCurrent ? "text-accent" : isCompleted ? "text-foreground" : "text-muted-foreground/40"
             }`}>
               {STEP_LABELS[s!] ?? ""}
@@ -892,20 +892,20 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
   return (
     <div className="fixed inset-0 z-50 bg-background animate-slide-up flex flex-col">
       {/* Header */}
-      <div className="glass sticky top-0 z-10 px-4 py-3 flex items-center gap-3 safe-area-top">
-        <button onClick={goBack} className="flex h-12 w-12 items-center justify-center rounded-2xl bg-muted active:scale-95 transition-transform touch-target">
-          <ArrowLeft className="h-5 w-5" />
+      <div className="bg-card sticky top-0 z-10 px-4 py-3 flex items-center gap-3 safe-area-top border-b border-border/30">
+        <button onClick={goBack} className="flex h-10 w-10 items-center justify-center bg-muted active:scale-95 transition-transform touch-target" style={{ borderRadius: '50%' }}>
+          <ArrowLeft className="h-5 w-5 text-muted-foreground" />
         </button>
         <div className="flex-1">
-          <h2 className="text-lg font-semibold font-body">
+          <h2 className="text-base font-heading text-foreground">
             {step === "sub-service" ? service : step === "guest-details" ? (isExistingCustomer ? "Confirm & Pay" : "Your Details") : step === "addons" ? "Extras" : selectedSub ?? service}
           </h2>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-muted-foreground font-body">
             {step === "sub-service" ? "Choose your style" : step === "breed" ? "Select breed" : step === "calendar" ? "Pick a date & time" : step === "addons" ? "Add the finishing touches" : "Almost done!"}
           </p>
         </div>
         {ADJUST_MODE && step === "sub-service" && (
-          <button onClick={() => saveMutation.mutate(adjustPositions)} disabled={saveMutation.isPending} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-accent text-accent-foreground text-sm font-semibold active:scale-95 transition-transform">
+          <button onClick={() => saveMutation.mutate(adjustPositions)} disabled={saveMutation.isPending} className="flex items-center gap-2 px-4 py-2 bg-accent text-accent-foreground text-sm font-bold font-body active:scale-95 transition-transform" style={{ borderRadius: '30px' }}>
             <Save className="h-4 w-4" /> {saveMutation.isPending ? "Saving…" : "Save"}
           </button>
         )}
@@ -927,42 +927,40 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
           >
             {/* Sub-service selection */}
             {step === "sub-service" && (
-              <div className="px-4 sm:px-6 py-8 sm:py-12">
+              <div className="px-4 sm:px-6 py-6 sm:py-10">
                 {ADJUST_MODE && (
                   <div className="flex items-center gap-2 justify-center mb-4 text-accent text-xs font-mono">
                     <Move className="h-3 w-3" /> Drag images to reposition, then tap Save
                   </div>
                 )}
-                <div className="text-center mb-8 sm:mb-12">
-                  <div className="flex items-center justify-center gap-2 mb-3">
-                    <PawPrint className="h-4 w-4 text-accent" />
-                    <p className="text-accent font-body text-xs uppercase tracking-[0.25em]">Grooming</p>
-                    <PawPrint className="h-4 w-4 text-accent" />
-                  </div>
-                  <h2 className="text-2xl sm:text-4xl font-heading text-foreground leading-tight">What type of groom?</h2>
-                  <div className="w-10 h-[2px] bg-accent/40 mx-auto mt-4 rounded-full" />
+                <div className="text-center mb-6 sm:mb-10">
+                  <p className="text-accent font-body text-xs uppercase tracking-[0.25em] mb-2 flex items-center justify-center gap-2">
+                    🐾 Grooming 🐾
+                  </p>
+                  <h2 className="text-xl sm:text-3xl font-heading text-foreground leading-tight">What type of groom?</h2>
                 </div>
-                <div className="grid sm:grid-cols-2 gap-5 sm:gap-8 max-w-4xl mx-auto">
+                <div className="space-y-4 max-w-lg mx-auto">
                   {subServices.map((opt, idx) => {
                     const pos = ADJUST_MODE
                       ? `${adjustPositions[idx].x}% ${adjustPositions[idx].y}%`
                       : getPosition(opt.label, opt.defaultPosition);
                     return (
-                      <button key={opt.label} onClick={ADJUST_MODE ? undefined : () => handleSubSelect(opt.label)} className="text-left group transition-colors duration-300">
-                        <div className="relative bg-card rounded-3xl overflow-hidden border border-border/40 transition-[box-shadow,border-color,transform] duration-500 hover:shadow-xl hover:shadow-black/[0.06] hover:border-border/60 hover:-translate-y-1 active:scale-[0.98] shadow-md shadow-black/[0.03]">
-                          <div className="relative overflow-hidden bg-card">
-                            <img src={opt.image} alt={opt.label} className="w-full aspect-[4/3] object-cover block" style={{ objectPosition: pos, maxHeight: '220px', cursor: ADJUST_MODE ? 'grab' : undefined, touchAction: ADJUST_MODE ? 'none' : undefined }}
+                      <button key={opt.label} onClick={ADJUST_MODE ? undefined : () => handleSubSelect(opt.label)} className="w-full text-left group transition-all duration-300">
+                        <div className="flex overflow-hidden bg-card hover:shadow-lg transition-all duration-300 active:scale-[0.98] shadow-[0_4px_20px_rgba(0,0,0,0.06)]" style={{ borderRadius: '24px' }}>
+                          <div className="relative w-[110px] shrink-0 overflow-hidden">
+                            <img src={opt.image} alt={opt.label} className="w-full h-full object-cover" style={{ objectPosition: pos, minHeight: '120px', cursor: ADJUST_MODE ? 'grab' : undefined, touchAction: ADJUST_MODE ? 'none' : undefined }}
                               onPointerDown={ADJUST_MODE ? (e) => { (e.target as HTMLElement).setPointerCapture(e.pointerId); dragRef.current = { idx, startX: e.clientX, startY: e.clientY, origX: adjustPositions[idx].x, origY: adjustPositions[idx].y }; } : undefined}
                               onPointerMove={ADJUST_MODE ? (e) => { if (!dragRef.current || dragRef.current.idx !== idx) return; const dx = e.clientX - dragRef.current.startX; const dy = e.clientY - dragRef.current.startY; const newX = Math.max(0, Math.min(100, dragRef.current.origX + dx * 0.15)); const newY = Math.max(0, Math.min(100, dragRef.current.origY + dy * 0.15)); setPositions(prev => { const arr = [...(prev ?? adjustPositions)]; arr[idx] = { x: newX, y: newY }; return arr; }); } : undefined}
                               onPointerUp={ADJUST_MODE ? () => { dragRef.current = null; } : undefined}
                             />
+                            <div className="absolute inset-y-0 right-0 w-6 bg-card" style={{ borderRadius: '50% 0 0 50% / 100% 0 0 100%' }} />
                           </div>
-                          <div className="p-5 sm:p-6 space-y-2">
-                            <h3 className="text-lg sm:text-xl font-heading text-foreground">{opt.label}</h3>
-                            <p className="text-sm text-muted-foreground font-body leading-relaxed">{opt.desc}</p>
-                            <div className="flex items-center gap-1.5 text-accent text-sm font-semibold font-body pt-1 group-hover:gap-2.5 transition-all">
+                          <div className="flex-1 py-3 pr-4 pl-1 flex flex-col justify-center min-w-0">
+                            <h3 className="text-base sm:text-lg font-heading text-foreground mb-0.5 group-hover:text-accent transition-colors">{opt.label}</h3>
+                            <p className="text-xs text-muted-foreground font-body leading-relaxed line-clamp-2 mb-1.5">{opt.desc}</p>
+                            <span className="text-accent font-body text-xs font-bold flex items-center gap-1 group-hover:gap-2 transition-all">
                               Select <ChevronRight className="h-3.5 w-3.5" />
-                            </div>
+                            </span>
                           </div>
                         </div>
                       </button>

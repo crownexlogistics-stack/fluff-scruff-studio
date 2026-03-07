@@ -241,7 +241,7 @@ const BookingEntryPage = () => {
   if (authLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
+        <div className="animate-spin h-8 w-8 border-4 border-accent border-t-transparent rounded-full" />
       </div>
     );
   }
@@ -281,28 +281,20 @@ const BookingEntryPage = () => {
   if (newCustomerBooking && !newCustomerService) {
     return (
       <div className="min-h-screen bg-background">
-        <nav className="sticky top-0 z-50 glass border-b border-border/50">
+        <nav className="sticky top-0 z-50 bg-background border-b border-border/30">
           <div className="max-w-2xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
             <button onClick={() => setNewCustomerBooking(false)} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors">
               <ArrowLeft className="h-4 w-4" />
-              <span className="text-sm font-medium">Back</span>
+              <span className="text-sm font-semibold font-body">Back</span>
             </button>
             <div className="flex items-center gap-2">
               {user ? (
-                <button
-                  onClick={async () => { await supabase.auth.signOut(); }}
-                  className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <LogOut className="h-4 w-4" />
-                  <span className="hidden sm:inline">Sign Out</span>
+                <button onClick={async () => { await supabase.auth.signOut(); }} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors font-body">
+                  <LogOut className="h-4 w-4" /><span className="hidden sm:inline">Sign Out</span>
                 </button>
               ) : (
-                <button
-                  onClick={() => { setNewCustomerBooking(false); setAuthMode("login"); }}
-                  className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <LogIn className="h-4 w-4" />
-                  <span>Sign In</span>
+                <button onClick={() => { setNewCustomerBooking(false); setAuthMode("login"); }} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors font-body">
+                  <LogIn className="h-4 w-4" /><span>Sign In</span>
                 </button>
               )}
             </div>
@@ -316,7 +308,7 @@ const BookingEntryPage = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <nav className="sticky top-0 z-50 glass border-b border-border/50">
+      <nav className="sticky top-0 z-50 bg-background border-b border-border/30">
         <div className="max-w-2xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <button onClick={() => {
             if (missingInfoStep) { setMissingInfoStep(false); return; }
@@ -325,24 +317,16 @@ const BookingEntryPage = () => {
             navigate("/");
           }} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors">
             <ArrowLeft className="h-4 w-4" />
-            <span className="text-sm font-medium">Back</span>
+            <span className="text-sm font-semibold font-body">Back</span>
           </button>
           <div className="flex items-center gap-2">
             {user ? (
-              <button
-                onClick={async () => { await supabase.auth.signOut(); navigate("/"); }}
-                className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <LogOut className="h-4 w-4" />
-                <span>Sign Out</span>
+              <button onClick={async () => { await supabase.auth.signOut(); navigate("/"); }} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors font-body">
+                <LogOut className="h-4 w-4" /><span>Sign Out</span>
               </button>
             ) : (
-              <button
-                onClick={() => setAuthMode("login")}
-                className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <LogIn className="h-4 w-4" />
-                <span>Sign In</span>
+              <button onClick={() => setAuthMode("login")} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors font-body">
+                <LogIn className="h-4 w-4" /><span>Sign In</span>
               </button>
             )}
           </div>
@@ -356,11 +340,11 @@ const BookingEntryPage = () => {
             {authMode === "choose" && (
               <div className="space-y-8 animate-fade-in">
                 <div className="text-center">
-                  <div className="flex items-center justify-center w-16 h-16 rounded-full bg-accent/10 mx-auto mb-4">
+                  <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-accent/10" style={{ borderRadius: '50%' }}>
                     <PawPrint className="h-7 w-7 text-accent" />
                   </div>
                   <h1 className="text-2xl sm:text-3xl font-heading text-foreground">Let's Book Your Pup In</h1>
-                  <p className="text-muted-foreground text-sm mt-2 max-w-xs mx-auto">
+                  <p className="text-muted-foreground text-sm font-body mt-2 max-w-xs mx-auto">
                     Sign in to your account or create one to get started
                   </p>
                 </div>
@@ -368,31 +352,33 @@ const BookingEntryPage = () => {
                 <div className="space-y-3">
                   <button
                     onClick={() => setAuthMode("login")}
-                    className="w-full rounded-2xl border-2 border-border/60 bg-card p-5 text-left hover:border-primary/40 hover:shadow-lg hover:shadow-black/[0.04] transition-all duration-300 group"
+                    className="w-full bg-card p-5 text-left hover:shadow-lg transition-all duration-300 group shadow-[0_4px_20px_rgba(0,0,0,0.06)]"
+                    style={{ borderRadius: '24px' }}
                   >
                     <div className="flex items-center gap-4">
-                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10">
-                        <LogIn className="h-5 w-5 text-primary" />
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center bg-accent/10" style={{ borderRadius: '16px' }}>
+                        <LogIn className="h-5 w-5 text-accent" />
                       </div>
                       <div className="flex-1">
-                        <p className="font-semibold text-foreground">Returning Customer</p>
-                        <p className="text-sm text-muted-foreground">Sign in to your account</p>
+                        <p className="font-bold font-body text-foreground">Returning Customer</p>
+                        <p className="text-sm text-muted-foreground font-body">Sign in to your account</p>
                       </div>
-                      <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                      <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-accent transition-colors" />
                     </div>
                   </button>
 
                   <button
                     onClick={() => { setNewCustomerBooking(true); if (hasSpecificService) setNewCustomerService(serviceParam); }}
-                    className="w-full rounded-2xl border-2 border-border/60 bg-card p-5 text-left hover:border-accent/40 hover:shadow-lg hover:shadow-black/[0.04] transition-all duration-300 group"
+                    className="w-full bg-card p-5 text-left hover:shadow-lg transition-all duration-300 group shadow-[0_4px_20px_rgba(0,0,0,0.06)]"
+                    style={{ borderRadius: '24px' }}
                   >
                     <div className="flex items-center gap-4">
-                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-accent/10">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center bg-accent/10" style={{ borderRadius: '16px' }}>
                         <UserPlus className="h-5 w-5 text-accent" />
                       </div>
                       <div className="flex-1">
-                        <p className="font-semibold text-foreground">New Here?</p>
-                        <p className="text-sm text-muted-foreground">Browse services & prices first</p>
+                        <p className="font-bold font-body text-foreground">New Here?</p>
+                        <p className="text-sm text-muted-foreground font-body">Browse services &amp; prices first</p>
                       </div>
                       <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-accent transition-colors" />
                     </div>

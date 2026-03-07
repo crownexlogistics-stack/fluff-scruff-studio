@@ -14,8 +14,8 @@ export default {
     },
     extend: {
       fontFamily: {
-        heading: ['DM Serif Display', 'serif'],
-        body: ['Inter', 'sans-serif'],
+        heading: ["'Fredoka One'", "cursive"],
+        body: ["'Nunito'", "sans-serif"],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -75,12 +75,19 @@ export default {
           light: "hsl(var(--warm-light))",
         },
         paw: "hsl(var(--paw))",
+        gold: "hsl(var(--gold))",
+        trust: {
+          DEFAULT: "hsl(var(--trust-bg))",
+          foreground: "hsl(var(--trust-fg))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 4px)",
         sm: "calc(var(--radius) - 8px)",
         xl: "2rem",
+        "3xl": "1.5rem",
+        "4xl": "1.75rem",
       },
       keyframes: {
         "accordion-down": {

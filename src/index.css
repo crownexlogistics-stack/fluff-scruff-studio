@@ -2,42 +2,46 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=DM+Serif+Display&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Fredoka+One&display=swap');
 
 @layer base {
   :root {
-    --background: 240 5% 96%;
-    --foreground: 220 15% 20%;
+    --background: 30 100% 98%;
+    --foreground: 20 60% 12%;
 
     --card: 0 0% 100%;
-    --card-foreground: 220 15% 20%;
+    --card-foreground: 20 60% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 220 15% 20%;
+    --popover-foreground: 20 60% 12%;
 
-    --primary: 220 10% 25%;
+    --primary: 18 100% 60%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 240 4% 91%;
-    --secondary-foreground: 220 15% 20%;
+    --secondary: 30 30% 90%;
+    --secondary-foreground: 20 60% 12%;
 
-    --muted: 240 5% 93%;
-    --muted-foreground: 220 8% 50%;
+    --muted: 25 20% 92%;
+    --muted-foreground: 20 20% 45%;
 
-    --accent: 24 90% 60%;
+    --accent: 18 100% 60%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 240 5% 88%;
-    --input: 240 5% 88%;
-    --ring: 24 90% 60%;
+    --border: 30 20% 85%;
+    --input: 30 20% 85%;
+    --ring: 18 100% 60%;
 
-    --warm: 24 90% 60%;
+    --warm: 18 100% 60%;
     --warm-foreground: 0 0% 100%;
     --warm-light: 30 85% 95%;
-    --paw: 24 70% 50%;
+    --paw: 18 80% 50%;
+
+    --trust-bg: 20 60% 12%;
+    --trust-fg: 0 0% 100%;
+    --gold: 43 100% 50%;
 
     --radius: 1.5rem;
 
@@ -53,13 +57,13 @@
     --success: 145 60% 40%;
     --success-foreground: 0 0% 100%;
 
-    --charcoal: 220 10% 25%;
-    --charcoal-light: 220 8% 45%;
-    --silver: 240 5% 96%;
-    --silver-dark: 240 4% 88%;
+    --charcoal: 20 60% 12%;
+    --charcoal-light: 20 20% 45%;
+    --silver: 30 100% 98%;
+    --silver-dark: 30 20% 85%;
 
-    --font-heading: 'DM Serif Display', serif;
-    --font-body: 'Inter', sans-serif;
+    --font-heading: 'Fredoka One', cursive;
+    --font-body: 'Nunito', sans-serif;
   }
 
   .dark {
@@ -69,27 +73,27 @@
     --card-foreground: 220 5% 92%;
     --popover: 220 12% 14%;
     --popover-foreground: 220 5% 92%;
-    --primary: 0 0% 100%;
-    --primary-foreground: 220 12% 10%;
+    --primary: 18 100% 60%;
+    --primary-foreground: 0 0% 100%;
     --secondary: 220 10% 18%;
     --secondary-foreground: 220 5% 85%;
     --muted: 220 10% 16%;
     --muted-foreground: 220 5% 55%;
-    --accent: 220 8% 45%;
+    --accent: 18 100% 60%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 100%;
     --border: 220 10% 22%;
     --input: 220 10% 22%;
-    --ring: 220 8% 45%;
+    --ring: 18 100% 60%;
     --sidebar-background: 220 12% 7%;
     --sidebar-foreground: 220 5% 85%;
-    --sidebar-primary: 220 8% 45%;
+    --sidebar-primary: 18 100% 60%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 220 10% 16%;
     --sidebar-accent-foreground: 220 5% 90%;
     --sidebar-border: 220 10% 18%;
-    --sidebar-ring: 220 8% 45%;
+    --sidebar-ring: 18 100% 60%;
   }
 }
 
@@ -125,18 +129,6 @@
     -webkit-backdrop-filter: blur(10px) saturate(180%);
     background: rgba(255, 255, 255, 0.06);
     border: 1px solid rgba(255, 255, 255, 0.08);
-  }
-  .gradient-charcoal {
-    background: linear-gradient(135deg, hsl(220 10% 25%), hsl(220 8% 35%));
-  }
-  .gradient-silver {
-    background: linear-gradient(135deg, hsl(240 5% 96%), hsl(240 4% 91%));
-  }
-  .gradient-rose {
-    background: linear-gradient(135deg, hsl(220 10% 25%), hsl(220 8% 40%));
-  }
-  .gradient-navy {
-    background: linear-gradient(135deg, hsl(220 12% 18%), hsl(220 10% 26%));
   }
   .touch-target {
     min-height: 48px;
