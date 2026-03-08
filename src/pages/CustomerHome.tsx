@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, Navigate } from "react-router-dom";
 import { Phone, MapPin, Clock, Instagram, Facebook, PawPrint, LogIn, LogOut, Star, Menu, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
