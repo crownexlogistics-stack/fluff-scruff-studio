@@ -129,7 +129,7 @@ function ImportTab() {
               booking_time: (row["Start time"] || "").trim(),
               duration_minutes: parseInt(row["Minutes"] || "60", 10) || 60,
               service_name: (row["Service name"] || "").trim(),
-              staff_name: (row["Staff name"] || "").trim(),
+              staff_name: (row["Staff name"] || "").trim().split(" ")[0],
               payment_status: (row["Payment status"] || "").trim(),
               dog_name: ignoreUnknown(row["Form answer 2"]),
               dog_age: ignoreUnknown(row["Form answer 3"]),
