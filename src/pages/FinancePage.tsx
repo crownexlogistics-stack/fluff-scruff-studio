@@ -17,6 +17,7 @@ import { ArrowLeft, PoundSterling, Dog, TrendingUp, Banknote, CreditCard, Users 
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addWeeks, addMonths } from "date-fns";
 import { toast } from "sonner";
 import { logAudit } from "@/lib/auditLog";
+import ExpensesTab from "@/components/finance/ExpensesTab";
 
 type Period = "weekly" | "monthly";
 
@@ -31,6 +32,7 @@ const FinancePage = () => {
   const [payoutAmount, setPayoutAmount] = useState(0);
   const [payoutMethod, setPayoutMethod] = useState("bank_transfer");
   const [payoutNotes, setPayoutNotes] = useState("");
+  const [activeTab, setActiveTab] = useState("payouts");
 
   const now = new Date();
   const periodStart = useMemo(() => {
@@ -83,7 +85,6 @@ const FinancePage = () => {
     },
   });
 
-  // Group commissions by staff
   const staffSummaries = useMemo(() => {
     const map = new Map<string, { staffId: string; name: string; totalDogs: number; totalRevenue: number; totalGroomerPay: number; totalStudioShare: number; commissions: any[] }>();
     staff.forEach(s => {
@@ -139,7 +140,7 @@ const FinancePage = () => {
   const offset = period === "weekly" ? weekOffset : monthOffset;
   const setOffset = period === "weekly" ? setWeekOffset : setMonthOffset;
 
-  // Detail view
+  // Detail view for individual groomer
   if (selectedStaffId && selectedSummary) {
     const owedRemaining = selectedSummary.totalGroomerPay - totalPaidOut;
     return (
@@ -156,49 +157,21 @@ const FinancePage = () => {
             </p>
           </div>
 
-          {/* Summary cards */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <Card>
-              <CardContent className="p-4 text-center">
-                <p className="text-xs text-muted-foreground">Dogs Groomed</p>
-                <p className="text-2xl font-bold">{selectedSummary.totalDogs}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4 text-center">
-                <p className="text-xs text-muted-foreground">Total Revenue</p>
-                <p className="text-2xl font-bold">£{selectedSummary.totalRevenue.toFixed(2)}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4 text-center">
-                <p className="text-xs text-muted-foreground">Groomer Pay</p>
-                <p className="text-2xl font-bold text-primary">£{selectedSummary.totalGroomerPay.toFixed(2)}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4 text-center">
-                <p className="text-xs text-muted-foreground">Studio Share</p>
-                <p className="text-2xl font-bold">£{selectedSummary.totalStudioShare.toFixed(2)}</p>
-              </CardContent>
-            </Card>
+            <Card><CardContent className="p-4 text-center"><p className="text-xs text-muted-foreground">Dogs Groomed</p><p className="text-2xl font-bold">{selectedSummary.totalDogs}</p></CardContent></Card>
+            <Card><CardContent className="p-4 text-center"><p className="text-xs text-muted-foreground">Total Revenue</p><p className="text-2xl font-bold">£{selectedSummary.totalRevenue.toFixed(2)}</p></CardContent></Card>
+            <Card><CardContent className="p-4 text-center"><p className="text-xs text-muted-foreground">Groomer Pay</p><p className="text-2xl font-bold text-primary">£{selectedSummary.totalGroomerPay.toFixed(2)}</p></CardContent></Card>
+            <Card><CardContent className="p-4 text-center"><p className="text-xs text-muted-foreground">Studio Share</p><p className="text-2xl font-bold">£{selectedSummary.totalStudioShare.toFixed(2)}</p></CardContent></Card>
           </div>
 
-          {/* Payout status */}
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium">Payout Status</p>
-                  <p className="text-xs text-muted-foreground">
-                    Paid: £{totalPaidOut.toFixed(2)} / Owed: £{selectedSummary.totalGroomerPay.toFixed(2)}
-                  </p>
-                  {owedRemaining > 0 && (
-                    <p className="text-sm font-semibold text-destructive mt-1">Remaining: £{owedRemaining.toFixed(2)}</p>
-                  )}
-                  {owedRemaining <= 0 && selectedSummary.totalGroomerPay > 0 && (
-                    <Badge className="bg-emerald-600 text-white mt-1">Fully Paid</Badge>
-                  )}
+                  <p className="text-xs text-muted-foreground">Paid: £{totalPaidOut.toFixed(2)} / Owed: £{selectedSummary.totalGroomerPay.toFixed(2)}</p>
+                  {owedRemaining > 0 && <p className="text-sm font-semibold text-destructive mt-1">Remaining: £{owedRemaining.toFixed(2)}</p>}
+                  {owedRemaining <= 0 && selectedSummary.totalGroomerPay > 0 && <Badge className="bg-emerald-600 text-white mt-1">Fully Paid</Badge>}
                 </div>
                 {owedRemaining > 0 && (
                   <Button onClick={() => { setPayoutAmount(owedRemaining); setPayoutOpen(true); }}>
@@ -209,21 +182,14 @@ const FinancePage = () => {
             </CardContent>
           </Card>
 
-          {/* Revenue breakdown */}
           <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Revenue Breakdown</CardTitle>
-            </CardHeader>
+            <CardHeader className="pb-3"><CardTitle className="text-base">Revenue Breakdown</CardTitle></CardHeader>
             <CardContent className="p-0">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Customer</TableHead>
-                    <TableHead>Dog</TableHead>
-                    <TableHead>Service</TableHead>
-                    <TableHead>Price</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead className="text-right">Groomer Pay</TableHead>
+                    <TableHead>Customer</TableHead><TableHead>Dog</TableHead><TableHead>Service</TableHead>
+                    <TableHead>Price</TableHead><TableHead>Type</TableHead><TableHead className="text-right">Groomer Pay</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -242,41 +208,25 @@ const FinancePage = () => {
                     </TableRow>
                   ))}
                   {selectedSummary.commissions.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={6} className="text-center text-muted-foreground py-8">No completed appointments this period</TableCell>
-                    </TableRow>
+                    <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No completed appointments this period</TableCell></TableRow>
                   )}
                 </TableBody>
               </Table>
             </CardContent>
           </Card>
 
-          {/* Payout history */}
           {selectedPayouts.length > 0 && (
             <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Payout History</CardTitle>
-              </CardHeader>
+              <CardHeader className="pb-3"><CardTitle className="text-base">Payout History</CardTitle></CardHeader>
               <CardContent className="p-0">
                 <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Amount</TableHead>
-                      <TableHead>Method</TableHead>
-                      <TableHead>Notes</TableHead>
-                    </TableRow>
-                  </TableHeader>
+                  <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Amount</TableHead><TableHead>Method</TableHead><TableHead>Notes</TableHead></TableRow></TableHeader>
                   <TableBody>
                     {selectedPayouts.map((p: any) => (
                       <TableRow key={p.id}>
                         <TableCell className="text-sm">{format(new Date(p.created_at), "dd MMM yyyy, HH:mm")}</TableCell>
                         <TableCell className="text-sm font-medium">£{Number(p.amount).toFixed(2)}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="text-xs">
-                            {p.payment_method === "cash" ? "Cash" : "Bank Transfer"}
-                          </Badge>
-                        </TableCell>
+                        <TableCell><Badge variant="outline" className="text-xs">{p.payment_method === "cash" ? "Cash" : "Bank Transfer"}</Badge></TableCell>
                         <TableCell className="text-sm text-muted-foreground">{p.notes || "—"}</TableCell>
                       </TableRow>
                     ))}
@@ -287,17 +237,11 @@ const FinancePage = () => {
           )}
         </div>
 
-        {/* Payout dialog */}
         <Dialog open={payoutOpen} onOpenChange={setPayoutOpen}>
           <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>Process Payout — {selectedSummary.name}</DialogTitle>
-            </DialogHeader>
+            <DialogHeader><DialogTitle>Process Payout — {selectedSummary.name}</DialogTitle></DialogHeader>
             <div className="space-y-4">
-              <div>
-                <Label>Amount (£)</Label>
-                <NumericInput value={payoutAmount} onValueChange={setPayoutAmount} />
-              </div>
+              <div><Label>Amount (£)</Label><NumericInput value={payoutAmount} onValueChange={setPayoutAmount} /></div>
               <div>
                 <Label>Payment Method</Label>
                 <Select value={payoutMethod} onValueChange={setPayoutMethod}>
@@ -308,10 +252,7 @@ const FinancePage = () => {
                   </SelectContent>
                 </Select>
               </div>
-              <div>
-                <Label>Notes (optional)</Label>
-                <Textarea value={payoutNotes} onChange={e => setPayoutNotes(e.target.value)} placeholder="Reference number, etc." />
-              </div>
+              <div><Label>Notes (optional)</Label><Textarea value={payoutNotes} onChange={e => setPayoutNotes(e.target.value)} placeholder="Reference number, etc." /></div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setPayoutOpen(false)}>Cancel</Button>
@@ -325,7 +266,7 @@ const FinancePage = () => {
     );
   }
 
-  // Main calling cards view
+  // Main view with tabs
   const totalRevenue = staffSummaries.reduce((sum, s) => sum + s.totalRevenue, 0);
   const totalGroomerPay = staffSummaries.reduce((sum, s) => sum + s.totalGroomerPay, 0);
   const totalStudioShare = staffSummaries.reduce((sum, s) => sum + s.totalStudioShare, 0);
@@ -337,102 +278,91 @@ const FinancePage = () => {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-heading font-bold">Finance</h1>
-            <p className="text-sm text-muted-foreground">Commission tracking & groomer payouts</p>
+            <p className="text-sm text-muted-foreground">Commission tracking, payouts & expenses</p>
           </div>
-          <Tabs value={period} onValueChange={v => { setPeriod(v as Period); setWeekOffset(0); setMonthOffset(0); }}>
-            <TabsList>
-              <TabsTrigger value="weekly">Weekly</TabsTrigger>
-              <TabsTrigger value="monthly">Monthly</TabsTrigger>
-            </TabsList>
-          </Tabs>
         </div>
 
-        {/* Period nav */}
-        <div className="flex items-center justify-between">
-          <Button variant="outline" size="sm" onClick={() => setOffset(o => o - 1)}>← Previous</Button>
-          <p className="text-sm font-medium">{format(periodStart, "dd MMM yyyy")} — {format(periodEnd, "dd MMM yyyy")}</p>
-          <Button variant="outline" size="sm" onClick={() => setOffset(o => o + 1)} disabled={offset >= 0}>Next →</Button>
-        </div>
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList>
+            <TabsTrigger value="payouts">Groomer Payouts</TabsTrigger>
+            <TabsTrigger value="expenses">Expenses</TabsTrigger>
+          </TabsList>
 
-        {/* Overview stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <Card>
-            <CardContent className="p-4 text-center">
-              <Dog className="h-5 w-5 mx-auto text-muted-foreground mb-1" />
-              <p className="text-xs text-muted-foreground">Dogs Groomed</p>
-              <p className="text-2xl font-bold">{totalDogs}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4 text-center">
-              <TrendingUp className="h-5 w-5 mx-auto text-muted-foreground mb-1" />
-              <p className="text-xs text-muted-foreground">Total Revenue</p>
-              <p className="text-2xl font-bold">£{totalRevenue.toFixed(2)}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4 text-center">
-              <Users className="h-5 w-5 mx-auto text-muted-foreground mb-1" />
-              <p className="text-xs text-muted-foreground">Groomer Pay</p>
-              <p className="text-2xl font-bold text-primary">£{totalGroomerPay.toFixed(2)}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4 text-center">
-              <CreditCard className="h-5 w-5 mx-auto text-muted-foreground mb-1" />
-              <p className="text-xs text-muted-foreground">Studio Share</p>
-              <p className="text-2xl font-bold">£{totalStudioShare.toFixed(2)}</p>
-            </CardContent>
-          </Card>
-        </div>
+          <TabsContent value="payouts" className="space-y-4 mt-4">
+            {/* Period selector */}
+            <div className="flex items-center justify-between">
+              <Tabs value={period} onValueChange={v => { setPeriod(v as Period); setWeekOffset(0); setMonthOffset(0); }}>
+                <TabsList>
+                  <TabsTrigger value="weekly">Weekly</TabsTrigger>
+                  <TabsTrigger value="monthly">Monthly</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
 
-        {/* Groomer calling cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {staff.filter(s => s.role === "Groomer").map(s => {
-            const summary = staffSummaries.find(ss => ss.staffId === s.id);
-            const groomerPayouts = payouts.filter(p => p.staff_id === s.id);
-            const paidOut = groomerPayouts.reduce((sum, p) => sum + Number(p.amount), 0);
-            const owed = (summary?.totalGroomerPay || 0) - paidOut;
-            return (
-              <Card key={s.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => setSelectedStaffId(s.id)}>
-                <CardContent className="p-5">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="h-10 w-10 rounded-full bg-primary/15 flex items-center justify-center">
-                      <span className="text-sm font-bold text-primary">{s.name.split(" ").map(n => n[0]).join("").slice(0, 2)}</span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold truncate">{s.name}</p>
-                      <p className="text-xs text-muted-foreground">{summary?.totalDogs || 0} dogs groomed</p>
-                    </div>
-                  </div>
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Revenue</span>
-                      <span className="font-medium">£{(summary?.totalRevenue || 0).toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Payout Due</span>
-                      <span className="font-semibold text-primary">£{(summary?.totalGroomerPay || 0).toFixed(2)}</span>
-                    </div>
-                    {owed > 0 ? (
-                      <Badge variant="destructive" className="text-xs mt-1">£{owed.toFixed(2)} unpaid</Badge>
-                    ) : (summary?.totalGroomerPay || 0) > 0 ? (
-                      <Badge className="bg-emerald-600 text-white text-xs mt-1">Paid</Badge>
-                    ) : null}
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
+            <div className="flex items-center justify-between">
+              <Button variant="outline" size="sm" onClick={() => setOffset(o => o - 1)}>← Previous</Button>
+              <p className="text-sm font-medium">{format(periodStart, "dd MMM yyyy")} — {format(periodEnd, "dd MMM yyyy")}</p>
+              <Button variant="outline" size="sm" onClick={() => setOffset(o => o + 1)} disabled={offset >= 0}>Next →</Button>
+            </div>
 
-        {staff.filter(s => s.role === "Groomer").length === 0 && (
-          <div className="text-center py-16">
-            <PoundSterling className="h-12 w-12 text-muted-foreground/40 mx-auto mb-3" />
-            <p className="font-medium text-muted-foreground">No groomers found</p>
-            <p className="text-xs text-muted-foreground">Add staff with the 'Groomer' role to see finance data.</p>
-          </div>
-        )}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <Card><CardContent className="p-4 text-center"><Dog className="h-5 w-5 mx-auto text-muted-foreground mb-1" /><p className="text-xs text-muted-foreground">Dogs Groomed</p><p className="text-2xl font-bold">{totalDogs}</p></CardContent></Card>
+              <Card><CardContent className="p-4 text-center"><TrendingUp className="h-5 w-5 mx-auto text-muted-foreground mb-1" /><p className="text-xs text-muted-foreground">Total Revenue</p><p className="text-2xl font-bold">£{totalRevenue.toFixed(2)}</p></CardContent></Card>
+              <Card><CardContent className="p-4 text-center"><Users className="h-5 w-5 mx-auto text-muted-foreground mb-1" /><p className="text-xs text-muted-foreground">Groomer Pay</p><p className="text-2xl font-bold text-primary">£{totalGroomerPay.toFixed(2)}</p></CardContent></Card>
+              <Card><CardContent className="p-4 text-center"><CreditCard className="h-5 w-5 mx-auto text-muted-foreground mb-1" /><p className="text-xs text-muted-foreground">Studio Share</p><p className="text-2xl font-bold">£{totalStudioShare.toFixed(2)}</p></CardContent></Card>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {staff.filter(s => s.role === "Groomer").map(s => {
+                const summary = staffSummaries.find(ss => ss.staffId === s.id);
+                const groomerPayouts = payouts.filter(p => p.staff_id === s.id);
+                const paidOut = groomerPayouts.reduce((sum, p) => sum + Number(p.amount), 0);
+                const owed = (summary?.totalGroomerPay || 0) - paidOut;
+                return (
+                  <Card key={s.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => setSelectedStaffId(s.id)}>
+                    <CardContent className="p-5">
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="h-10 w-10 rounded-full bg-primary/15 flex items-center justify-center">
+                          <span className="text-sm font-bold text-primary">{s.name.split(" ").map(n => n[0]).join("").slice(0, 2)}</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold truncate">{s.name}</p>
+                          <p className="text-xs text-muted-foreground">{summary?.totalDogs || 0} dogs groomed</p>
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between text-sm"><span className="text-muted-foreground">Revenue</span><span className="font-medium">£{(summary?.totalRevenue || 0).toFixed(2)}</span></div>
+                        <div className="flex justify-between text-sm"><span className="text-muted-foreground">Payout Due</span><span className="font-semibold text-primary">£{(summary?.totalGroomerPay || 0).toFixed(2)}</span></div>
+                        {owed > 0 ? (
+                          <Badge variant="destructive" className="text-xs mt-1">£{owed.toFixed(2)} unpaid</Badge>
+                        ) : (summary?.totalGroomerPay || 0) > 0 ? (
+                          <Badge className="bg-emerald-600 text-white text-xs mt-1">Paid</Badge>
+                        ) : null}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+
+            {staff.filter(s => s.role === "Groomer").length === 0 && (
+              <div className="text-center py-16">
+                <PoundSterling className="h-12 w-12 text-muted-foreground/40 mx-auto mb-3" />
+                <p className="font-medium text-muted-foreground">No groomers found</p>
+                <p className="text-xs text-muted-foreground">Add staff with the 'Groomer' role to see finance data.</p>
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="expenses" className="mt-4">
+            <ExpensesTab
+              periodStart={periodStart}
+              periodEnd={periodEnd}
+              totalRevenue={totalRevenue}
+              totalGroomerPay={totalGroomerPay}
+            />
+          </TabsContent>
+        </Tabs>
       </div>
     </AppLayout>
   );
