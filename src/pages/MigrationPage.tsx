@@ -154,6 +154,8 @@ function ImportTab({ onSwitchTab }: { onSwitchTab?: (tab: string) => void }) {
   const [parsed, setParsed] = useState<ParsedRow[]>([]);
   const [duplicatesRemoved, setDuplicatesRemoved] = useState(0);
   const [importing, setImporting] = useState(false);
+  const [fixing, setFixing] = useState(false);
+  const [fixResult, setFixResult] = useState<{ groups: number; removed: number } | null>(null);
   const [progress, setProgress] = useState<ImportProgress | null>(null);
   const [result, setResult] = useState<ImportResult | null>(null);
 
