@@ -640,7 +640,18 @@ export default function ExpensesTab({ periodStart, periodEnd, totalRevenue, tota
           <DialogHeader>
             <DialogTitle>{editingId ? "Edit Recurring Expense" : "Add Recurring Expense"}</DialogTitle>
           </DialogHeader>
-          <ExpenseForm type="recurring" form={form} onFormChange={handleFormChange} />
+          <ExpenseForm
+            type="recurring"
+            form={form}
+            onNameChange={handleNameChange}
+            onNotesChange={handleNotesChange}
+            onAmountChange={handleAmountChange}
+            onCategoryChange={handleCategoryChange}
+            onFrequencyChange={handleFrequencyChange}
+            onStartDateChange={handleStartDateChange}
+            onEndDateChange={handleEndDateChange}
+            onExpenseDateChange={handleExpenseDateChange}
+          />
           <DialogFooter>
             <Button variant="outline" onClick={() => setRecurringOpen(false)}>Cancel</Button>
             <Button onClick={() => saveMutation.mutate("recurring")} disabled={saveMutation.isPending}>
@@ -656,7 +667,18 @@ export default function ExpensesTab({ periodStart, periodEnd, totalRevenue, tota
           <DialogHeader>
             <DialogTitle>{editingId ? "Edit Purchase" : "Add Purchase"}</DialogTitle>
           </DialogHeader>
-          <ExpenseForm type="one_off" form={form} onFormChange={handleFormChange} />
+          <ExpenseForm
+            type="one_off"
+            form={form}
+            onNameChange={handleNameChange}
+            onNotesChange={handleNotesChange}
+            onAmountChange={handleAmountChange}
+            onCategoryChange={handleCategoryChange}
+            onFrequencyChange={handleFrequencyChange}
+            onStartDateChange={handleStartDateChange}
+            onEndDateChange={handleEndDateChange}
+            onExpenseDateChange={handleExpenseDateChange}
+          />
           <DialogFooter>
             <Button variant="outline" onClick={() => setOneOffOpen(false)}>Cancel</Button>
             <Button onClick={() => saveMutation.mutate("one_off")} disabled={saveMutation.isPending}>
