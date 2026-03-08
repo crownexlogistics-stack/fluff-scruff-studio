@@ -660,19 +660,27 @@ function MigrationCustomersTab() {
     },
   });
 
-  // Fetch staff emails to detect staff members in the customer list
-  const { data: staffEmails = [] } = useQuery({
+  // Fetch staff emails + auth_user_id to detect staff members in the customer list
+  const { data: staffRecords = [] } = useQuery({
     queryKey: ["staff-emails-for-migration"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("staff")
-        .select("email");
+        .select("email, auth_user_id");
       if (error) throw error;
-      return (data || []).map((s: any) => s.email?.toLowerCase()).filter(Boolean);
+      return (data || []).filter((s: any) => s.email);
     },
   });
 
-  const staffEmailSet = useMemo(() => new Set(staffEmails), [staffEmails]);
+  const staffEmailMap = useMemo(() => {
+    const map = new Map<string, string | null>();
+    staffRecords.forEach((s: any) => {
+      if (s.email) map.set(s.email.toLowerCase(), s.auth_user_id);
+    });
+    return map;
+  }, [staffRecords]);
+
+  const staffEmailSet = useMemo(() => new Set(staffEmailMap.keys()), [staffEmailMap]);
 
   const { data: allBookings = [] } = useQuery({
     queryKey: ["migrated-bookings-for-customers"],
