@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AppLayout } from "@/components/AppLayout";
-import { Upload, FileSpreadsheet, CheckCircle2, Users, Calendar, ChevronDown, ChevronRight, Pencil, Send, AlertCircle } from "lucide-react";
+import { Upload, FileSpreadsheet, CheckCircle2, Users, Calendar, ChevronDown, ChevronRight, Pencil, Send, AlertCircle, ShieldCheck } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import Papa from "papaparse";
 import { format } from "date-fns";
@@ -659,6 +660,20 @@ function MigrationCustomersTab() {
     },
   });
 
+  // Fetch staff emails to detect staff members in the customer list
+  const { data: staffEmails = [] } = useQuery({
+    queryKey: ["staff-emails-for-migration"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("staff")
+        .select("email");
+      if (error) throw error;
+      return (data || []).map((s: any) => s.email?.toLowerCase()).filter(Boolean);
+    },
+  });
+
+  const staffEmailSet = useMemo(() => new Set(staffEmails), [staffEmails]);
+
   const { data: allBookings = [] } = useQuery({
     queryKey: ["migrated-bookings-for-customers"],
     queryFn: async () => {
@@ -703,7 +718,7 @@ function MigrationCustomersTab() {
   };
 
   const sendAllPending = async () => {
-    const pending = customers.filter((c: any) => c.status === "pending");
+    const pending = customers.filter((c: any) => c.status === "pending" && !staffEmailSet.has(c.email?.toLowerCase()));
     if (!pending.length) return;
     setSendingAll(true);
     let sent = 0;
@@ -773,7 +788,20 @@ function MigrationCustomersTab() {
                       <TableCell className="text-xs">{futureCount}</TableCell>
                       <TableCell>{statusBadge(c.status)}</TableCell>
                       <TableCell>
-                        {c.status !== "activated" && (
+                        {staffEmailSet.has(c.email?.toLowerCase()) ? (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Badge variant="secondary" className="text-[10px] gap-1 cursor-default">
+                                  <ShieldCheck className="h-3 w-3" /> Staff Member
+                                </Badge>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>This email belongs to a staff account — no invite needed</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        ) : c.status !== "activated" ? (
                           <Button
                             size="sm"
                             variant="outline"
@@ -784,7 +812,7 @@ function MigrationCustomersTab() {
                             <Send className="h-3 w-3" />
                             {sendingId === c.id ? "Sending…" : c.status === "invited" ? "Resend" : "Send Invite"}
                           </Button>
-                        )}
+                        ) : null}
                       </TableCell>
                     </TableRow>
                     {isExpanded && cBookings.length > 0 && (
