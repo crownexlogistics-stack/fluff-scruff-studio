@@ -101,7 +101,7 @@ const CustomerHome = () => {
       </nav>
 
       {/* ══════ HERO ══════ */}
-      <HeroSection navigate={navigate} />
+      <HeroSection onBook={() => navigate("/book")} />
 
 
       {/* ══════ SERVICES ══════ */}
