@@ -357,15 +357,7 @@ export function BookingsTab({ bookings, userEmail }: BookingsTabProps) {
                 )}
               </div>
 
-              {selectedBooking.notes && (
-                <>
-                  <Separator />
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-1">Notes</p>
-                    <p className="text-sm">{selectedBooking.notes}</p>
-                  </div>
-                </>
-              )}
+              {/* Notes hidden from customer view — internal groomer notes only */}
             </div>
           </DialogContent>
         )}

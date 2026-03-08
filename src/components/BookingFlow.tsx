@@ -1431,6 +1431,11 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
                       <div className="space-y-2">
                         <Label className="text-sm font-medium">{isNewCustomer ? "Email *" : "Email"}</Label>
                         <Input value={guestForm.email} onChange={(e) => setGuestForm({ ...guestForm, email: e.target.value })} placeholder="jane@example.com" type="email" className="h-12 rounded-xl" />
+                        {isNewCustomer && (
+                          <p className="text-xs italic" style={{ color: "#8B6F5C" }}>
+                            Been with us before? Use your same email address and we'll restore your history 🐾
+                          </p>
+                        )}
                       </div>
                       {isNewCustomer && (
                         <div className="space-y-2">
