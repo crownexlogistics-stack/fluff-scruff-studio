@@ -183,7 +183,7 @@ export function generateAvailableSlots(
 
   // For each groomer, compute available windows after blocks
   const groomerWindows = new Map<string, TimeWindow[]>();
-  for (const g of groomers) {
+  for (const g of activeGroomers) {
     const windows = getGroomerWindows(g.id, dayOfWeek, baseSchedules, overrides);
     if (windows.length > 0) {
       groomerWindows.set(g.id, windows);
