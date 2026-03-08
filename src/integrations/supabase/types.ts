@@ -1555,6 +1555,7 @@ export type Database = {
       staff: {
         Row: {
           auth_user_id: string | null
+          booking_priority: number | null
           contact_number: string | null
           contract_signature_data: string | null
           contract_status: string
@@ -1567,6 +1568,7 @@ export type Database = {
           hs_signed_ip: string | null
           hs_status: string
           id: string
+          is_accepting_bookings: boolean | null
           is_self_employed: boolean
           name: string
           role: string
@@ -1576,6 +1578,7 @@ export type Database = {
         }
         Insert: {
           auth_user_id?: string | null
+          booking_priority?: number | null
           contact_number?: string | null
           contract_signature_data?: string | null
           contract_status?: string
@@ -1588,6 +1591,7 @@ export type Database = {
           hs_signed_ip?: string | null
           hs_status?: string
           id?: string
+          is_accepting_bookings?: boolean | null
           is_self_employed?: boolean
           name: string
           role: string
@@ -1597,6 +1601,7 @@ export type Database = {
         }
         Update: {
           auth_user_id?: string | null
+          booking_priority?: number | null
           contact_number?: string | null
           contract_signature_data?: string | null
           contract_status?: string
@@ -1609,6 +1614,7 @@ export type Database = {
           hs_signed_ip?: string | null
           hs_status?: string
           id?: string
+          is_accepting_bookings?: boolean | null
           is_self_employed?: boolean
           name?: string
           role?: string
