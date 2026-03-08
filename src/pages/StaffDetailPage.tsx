@@ -421,6 +421,80 @@ const StaffDetailPage = () => {
                   </Popover>
                 </div>
 
+                {/* Last Working Date - auto-save */}
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2"><CalendarX className="h-4 w-4" /> Last Working Date</Label>
+                  <p className="text-xs text-muted-foreground">Groomer will not appear for new bookings after this date. Existing appointments are unaffected.</p>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !(staff as any).employment_end_date && "text-muted-foreground")}>
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {(staff as any).employment_end_date ? format(new Date((staff as any).employment_end_date), "PPP") : "No end date set"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={(staff as any).employment_end_date ? new Date((staff as any).employment_end_date) : undefined}
+                        onSelect={async (d) => {
+                          const val = d ? format(d, "yyyy-MM-dd") : null;
+                          const { error } = await supabase.from("staff").update({ employment_end_date: val } as any).eq("id", id!);
+                          if (!error) {
+                            queryClient.invalidateQueries({ queryKey: ["staff", id] });
+                            toast.success(val ? `Last working date set to ${format(d!, "PPP")}` : "End date cleared");
+                          }
+                        }}
+                        initialFocus
+                        className="p-3 pointer-events-auto"
+                      />
+                      {(staff as any).employment_end_date && (
+                        <div className="p-2 border-t">
+                          <Button variant="ghost" size="sm" className="w-full text-destructive" onClick={async () => {
+                            const { error } = await supabase.from("staff").update({ employment_end_date: null } as any).eq("id", id!);
+                            if (!error) {
+                              queryClient.invalidateQueries({ queryKey: ["staff", id] });
+                              toast.success("End date cleared");
+                            }
+                          }}>Clear end date</Button>
+                        </div>
+                      )}
+                    </PopoverContent>
+                  </Popover>
+                  {(staff as any).employment_end_date && (
+                    <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-400 hover:bg-amber-500/15">
+                      Leaving {format(new Date((staff as any).employment_end_date), "dd MMM yyyy")}
+                    </Badge>
+                  )}
+                </div>
+
+                <Separator />
+
+                {/* Block Account Access - auto-save */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="flex items-center gap-2"><Ban className="h-4 w-4" /> Block Login Access</Label>
+                      <p className="text-xs text-muted-foreground mt-0.5">Groomer cannot log in but their profile and booking history is preserved</p>
+                    </div>
+                    <Switch
+                      checked={(staff as any).account_blocked || false}
+                      onCheckedChange={async (checked) => {
+                        const { error } = await supabase.from("staff").update({ account_blocked: checked } as any).eq("id", id!);
+                        if (error) { toast.error(error.message); return; }
+                        queryClient.invalidateQueries({ queryKey: ["staff", id] });
+                        if (checked) {
+                          toast.success(`Account blocked — ${staff.name} can no longer log in ✅`);
+                        } else {
+                          toast.success("Access restored ✅");
+                        }
+                      }}
+                    />
+                  </div>
+                  {(staff as any).account_blocked && (
+                    <Badge variant="destructive">Access Blocked</Badge>
+                  )}
+                </div>
+
                 <Separator />
 
                 <div className="space-y-3">
