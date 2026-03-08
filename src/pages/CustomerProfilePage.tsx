@@ -398,7 +398,10 @@ export default function CustomerProfilePage() {
 
   const today = new Date().toISOString().split("T")[0];
   const upcomingBookings = bookings?.filter((b) => b.booking_date >= today && b.status !== "Cancelled") || [];
-  const pastBookings = bookings?.filter((b) => b.booking_date < today || b.status === "Cancelled") || [];
+  const pastBookings = [
+    ...(bookings?.filter((b) => b.booking_date < today || b.status === "Cancelled") || []),
+    ...migratedAsBookings,
+  ].sort((a, b) => b.booking_date.localeCompare(a.booking_date));
   const fallbackDogsFromBookings = Array.from(
     new Map(
       (bookings || [])
