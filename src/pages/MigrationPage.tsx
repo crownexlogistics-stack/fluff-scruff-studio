@@ -228,7 +228,9 @@ function ImportTab({ onSwitchTab }: { onSwitchTab?: (tab: string) => void }) {
               }
             });
             setDuplicatesRemoved(allRows.length - deduped.length);
-            setParsed(deduped);
+            // Group add-ons into main bookings
+            const grouped = groupAddOns(deduped);
+            setParsed(grouped);
           }
         },
         error: () => toast.error(`Failed to parse ${file.name}`),
