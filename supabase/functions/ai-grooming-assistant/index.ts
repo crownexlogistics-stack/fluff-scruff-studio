@@ -108,8 +108,6 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Conversation is passed from the client
-
     const googleApiKey = Deno.env.get("GOOGLE_AI_API_KEY");
     if (!googleApiKey) {
       return new Response(
@@ -118,40 +116,48 @@ Deno.serve(async (req) => {
       );
     }
 
-    const contents = [
-      ...conversation.map((m: any) => ({
+    const geminiMessages = [];
+    for (const m of conversation) {
+      geminiMessages.push({
         role: m.role === "assistant" ? "model" : "user",
-        parts: [{ text: m.content }],
-      })),
-      { role: "user", parts: [{ text: message }] },
-    ];
+        parts: [{ text: m.content }]
+      });
+    }
+    geminiMessages.push({
+      role: "user",
+      parts: [{ text: message }]
+    });
 
-    const response = await fetch(
+    const geminiResponse = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${googleApiKey}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          system_instruction: {
-            parts: [{ text: SYSTEM_PROMPT + availabilityContext }],
+          systemInstruction: {
+            parts: [{ text: SYSTEM_PROMPT + availabilityContext }]
           },
-          contents,
-          generationConfig: { maxOutputTokens: 500 },
-        }),
+          contents: geminiMessages,
+          generationConfig: {
+            maxOutputTokens: 500,
+            temperature: 0.7
+          }
+        })
       }
     );
 
-    if (!response.ok) {
-      const errText = await response.text();
+    if (!geminiResponse.ok) {
+      const errText = await geminiResponse.text();
       console.error("Gemini error:", errText);
       return new Response(
-        JSON.stringify({ error: "AI service error" }),
+        JSON.stringify({ error: "AI service error", detail: errText }),
         { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const data = await response.json();
-    const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "Woof! Something went wrong. Please try again! 🐾";
+    const geminiData = await geminiResponse.json();
+    const reply = geminiData.candidates?.[0]?.content?.parts?.[0]?.text
+      || "Woof! Something went wrong. Please try again! 🐾";
 
     const replyLower = reply.toLowerCase();
     const show_booking_button =
