@@ -173,7 +173,10 @@ export function generateAvailableSlots(
   existingBookings: ExistingBooking[],
   slotIntervalMins: number = 30
 ): string[] {
-  if (!groomers.length) return [];
+  // Filter out groomers whose employment has ended by this date
+  const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  const activeGroomers = groomers.filter(g => !g.employment_end_date || g.employment_end_date >= dateStr);
+  if (!activeGroomers.length) return [];
 
   // Convert JS getDay() (0=Sun,1=Mon,...,6=Sat) to DB format (0=Mon,1=Tue,...,6=Sun)
   const dayOfWeek = (date.getDay() + 6) % 7;
