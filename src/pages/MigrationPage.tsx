@@ -50,7 +50,81 @@ interface ParsedRow {
 
 type BookingFilter = "all" | "future" | "past" | "not_paid" | "partly_paid";
 
-// ─── Import Tab ───
+// Add-on service names (case-insensitive match)
+const ADD_ON_SERVICE_NAMES = new Set([
+  "ultrasonic teeth cleaning",
+  "nail trim",
+  "nail trim & filing",
+  "de-shedding",
+  "bath and blow dry",
+  "brush out",
+  "teeth cleaning",
+]);
+
+function isAddOnService(serviceName: string, durationMinutes: number): boolean {
+  return ADD_ON_SERVICE_NAMES.has(serviceName.toLowerCase()) || durationMinutes < 30;
+}
+
+/** Group parsed rows by email+date+time+staff and merge add-ons into main bookings */
+function groupAddOns(rows: ParsedRow[]): ParsedRow[] {
+  const groups = new Map<string, ParsedRow[]>();
+  rows.forEach((r) => {
+    const key = `${r.email}|${r.booking_date}|${r.booking_time}|${r.staff_name}`.toLowerCase();
+    const list = groups.get(key) || [];
+    list.push(r);
+    groups.set(key, list);
+  });
+
+  const result: ParsedRow[] = [];
+  groups.forEach((group) => {
+    if (group.length === 1) {
+      result.push(group[0]);
+      return;
+    }
+
+    // Check if all services are identical (multiple dogs)
+    const uniqueServices = new Set(group.map((r) => r.service_name.toLowerCase()));
+    if (uniqueServices.size === 1) {
+      // Same service — multiple dogs, keep all with note
+      group.forEach((r) => {
+        result.push({ ...r, notes: "Multiple dogs — same time slot" });
+      });
+      return;
+    }
+
+    // Different services — find main vs add-ons
+    const mainRows = group.filter((r) => !isAddOnService(r.service_name, r.duration_minutes));
+    const addOnRows = group.filter((r) => isAddOnService(r.service_name, r.duration_minutes));
+
+    // If no clear main service, pick longest duration
+    if (mainRows.length === 0) {
+      const sorted = [...group].sort((a, b) => b.duration_minutes - a.duration_minutes);
+      mainRows.push(sorted[0]);
+      addOnRows.length = 0;
+      sorted.slice(1).forEach((r) => addOnRows.push(r));
+    }
+
+    // Use first main row, merge add-ons
+    const main = { ...mainRows[0] };
+    const addOnNames = addOnRows.map((r) => r.service_name);
+    const totalDuration = group.reduce((sum, r) => sum + r.duration_minutes, 0);
+
+    main.duration_minutes = totalDuration;
+    if (addOnNames.length > 0) {
+      const existing = main.notes || "";
+      main.notes = (existing ? existing + " | " : "") + "Add-ons: " + addOnNames.join(", ");
+    }
+    result.push(main);
+
+    // If there were extra main rows (rare), keep them too
+    mainRows.slice(1).forEach((r) => result.push(r));
+  });
+
+  return result;
+}
+
+// Extend ParsedRow to include optional notes
+
 interface SelectedFile {
   file: File;
   id: string;
