@@ -398,21 +398,47 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
     queryKey: ["last-groomer", user?.email],
     queryFn: async () => {
       if (!user?.email) return null;
-      const { data, error } = await supabase
+      // Check real bookings first
+      const { data: realBooking } = await supabase
         .from("bookings")
-        .select("staff_id")
+        .select("staff_id, staff:staff_id(name)")
         .eq("customer_email", user.email)
+        .eq("status", "Completed")
         .not("staff_id", "is", null)
         .order("booking_date", { ascending: false })
         .limit(1)
         .maybeSingle();
-      if (error) throw error;
-      return data;
+      if (realBooking) return { staff_id: realBooking.staff_id, staff_name: (realBooking as any).staff?.name || null };
+
+      // Check migrated bookings
+      const { data: mc } = await supabase
+        .from("migrated_customers")
+        .select("id")
+        .eq("supabase_user_id", user.id)
+        .maybeSingle();
+      if (mc) {
+        const { data: migratedBooking } = await supabase
+          .from("migrated_bookings")
+          .select("staff_name")
+          .eq("migrated_customer_id", mc.id)
+          .not("staff_name", "is", null)
+          .order("booking_date", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (migratedBooking?.staff_name) {
+          // Match by first name
+          const firstName = migratedBooking.staff_name.split(" ")[0]?.toLowerCase();
+          const matched = groomers?.find(g => g.name.split(" ")[0].toLowerCase() === firstName);
+          if (matched) return { staff_id: matched.id, staff_name: matched.name };
+        }
+      }
+      return null;
     },
     enabled: isExistingCustomer && !!user?.email,
   });
 
   const lastGroomerId = lastGroomerBooking?.staff_id ?? null;
+  const lastGroomerName = lastGroomerBooking?.staff_name ?? null;
 
   const { data: dbAddOns } = useQuery({
     queryKey: ["add_ons_active"],
