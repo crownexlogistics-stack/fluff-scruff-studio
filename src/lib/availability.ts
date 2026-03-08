@@ -283,12 +283,15 @@ export function findFreeGroomer(
   overrides: ScheduleOverride[],
   existingBookings: ExistingBooking[]
 ): Groomer | null {
-  // Sort groomers by priority (lower number = higher priority, null = last)
-  const sorted = [...groomers].sort((a, b) => {
-    const pa = a.booking_priority ?? 999;
-    const pb = b.booking_priority ?? 999;
-    return pa - pb;
-  });
+  const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  // Filter by end date and sort by priority
+  const sorted = [...groomers]
+    .filter(g => !g.employment_end_date || g.employment_end_date >= dateStr)
+    .sort((a, b) => {
+      const pa = a.booking_priority ?? 999;
+      const pb = b.booking_priority ?? 999;
+      return pa - pb;
+    });
 
   // Convert JS getDay() (0=Sun,1=Mon,...,6=Sat) to DB format (0=Mon,1=Tue,...,6=Sun)
   const dayOfWeek = (date.getDay() + 6) % 7;
