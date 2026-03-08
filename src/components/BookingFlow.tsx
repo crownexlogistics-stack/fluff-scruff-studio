@@ -1396,51 +1396,92 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
                 {isExistingCustomer && groomers && groomers.length > 0 && (
                   <div className="space-y-2">
                     <Label className="text-sm font-medium">Choose your groomer</Label>
-                    <div className="space-y-2">
-                      {groomers.map((g) => {
-                        const isLast = g.id === lastGroomerId;
-                        const isSelected = selectedStaffId === g.id;
-                        return (
+
+                    {/* Returning customer suggestion */}
+                    {lastGroomerId && lastGroomerName && (
+                      <div className="rounded-xl p-4 mb-2" style={{ backgroundColor: "#FFF3E0" }}>
+                        <p className="text-sm font-medium text-foreground mb-2">
+                          🐾 Last time you were seen by <span className="font-bold">{lastGroomerName}</span>
+                        </p>
+                        <p className="text-xs text-muted-foreground mb-3">Would you like to book with them again?</p>
+                        <div className="flex gap-2">
                           <button
-                            key={g.id}
-                            onClick={() => setSelectedStaffId(g.id)}
-                            className={`w-full flex items-center gap-3 rounded-xl border p-3.5 text-left transition-all duration-200
-                              ${isSelected
-                                ? 'border-accent bg-accent/10 shadow-sm'
-                                : 'border-border bg-card hover:border-accent/50 hover:shadow-sm'
+                            onClick={() => setSelectedStaffId(lastGroomerId)}
+                            className={`flex-1 py-2.5 rounded-full text-sm font-semibold transition-all duration-200
+                              ${selectedStaffId === lastGroomerId
+                                ? 'bg-primary text-primary-foreground shadow-md'
+                                : 'bg-card border border-border text-foreground hover:border-primary/30'
                               }`}
                           >
-                            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors
-                              ${isSelected ? 'bg-accent text-accent-foreground' : 'bg-muted text-muted-foreground'}`}>
-                              {isSelected ? <Check className="h-4 w-4" /> : <span className="text-sm font-semibold">{g.name.charAt(0)}</span>}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="font-medium text-foreground text-sm">{g.name}</p>
-                              {isLast && (
-                                <p className="text-xs text-accent font-medium">✨ Groomed your dog last time</p>
-                              )}
-                            </div>
+                            Yes, book with {lastGroomerName?.split(" ")[0]}
                           </button>
-                        );
-                      })}
-                      <button
-                        onClick={() => setSelectedStaffId(null)}
-                        className={`w-full flex items-center gap-3 rounded-xl border p-3.5 text-left transition-all duration-200
-                          ${selectedStaffId === null
-                            ? 'border-accent bg-accent/10 shadow-sm'
-                            : 'border-border bg-card hover:border-accent/50 hover:shadow-sm'
-                          }`}
-                      >
-                        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors
-                          ${selectedStaffId === null ? 'bg-accent text-accent-foreground' : 'bg-muted text-muted-foreground'}`}>
-                          {selectedStaffId === null ? <Check className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
+                          <button
+                            onClick={() => setSelectedStaffId(null)}
+                            className={`flex-1 py-2.5 rounded-full text-sm font-semibold transition-all duration-200
+                              ${selectedStaffId === null
+                                ? 'bg-primary text-primary-foreground shadow-md'
+                                : 'bg-card border border-border text-muted-foreground hover:border-primary/30'
+                              }`}
+                          >
+                            No preference
+                          </button>
                         </div>
-                        <div className="flex-1">
-                          <p className="font-medium text-foreground text-sm">No preference</p>
-                          <p className="text-xs text-muted-foreground">We'll assign the best available groomer</p>
-                        </div>
-                      </button>
-                    </div>
+                      </div>
+                    )}
+
+                    {/* No preference message */}
+                    {selectedStaffId === null && (
+                      <div className="rounded-xl bg-muted/50 border border-border/40 p-3 text-center">
+                        <p className="text-sm text-muted-foreground">
+                          Our next available groomer will be assigned to your booking
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Groomer list (only show if no last groomer, or user wants to browse) */}
+                    {!lastGroomerId && (
+                      <div className="space-y-2">
+                        {groomers.map((g) => {
+                          const isSelected = selectedStaffId === g.id;
+                          return (
+                            <button
+                              key={g.id}
+                              onClick={() => setSelectedStaffId(g.id)}
+                              className={`w-full flex items-center gap-3 rounded-xl border p-3.5 text-left transition-all duration-200
+                                ${isSelected
+                                  ? 'border-accent bg-accent/10 shadow-sm'
+                                  : 'border-border bg-card hover:border-accent/50 hover:shadow-sm'
+                                }`}
+                            >
+                              <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors
+                                ${isSelected ? 'bg-accent text-accent-foreground' : 'bg-muted text-muted-foreground'}`}>
+                                {isSelected ? <Check className="h-4 w-4" /> : <span className="text-sm font-semibold">{g.name.charAt(0)}</span>}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-foreground text-sm">{g.name}</p>
+                              </div>
+                            </button>
+                          );
+                        })}
+                        <button
+                          onClick={() => setSelectedStaffId(null)}
+                          className={`w-full flex items-center gap-3 rounded-xl border p-3.5 text-left transition-all duration-200
+                            ${selectedStaffId === null
+                              ? 'border-accent bg-accent/10 shadow-sm'
+                              : 'border-border bg-card hover:border-accent/50 hover:shadow-sm'
+                            }`}
+                        >
+                          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors
+                            ${selectedStaffId === null ? 'bg-accent text-accent-foreground' : 'bg-muted text-muted-foreground'}`}>
+                            {selectedStaffId === null ? <Check className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
+                          </div>
+                          <div className="flex-1">
+                            <p className="font-medium text-foreground text-sm">No preference</p>
+                            <p className="text-xs text-muted-foreground">We'll assign the best available groomer</p>
+                          </div>
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
 
