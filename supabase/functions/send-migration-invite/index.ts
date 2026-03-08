@@ -72,7 +72,7 @@ serve(async (req) => {
     }
 
     const firstName = (customer.full_name || "").split(" ")[0] || "there";
-    const redirectUrl = "https://fluff-scruff-studio.lovable.app/welcome";
+    const redirectUrl = "https://fluffandscruff.co.uk/welcome";
 
     // Create user without sending Supabase's default invite email
     const { data: createData, error: createErr } = await supabase.auth.admin.createUser({
@@ -118,7 +118,7 @@ serve(async (req) => {
           <!-- Header -->
           <tr>
             <td align="center" style="padding:32px 40px 16px;">
-              <img src="https://fluff-scruff-studio.lovable.app/logo-transparent.png" alt="Fluff & Scruff" width="80" style="width:80px;height:auto;" />
+              <img src="https://fluffandscruff.co.uk/logo-transparent.png" alt="Fluff & Scruff" width="80" style="width:80px;height:auto;" />
             </td>
           </tr>
           <!-- Body -->
