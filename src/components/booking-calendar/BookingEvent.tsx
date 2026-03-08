@@ -267,6 +267,9 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
 
       {/* Status + Payment badges */}
       <div className="flex flex-wrap gap-2">
+        {booking.is_migrated && (
+          <Badge className="bg-amber-500 text-white hover:bg-amber-500 text-[10px]">W — Wix Booking</Badge>
+        )}
         <Badge variant={
           booking.status === "Confirmed" ? "default" :
           booking.status === "Completed" ? "secondary" :
