@@ -270,6 +270,34 @@ const Index = () => {
     },
   });
 
+  // Expenses — recurring
+  const { data: recurringExpenses = [] } = useQuery({
+    queryKey: ["dash-recurring-expenses"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("expenses")
+        .select("amount, frequency")
+        .eq("expense_type", "recurring");
+      return (data ?? []) as any[];
+    },
+  });
+
+  // Expenses — one-off in current period
+  const monthStart = format(startOfMonth(new Date()), "yyyy-MM-dd");
+  const monthEnd = format(endOfMonth(new Date()), "yyyy-MM-dd");
+  const { data: oneOffExpenses = [] } = useQuery({
+    queryKey: ["dash-oneoff-expenses", monthStart, monthEnd],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("expenses")
+        .select("amount")
+        .eq("expense_type", "one_off")
+        .gte("expense_date", monthStart)
+        .lte("expense_date", monthEnd);
+      return (data ?? []) as any[];
+    },
+  });
+
   // ── Computed Stats ───────────────────────────
   const completed = bookings.filter((b: any) => b.status === "Completed" || b.status === "No Show");
   const cancelled = bookings.filter((b: any) => b.status === "Cancelled");
