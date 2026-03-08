@@ -65,18 +65,10 @@ export function AIChatWidget() {
     setIsTyping(true);
 
     try {
-      const conversation = messages
-        .filter((m) => m.id !== "welcome")
-        .map((m) => ({ role: m.role, content: m.content }));
+      // 600ms fake typing delay
+      await new Promise((resolve) => setTimeout(resolve, 600));
 
-      const { data, error } = await supabase.functions.invoke(
-        "ai-grooming-assistant",
-        {
-          body: { message: text.trim(), conversation },
-        }
-      );
-
-      if (error) throw error;
+      const data = await getLocalChatResponse(text.trim());
 
       const assistantMsg: ChatMessage = {
         id: crypto.randomUUID(),
