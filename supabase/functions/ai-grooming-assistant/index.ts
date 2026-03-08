@@ -108,14 +108,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Build messages for Anthropic
-    const messages = [
-      ...conversation.map((m: any) => ({
-        role: m.role === "user" ? "user" : "assistant",
-        content: m.content,
-      })),
-      { role: "user", content: message },
-    ];
+    // Conversation is passed from the client
 
     const googleApiKey = Deno.env.get("GOOGLE_AI_API_KEY");
     if (!googleApiKey) {
