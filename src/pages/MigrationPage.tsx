@@ -788,7 +788,20 @@ function MigrationCustomersTab() {
                       <TableCell className="text-xs">{futureCount}</TableCell>
                       <TableCell>{statusBadge(c.status)}</TableCell>
                       <TableCell>
-                        {c.status !== "activated" && (
+                        {staffEmailSet.has(c.email?.toLowerCase()) ? (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Badge variant="secondary" className="text-[10px] gap-1 cursor-default">
+                                  <ShieldCheck className="h-3 w-3" /> Staff Member
+                                </Badge>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>This email belongs to a staff account — no invite needed</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        ) : c.status !== "activated" ? (
                           <Button
                             size="sm"
                             variant="outline"
@@ -799,7 +812,7 @@ function MigrationCustomersTab() {
                             <Send className="h-3 w-3" />
                             {sendingId === c.id ? "Sending…" : c.status === "invited" ? "Resend" : "Send Invite"}
                           </Button>
-                        )}
+                        ) : null}
                       </TableCell>
                     </TableRow>
                     {isExpanded && cBookings.length > 0 && (
