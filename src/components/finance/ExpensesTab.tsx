@@ -399,9 +399,36 @@ export default function ExpensesTab({ periodStart, periodEnd, totalRevenue, tota
   const pl = calcPL(plBookings, plCommissions, plOneOffs);
   const cmpPl = compareMonth ? calcPL(cmpBookings, cmpCommissions, cmpOneOffs) : null;
 
-  // Stable form change handler
-  const handleFormChange = useCallback((updater: (prev: FormState) => FormState) => {
-    setForm(updater);
+  const handleNameChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setForm((prev) => ({ ...prev, name: e.target.value }));
+  }, []);
+
+  const handleNotesChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setForm((prev) => ({ ...prev, notes: e.target.value }));
+  }, []);
+
+  const handleAmountChange = useCallback((amount: number) => {
+    setForm((prev) => ({ ...prev, amount }));
+  }, []);
+
+  const handleCategoryChange = useCallback((category: string) => {
+    setForm((prev) => ({ ...prev, category }));
+  }, []);
+
+  const handleFrequencyChange = useCallback((frequency: string) => {
+    setForm((prev) => ({ ...prev, frequency }));
+  }, []);
+
+  const handleStartDateChange = useCallback((recurring_start_date: Date | undefined) => {
+    setForm((prev) => ({ ...prev, recurring_start_date }));
+  }, []);
+
+  const handleEndDateChange = useCallback((recurring_end_date: Date | undefined) => {
+    setForm((prev) => ({ ...prev, recurring_end_date }));
+  }, []);
+
+  const handleExpenseDateChange = useCallback((expense_date: Date | undefined) => {
+    setForm((prev) => ({ ...prev, expense_date }));
   }, []);
 
   // Mutations
