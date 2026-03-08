@@ -725,6 +725,28 @@ function MigrationCustomersTab() {
     }
   };
 
+  const linkStaffAccount = async (customer: any) => {
+    const staffAuthId = staffEmailMap.get(customer.email?.toLowerCase());
+    if (!staffAuthId) {
+      toast.error("Staff account not found — please ensure staff member has signed up");
+      return;
+    }
+    setSendingId(customer.id);
+    try {
+      const { error } = await supabase
+        .from("migrated_customers")
+        .update({ supabase_user_id: staffAuthId, status: "activated", activated_at: new Date().toISOString() })
+        .eq("id", customer.id);
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ["migrated-customers"] });
+      toast.success("Booking history linked to staff account ✅");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to link account");
+    } finally {
+      setSendingId(null);
+    }
+  };
+
   const sendAllPending = async () => {
     const pending = customers.filter((c: any) => c.status === "pending" && !staffEmailSet.has(c.email?.toLowerCase()));
     if (!pending.length) return;
