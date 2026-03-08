@@ -126,43 +126,28 @@ function PLCard({ title, data }: { title: string; data: PLData }) {
 interface ExpenseFormProps {
   type: "recurring" | "one_off";
   form: FormState;
-  onFormChange: (updater: (prev: FormState) => FormState) => void;
+  onNameChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onNotesChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
+  onAmountChange: (value: number) => void;
+  onCategoryChange: (value: string) => void;
+  onFrequencyChange: (value: string) => void;
+  onStartDateChange: (date: Date | undefined) => void;
+  onEndDateChange: (date: Date | undefined) => void;
+  onExpenseDateChange: (date: Date | undefined) => void;
 }
 
-function ExpenseForm({ type, form, onFormChange }: ExpenseFormProps) {
-  const handleNameChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    onFormChange(f => ({ ...f, name: val }));
-  }, [onFormChange]);
-
-  const handleNotesChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const val = e.target.value;
-    onFormChange(f => ({ ...f, notes: val }));
-  }, [onFormChange]);
-
-  const handleAmountChange = useCallback((v: number) => {
-    onFormChange(f => ({ ...f, amount: v }));
-  }, [onFormChange]);
-
-  const handleCategoryChange = useCallback((v: string) => {
-    onFormChange(f => ({ ...f, category: v }));
-  }, [onFormChange]);
-
-  const handleFrequencyChange = useCallback((v: string) => {
-    onFormChange(f => ({ ...f, frequency: v }));
-  }, [onFormChange]);
-
-  const handleStartDateChange = useCallback((d: Date | undefined) => {
-    onFormChange(f => ({ ...f, recurring_start_date: d }));
-  }, [onFormChange]);
-
-  const handleEndDateChange = useCallback((d: Date | undefined) => {
-    onFormChange(f => ({ ...f, recurring_end_date: d }));
-  }, [onFormChange]);
-
-  const handleExpenseDateChange = useCallback((d: Date | undefined) => {
-    onFormChange(f => ({ ...f, expense_date: d }));
-  }, [onFormChange]);
+function ExpenseForm({
+  type,
+  form,
+  onNameChange,
+  onNotesChange,
+  onAmountChange,
+  onCategoryChange,
+  onFrequencyChange,
+  onStartDateChange,
+  onEndDateChange,
+  onExpenseDateChange,
+}: ExpenseFormProps) {
 
   return (
     <div className="space-y-4">
