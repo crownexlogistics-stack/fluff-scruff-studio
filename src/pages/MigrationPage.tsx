@@ -660,6 +660,20 @@ function MigrationCustomersTab() {
     },
   });
 
+  // Fetch staff emails to detect staff members in the customer list
+  const { data: staffEmails = [] } = useQuery({
+    queryKey: ["staff-emails-for-migration"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("staff")
+        .select("email");
+      if (error) throw error;
+      return (data || []).map((s: any) => s.email?.toLowerCase()).filter(Boolean);
+    },
+  });
+
+  const staffEmailSet = useMemo(() => new Set(staffEmails), [staffEmails]);
+
   const { data: allBookings = [] } = useQuery({
     queryKey: ["migrated-bookings-for-customers"],
     queryFn: async () => {
