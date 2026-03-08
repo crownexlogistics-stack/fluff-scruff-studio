@@ -632,7 +632,7 @@ export default function CustomerProfilePage() {
                   )}
                 </div>
                 <div className="flex flex-wrap items-center gap-2 mt-1">
-                  <Badge variant="secondary">{bookings?.length || 0} booking{(bookings?.length || 0) !== 1 ? "s" : ""}</Badge>
+                  <Badge variant="secondary">{(bookings?.length || 0) + (migratedBookings?.length || 0)} booking{((bookings?.length || 0) + (migratedBookings?.length || 0)) !== 1 ? "s" : ""}</Badge>
                   {(bookings?.length || 0) >= 2 && (
                     <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">Returning</Badge>
                   )}
