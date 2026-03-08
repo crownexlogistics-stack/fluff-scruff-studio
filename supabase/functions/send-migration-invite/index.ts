@@ -74,24 +74,32 @@ serve(async (req) => {
     const firstName = (customer.full_name || "").split(" ")[0] || "there";
     const redirectUrl = "https://fluff-scruff-studio.lovable.app/welcome";
 
-    // Use supabase.auth.admin.inviteUserByEmail to create the user + send magic link
-    const { data: inviteData, error: inviteErr } = await supabase.auth.admin.inviteUserByEmail(
-      customer.email,
-      {
-        redirectTo: redirectUrl,
-        data: {
-          full_name: customer.full_name || "",
-          migrated_customer_id: customer.id,
-        },
-      }
-    );
+    // Create user without sending Supabase's default invite email
+    const { data: createData, error: createErr } = await supabase.auth.admin.createUser({
+      email: customer.email,
+      email_confirm: false,
+      user_metadata: {
+        full_name: customer.full_name || "",
+        migrated_customer_id: customer.id,
+      },
+    });
 
-    if (inviteErr) {
+    if (createErr) {
       // If user already exists, that's okay — we'll still send the branded email
-      if (!inviteErr.message?.includes("already been registered")) {
-        throw inviteErr;
+      if (!createErr.message?.includes("already been registered") && !createErr.message?.includes("already exists")) {
+        throw createErr;
       }
     }
+
+    // Generate a password recovery link to use as the "set up account" link
+    const { data: linkData, error: linkErr } = await supabase.auth.admin.generateLink({
+      type: "recovery",
+      email: customer.email,
+      options: { redirectTo: redirectUrl },
+    });
+
+    // Use the recovery link in the email if available, otherwise fall back to redirect URL
+    const ctaUrl = linkData?.properties?.action_link || redirectUrl;
 
     // Now send the branded email via SendGrid
     const emailHtml = `
