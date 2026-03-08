@@ -11,7 +11,6 @@ export function HeroSection({ onBook }: HeroSectionProps) {
   useEffect(() => {
     const els = sectionRef.current?.querySelectorAll<HTMLElement>("[data-hero-anim]");
     if (!els) return;
-    // Trigger animations after mount
     requestAnimationFrame(() => {
       els.forEach((el) => {
         el.style.opacity = "1";
@@ -28,15 +27,14 @@ export function HeroSection({ onBook }: HeroSectionProps) {
 
   return (
     <section ref={sectionRef} className="relative">
-      {/* Hero image — full width, no washed-out overlay */}
-      <div className="relative w-full h-[60vh] sm:h-[70vh] overflow-hidden">
+      {/* Hero image */}
+      <div className="relative w-full h-[45vh] sm:h-[70vh] overflow-hidden">
         <img
           src={heroDog}
           alt="Beautifully groomed dog at Fluff & Scruff studio"
           className="w-full h-full object-cover"
-          style={{ objectPosition: "center 40%" }}
+          style={{ objectPosition: "center top" }}
         />
-        {/* Subtle bottom gradient only — last 30% */}
         <div
           className="absolute inset-x-0 bottom-0 pointer-events-none"
           style={{
@@ -46,45 +44,32 @@ export function HeroSection({ onBook }: HeroSectionProps) {
         />
       </div>
 
-      {/* Content below the image */}
-      <div className="relative z-10 px-6 text-center pt-6 pb-4 space-y-5">
-        {/* Trust pill */}
-        <div data-hero-anim style={animStyle("0.2s")}>
-          <span
-            className="inline-block font-body text-[11px] uppercase tracking-[0.18em] text-white px-4 py-1.5"
-            style={{
-              background: "#2D1B0E",
-              borderRadius: "30px",
-            }}
-          >
-            ⭐ 4.9 · 69 REVIEWS · HORNCHURCH ESSEX
-          </span>
-        </div>
-
+      {/* Content below image */}
+      <div className="relative z-10 px-6 text-center pt-4 pb-4 space-y-3">
         {/* Headline */}
         <h1
           data-hero-anim
-          style={animStyle("0.4s")}
-          className="font-heading text-foreground leading-[1.15] text-[38px] sm:text-[52px] max-w-xl mx-auto"
+          style={animStyle("0.2s")}
+          className="font-heading leading-[1.15] text-[28px] sm:text-[52px] max-w-xl mx-auto"
         >
           Where every pup leaves
           <br />
           looking their absolute best
         </h1>
 
-        {/* Subheading */}
+        {/* Star rating — plain text */}
         <p
           data-hero-anim
-          style={animStyle("0.5s", "15px")}
-          className="font-body text-base text-muted-foreground"
+          style={{ ...animStyle("0.35s", "15px"), color: "#8B6F5C" }}
+          className="font-body text-[13px]"
         >
-          Professional dog grooming in Hornchurch since 2024
+          ⭐⭐⭐⭐⭐ 4.9 from 69+ Google reviews
         </p>
 
         {/* Buttons */}
         <div
           data-hero-anim
-          style={animStyle("0.6s", "15px")}
+          style={animStyle("0.5s", "15px")}
           className="flex flex-col sm:flex-row gap-3 max-w-[380px] sm:max-w-md mx-auto"
         >
           <button
@@ -117,8 +102,8 @@ export function HeroSection({ onBook }: HeroSectionProps) {
         {/* Trust icons */}
         <div
           data-hero-anim
-          style={animStyle("0.8s", "10px")}
-          className="flex items-center justify-center gap-6 pt-2"
+          style={animStyle("0.7s", "10px")}
+          className="flex items-center justify-center gap-6 pt-1"
         >
           {[
             { icon: "🏠", label: "Family Run" },
@@ -127,10 +112,7 @@ export function HeroSection({ onBook }: HeroSectionProps) {
           ].map((item) => (
             <div key={item.label} className="flex items-center gap-1.5">
               <span className="text-sm">{item.icon}</span>
-              <span
-                className="font-body text-xs"
-                style={{ color: "#8B6F5C" }}
-              >
+              <span className="font-body text-xs" style={{ color: "#8B6F5C" }}>
                 {item.label}
               </span>
             </div>
@@ -139,10 +121,7 @@ export function HeroSection({ onBook }: HeroSectionProps) {
       </div>
 
       {/* Divider */}
-      <div
-        className="mx-6"
-        style={{ height: "1px", background: "#e8d8ca" }}
-      />
+      <div className="mx-6" style={{ height: "1px", background: "#e8d8ca" }} />
     </section>
   );
 }
