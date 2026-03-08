@@ -11,6 +11,7 @@ import servicePuppy from "@/assets/service-puppy.jpg";
 import serviceTeeth from "@/assets/service-teeth.jpg";
 import serviceNails from "@/assets/service-nails.jpg";
 import { ServiceJourney } from "@/components/ServiceJourney";
+import { HeroSection } from "@/components/HeroSection";
 import { GoogleReviews } from "@/components/GoogleReviews";
 import { BookingFlow } from "@/components/BookingFlow";
 
