@@ -221,6 +221,8 @@ export function AIChatWidget() {
   const shouldShowProactive =
     !proactiveSuggestionShown && !bookingTapped && userMsgCount >= 3;
 
+  if (!SCRUFF_ENABLED) return null;
+
   return (
     <>
       {/* Floating bubble */}
