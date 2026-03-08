@@ -2,7 +2,14 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, Send, Phone, ExternalLink } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { getLocalChatResponse, detectBreed, detectName, type ChatResponse, type NavLink } from "@/lib/chatRules";
+import {
+  getLocalChatResponse,
+  detectBreed,
+  detectName,
+  detectEmail,
+  type ConversationState,
+  type NavLink,
+} from "@/lib/chatRules";
 import { supabase } from "@/integrations/supabase/client";
 
 interface ChatMessage {
@@ -13,7 +20,6 @@ interface ChatMessage {
   show_booking_button?: boolean;
   show_call_button?: boolean;
   show_whatsapp_button?: boolean;
-  is_default_fallback?: boolean;
   nav_links?: NavLink[];
 }
 
@@ -27,7 +33,7 @@ const WELCOME_MESSAGE: ChatMessage = {
 
 const QUICK_REPLIES = [
   "📅 Check availability",
-  "🐶 Grooming advice for my breed",
+  "🐶 What breed do I have?",
   "💰 Pricing info",
 ];
 
@@ -41,16 +47,12 @@ export function AIChatWidget() {
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
 
+  // Conversation state machine
+  const [conversationState, setConversationState] = useState<ConversationState>("idle");
+
   // Conversation memory
   const [breedMentioned, setBreedMentioned] = useState<string | null>(null);
   const [customerName, setCustomerName] = useState<string | null>(null);
-
-  // Escalation form state
-  const [showEscalationForm, setShowEscalationForm] = useState(false);
-  const [escName, setEscName] = useState("");
-  const [escEmail, setEscEmail] = useState("");
-  const [escMessage, setEscMessage] = useState("");
-  const [escSending, setEscSending] = useState(false);
 
   // Proactive suggestion — show only once
   const [proactiveSuggestionShown, setProactiveSuggestionShown] = useState(false);
@@ -62,24 +64,23 @@ export function AIChatWidget() {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, isTyping, showEscalationForm, scrollToBottom]);
+  }, [messages, isTyping, scrollToBottom]);
 
   useEffect(() => {
     if (isOpen) inputRef.current?.focus();
   }, [isOpen]);
 
   // Personalise reply with breed/name memory
-  const personalise = (reply: string): string => {
+  const personalise = (reply: string, currentBreed: string | null): string => {
     let r = reply;
-    if (breedMentioned) {
-      r = r.replace(/\byour dog\b/gi, `your ${breedMentioned}`);
-      r = r.replace(/\byour pup\b/gi, `your ${breedMentioned}`);
+    const breed = currentBreed || breedMentioned;
+    if (breed) {
+      r = r.replace(/\byour dog\b/gi, `your ${breed}`);
+      r = r.replace(/\byour pup\b/gi, `your ${breed}`);
     }
     if (customerName) {
-      // Prefix greeting if not already personalised
       if (!r.startsWith("Great question") && !r.includes(customerName)) {
-        const greetings = [`Great question ${customerName}! `, `Thanks ${customerName}! `];
-        r = greetings[Math.floor(Math.random() * greetings.length)] + r;
+        r = `Great question ${customerName}! ${r}`;
       }
     }
     return r;
@@ -92,8 +93,8 @@ export function AIChatWidget() {
     // Detect breed / name from user message
     const detectedBreed = detectBreed(text);
     if (detectedBreed) setBreedMentioned(detectedBreed);
-    const detectedName = detectName(text);
-    if (detectedName) setCustomerName(detectedName);
+    const detectedNameVal = detectName(text);
+    if (detectedNameVal) setCustomerName(detectedNameVal);
 
     const userMsg: ChatMessage = {
       id: crypto.randomUUID(),
@@ -108,25 +109,77 @@ export function AIChatWidget() {
     try {
       await new Promise((resolve) => setTimeout(resolve, 600));
 
-      const data = await getLocalChatResponse(text.trim());
+      // Handle contact details collection state in the widget
+      if (conversationState === "waiting_for_contact_details") {
+        const email = detectEmail(text);
+        const name = detectName(text);
+        if (name) setCustomerName(name);
+
+        if (email) {
+          // Build conversation history
+          const allMsgs = [...messages, userMsg];
+          const convoHistory = allMsgs
+            .map((m) => `${m.role === "user" ? "Customer" : "Scruff"}: ${m.content}`)
+            .join("\n");
+
+          const finalName = name || customerName || "Not provided";
+
+          const body = `A customer contacted Fluff & Scruff via the website chat assistant but Scruff was unable to resolve their query.\n\nCustomer name: ${finalName}\nCustomer email: ${email}\n\nOriginal conversation:\n${convoHistory}\n\nPlease respond to the customer directly.`;
+
+          try {
+            await supabase.functions.invoke("send-customer-email", {
+              body: {
+                customer_email: "info@fluffandscruff.co.uk",
+                subject: "💬 Scruff couldn't help — customer needs assistance",
+                body,
+              },
+            });
+          } catch (e) {
+            console.error("Failed to send escalation email:", e);
+          }
+
+          const confirmMsg: ChatMessage = {
+            id: crypto.randomUUID(),
+            role: "assistant",
+            content: `Perfect, I've passed this to the team at Fluff & Scruff! They'll be in touch at ${email} very soon 🐾`,
+            timestamp: new Date(),
+          };
+          setMessages((prev) => [...prev, confirmMsg]);
+          setConversationState("idle");
+        } else {
+          // No email found, ask again
+          const retryMsg: ChatMessage = {
+            id: crypto.randomUUID(),
+            role: "assistant",
+            content: "I just need your email address so the team can get back to you — could you pop it in below? 🐾",
+            timestamp: new Date(),
+          };
+          setMessages((prev) => [...prev, retryMsg]);
+        }
+        return;
+      }
+
+      // Normal flow — pass current state to rule engine
+      const data = await getLocalChatResponse(text.trim(), conversationState);
+
+      // Update conversation state
+      if (data.new_state) {
+        setConversationState(data.new_state);
+      } else {
+        setConversationState("idle");
+      }
 
       const assistantMsg: ChatMessage = {
         id: crypto.randomUUID(),
         role: "assistant",
-        content: personalise(data.reply),
+        content: personalise(data.reply, detectedBreed),
         timestamp: new Date(),
         show_booking_button: data.show_booking_button,
         show_call_button: data.show_call_button,
         show_whatsapp_button: data.show_whatsapp_button,
-        is_default_fallback: data.is_default_fallback,
         nav_links: data.nav_links,
       };
       setMessages((prev) => [...prev, assistantMsg]);
-
-      // If default fallback, show escalation form
-      if (data.is_default_fallback) {
-        setShowEscalationForm(true);
-      }
     } catch (err) {
       console.error("Chat error:", err);
       setMessages((prev) => [
@@ -141,53 +194,6 @@ export function AIChatWidget() {
       ]);
     } finally {
       setIsTyping(false);
-    }
-  };
-
-  const handleEscalationSubmit = async () => {
-    if (!escEmail.trim() || !escMessage.trim()) return;
-    setEscSending(true);
-
-    try {
-      // Build conversation history
-      const convoHistory = messages
-        .map((m) => `${m.role === "user" ? "Customer" : "Scruff"}: ${m.content}`)
-        .join("\n");
-
-      const body = `A customer contacted Fluff & Scruff via the website chat assistant but Scruff was unable to resolve their query.\n\nCustomer name: ${escName || "Not provided"}\nCustomer email: ${escEmail}\n\nWhat they needed:\n${escMessage}\n\nOriginal conversation:\n${convoHistory}\n\nPlease respond to the customer directly.`;
-
-      await supabase.functions.invoke("send-customer-email", {
-        body: {
-          customer_email: "info@fluffandscruff.co.uk",
-          subject: "💬 Scruff couldn't help — customer needs assistance",
-          body,
-        },
-      });
-
-      const confirmMsg: ChatMessage = {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        content: `Done! ✅ I've sent your message to the team at Fluff & Scruff. They'll get back to you at ${escEmail} as soon as possible — usually within a few hours during opening times (Tue-Sat 10am-5pm) 🐾`,
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, confirmMsg]);
-    } catch (err) {
-      console.error("Escalation error:", err);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          content: "Sorry, I couldn't send that right now. Please call us on 01708 606655 instead 🐾",
-          timestamp: new Date(),
-        },
-      ]);
-    } finally {
-      setShowEscalationForm(false);
-      setEscName("");
-      setEscEmail("");
-      setEscMessage("");
-      setEscSending(false);
     }
   };
 
@@ -431,7 +437,6 @@ export function AIChatWidget() {
                             Book now →
                           </button>
                         </p>
-                        {/* Mark as shown after render */}
                         {(() => {
                           if (!proactiveSuggestionShown) {
                             setTimeout(() => setProactiveSuggestionShown(true), 0);
@@ -489,76 +494,41 @@ export function AIChatWidget() {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Escalation form (shown on fallback) */}
-            {showEscalationForm ? (
-              <div
-                className="shrink-0 px-3 py-3 space-y-2"
-                style={{ borderTop: "1px solid #e8d8ca", background: "#fff" }}
+            {/* Input */}
+            <div
+              className="shrink-0 flex items-center gap-2 px-3 py-3"
+              style={{ borderTop: "1px solid #e8d8ca", background: "#fff" }}
+            >
+              <input
+                ref={inputRef}
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && sendMessage(input)}
+                placeholder={
+                  conversationState === "waiting_for_breed"
+                    ? "Type your breed name..."
+                    : conversationState === "waiting_for_contact_details"
+                    ? "Your name and email..."
+                    : "Ask Scruff anything..."
+                }
+                className="flex-1 text-sm px-3 py-2 rounded-full border-none outline-none"
+                style={{
+                  background: "#F5EDE4",
+                  color: "#2D1B0E",
+                  fontFamily: "Nunito, sans-serif",
+                }}
+                disabled={isTyping}
+              />
+              <button
+                onClick={() => sendMessage(input)}
+                disabled={!input.trim() || isTyping}
+                className="w-9 h-9 rounded-full flex items-center justify-center text-white shrink-0 disabled:opacity-40 transition-opacity"
+                style={{ background: "#FF6B35" }}
               >
-                <input
-                  type="text"
-                  value={escName}
-                  onChange={(e) => setEscName(e.target.value)}
-                  placeholder="Your name"
-                  className="w-full text-sm px-3 py-2 rounded-lg border-none outline-none"
-                  style={{ background: "#F5EDE4", color: "#2D1B0E", fontFamily: "Nunito, sans-serif" }}
-                />
-                <input
-                  type="email"
-                  value={escEmail}
-                  onChange={(e) => setEscEmail(e.target.value)}
-                  placeholder="Your email (so we can reply)"
-                  className="w-full text-sm px-3 py-2 rounded-lg border-none outline-none"
-                  style={{ background: "#F5EDE4", color: "#2D1B0E", fontFamily: "Nunito, sans-serif" }}
-                />
-                <textarea
-                  value={escMessage}
-                  onChange={(e) => setEscMessage(e.target.value)}
-                  placeholder="Tell us what you need..."
-                  rows={3}
-                  className="w-full text-sm px-3 py-2 rounded-lg border-none outline-none resize-none"
-                  style={{ background: "#F5EDE4", color: "#2D1B0E", fontFamily: "Nunito, sans-serif" }}
-                />
-                <button
-                  onClick={handleEscalationSubmit}
-                  disabled={!escEmail.trim() || !escMessage.trim() || escSending}
-                  className="w-full text-sm font-bold py-2 rounded-full text-white disabled:opacity-40 transition-opacity"
-                  style={{ background: "#FF6B35", fontFamily: "Nunito, sans-serif" }}
-                >
-                  {escSending ? "Sending..." : "Send to the team 🐾"}
-                </button>
-              </div>
-            ) : (
-              /* Normal input */
-              <div
-                className="shrink-0 flex items-center gap-2 px-3 py-3"
-                style={{ borderTop: "1px solid #e8d8ca", background: "#fff" }}
-              >
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && sendMessage(input)}
-                  placeholder="Ask Scruff anything..."
-                  className="flex-1 text-sm px-3 py-2 rounded-full border-none outline-none"
-                  style={{
-                    background: "#F5EDE4",
-                    color: "#2D1B0E",
-                    fontFamily: "Nunito, sans-serif",
-                  }}
-                  disabled={isTyping}
-                />
-                <button
-                  onClick={() => sendMessage(input)}
-                  disabled={!input.trim() || isTyping}
-                  className="w-9 h-9 rounded-full flex items-center justify-center text-white shrink-0 disabled:opacity-40 transition-opacity"
-                  style={{ background: "#FF6B35" }}
-                >
-                  <Send className="w-4 h-4" />
-                </button>
-              </div>
-            )}
+                <Send className="w-4 h-4" />
+              </button>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

@@ -7,7 +7,14 @@ export interface ChatResponse {
   show_whatsapp_button?: boolean;
   is_default_fallback?: boolean;
   nav_links?: NavLink[];
+  new_state?: ConversationState;
 }
+
+export type ConversationState =
+  | "idle"
+  | "waiting_for_breed"
+  | "waiting_for_query_details"
+  | "waiting_for_contact_details";
 
 export interface NavLink {
   label: string;
@@ -15,23 +22,40 @@ export interface NavLink {
   external?: boolean;
 }
 
+// ── Breed knowledge map ──────────────────────────────────
+
 const BREED_ADVICE: Record<string, string> = {
   cockapoo: "Doodles need grooming every 6-8 weeks to prevent matting. Their curly coats grow fast! Daily brushing at home helps a lot between visits 🐾",
   cavapoo: "Doodles need grooming every 6-8 weeks to prevent matting. Their curly coats grow fast! Daily brushing at home helps a lot between visits 🐾",
   labradoodle: "Doodles need grooming every 6-8 weeks to prevent matting. Their curly coats grow fast! Daily brushing at home helps a lot between visits 🐾",
   goldendoodle: "Doodles need grooming every 6-8 weeks to prevent matting. Their curly coats grow fast! Daily brushing at home helps a lot between visits 🐾",
+  aussiedoodle: "Doodles need grooming every 6-8 weeks to prevent matting. Their curly coats grow fast! Daily brushing at home helps a lot between visits 🐾",
+  bernedoodle: "Doodles need grooming every 6-8 weeks to prevent matting. Their curly coats grow fast! Daily brushing at home helps a lot between visits 🐾",
+  sheepadoodle: "Doodles need grooming every 6-8 weeks to prevent matting. Their curly coats grow fast! Daily brushing at home helps a lot between visits 🐾",
+  spoodle: "Doodles need grooming every 6-8 weeks to prevent matting. Their curly coats grow fast! Daily brushing at home helps a lot between visits 🐾",
+  jackadoodle: "Doodles need grooming every 6-8 weeks to prevent matting. Their curly coats grow fast! Daily brushing at home helps a lot between visits 🐾",
+  maltipoo: "Doodles need grooming every 6-8 weeks to prevent matting. Their curly coats grow fast! Daily brushing at home helps a lot between visits 🐾",
   "golden retriever": "Labs and Goldies benefit from grooming every 8-12 weeks. They shed a lot so a good de-shed treatment works wonders! 🐾",
   labrador: "Labs and Goldies benefit from grooming every 8-12 weeks. They shed a lot so a good de-shed treatment works wonders! 🐾",
+  lab: "Labs and Goldies benefit from grooming every 8-12 weeks. They shed a lot so a good de-shed treatment works wonders! 🐾",
   "cocker spaniel": "Spaniels need grooming every 6-8 weeks — their silky ears especially need regular attention to avoid tangles. 🐾",
+  "springer spaniel": "Spaniels need grooming every 6-8 weeks — their silky ears especially need regular attention to avoid tangles. 🐾",
+  sprocker: "Spaniels need grooming every 6-8 weeks — their silky ears especially need regular attention to avoid tangles. 🐾",
   cavalier: "Spaniels need grooming every 6-8 weeks — their silky ears especially need regular attention to avoid tangles. 🐾",
   "cavalier king charles": "Spaniels need grooming every 6-8 weeks — their silky ears especially need regular attention to avoid tangles. 🐾",
+  cockalier: "Spaniels need grooming every 6-8 weeks — their silky ears especially need regular attention to avoid tangles. 🐾",
+  cavachon: "These fluffy little ones need grooming every 4-6 weeks to keep their coats healthy and tangle-free! 🐾",
   "bichon frise": "These fluffy little ones need grooming every 4-6 weeks to keep their coats healthy and tangle-free! 🐾",
   bichon: "These fluffy little ones need grooming every 4-6 weeks to keep their coats healthy and tangle-free! 🐾",
   maltese: "These fluffy little ones need grooming every 4-6 weeks to keep their coats healthy and tangle-free! 🐾",
   "shih tzu": "These fluffy little ones need grooming every 4-6 weeks to keep their coats healthy and tangle-free! 🐾",
+  "lhasa apso": "These fluffy little ones need grooming every 4-6 weeks to keep their coats healthy and tangle-free! 🐾",
+  pekingese: "These fluffy little ones need grooming every 4-6 weeks to keep their coats healthy and tangle-free! 🐾",
   "yorkshire terrier": "Yorkies and Poms need grooming every 4-6 weeks. Their fine coats can mat quickly so regular brushing between appointments is important! 🐾",
   yorkie: "Yorkies and Poms need grooming every 4-6 weeks. Their fine coats can mat quickly so regular brushing between appointments is important! 🐾",
   pomeranian: "Yorkies and Poms need grooming every 4-6 weeks. Their fine coats can mat quickly so regular brushing between appointments is important! 🐾",
+  pomchi: "Yorkies and Poms need grooming every 4-6 weeks. Their fine coats can mat quickly so regular brushing between appointments is important! 🐾",
+  chihuahua: "Chihuahuas are low maintenance but still benefit from regular baths every 8-12 weeks. Short-haired ones shed more than you'd expect! 🐾",
   poodle: "Poodles need grooming every 4-6 weeks — their coats grow continuously and don't shed, which means they mat quickly without regular grooming! 🐾",
   "toy poodle": "Poodles need grooming every 4-6 weeks — their coats grow continuously and don't shed, which means they mat quickly without regular grooming! 🐾",
   "miniature poodle": "Poodles need grooming every 4-6 weeks — their coats grow continuously and don't shed, which means they mat quickly without regular grooming! 🐾",
@@ -40,16 +64,91 @@ const BREED_ADVICE: Record<string, string> = {
   "rough collie": "Collies need grooming every 8-12 weeks. Their double coats need extra attention during shedding season — a de-shed treatment is ideal! 🐾",
   collie: "Collies need grooming every 8-12 weeks. Their double coats need extra attention during shedding season — a de-shed treatment is ideal! 🐾",
   "german shepherd": "German Shepherds benefit from grooming every 8-12 weeks, especially during their twice-yearly heavy moult. A de-shed bath is brilliant for them! 🐾",
+  gsd: "German Shepherds benefit from grooming every 8-12 weeks, especially during their twice-yearly heavy moult. A de-shed bath is brilliant for them! 🐾",
   husky: "Huskies and Malamutes have thick double coats that need professional grooming every 8-12 weeks. Never shave a double coat — we know exactly how to care for them! 🐾",
   malamute: "Huskies and Malamutes have thick double coats that need professional grooming every 8-12 weeks. Never shave a double coat — we know exactly how to care for them! 🐾",
+  samoyed: "Samoyeds have thick double coats that need professional grooming every 6-8 weeks. Regular brushing between visits is essential to prevent matting! 🐾",
+  "chow chow": "Chow Chows have dense double coats that need professional grooming every 6-8 weeks with regular brushing at home! 🐾",
   pug: "Short-coated breeds like Pugs and Frenchies only need grooming every 8-12 weeks, but their skin folds need regular cleaning. We take great care of them! 🐾",
   "french bulldog": "Short-coated breeds like Pugs and Frenchies only need grooming every 8-12 weeks, but their skin folds need regular cleaning. We take great care of them! 🐾",
   frenchie: "Short-coated breeds like Pugs and Frenchies only need grooming every 8-12 weeks, but their skin folds need regular cleaning. We take great care of them! 🐾",
   bulldog: "Short-coated breeds like Pugs and Frenchies only need grooming every 8-12 weeks, but their skin folds need regular cleaning. We take great care of them! 🐾",
+  puggle: "Short-coated breeds like Pugs and Frenchies only need grooming every 8-12 weeks, but their skin folds need regular cleaning. We take great care of them! 🐾",
+  dachshund: "Dachshunds come in three coat types! Smooth-haired ones need grooming every 8-12 weeks, while long-haired and wire-haired ones benefit from 6-8 weekly visits 🐾",
+  "sausage dog": "Dachshunds come in three coat types! Smooth-haired ones need grooming every 8-12 weeks, while long-haired and wire-haired ones benefit from 6-8 weekly visits 🐾",
+  beagle: "Beagles have short dense coats that benefit from grooming every 8-12 weeks. A good de-shed treatment does wonders for them! 🐾",
+  boxer: "Boxers have short coats and benefit from grooming every 8-12 weeks. Their skin folds need attention and a good bath keeps them fresh! 🐾",
+  "jack russell": "Jack Russells benefit from grooming every 8-12 weeks. Wire-haired ones especially benefit from hand stripping! 🐾",
+  whippet: "Whippets and Greyhounds have fine, sensitive skin and benefit from gentle grooming every 8-12 weeks 🐾",
+  greyhound: "Whippets and Greyhounds have fine, sensitive skin and benefit from gentle grooming every 8-12 weeks 🐾",
+  schnauzer: "Schnauzers need grooming every 6-8 weeks — hand stripping keeps their wire coat in top condition! 🐾",
+  "miniature schnauzer": "Schnauzers need grooming every 6-8 weeks — hand stripping keeps their wire coat in top condition! 🐾",
+  doberman: "Dobermans have short sleek coats and benefit from grooming every 8-12 weeks to keep their coat shiny and skin healthy 🐾",
+  rottweiler: "Rottweilers have dense double coats that shed heavily — grooming every 8-12 weeks with a de-shed treatment is ideal! 🐾",
+  dalmatian: "Dalmatians shed constantly! Grooming every 8-12 weeks with a good de-shed treatment helps keep it under control 🐾",
+  "great dane": "Great Danes have short coats but their size means a professional bath every 8-12 weeks is a big help! 🐾",
+  corgi: "Corgis have thick double coats that shed a lot — grooming every 8-12 weeks with de-shedding treatment is perfect for them! 🐾",
+  "west highland terrier": "Westies need grooming every 6-8 weeks. Hand stripping keeps their white coats looking their best! 🐾",
+  westie: "Westies need grooming every 6-8 weeks. Hand stripping keeps their white coats looking their best! 🐾",
+  "cairn terrier": "Cairn Terriers benefit from grooming every 6-8 weeks — hand stripping helps maintain their rugged coat texture! 🐾",
+  "scottish terrier": "Scotties need grooming every 6-8 weeks to keep their distinctive shape and wiry coat in great condition! 🐾",
 };
 
-// Export breed list for memory detection
-export const KNOWN_BREEDS = Object.keys(BREED_ADVICE);
+// Sorted by length descending so multi-word breeds match first
+const KNOWN_BREEDS = Object.keys(BREED_ADVICE).sort((a, b) => b.length - a.length);
+
+// ── Breed detection ──────────────────────────────────────
+
+export function detectBreed(message: string): string | null {
+  const lower = message.toLowerCase();
+  for (const breed of KNOWN_BREEDS) {
+    if (lower.includes(breed)) {
+      return breed.split(" ").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+    }
+  }
+  return null;
+}
+
+export function getBreedAdvice(breed: string): ChatResponse {
+  const lower = breed.toLowerCase();
+  for (const [key, advice] of Object.entries(BREED_ADVICE)) {
+    if (lower.includes(key) || key.includes(lower)) {
+      return {
+        reply: advice,
+        show_booking_button: true,
+        nav_links: [{ label: "Book now →", url: "/book" }],
+      };
+    }
+  }
+  return {
+    reply: `Every dog is unique! Give us a call on 01708 606655 or pop us a WhatsApp and we can advise on the best grooming schedule for your ${breed} 🐾`,
+    show_call_button: true,
+    show_whatsapp_button: true,
+  };
+}
+
+// ── Name detection ───────────────────────────────────────
+
+export function detectName(message: string): string | null {
+  const patterns = [
+    /(?:my name is|i'm|i am|this is|call me)\s+([A-Z][a-z]+)/i,
+    /^([A-Z][a-z]+)\s+here$/i,
+  ];
+  for (const pattern of patterns) {
+    const match = message.match(pattern);
+    if (match) return match[1];
+  }
+  return null;
+}
+
+// ── Email detection ──────────────────────────────────────
+
+export function detectEmail(message: string): string | null {
+  const match = message.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+  return match ? match[0] : null;
+}
+
+// ── Rule engine ──────────────────────────────────────────
 
 type Rule = {
   keywords: string[];
@@ -77,7 +176,7 @@ async function handleAvailability(): Promise<ChatResponse> {
 
     const available: string[] = [];
     const cursor = new Date(today);
-    while (available.length < 3 && cursor <= thirtyDays) {
+    while (available.length < 5 && cursor <= thirtyDays) {
       const dow = cursor.getDay();
       if (dow >= 2 && dow <= 6) {
         const dateStr = cursor.toISOString().split("T")[0];
@@ -94,8 +193,9 @@ async function handleAvailability(): Promise<ChatResponse> {
     }
 
     if (available.length > 0) {
+      const shown = available.slice(0, 3);
       return {
-        reply: `We have availability on ${available.join(", ")}! Tap below to book 🐾`,
+        reply: `Let me check our calendar... We have availability on ${shown.join(", ")} this month! Would you like to book one of these? 🐾`,
         show_booking_button: true,
         nav_links: [{ label: "Book now →", url: "/book" }],
       };
@@ -250,30 +350,77 @@ const RULES: Rule[] = [
   },
 ];
 
-function checkBreed(msg: string): ChatResponse | null {
+// Keywords that indicate breed advice but contain no specific breed
+const BREED_ADVICE_KEYWORDS = [
+  "groom", "advice", "breed", "how often", "how frequently", "recommend", "schedule",
+];
+
+function checkBreedAdviceIntent(msg: string): boolean {
   const lower = msg.toLowerCase();
-  for (const [breed, advice] of Object.entries(BREED_ADVICE)) {
-    if (lower.includes(breed)) {
+  return BREED_ADVICE_KEYWORDS.some((kw) => lower.includes(kw));
+}
+
+export async function getLocalChatResponse(
+  message: string,
+  conversationState: ConversationState = "idle"
+): Promise<ChatResponse> {
+  const lower = message.toLowerCase();
+  const detectedBreed = detectBreed(message);
+
+  // ── State-driven flows ─────────────────────────────────
+
+  if (conversationState === "waiting_for_breed") {
+    if (detectedBreed) {
+      return getBreedAdvice(detectedBreed);
+    }
+    // Treat their whole message as the breed name
+    return getBreedAdvice(message.trim());
+  }
+
+  if (conversationState === "waiting_for_query_details") {
+    // Try keyword matching on the follow-up
+    for (const rule of RULES) {
+      if (rule.keywords.some((kw) => lower.includes(kw))) {
+        return rule.handler(lower);
+      }
+    }
+    if (detectedBreed) {
+      return getBreedAdvice(detectedBreed);
+    }
+    // Still no match — ask for contact details
+    return {
+      reply: "I want to make sure the team gets back to you on this. What's your name and email address so we can reply? 🐾",
+      new_state: "waiting_for_contact_details",
+    };
+  }
+
+  // waiting_for_contact_details is handled in the widget (email parsing)
+
+  // ── Breed advice intent without a breed name ───────────
+
+  if (checkBreedAdviceIntent(lower) && !detectedBreed) {
+    // Check if any other rule matches first (e.g. "book" also in the message)
+    // Only ask for breed if no other strong intent matches
+    const hasOtherIntent = RULES.some(
+      (rule) =>
+        rule.keywords.some((kw) => lower.includes(kw)) &&
+        !BREED_ADVICE_KEYWORDS.includes(rule.keywords[0])
+    );
+    if (!hasOtherIntent) {
       return {
-        reply: advice,
-        show_booking_button: true,
-        nav_links: [{ label: "Book now →", url: "/book" }],
+        reply: "I'd love to help with grooming advice! What breed is your dog? 🐾",
+        new_state: "waiting_for_breed",
       };
     }
   }
-  const breedIndicators = ["breed", "groom", "coat", "fur", "hair", "shed", "mat", "brush"];
-  if (breedIndicators.some((kw) => lower.includes(kw))) {
-    return {
-      reply: "Every dog is unique! Give us a call on 01708 606655 or pop us a WhatsApp and we can advise on the best grooming schedule for your pup 🐾",
-      show_call_button: true,
-      show_whatsapp_button: true,
-    };
-  }
-  return null;
-}
 
-export async function getLocalChatResponse(message: string): Promise<ChatResponse> {
-  const lower = message.toLowerCase();
+  // ── If a breed is mentioned, give advice directly ──────
+
+  if (detectedBreed) {
+    return getBreedAdvice(detectedBreed);
+  }
+
+  // ── Standard keyword rules ─────────────────────────────
 
   for (const rule of RULES) {
     if (rule.keywords.some((kw) => lower.includes(kw))) {
@@ -281,41 +428,13 @@ export async function getLocalChatResponse(message: string): Promise<ChatRespons
     }
   }
 
-  const breedResponse = checkBreed(lower);
-  if (breedResponse) return breedResponse;
+  // ── Default fallback → ask for more details ────────────
 
-  // Default fallback
   return {
-    reply: "I want to make sure you get the right help! Can you tell me a little more about what you need? Just type it below and I'll send it straight to the team — they'll get back to you as soon as possible 🐾",
+    reply: "Hmm, I want to make sure I help you properly! Could you tell me a bit more about what you're looking for? 🐾",
     show_call_button: true,
     show_whatsapp_button: true,
     is_default_fallback: true,
+    new_state: "waiting_for_query_details",
   };
-}
-
-// Detect breed mentioned in a message
-export function detectBreed(message: string): string | null {
-  const lower = message.toLowerCase();
-  // Check longer breed names first to avoid partial matches
-  const sorted = [...KNOWN_BREEDS].sort((a, b) => b.length - a.length);
-  for (const breed of sorted) {
-    if (lower.includes(breed)) {
-      // Return a nicely capitalized version
-      return breed.split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
-    }
-  }
-  return null;
-}
-
-// Detect customer name from common patterns
-export function detectName(message: string): string | null {
-  const patterns = [
-    /(?:my name is|i'm|i am|this is|call me)\s+([A-Z][a-z]+)/i,
-    /^([A-Z][a-z]+)\s+here$/i,
-  ];
-  for (const pattern of patterns) {
-    const match = message.match(pattern);
-    if (match) return match[1];
-  }
-  return null;
 }
