@@ -108,56 +108,56 @@ Deno.serve(async (req) => {
       }
     }
 
-    const googleApiKey = Deno.env.get("GOOGLE_AI_API_KEY");
-    if (!googleApiKey) {
+    const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
+    if (!anthropicKey) {
       return new Response(
-        JSON.stringify({ error: "GOOGLE_AI_API_KEY not configured" }),
+        JSON.stringify({ error: "ANTHROPIC_API_KEY not configured" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const geminiMessages = [];
+    // Build messages array for Anthropic
+    const messages = [];
     for (const m of conversation) {
-      geminiMessages.push({
-        role: m.role === "assistant" ? "model" : "user",
-        parts: [{ text: m.content }]
+      messages.push({
+        role: m.role === "assistant" ? "assistant" : "user",
+        content: m.content,
       });
     }
-    geminiMessages.push({
+    messages.push({
       role: "user",
-      parts: [{ text: message }]
+      content: message,
     });
 
-    const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${googleApiKey}`,
+    const response = await fetch(
+      "https://api.anthropic.com/v1/messages",
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": anthropicKey,
+          "anthropic-version": "2023-06-01",
+        },
         body: JSON.stringify({
-          systemInstruction: {
-            parts: [{ text: SYSTEM_PROMPT + availabilityContext }]
-          },
-          contents: geminiMessages,
-          generationConfig: {
-            maxOutputTokens: 500,
-            temperature: 0.7
-          }
-        })
+          model: "claude-haiku-4-5-20251001",
+          max_tokens: 500,
+          system: SYSTEM_PROMPT + availabilityContext,
+          messages: messages,
+        }),
       }
     );
 
-    if (!geminiResponse.ok) {
-      const errText = await geminiResponse.text();
-      console.error("Gemini error:", errText);
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error("Anthropic error:", errText);
       return new Response(
         JSON.stringify({ error: "AI service error", detail: errText }),
         { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const geminiData = await geminiResponse.json();
-    const reply = geminiData.candidates?.[0]?.content?.parts?.[0]?.text
-      || "Woof! Something went wrong. Please try again! 🐾";
+    const data = await response.json();
+    const reply = data.content?.[0]?.text || "Woof! Something went wrong 🐾";
 
     const replyLower = reply.toLowerCase();
     const show_booking_button =
