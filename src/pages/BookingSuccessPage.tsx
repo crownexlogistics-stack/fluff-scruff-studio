@@ -141,6 +141,12 @@ export default function BookingSuccessPage() {
     enabled: !!bookingId,
   });
 
+  const isCancelledBooking = useMemo(() => {
+    if (!booking) return false;
+    const s = (booking.status || "").trim();
+    return s === "Cancelled" || ["Refunded", "Refunded/Cancelled", "Cancelled/Refunded"].includes(s);
+  }, [booking]);
+
   // Check if this user is a returning migrated customer
   const { data: migratedCustomer } = useQuery({
     queryKey: ["migrated-welcome-back", user?.email],
@@ -153,7 +159,6 @@ export default function BookingSuccessPage() {
         .eq("status", "activated")
         .maybeSingle();
       if (!mc) return null;
-      // Check if they have any migrated bookings
       const { count } = await supabase
         .from("migrated_bookings")
         .select("id", { count: "exact", head: true })
@@ -163,12 +168,6 @@ export default function BookingSuccessPage() {
     },
     enabled: !!user?.email && !!booking && !isCancelledBooking,
   });
-
-  const isCancelledBooking = useMemo(() => {
-    if (!booking) return false;
-    const s = (booking.status || "").trim();
-    return s === "Cancelled" || ["Refunded", "Refunded/Cancelled", "Cancelled/Refunded"].includes(s);
-  }, [booking]);
 
   // Fire confetti on mount
   useEffect(() => {
