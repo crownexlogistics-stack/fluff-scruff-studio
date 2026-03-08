@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -89,6 +89,166 @@ const emptyForm: FormState = {
   recurring_end_date: undefined,
   notes: "",
 };
+
+// ─── Top-level components (stable identity, no remount on parent re-render) ───
+
+type PLData = {
+  revenue: number;
+  groomerPay: number;
+  recurringCosts: number;
+  oneOffCosts: number;
+  netProfit: number;
+};
+
+function PLCard({ title, data }: { title: string; data: PLData }) {
+  return (
+    <Card className={cn("rounded-xl border-2", data.netProfit >= 0 ? "border-green-200 bg-green-50/50" : "border-red-200 bg-red-50/50")}>
+      <CardHeader className="p-4 pb-2">
+        <CardTitle className="text-sm font-semibold">{title}</CardTitle>
+      </CardHeader>
+      <CardContent className="p-4 pt-0 space-y-1.5">
+        <div className="flex justify-between text-sm"><span>Revenue</span><span className="font-medium">£{data.revenue.toFixed(2)}</span></div>
+        <div className="flex justify-between text-sm text-muted-foreground"><span>Groomer Pay</span><span>- £{data.groomerPay.toFixed(2)}</span></div>
+        <div className="flex justify-between text-sm text-muted-foreground"><span>Recurring Costs</span><span>- £{data.recurringCosts.toFixed(2)}</span></div>
+        <div className="flex justify-between text-sm text-muted-foreground"><span>One-off Costs</span><span>- £{data.oneOffCosts.toFixed(2)}</span></div>
+        <hr className="my-1" />
+        <div className="flex justify-between font-bold text-lg">
+          <span>NET PROFIT</span>
+          <span className={data.netProfit >= 0 ? "text-green-700" : "text-destructive"}>
+            £{data.netProfit.toFixed(2)}
+          </span>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+interface ExpenseFormProps {
+  type: "recurring" | "one_off";
+  form: FormState;
+  onFormChange: (updater: (prev: FormState) => FormState) => void;
+}
+
+function ExpenseForm({ type, form, onFormChange }: ExpenseFormProps) {
+  const handleNameChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    onFormChange(f => ({ ...f, name: val }));
+  }, [onFormChange]);
+
+  const handleNotesChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    onFormChange(f => ({ ...f, notes: val }));
+  }, [onFormChange]);
+
+  const handleAmountChange = useCallback((v: number) => {
+    onFormChange(f => ({ ...f, amount: v }));
+  }, [onFormChange]);
+
+  const handleCategoryChange = useCallback((v: string) => {
+    onFormChange(f => ({ ...f, category: v }));
+  }, [onFormChange]);
+
+  const handleFrequencyChange = useCallback((v: string) => {
+    onFormChange(f => ({ ...f, frequency: v }));
+  }, [onFormChange]);
+
+  const handleStartDateChange = useCallback((d: Date | undefined) => {
+    onFormChange(f => ({ ...f, recurring_start_date: d }));
+  }, [onFormChange]);
+
+  const handleEndDateChange = useCallback((d: Date | undefined) => {
+    onFormChange(f => ({ ...f, recurring_end_date: d }));
+  }, [onFormChange]);
+
+  const handleExpenseDateChange = useCallback((d: Date | undefined) => {
+    onFormChange(f => ({ ...f, expense_date: d }));
+  }, [onFormChange]);
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <Label>Name</Label>
+        <Input value={form.name} onChange={handleNameChange} placeholder="e.g. Rent" />
+      </div>
+      <div>
+        <Label>Category</Label>
+        <Select value={form.category} onValueChange={handleCategoryChange}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {CATEGORIES.map(c => (
+              <SelectItem key={c.value} value={c.value}>{c.icon} {c.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div>
+        <Label>Amount (£)</Label>
+        <NumericInput value={form.amount} onValueChange={handleAmountChange} />
+      </div>
+      {type === "recurring" && (
+        <div>
+          <Label>Frequency</Label>
+          <Select value={form.frequency} onValueChange={handleFrequencyChange}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="weekly">Weekly</SelectItem>
+              <SelectItem value="monthly">Monthly</SelectItem>
+              <SelectItem value="annual">Annual</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+      {type === "recurring" && (
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label>Start Date</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !form.recurring_start_date && "text-muted-foreground")}>
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {form.recurring_start_date ? format(form.recurring_start_date, "PPP") : "Pick date"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={form.recurring_start_date} onSelect={handleStartDateChange} className="p-3 pointer-events-auto" /></PopoverContent>
+            </Popover>
+          </div>
+          <div>
+            <Label>End Date (optional)</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !form.recurring_end_date && "text-muted-foreground")}>
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {form.recurring_end_date ? format(form.recurring_end_date, "PPP") : "Ongoing"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={form.recurring_end_date} onSelect={handleEndDateChange} className="p-3 pointer-events-auto" /></PopoverContent>
+            </Popover>
+          </div>
+        </div>
+      )}
+      {type === "one_off" && (
+        <div>
+          <Label>Date</Label>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !form.expense_date && "text-muted-foreground")}>
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {form.expense_date ? format(form.expense_date, "PPP") : "Pick date"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={form.expense_date} onSelect={handleExpenseDateChange} className="p-3 pointer-events-auto" /></PopoverContent>
+          </Popover>
+        </div>
+      )}
+      <div>
+        <Label>Notes (optional)</Label>
+        <Textarea value={form.notes} onChange={handleNotesChange} placeholder="Additional details..." />
+      </div>
+    </div>
+  );
+}
+
+// ─── Main component ───
 
 interface ExpensesTabProps {
   periodStart: Date;
@@ -242,17 +402,22 @@ export default function ExpensesTab({ periodStart, periodEnd, totalRevenue, tota
   const totalMonthlyRecurring = recurring.reduce((s, e) => s + toMonthly(Number(e.amount), e.frequency || "monthly"), 0);
   const totalOneOffs = oneOffs.reduce((s, e) => s + Number(e.amount), 0);
 
-  const calcPL = (bookings: any[], commissions: any[], oneOffs: any[]) => {
+  const calcPL = useCallback((bookings: any[], commissions: any[], oneOffs: any[]) => {
     const revenue = bookings.reduce((s: number, b: any) => s + Number(b.total_price), 0);
     const groomerPay = commissions.reduce((s: number, c: any) => s + Number(c.groomer_pay), 0);
     const oneOffCosts = oneOffs.reduce((s: number, e: any) => s + Number(e.amount), 0);
     const recurringCosts = totalMonthlyRecurring;
     const netProfit = revenue - groomerPay - recurringCosts - oneOffCosts;
     return { revenue, groomerPay, recurringCosts, oneOffCosts, netProfit };
-  };
+  }, [totalMonthlyRecurring]);
 
   const pl = calcPL(plBookings, plCommissions, plOneOffs);
   const cmpPl = compareMonth ? calcPL(cmpBookings, cmpCommissions, cmpOneOffs) : null;
+
+  // Stable form change handler
+  const handleFormChange = useCallback((updater: (prev: FormState) => FormState) => {
+    setForm(updater);
+  }, []);
 
   // Mutations
   const saveMutation = useMutation({
@@ -314,7 +479,7 @@ export default function ExpensesTab({ periodStart, periodEnd, totalRevenue, tota
     onError: (e: any) => toast.error(e.message),
   });
 
-  const openEdit = (expense: ExpenseRow) => {
+  const openEdit = useCallback((expense: ExpenseRow) => {
     setEditingId(expense.id);
     setForm({
       name: expense.name,
@@ -328,111 +493,7 @@ export default function ExpensesTab({ periodStart, periodEnd, totalRevenue, tota
     });
     if (expense.expense_type === "recurring") setRecurringOpen(true);
     else setOneOffOpen(true);
-  };
-
-  const PLCard = ({ title, data }: { title: string; data: typeof pl }) => (
-    <Card className={cn("rounded-xl border-2", data.netProfit >= 0 ? "border-green-200 bg-green-50/50" : "border-red-200 bg-red-50/50")}>
-      <CardHeader className="p-4 pb-2">
-        <CardTitle className="text-sm font-semibold">{title}</CardTitle>
-      </CardHeader>
-      <CardContent className="p-4 pt-0 space-y-1.5">
-        <div className="flex justify-between text-sm"><span>Revenue</span><span className="font-medium">£{data.revenue.toFixed(2)}</span></div>
-        <div className="flex justify-between text-sm text-muted-foreground"><span>Groomer Pay</span><span>- £{data.groomerPay.toFixed(2)}</span></div>
-        <div className="flex justify-between text-sm text-muted-foreground"><span>Recurring Costs</span><span>- £{data.recurringCosts.toFixed(2)}</span></div>
-        <div className="flex justify-between text-sm text-muted-foreground"><span>One-off Costs</span><span>- £{data.oneOffCosts.toFixed(2)}</span></div>
-        <hr className="my-1" />
-        <div className="flex justify-between font-bold text-lg">
-          <span>NET PROFIT</span>
-          <span className={data.netProfit >= 0 ? "text-green-700" : "text-destructive"}>
-            £{data.netProfit.toFixed(2)}
-          </span>
-        </div>
-      </CardContent>
-    </Card>
-  );
-
-  const ExpenseForm = ({ type }: { type: "recurring" | "one_off" }) => (
-    <div className="space-y-4">
-      <div>
-        <Label>Name</Label>
-        <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Rent" />
-      </div>
-      <div>
-        <Label>Category</Label>
-        <Select value={form.category} onValueChange={v => setForm(f => ({ ...f, category: v }))}>
-          <SelectTrigger><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {CATEGORIES.map(c => (
-              <SelectItem key={c.value} value={c.value}>{c.icon} {c.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-      <div>
-        <Label>Amount (£)</Label>
-        <NumericInput value={form.amount} onValueChange={v => setForm(f => ({ ...f, amount: v }))} />
-      </div>
-      {type === "recurring" && (
-        <div>
-          <Label>Frequency</Label>
-          <Select value={form.frequency} onValueChange={v => setForm(f => ({ ...f, frequency: v }))}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="weekly">Weekly</SelectItem>
-              <SelectItem value="monthly">Monthly</SelectItem>
-              <SelectItem value="annual">Annual</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      )}
-      {type === "recurring" && (
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <Label>Start Date</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !form.recurring_start_date && "text-muted-foreground")}>
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {form.recurring_start_date ? format(form.recurring_start_date, "PPP") : "Pick date"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={form.recurring_start_date} onSelect={d => setForm(f => ({ ...f, recurring_start_date: d }))} className="p-3 pointer-events-auto" /></PopoverContent>
-            </Popover>
-          </div>
-          <div>
-            <Label>End Date (optional)</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !form.recurring_end_date && "text-muted-foreground")}>
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {form.recurring_end_date ? format(form.recurring_end_date, "PPP") : "Ongoing"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={form.recurring_end_date} onSelect={d => setForm(f => ({ ...f, recurring_end_date: d }))} className="p-3 pointer-events-auto" /></PopoverContent>
-            </Popover>
-          </div>
-        </div>
-      )}
-      {type === "one_off" && (
-        <div>
-          <Label>Date</Label>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !form.expense_date && "text-muted-foreground")}>
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {form.expense_date ? format(form.expense_date, "PPP") : "Pick date"}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={form.expense_date} onSelect={d => setForm(f => ({ ...f, expense_date: d }))} className="p-3 pointer-events-auto" /></PopoverContent>
-          </Popover>
-        </div>
-      )}
-      <div>
-        <Label>Notes (optional)</Label>
-        <Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Additional details..." />
-      </div>
-    </div>
-  );
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -567,7 +628,7 @@ export default function ExpensesTab({ periodStart, periodEnd, totalRevenue, tota
           <DialogHeader>
             <DialogTitle>{editingId ? "Edit Recurring Expense" : "Add Recurring Expense"}</DialogTitle>
           </DialogHeader>
-          <ExpenseForm type="recurring" />
+          <ExpenseForm type="recurring" form={form} onFormChange={handleFormChange} />
           <DialogFooter>
             <Button variant="outline" onClick={() => setRecurringOpen(false)}>Cancel</Button>
             <Button onClick={() => saveMutation.mutate("recurring")} disabled={saveMutation.isPending}>
@@ -583,7 +644,7 @@ export default function ExpensesTab({ periodStart, periodEnd, totalRevenue, tota
           <DialogHeader>
             <DialogTitle>{editingId ? "Edit Purchase" : "Add Purchase"}</DialogTitle>
           </DialogHeader>
-          <ExpenseForm type="one_off" />
+          <ExpenseForm type="one_off" form={form} onFormChange={handleFormChange} />
           <DialogFooter>
             <Button variant="outline" onClick={() => setOneOffOpen(false)}>Cancel</Button>
             <Button onClick={() => saveMutation.mutate("one_off")} disabled={saveMutation.isPending}>
