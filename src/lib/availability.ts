@@ -41,6 +41,7 @@ export interface Groomer {
   name: string;
   booking_priority?: number | null;
   is_accepting_bookings?: boolean;
+  employment_end_date?: string | null;
 }
 
 export function parseTimeToMinutes(time: string): number {
