@@ -39,6 +39,8 @@ export interface ExistingBooking {
 export interface Groomer {
   id: string;
   name: string;
+  booking_priority?: number | null;
+  is_accepting_bookings?: boolean;
 }
 
 export function parseTimeToMinutes(time: string): number {
