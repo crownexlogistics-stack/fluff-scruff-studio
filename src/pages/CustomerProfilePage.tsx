@@ -95,6 +95,28 @@ export default function CustomerProfilePage() {
     enabled: !!decodedEmail,
   });
 
+  // Fetch migrated bookings for this customer
+  const { data: migratedBookings } = useQuery({
+    queryKey: ["customer-migrated-bookings", decodedEmail],
+    queryFn: async () => {
+      // Find migrated customer by email
+      const { data: mc } = await supabase
+        .from("migrated_customers")
+        .select("id")
+        .ilike("email", decodedEmail)
+        .limit(1);
+      if (!mc || mc.length === 0) return [];
+      const { data, error } = await supabase
+        .from("migrated_bookings")
+        .select("*")
+        .eq("migrated_customer_id", mc[0].id)
+        .order("booking_date", { ascending: false });
+      if (error) throw error;
+      return (data || []).map((b: any) => ({ ...b, _source: "wix" }));
+    },
+    enabled: !!decodedEmail,
+  });
+
   // Check if this customer is "owned" by the groomer
   const isOwnCustomer = !isGroomer || (bookings || []).some(
     (b) => b.staff_id === groomerStaff?.id
