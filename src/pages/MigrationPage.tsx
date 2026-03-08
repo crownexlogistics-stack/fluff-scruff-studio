@@ -660,19 +660,27 @@ function MigrationCustomersTab() {
     },
   });
 
-  // Fetch staff emails to detect staff members in the customer list
-  const { data: staffEmails = [] } = useQuery({
+  // Fetch staff emails + auth_user_id to detect staff members in the customer list
+  const { data: staffRecords = [] } = useQuery({
     queryKey: ["staff-emails-for-migration"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("staff")
-        .select("email");
+        .select("email, auth_user_id");
       if (error) throw error;
-      return (data || []).map((s: any) => s.email?.toLowerCase()).filter(Boolean);
+      return (data || []).filter((s: any) => s.email);
     },
   });
 
-  const staffEmailSet = useMemo(() => new Set(staffEmails), [staffEmails]);
+  const staffEmailMap = useMemo(() => {
+    const map = new Map<string, string | null>();
+    staffRecords.forEach((s: any) => {
+      if (s.email) map.set(s.email.toLowerCase(), s.auth_user_id);
+    });
+    return map;
+  }, [staffRecords]);
+
+  const staffEmailSet = useMemo(() => new Set(staffEmailMap.keys()), [staffEmailMap]);
 
   const { data: allBookings = [] } = useQuery({
     queryKey: ["migrated-bookings-for-customers"],
@@ -712,6 +720,28 @@ function MigrationCustomersTab() {
       toast.success(`Invite sent to ${customer.email}`);
     } catch (err: any) {
       toast.error(err.message || "Failed to send invite");
+    } finally {
+      setSendingId(null);
+    }
+  };
+
+  const linkStaffAccount = async (customer: any) => {
+    const staffAuthId = staffEmailMap.get(customer.email?.toLowerCase());
+    if (!staffAuthId) {
+      toast.error("Staff account not found — please ensure staff member has signed up");
+      return;
+    }
+    setSendingId(customer.id);
+    try {
+      const { error } = await supabase
+        .from("migrated_customers")
+        .update({ supabase_user_id: staffAuthId, status: "activated", activated_at: new Date().toISOString() })
+        .eq("id", customer.id);
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ["migrated-customers"] });
+      toast.success("Booking history linked to staff account ✅");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to link account");
     } finally {
       setSendingId(null);
     }
@@ -789,18 +819,32 @@ function MigrationCustomersTab() {
                       <TableCell>{statusBadge(c.status)}</TableCell>
                       <TableCell>
                         {staffEmailSet.has(c.email?.toLowerCase()) ? (
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Badge variant="secondary" className="text-[10px] gap-1 cursor-default">
-                                  <ShieldCheck className="h-3 w-3" /> Staff Member
-                                </Badge>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>This email belongs to a staff account — no invite needed</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
+                          <div className="flex items-center gap-2">
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Badge className="text-[10px] gap-1 cursor-default border-0" style={{ backgroundColor: "#FFB800", color: "#2D1B0E" }}>
+                                    👤 Staff + Customer
+                                  </Badge>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>This email belongs to a staff account — booking history can be linked</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                            {c.status !== "activated" && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 text-xs gap-1"
+                                disabled={sendingId === c.id}
+                                onClick={(e) => { e.stopPropagation(); linkStaffAccount(c); }}
+                              >
+                                <ShieldCheck className="h-3 w-3" />
+                                {sendingId === c.id ? "Linking…" : "Link to Staff Account"}
+                              </Button>
+                            )}
+                          </div>
                         ) : c.status !== "activated" ? (
                           <Button
                             size="sm"

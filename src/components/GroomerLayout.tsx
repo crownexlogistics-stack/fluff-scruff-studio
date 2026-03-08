@@ -1,7 +1,8 @@
-import { CalendarDays, MessageSquare, Dog, PoundSterling, FileText, LogOut } from "lucide-react";
+import { CalendarDays, MessageSquare, Dog, PoundSterling, FileText, LogOut, PawPrint } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import logo from "@/assets/logo-transparent.png";
 import { useAuth } from "@/hooks/useAuth";
+import { useStaffIsCustomer } from "@/hooks/useStaffIsCustomer";
 import { Button } from "@/components/ui/button";
 
 interface GroomerLayoutProps {
@@ -9,8 +10,9 @@ interface GroomerLayoutProps {
 }
 
 export function GroomerLayout({ children }: GroomerLayoutProps) {
-  const { signOut } = useAuth();
+  const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const { hasCustomerBookings } = useStaffIsCustomer(user?.email ?? undefined);
 
   const handleSignOut = async () => {
     await signOut();
@@ -37,6 +39,15 @@ export function GroomerLayout({ children }: GroomerLayoutProps) {
             <CalendarDays className="h-4 w-4" />
             My Portal
           </a>
+          {hasCustomerBookings && (
+            <a
+              href="/my-pets"
+              className="flex items-center gap-2 px-3 py-2 rounded-lg text-sidebar-foreground/70 hover:bg-sidebar-accent/50 text-sm transition-colors"
+            >
+              <PawPrint className="h-4 w-4" />
+              My Dog's Bookings 🐾
+            </a>
+          )}
         </nav>
 
         <div className="p-3 border-t border-border">

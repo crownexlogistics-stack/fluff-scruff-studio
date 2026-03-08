@@ -4,6 +4,7 @@ import {
   UsersRound, BarChart3, Mail,
   LogOut, Sparkles, AlertTriangle, ShieldCheck, BookOpen,
   Inbox, FileText, Ticket, PoundSterling, Bug, Activity, ArrowRightLeft,
+  PawPrint,
 } from "lucide-react";
 import logo from "@/assets/logo-transparent.png";
 import { useNewErrorReportsCount } from "@/hooks/useNewErrorReportsCount";
@@ -12,6 +13,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useUnreadSmsCount } from "@/hooks/useUnreadSmsCount";
 import { Badge } from "@/components/ui/badge";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useStaffIsCustomer } from "@/hooks/useStaffIsCustomer";
 import {
   Sidebar,
   SidebarContent,
@@ -74,6 +76,7 @@ export function AppSidebar() {
   const { role } = useUserRole(user?.id);
   const { totalUnread } = useUnreadSmsCount();
   const newErrorCount = useNewErrorReportsCount();
+  const { hasCustomerBookings } = useStaffIsCustomer(user?.email ?? undefined);
 
   return (
     <Sidebar collapsible="icon">
@@ -244,6 +247,20 @@ export function AppSidebar() {
 
       <SidebarFooter className="p-3 border-t border-sidebar-border">
         <SidebarMenu>
+          {hasCustomerBookings && (
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild>
+                <NavLink
+                  to="/my-pets"
+                  className="hover:bg-sidebar-accent/50 transition-colors text-sidebar-foreground/70 hover:text-sidebar-foreground"
+                  activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
+                >
+                  <PawPrint className="mr-2 h-4 w-4" />
+                  {!collapsed && <span>My Dog's Bookings 🐾</span>}
+                </NavLink>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          )}
           <SidebarMenuItem>
             <SidebarMenuButton
               onClick={async () => { await signOut(); window.location.href = "/"; }}
