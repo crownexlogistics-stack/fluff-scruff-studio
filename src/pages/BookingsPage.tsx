@@ -403,10 +403,12 @@ const BookingsPage = () => {
         <div className="flex flex-wrap gap-2">
           {staff.map((s, i) => {
             const colors = getStaffColor(i);
+            const priorityEmoji = s.booking_priority === 1 ? "🥇" : s.booking_priority === 2 ? "🥈" : s.booking_priority === 3 ? "🥉" : null;
             return (
               <div key={s.id} className="flex items-center gap-1.5 text-xs">
                 <div className={cn("h-3 w-3 rounded-sm", colors.bg)} />
                 <span>{s.name}</span>
+                {priorityEmoji && <span className="text-[10px]">{priorityEmoji}</span>}
               </div>
             );
           })}
