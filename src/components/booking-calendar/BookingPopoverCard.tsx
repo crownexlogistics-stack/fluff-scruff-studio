@@ -128,6 +128,9 @@ export function BookingPopoverCard({
 
       {/* Status + Payment badges */}
       <div className="flex flex-wrap gap-2">
+        {booking.is_migrated && (
+          <Badge className="bg-amber-500 text-white hover:bg-amber-500 text-[10px]">W — Wix Booking</Badge>
+        )}
         <Badge variant={
           booking.status === "Confirmed" ? "default" :
           booking.status === "Completed" ? "secondary" :
@@ -216,6 +219,25 @@ export function BookingPopoverCard({
           <Badge className="mt-1 text-xs bg-violet-100 text-violet-700 hover:bg-violet-100 dark:bg-violet-900/30 dark:text-violet-400">Own Customer • 50%</Badge>
         )}
       </div>
+
+      {/* Migrated booking payment info */}
+      {booking.is_migrated && (
+        <div className="bg-amber-50 border border-amber-200 rounded-md px-3 py-2 text-xs text-amber-800 space-y-1">
+          <p className="font-medium">Imported from Wix</p>
+          {booking.migrated_payment_status && (
+            <div className="flex justify-between">
+              <span>Payment Status</span>
+              <span className="font-semibold">{booking.migrated_payment_status}</span>
+            </div>
+          )}
+          {booking.migrated_amount_due != null && booking.migrated_amount_due > 0 && (
+            <div className="flex justify-between">
+              <span>Amount Due</span>
+              <span className="font-bold">£{booking.migrated_amount_due.toFixed(2)}</span>
+            </div>
+          )}
+        </div>
+      )}
 
       {booking.notes && (
         <div className="border-t pt-3">
