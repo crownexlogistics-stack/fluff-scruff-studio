@@ -4,6 +4,7 @@ import {
   UsersRound, BarChart3, Mail,
   LogOut, Sparkles, AlertTriangle, ShieldCheck, BookOpen,
   Inbox, FileText, Ticket, PoundSterling, Bug, Activity, ArrowRightLeft,
+  PawPrint,
 } from "lucide-react";
 import logo from "@/assets/logo-transparent.png";
 import { useNewErrorReportsCount } from "@/hooks/useNewErrorReportsCount";
@@ -12,6 +13,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useUnreadSmsCount } from "@/hooks/useUnreadSmsCount";
 import { Badge } from "@/components/ui/badge";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useStaffIsCustomer } from "@/hooks/useStaffIsCustomer";
 import {
   Sidebar,
   SidebarContent,
