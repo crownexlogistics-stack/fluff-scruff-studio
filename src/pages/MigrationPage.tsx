@@ -46,6 +46,7 @@ interface ParsedRow {
   dog_age: string | null;
   dog_breed: string | null;
   is_future_booking: boolean;
+  notes?: string | null;
 }
 
 type BookingFilter = "all" | "future" | "past" | "not_paid" | "partly_paid";
