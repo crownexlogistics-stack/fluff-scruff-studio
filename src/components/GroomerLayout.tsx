@@ -39,6 +39,15 @@ export function GroomerLayout({ children }: GroomerLayoutProps) {
             <CalendarDays className="h-4 w-4" />
             My Portal
           </a>
+          {hasCustomerBookings && (
+            <a
+              href="/my-pets"
+              className="flex items-center gap-2 px-3 py-2 rounded-lg text-sidebar-foreground/70 hover:bg-sidebar-accent/50 text-sm transition-colors"
+            >
+              <PawPrint className="h-4 w-4" />
+              My Dog's Bookings 🐾
+            </a>
+          )}
         </nav>
 
         <div className="p-3 border-t border-border">
