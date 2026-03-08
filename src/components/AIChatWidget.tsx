@@ -38,6 +38,8 @@ const QUICK_REPLIES = [
 ];
 
 export function AIChatWidget() {
+  const SCRUFF_ENABLED = false;
+
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([WELCOME_MESSAGE]);
   const [input, setInput] = useState("");
