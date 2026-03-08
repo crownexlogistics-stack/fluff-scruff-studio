@@ -50,12 +50,36 @@ interface ParsedRow {
 type BookingFilter = "all" | "future" | "past" | "not_paid" | "partly_paid";
 
 // ─── Import Tab ───
+interface SelectedFile {
+  file: File;
+  id: string;
+}
+
+interface ImportResult {
+  filesProcessed: number;
+  customersImported: number;
+  customersSkipped: number;
+  bookingsImported: number;
+  duplicatesSkipped: number;
+  futureBookings: number;
+}
+
+interface ImportProgress {
+  phase: "parsing" | "customers" | "checking_existing" | "bookings" | "done";
+  message: string;
+  current: number;
+  total: number;
+}
+
 function ImportTab() {
   const queryClient = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
+  const [selectedFiles, setSelectedFiles] = useState<SelectedFile[]>([]);
   const [parsed, setParsed] = useState<ParsedRow[]>([]);
+  const [duplicatesRemoved, setDuplicatesRemoved] = useState(0);
   const [importing, setImporting] = useState(false);
-  const [result, setResult] = useState<{ customers: number; bookings: number } | null>(null);
+  const [progress, setProgress] = useState<ImportProgress | null>(null);
+  const [result, setResult] = useState<ImportResult | null>(null);
 
   const summary = useMemo(() => {
     if (!parsed.length) return null;
@@ -64,42 +88,101 @@ function ImportTab() {
     return { customers: emails.size, bookings: parsed.length, future };
   }, [parsed]);
 
-  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const handleFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
     setResult(null);
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: (res) => {
-        const today = new Date().toISOString().slice(0, 10);
-        const rows: ParsedRow[] = res.data.map((row: any) => {
-          const bookingDate = convertDate(row["Session date"] || "");
-          return {
-            full_name: (row["bookings.booking_contact_full_name_val"] || "").trim(),
-            email: (row["bookings.booking_contact_email_val"] || "").trim().toLowerCase(),
-            phone: (row["bookings.booking_contact_phone_val"] || "").trim(),
-            booking_date: bookingDate,
-            booking_time: (row["Start time"] || "").trim(),
-            duration_minutes: parseInt(row["Minutes"] || "60", 10) || 60,
-            service_name: (row["Service name"] || "").trim(),
-            staff_name: (row["Staff name"] || "").trim(),
-            payment_status: (row["Payment status"] || "").trim(),
-            dog_name: ignoreUnknown(row["Form answer 2"]),
-            dog_age: ignoreUnknown(row["Form answer 3"]),
-            dog_breed: ignoreUnknown(row["Form answer 4"]),
-            is_future_booking: bookingDate >= today,
-          };
-        });
-        setParsed(rows);
-      },
-      error: () => toast.error("Failed to parse CSV"),
+    setParsed([]);
+    setDuplicatesRemoved(0);
+
+    const newFiles: SelectedFile[] = Array.from(files).map((f) => ({
+      file: f,
+      id: `${f.name}-${f.size}-${Date.now()}-${Math.random()}`,
+    }));
+    setSelectedFiles((prev) => [...prev, ...newFiles]);
+
+    // Parse all files (existing + new)
+    const allFiles = [...selectedFiles.map((sf) => sf.file), ...Array.from(files)];
+    parseAllFiles(allFiles);
+
+    // Reset input so same file can be re-selected
+    if (fileRef.current) fileRef.current.value = "";
+  };
+
+  const parseAllFiles = (files: File[]) => {
+    const allRows: ParsedRow[] = [];
+    let completed = 0;
+    const today = new Date().toISOString().slice(0, 10);
+
+    files.forEach((file) => {
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: (res) => {
+          const rows: ParsedRow[] = res.data.map((row: any) => {
+            const bookingDate = convertDate(row["Session date"] || "");
+            return {
+              full_name: (row["bookings.booking_contact_full_name_val"] || "").trim(),
+              email: (row["bookings.booking_contact_email_val"] || "").trim().toLowerCase(),
+              phone: (row["bookings.booking_contact_phone_val"] || "").trim(),
+              booking_date: bookingDate,
+              booking_time: (row["Start time"] || "").trim(),
+              duration_minutes: parseInt(row["Minutes"] || "60", 10) || 60,
+              service_name: (row["Service name"] || "").trim(),
+              staff_name: (row["Staff name"] || "").trim(),
+              payment_status: (row["Payment status"] || "").trim(),
+              dog_name: ignoreUnknown(row["Form answer 2"]),
+              dog_age: ignoreUnknown(row["Form answer 3"]),
+              dog_breed: ignoreUnknown(row["Form answer 4"]),
+              is_future_booking: bookingDate >= today,
+            };
+          });
+          allRows.push(...rows);
+          completed++;
+
+          if (completed === files.length) {
+            // Deduplicate by email + date + time + service
+            const seen = new Set<string>();
+            const deduped: ParsedRow[] = [];
+            allRows.forEach((r) => {
+              const key = `${r.email}|${r.booking_date}|${r.booking_time}|${r.service_name}`.toLowerCase();
+              if (!seen.has(key)) {
+                seen.add(key);
+                deduped.push(r);
+              }
+            });
+            setDuplicatesRemoved(allRows.length - deduped.length);
+            setParsed(deduped);
+          }
+        },
+        error: () => toast.error(`Failed to parse ${file.name}`),
+      });
     });
+  };
+
+  const removeFile = (id: string) => {
+    const updated = selectedFiles.filter((sf) => sf.id !== id);
+    setSelectedFiles(updated);
+    if (updated.length === 0) {
+      setParsed([]);
+      setDuplicatesRemoved(0);
+    } else {
+      parseAllFiles(updated.map((sf) => sf.file));
+    }
+  };
+
+  const clearAll = () => {
+    setSelectedFiles([]);
+    setParsed([]);
+    setDuplicatesRemoved(0);
+    setResult(null);
+    if (fileRef.current) fileRef.current.value = "";
   };
 
   const confirmImport = async () => {
     if (!parsed.length) return;
     setImporting(true);
+    setProgress({ phase: "customers", message: "Importing customers…", current: 0, total: 0 });
     try {
       // Deduplicate customers
       const customerMap = new Map<string, { full_name: string; email: string; phone: string }>();
@@ -109,15 +192,16 @@ function ImportTab() {
         }
       });
 
-      // Insert customers
       const customerRows = Array.from(customerMap.values());
-      const { data: insertedCustomers, error: custErr } = await supabase
+      setProgress({ phase: "customers", message: `Importing customers… (${customerRows.length})`, current: 0, total: customerRows.length });
+
+      const { error: custErr } = await supabase
         .from("migrated_customers")
         .upsert(customerRows, { onConflict: "email", ignoreDuplicates: true })
         .select("id, email");
       if (custErr) throw custErr;
 
-      // Fetch all migrated customers to get IDs
+      // Fetch all to get IDs and count skipped
       const { data: allCustomers, error: fetchErr } = await supabase
         .from("migrated_customers")
         .select("id, email");
@@ -125,33 +209,78 @@ function ImportTab() {
 
       const emailToId = new Map<string, string>();
       (allCustomers || []).forEach((c: any) => emailToId.set(c.email, c.id));
+      const customersSkipped = Math.max(0, customerRows.length - (allCustomers?.length || 0));
 
-      // Insert bookings
-      const bookingRows = parsed
+      // Check existing bookings for duplicate protection
+      setProgress({ phase: "checking_existing", message: "Checking for already-imported bookings…", current: 0, total: 0 });
+
+      // Fetch existing migrated bookings to check duplicates
+      const { data: existingBookings, error: existErr } = await supabase
+        .from("migrated_bookings")
+        .select("migrated_customer_id, booking_date, booking_time, service_name");
+      if (existErr) throw existErr;
+
+      const existingKeys = new Set<string>();
+      (existingBookings || []).forEach((b: any) => {
+        // Look up email from customer id
+        const email = Array.from(emailToId.entries()).find(([, id]) => id === b.migrated_customer_id)?.[0];
+        if (email) {
+          existingKeys.add(`${email}|${b.booking_date}|${b.booking_time}|${b.service_name}`.toLowerCase());
+        }
+      });
+
+      // Prepare bookings, filtering out already-imported ones
+      const allBookingRows = parsed
         .filter((r) => emailToId.has(r.email))
         .map((r) => ({
-          migrated_customer_id: emailToId.get(r.email)!,
-          dog_name: r.dog_name,
-          dog_age: r.dog_age,
-          dog_breed: r.dog_breed,
-          service_name: r.service_name,
-          staff_name: r.staff_name,
-          booking_date: r.booking_date,
-          booking_time: r.booking_time,
-          duration_minutes: r.duration_minutes,
-          payment_status: r.payment_status,
-          is_future_booking: r.is_future_booking,
+          key: `${r.email}|${r.booking_date}|${r.booking_time}|${r.service_name}`.toLowerCase(),
+          row: {
+            migrated_customer_id: emailToId.get(r.email)!,
+            dog_name: r.dog_name,
+            dog_age: r.dog_age,
+            dog_breed: r.dog_breed,
+            service_name: r.service_name,
+            staff_name: r.staff_name,
+            booking_date: r.booking_date,
+            booking_time: r.booking_time,
+            duration_minutes: r.duration_minutes,
+            payment_status: r.payment_status,
+            is_future_booking: r.is_future_booking,
+          },
         }));
 
+      const newBookings = allBookingRows.filter((b) => !existingKeys.has(b.key));
+      const dbDuplicatesSkipped = allBookingRows.length - newBookings.length;
+      const bookingRows = newBookings.map((b) => b.row);
+
       // Insert in batches of 500
+      const totalBookings = bookingRows.length;
+      let insertedCount = 0;
       for (let i = 0; i < bookingRows.length; i += 500) {
         const batch = bookingRows.slice(i, i + 500);
+        setProgress({
+          phase: "bookings",
+          message: `Importing bookings… (${insertedCount} / ${totalBookings})`,
+          current: insertedCount,
+          total: totalBookings,
+        });
         const { error: bookErr } = await supabase.from("migrated_bookings").insert(batch);
         if (bookErr) throw bookErr;
+        insertedCount += batch.length;
       }
 
-      setResult({ customers: customerRows.length, bookings: bookingRows.length });
+      const futureCount = parsed.filter((r) => r.is_future_booking).length;
+      setResult({
+        filesProcessed: selectedFiles.length,
+        customersImported: customerRows.length,
+        customersSkipped,
+        bookingsImported: bookingRows.length,
+        duplicatesSkipped: dbDuplicatesSkipped,
+        futureBookings: futureCount,
+      });
       setParsed([]);
+      setSelectedFiles([]);
+      setProgress({ phase: "done", message: "Complete", current: totalBookings, total: totalBookings });
       queryClient.invalidateQueries({ queryKey: ["migrated-customers"] });
       queryClient.invalidateQueries({ queryKey: ["migrated-bookings"] });
       toast.success("Import complete!");
@@ -161,6 +290,8 @@ function ImportTab() {
       setImporting(false);
     }
   };
+
+  const progressPercent = progress && progress.total > 0 ? Math.round((progress.current / progress.total) * 100) : 0;
 
   return (
     <div className="space-y-6">
@@ -172,12 +303,38 @@ function ImportTab() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="p-4 rounded-lg bg-muted/50 border text-sm text-muted-foreground space-y-1">
-            <p className="font-medium text-foreground">Upload your Wix booking export CSV.</p>
-            <p>Expected columns from Wix: Session date, Start time, bookings.booking_contact_full_name_val, bookings.booking_contact_email_val, bookings.booking_contact_phone_val, Minutes, Service name, Staff name, Payment status, Form answer 2 (dog name), Form answer 3 (dog age), Form answer 4 (dog breed)</p>
+            <p className="font-medium text-foreground">Upload one or more Wix CSV export files</p>
+            <p>You can select multiple files at once — we will merge them, remove duplicates and import everything together</p>
           </div>
           <div>
-            <Input ref={fileRef} type="file" accept=".csv" onChange={handleFile} />
+            <Input ref={fileRef} type="file" accept=".csv" multiple onChange={handleFiles} />
           </div>
+
+          {/* File list preview */}
+          {selectedFiles.length > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium">{selectedFiles.length} file{selectedFiles.length !== 1 ? "s" : ""} selected</p>
+                <Button variant="ghost" size="sm" onClick={clearAll} className="text-xs text-destructive hover:text-destructive">
+                  Clear All
+                </Button>
+              </div>
+              <div className="space-y-1">
+                {selectedFiles.map((sf) => (
+                  <div key={sf.id} className="flex items-center justify-between p-2 rounded-md bg-muted/30 border text-sm">
+                    <div className="flex items-center gap-2">
+                      <FileSpreadsheet className="h-4 w-4 text-muted-foreground" />
+                      <span className="font-medium">{sf.file.name}</span>
+                      <span className="text-muted-foreground text-xs">{(sf.file.size / 1024).toFixed(1)} KB</span>
+                    </div>
+                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive" onClick={() => removeFile(sf.id)}>
+                      ✕
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -187,10 +344,16 @@ function ImportTab() {
             <CardTitle className="text-base">Preview</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex gap-4 text-sm">
-              <Badge variant="secondary" className="gap-1"><Users className="h-3 w-3" /> {summary.customers} customers</Badge>
+            <div className="flex flex-wrap gap-2 text-sm">
+              <Badge variant="secondary" className="gap-1"><FileSpreadsheet className="h-3 w-3" /> {selectedFiles.length} file{selectedFiles.length !== 1 ? "s" : ""}</Badge>
               <Badge variant="secondary" className="gap-1"><Calendar className="h-3 w-3" /> {summary.bookings} bookings</Badge>
-              <Badge className="gap-1 bg-blue-100 text-blue-700 border-0">{summary.future} future</Badge>
+              {duplicatesRemoved > 0 && (
+                <Badge className="gap-1 bg-orange-100 text-orange-700 border-0">
+                  <AlertCircle className="h-3 w-3" /> {duplicatesRemoved} duplicates removed
+                </Badge>
+              )}
+              <Badge variant="secondary" className="gap-1"><Users className="h-3 w-3" /> {summary.customers} unique customers</Badge>
+              <Badge className="gap-1 bg-blue-100 text-blue-700 border-0">{summary.future} future bookings</Badge>
             </div>
 
             <div className="overflow-auto max-h-80 border rounded-lg">
@@ -223,6 +386,16 @@ function ImportTab() {
               <p className="text-xs text-muted-foreground">Showing first 10 of {parsed.length} rows</p>
             )}
 
+            {/* Progress bar during import */}
+            {importing && progress && (
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">{progress.message}</p>
+                {progress.total > 0 && (
+                  <Progress value={progressPercent} className="h-2" />
+                )}
+              </div>
+            )}
+
             <Button onClick={confirmImport} disabled={importing} className="w-full">
               {importing ? "Importing…" : `Confirm Import (${summary.customers} customers, ${summary.bookings} bookings)`}
             </Button>
@@ -232,11 +405,36 @@ function ImportTab() {
 
       {result && (
         <Card className="border-green-200 bg-green-50/50 dark:bg-green-950/10">
-          <CardContent className="py-6 text-center space-y-2">
-            <CheckCircle2 className="h-8 w-8 text-green-600 mx-auto" />
-            <p className="text-sm font-medium text-green-700">
-              ✅ {result.customers} customers and {result.bookings} bookings imported
-            </p>
+          <CardContent className="py-6 space-y-4">
+            <div className="text-center space-y-2">
+              <CheckCircle2 className="h-8 w-8 text-green-600 mx-auto" />
+              <p className="text-base font-semibold text-green-700">✅ Import complete</p>
+            </div>
+            <div className="space-y-1 text-sm text-muted-foreground">
+              <p>• {result.filesProcessed} file{result.filesProcessed !== 1 ? "s" : ""} processed</p>
+              <p>• {result.customersImported} customers imported{result.customersSkipped > 0 ? ` (${result.customersSkipped} already existed, skipped)` : ""}</p>
+              <p>• {result.bookingsImported} bookings imported</p>
+              {result.duplicatesSkipped > 0 && (
+                <p>• {result.duplicatesSkipped} bookings skipped — already imported</p>
+              )}
+              <p>• {result.futureBookings} future bookings found</p>
+            </div>
+            <div className="flex gap-2 justify-center">
+              <Button variant="outline" size="sm" onClick={() => {
+                const tabsList = document.querySelector('[data-state="active"][value="import"]')?.closest('[role="tablist"]');
+                const bookingsTab = tabsList?.querySelector('[value="bookings"]') as HTMLElement;
+                bookingsTab?.click();
+              }}>
+                Go to Bookings tab →
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => {
+                const tabsList = document.querySelector('[data-state="active"][value="import"]')?.closest('[role="tablist"]');
+                const customersTab = tabsList?.querySelector('[value="customers"]') as HTMLElement;
+                customersTab?.click();
+              }}>
+                Go to Customers tab →
+              </Button>
+            </div>
           </CardContent>
         </Card>
       )}
