@@ -819,18 +819,32 @@ function MigrationCustomersTab() {
                       <TableCell>{statusBadge(c.status)}</TableCell>
                       <TableCell>
                         {staffEmailSet.has(c.email?.toLowerCase()) ? (
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Badge variant="secondary" className="text-[10px] gap-1 cursor-default">
-                                  <ShieldCheck className="h-3 w-3" /> Staff Member
-                                </Badge>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>This email belongs to a staff account — no invite needed</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
+                          <div className="flex items-center gap-2">
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Badge className="text-[10px] gap-1 cursor-default border-0" style={{ backgroundColor: "#FFB800", color: "#2D1B0E" }}>
+                                    👤 Staff + Customer
+                                  </Badge>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>This email belongs to a staff account — booking history can be linked</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                            {c.status !== "activated" && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 text-xs gap-1"
+                                disabled={sendingId === c.id}
+                                onClick={(e) => { e.stopPropagation(); linkStaffAccount(c); }}
+                              >
+                                <ShieldCheck className="h-3 w-3" />
+                                {sendingId === c.id ? "Linking…" : "Link to Staff Account"}
+                              </Button>
+                            )}
+                          </div>
                         ) : c.status !== "activated" ? (
                           <Button
                             size="sm"
