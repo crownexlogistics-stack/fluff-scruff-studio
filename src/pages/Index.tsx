@@ -623,17 +623,22 @@ const Index = () => {
           </Card>
 
           {/* Net Profit */}
-          <Card className={cn("rounded-xl border-l-4", totalStudioShare >= 0 ? "border-l-green-500" : "border-l-destructive")}>
+          <Card className={cn("rounded-xl border-l-4", netProfit >= 0 ? "border-l-green-500" : "border-l-destructive")}>
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-xs font-medium text-muted-foreground">Salon Profit</span>
                 <Wallet className="h-4 w-4 text-green-600" />
               </div>
-              <p className={cn("text-2xl font-bold font-heading", totalStudioShare >= 0 ? "text-green-600" : "text-destructive")}>
-                £{totalStudioShare.toLocaleString()}
+              <p className={cn("text-2xl font-bold font-heading", netProfit >= 0 ? "text-green-600" : "text-destructive")}>
+                £{netProfit.toLocaleString()}
               </p>
-              <p className="text-xs text-muted-foreground">After groomer pay</p>
-              <DeltaBadge current={totalStudioShare} previous={prevStudioShare} />
+              <p className="text-xs text-muted-foreground">After groomer pay & expenses</p>
+              {totalMonthlyExpenses > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Expenses: £{Math.round(monthlyRecurringExpenses)} recurring + £{Math.round(monthlyOneOffExpenses)} one-off
+                </p>
+              )}
+              <DeltaBadge current={netProfit} previous={prevStudioShare} />
             </CardContent>
           </Card>
 
