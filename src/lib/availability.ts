@@ -260,9 +260,10 @@ export function dateHasAnyAvailability(
   baseSchedules: StaffAvailability[],
   overrides: ScheduleOverride[]
 ): boolean {
-  // Convert JS getDay() (0=Sun,1=Mon,...,6=Sat) to DB format (0=Mon,1=Tue,...,6=Sun)
+  const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  const activeGroomers = groomers.filter(g => !g.employment_end_date || g.employment_end_date >= dateStr);
   const dayOfWeek = (date.getDay() + 6) % 7;
-  for (const g of groomers) {
+  for (const g of activeGroomers) {
     const windows = getGroomerWindows(g.id, dayOfWeek, baseSchedules, overrides);
     if (windows.length > 0) return true;
   }
