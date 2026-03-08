@@ -396,6 +396,23 @@ export default function CustomerProfilePage() {
   const customerPhone = bookings?.find((b) => b.customer_phone)?.customer_phone || "";
   const initials = customerName.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
 
+  // Merge migrated bookings into past bookings display
+  const migratedAsBookings = (migratedBookings || []).map((mb: any) => ({
+    id: `migrated-${mb.id}`,
+    booking_date: mb.booking_date,
+    booking_time: mb.booking_time || "00:00",
+    dog_name: mb.dog_name || "Unknown",
+    total_price: mb.total_price || 0,
+    deposit_paid: mb.deposit_paid || 0,
+    status: mb.payment_status === "Paid" ? "Completed" : mb.payment_status || "Unknown",
+    notes: mb.notes,
+    staff: mb.staff_name ? { name: mb.staff_name } : null,
+    service: { name: mb.service_name },
+    breed: mb.dog_breed ? { name: mb.dog_breed } : null,
+    _source: "wix" as const,
+    customer_name: customerName,
+  }));
+
   const today = new Date().toISOString().split("T")[0];
   const upcomingBookings = bookings?.filter((b) => b.booking_date >= today && b.status !== "Cancelled") || [];
   const pastBookings = [
