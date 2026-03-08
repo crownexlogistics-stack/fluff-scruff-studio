@@ -2,7 +2,8 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, Send, Phone, ExternalLink } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { getLocalChatResponse } from "@/lib/chatRules";
+import { getLocalChatResponse, detectBreed, detectName, type ChatResponse, type NavLink } from "@/lib/chatRules";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ChatMessage {
   id: string;
@@ -12,6 +13,8 @@ interface ChatMessage {
   show_booking_button?: boolean;
   show_call_button?: boolean;
   show_whatsapp_button?: boolean;
+  is_default_fallback?: boolean;
+  nav_links?: NavLink[];
 }
 
 const WELCOME_MESSAGE: ChatMessage = {
@@ -38,21 +41,59 @@ export function AIChatWidget() {
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
 
+  // Conversation memory
+  const [breedMentioned, setBreedMentioned] = useState<string | null>(null);
+  const [customerName, setCustomerName] = useState<string | null>(null);
+
+  // Escalation form state
+  const [showEscalationForm, setShowEscalationForm] = useState(false);
+  const [escName, setEscName] = useState("");
+  const [escEmail, setEscEmail] = useState("");
+  const [escMessage, setEscMessage] = useState("");
+  const [escSending, setEscSending] = useState(false);
+
+  // Proactive suggestion — show only once
+  const [proactiveSuggestionShown, setProactiveSuggestionShown] = useState(false);
+  const [bookingTapped, setBookingTapped] = useState(false);
+
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, []);
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, isTyping, scrollToBottom]);
+  }, [messages, isTyping, showEscalationForm, scrollToBottom]);
 
   useEffect(() => {
     if (isOpen) inputRef.current?.focus();
   }, [isOpen]);
 
+  // Personalise reply with breed/name memory
+  const personalise = (reply: string): string => {
+    let r = reply;
+    if (breedMentioned) {
+      r = r.replace(/\byour dog\b/gi, `your ${breedMentioned}`);
+      r = r.replace(/\byour pup\b/gi, `your ${breedMentioned}`);
+    }
+    if (customerName) {
+      // Prefix greeting if not already personalised
+      if (!r.startsWith("Great question") && !r.includes(customerName)) {
+        const greetings = [`Great question ${customerName}! `, `Thanks ${customerName}! `];
+        r = greetings[Math.floor(Math.random() * greetings.length)] + r;
+      }
+    }
+    return r;
+  };
+
   const sendMessage = async (text: string) => {
     if (!text.trim()) return;
     setShowQuickReplies(false);
+
+    // Detect breed / name from user message
+    const detectedBreed = detectBreed(text);
+    if (detectedBreed) setBreedMentioned(detectedBreed);
+    const detectedName = detectName(text);
+    if (detectedName) setCustomerName(detectedName);
 
     const userMsg: ChatMessage = {
       id: crypto.randomUUID(),
@@ -65,7 +106,6 @@ export function AIChatWidget() {
     setIsTyping(true);
 
     try {
-      // 600ms fake typing delay
       await new Promise((resolve) => setTimeout(resolve, 600));
 
       const data = await getLocalChatResponse(text.trim());
@@ -73,13 +113,20 @@ export function AIChatWidget() {
       const assistantMsg: ChatMessage = {
         id: crypto.randomUUID(),
         role: "assistant",
-        content: data.reply,
+        content: personalise(data.reply),
         timestamp: new Date(),
         show_booking_button: data.show_booking_button,
         show_call_button: data.show_call_button,
         show_whatsapp_button: data.show_whatsapp_button,
+        is_default_fallback: data.is_default_fallback,
+        nav_links: data.nav_links,
       };
       setMessages((prev) => [...prev, assistantMsg]);
+
+      // If default fallback, show escalation form
+      if (data.is_default_fallback) {
+        setShowEscalationForm(true);
+      }
     } catch (err) {
       console.error("Chat error:", err);
       setMessages((prev) => [
@@ -97,8 +144,60 @@ export function AIChatWidget() {
     }
   };
 
+  const handleEscalationSubmit = async () => {
+    if (!escEmail.trim() || !escMessage.trim()) return;
+    setEscSending(true);
+
+    try {
+      // Build conversation history
+      const convoHistory = messages
+        .map((m) => `${m.role === "user" ? "Customer" : "Scruff"}: ${m.content}`)
+        .join("\n");
+
+      const body = `A customer contacted Fluff & Scruff via the website chat assistant but Scruff was unable to resolve their query.\n\nCustomer name: ${escName || "Not provided"}\nCustomer email: ${escEmail}\n\nWhat they needed:\n${escMessage}\n\nOriginal conversation:\n${convoHistory}\n\nPlease respond to the customer directly.`;
+
+      await supabase.functions.invoke("send-customer-email", {
+        body: {
+          customer_email: "info@fluffandscruff.co.uk",
+          subject: "💬 Scruff couldn't help — customer needs assistance",
+          body,
+        },
+      });
+
+      const confirmMsg: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        content: `Done! ✅ I've sent your message to the team at Fluff & Scruff. They'll get back to you at ${escEmail} as soon as possible — usually within a few hours during opening times (Tue-Sat 10am-5pm) 🐾`,
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, confirmMsg]);
+    } catch (err) {
+      console.error("Escalation error:", err);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          content: "Sorry, I couldn't send that right now. Please call us on 01708 606655 instead 🐾",
+          timestamp: new Date(),
+        },
+      ]);
+    } finally {
+      setShowEscalationForm(false);
+      setEscName("");
+      setEscEmail("");
+      setEscMessage("");
+      setEscSending(false);
+    }
+  };
+
   const formatTime = (d: Date) =>
     d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+
+  // Should we show the proactive suggestion?
+  const userMsgCount = messages.filter((m) => m.role === "user").length;
+  const shouldShowProactive =
+    !proactiveSuggestionShown && !bookingTapped && userMsgCount >= 3;
 
   return (
     <>
@@ -185,7 +284,7 @@ export function AIChatWidget() {
 
             {/* Messages */}
             <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
-              {messages.map((msg) => (
+              {messages.map((msg, idx) => (
                 <div key={msg.id}>
                   <div
                     className={`flex items-end gap-2 ${
@@ -228,6 +327,39 @@ export function AIChatWidget() {
                     {formatTime(msg.timestamp)}
                   </div>
 
+                  {/* Nav link buttons */}
+                  {msg.role === "assistant" && msg.nav_links && msg.nav_links.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2 pl-9">
+                      {msg.nav_links.map((link) =>
+                        link.external ? (
+                          <a
+                            key={link.url}
+                            href={link.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs font-bold px-3 py-1.5 rounded-full text-white inline-flex items-center gap-1"
+                            style={{ background: "#FF6B35", fontFamily: "Nunito, sans-serif" }}
+                          >
+                            {link.label} <ExternalLink className="w-3 h-3" />
+                          </a>
+                        ) : (
+                          <button
+                            key={link.url}
+                            onClick={() => {
+                              setBookingTapped(true);
+                              setIsOpen(false);
+                              navigate(link.url);
+                            }}
+                            className="text-xs font-bold px-3 py-1.5 rounded-full text-white"
+                            style={{ background: "#FF6B35", fontFamily: "Nunito, sans-serif" }}
+                          >
+                            {link.label}
+                          </button>
+                        )
+                      )}
+                    </div>
+                  )}
+
                   {/* Action buttons */}
                   {msg.role === "assistant" &&
                     (msg.show_booking_button ||
@@ -237,6 +369,7 @@ export function AIChatWidget() {
                         {msg.show_booking_button && (
                           <button
                             onClick={() => {
+                              setBookingTapped(true);
                               setIsOpen(false);
                               navigate("/book");
                             }}
@@ -274,6 +407,39 @@ export function AIChatWidget() {
                         )}
                       </div>
                     )}
+
+                  {/* Proactive suggestion — once per convo, after 3+ user messages */}
+                  {msg.role === "assistant" &&
+                    idx === messages.length - 1 &&
+                    shouldShowProactive && (
+                      <div className="pl-9 mt-2">
+                        <p
+                          className="text-[11px] italic"
+                          style={{ color: "#A89585", fontFamily: "Nunito, sans-serif" }}
+                        >
+                          Ready to book? It only takes 2 minutes 🐾{" "}
+                          <button
+                            onClick={() => {
+                              setBookingTapped(true);
+                              setProactiveSuggestionShown(true);
+                              setIsOpen(false);
+                              navigate("/book");
+                            }}
+                            className="font-bold not-italic underline"
+                            style={{ color: "#FF6B35" }}
+                          >
+                            Book now →
+                          </button>
+                        </p>
+                        {/* Mark as shown after render */}
+                        {(() => {
+                          if (!proactiveSuggestionShown) {
+                            setTimeout(() => setProactiveSuggestionShown(true), 0);
+                          }
+                          return null;
+                        })()}
+                      </div>
+                    )}
                 </div>
               ))}
 
@@ -303,9 +469,7 @@ export function AIChatWidget() {
                   <div className="w-7 h-7 rounded-full bg-white flex items-center justify-center text-sm shrink-0 shadow-sm">
                     🐶
                   </div>
-                  <div
-                    className="px-4 py-3 rounded-2xl bg-white shadow-sm flex gap-1"
-                  >
+                  <div className="px-4 py-3 rounded-2xl bg-white shadow-sm flex gap-1">
                     {[0, 1, 2].map((i) => (
                       <motion.span
                         key={i}
@@ -325,35 +489,76 @@ export function AIChatWidget() {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Input */}
-            <div
-              className="shrink-0 flex items-center gap-2 px-3 py-3"
-              style={{ borderTop: "1px solid #e8d8ca", background: "#fff" }}
-            >
-              <input
-                ref={inputRef}
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && sendMessage(input)}
-                placeholder="Ask Scruff anything..."
-                className="flex-1 text-sm px-3 py-2 rounded-full border-none outline-none"
-                style={{
-                  background: "#F5EDE4",
-                  color: "#2D1B0E",
-                  fontFamily: "Nunito, sans-serif",
-                }}
-                disabled={isTyping}
-              />
-              <button
-                onClick={() => sendMessage(input)}
-                disabled={!input.trim() || isTyping}
-                className="w-9 h-9 rounded-full flex items-center justify-center text-white shrink-0 disabled:opacity-40 transition-opacity"
-                style={{ background: "#FF6B35" }}
+            {/* Escalation form (shown on fallback) */}
+            {showEscalationForm ? (
+              <div
+                className="shrink-0 px-3 py-3 space-y-2"
+                style={{ borderTop: "1px solid #e8d8ca", background: "#fff" }}
               >
-                <Send className="w-4 h-4" />
-              </button>
-            </div>
+                <input
+                  type="text"
+                  value={escName}
+                  onChange={(e) => setEscName(e.target.value)}
+                  placeholder="Your name"
+                  className="w-full text-sm px-3 py-2 rounded-lg border-none outline-none"
+                  style={{ background: "#F5EDE4", color: "#2D1B0E", fontFamily: "Nunito, sans-serif" }}
+                />
+                <input
+                  type="email"
+                  value={escEmail}
+                  onChange={(e) => setEscEmail(e.target.value)}
+                  placeholder="Your email (so we can reply)"
+                  className="w-full text-sm px-3 py-2 rounded-lg border-none outline-none"
+                  style={{ background: "#F5EDE4", color: "#2D1B0E", fontFamily: "Nunito, sans-serif" }}
+                />
+                <textarea
+                  value={escMessage}
+                  onChange={(e) => setEscMessage(e.target.value)}
+                  placeholder="Tell us what you need..."
+                  rows={3}
+                  className="w-full text-sm px-3 py-2 rounded-lg border-none outline-none resize-none"
+                  style={{ background: "#F5EDE4", color: "#2D1B0E", fontFamily: "Nunito, sans-serif" }}
+                />
+                <button
+                  onClick={handleEscalationSubmit}
+                  disabled={!escEmail.trim() || !escMessage.trim() || escSending}
+                  className="w-full text-sm font-bold py-2 rounded-full text-white disabled:opacity-40 transition-opacity"
+                  style={{ background: "#FF6B35", fontFamily: "Nunito, sans-serif" }}
+                >
+                  {escSending ? "Sending..." : "Send to the team 🐾"}
+                </button>
+              </div>
+            ) : (
+              /* Normal input */
+              <div
+                className="shrink-0 flex items-center gap-2 px-3 py-3"
+                style={{ borderTop: "1px solid #e8d8ca", background: "#fff" }}
+              >
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && sendMessage(input)}
+                  placeholder="Ask Scruff anything..."
+                  className="flex-1 text-sm px-3 py-2 rounded-full border-none outline-none"
+                  style={{
+                    background: "#F5EDE4",
+                    color: "#2D1B0E",
+                    fontFamily: "Nunito, sans-serif",
+                  }}
+                  disabled={isTyping}
+                />
+                <button
+                  onClick={() => sendMessage(input)}
+                  disabled={!input.trim() || isTyping}
+                  className="w-9 h-9 rounded-full flex items-center justify-center text-white shrink-0 disabled:opacity-40 transition-opacity"
+                  style={{ background: "#FF6B35" }}
+                >
+                  <Send className="w-4 h-4" />
+                </button>
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
