@@ -79,6 +79,7 @@ serve(async (req) => {
       email: customer.email,
       email_confirm: false,
       user_metadata: {
+        migrated: true,
         full_name: customer.full_name || "",
         migrated_customer_id: customer.id,
       },
