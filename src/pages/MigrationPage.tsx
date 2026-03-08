@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AppLayout } from "@/components/AppLayout";
-import { Upload, FileSpreadsheet, CheckCircle2, Users, Calendar, ChevronDown, ChevronRight, Pencil, Send, AlertCircle, ShieldCheck } from "lucide-react";
+import { Upload, FileSpreadsheet, CheckCircle2, Users, Calendar, ChevronDown, ChevronRight, Pencil, Send, AlertCircle, ShieldCheck, Wrench } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import Papa from "papaparse";
@@ -46,11 +46,86 @@ interface ParsedRow {
   dog_age: string | null;
   dog_breed: string | null;
   is_future_booking: boolean;
+  notes?: string | null;
 }
 
 type BookingFilter = "all" | "future" | "past" | "not_paid" | "partly_paid";
 
-// ─── Import Tab ───
+// Add-on service names (case-insensitive match)
+const ADD_ON_SERVICE_NAMES = new Set([
+  "ultrasonic teeth cleaning",
+  "nail trim",
+  "nail trim & filing",
+  "de-shedding",
+  "bath and blow dry",
+  "brush out",
+  "teeth cleaning",
+]);
+
+function isAddOnService(serviceName: string, durationMinutes: number): boolean {
+  return ADD_ON_SERVICE_NAMES.has(serviceName.toLowerCase()) || durationMinutes < 30;
+}
+
+/** Group parsed rows by email+date+time+staff and merge add-ons into main bookings */
+function groupAddOns(rows: ParsedRow[]): ParsedRow[] {
+  const groups = new Map<string, ParsedRow[]>();
+  rows.forEach((r) => {
+    const key = `${r.email}|${r.booking_date}|${r.booking_time}|${r.staff_name}`.toLowerCase();
+    const list = groups.get(key) || [];
+    list.push(r);
+    groups.set(key, list);
+  });
+
+  const result: ParsedRow[] = [];
+  groups.forEach((group) => {
+    if (group.length === 1) {
+      result.push(group[0]);
+      return;
+    }
+
+    // Check if all services are identical (multiple dogs)
+    const uniqueServices = new Set(group.map((r) => r.service_name.toLowerCase()));
+    if (uniqueServices.size === 1) {
+      // Same service — multiple dogs, keep all with note
+      group.forEach((r) => {
+        result.push({ ...r, notes: "Multiple dogs — same time slot" });
+      });
+      return;
+    }
+
+    // Different services — find main vs add-ons
+    const mainRows = group.filter((r) => !isAddOnService(r.service_name, r.duration_minutes));
+    const addOnRows = group.filter((r) => isAddOnService(r.service_name, r.duration_minutes));
+
+    // If no clear main service, pick longest duration
+    if (mainRows.length === 0) {
+      const sorted = [...group].sort((a, b) => b.duration_minutes - a.duration_minutes);
+      mainRows.push(sorted[0]);
+      addOnRows.length = 0;
+      sorted.slice(1).forEach((r) => addOnRows.push(r));
+    }
+
+    // Use first main row, merge add-ons
+    const main = { ...mainRows[0] };
+    const addOnNames = addOnRows.map((r) => r.service_name);
+    const totalDuration = group.reduce((sum, r) => sum + r.duration_minutes, 0);
+
+    main.duration_minutes = totalDuration;
+    if (addOnNames.length > 0) {
+      const existing = main.notes || "";
+      main.notes = (existing ? existing + " | " : "") + "Add-ons: " + addOnNames.join(", ");
+    }
+    result.push(main);
+
+    // If there were extra main rows (rare), keep them too
+    mainRows.slice(1).forEach((r) => result.push(r));
+  });
+
+  return result;
+}
+
+// Extend ParsedRow to include optional notes
+
 interface SelectedFile {
   file: File;
   id: string;
@@ -79,6 +154,8 @@ function ImportTab({ onSwitchTab }: { onSwitchTab?: (tab: string) => void }) {
   const [parsed, setParsed] = useState<ParsedRow[]>([]);
   const [duplicatesRemoved, setDuplicatesRemoved] = useState(0);
   const [importing, setImporting] = useState(false);
+  const [fixing, setFixing] = useState(false);
+  const [fixResult, setFixResult] = useState<{ groups: number; removed: number } | null>(null);
   const [progress, setProgress] = useState<ImportProgress | null>(null);
   const [result, setResult] = useState<ImportResult | null>(null);
 
@@ -153,7 +230,9 @@ function ImportTab({ onSwitchTab }: { onSwitchTab?: (tab: string) => void }) {
               }
             });
             setDuplicatesRemoved(allRows.length - deduped.length);
-            setParsed(deduped);
+            // Group add-ons into main bookings
+            const grouped = groupAddOns(deduped);
+            setParsed(grouped);
           }
         },
         error: () => toast.error(`Failed to parse ${file.name}`),
@@ -247,6 +326,7 @@ function ImportTab({ onSwitchTab }: { onSwitchTab?: (tab: string) => void }) {
             duration_minutes: r.duration_minutes,
             payment_status: r.payment_status,
             is_future_booking: r.is_future_booking,
+            notes: r.notes || null,
           },
         }));
 
@@ -289,6 +369,96 @@ function ImportTab({ onSwitchTab }: { onSwitchTab?: (tab: string) => void }) {
       toast.error(err.message || "Import failed");
     } finally {
       setImporting(false);
+    }
+  };
+
+  const fixDuplicateSameTimeBookings = async () => {
+    setFixing(true);
+    setFixResult(null);
+    try {
+      // Fetch all migrated bookings
+      const { data: allBookings, error } = await supabase
+        .from("migrated_bookings")
+        .select("id, migrated_customer_id, booking_date, booking_time, staff_name, service_name, duration_minutes, notes");
+      if (error) throw error;
+
+      // Group by customer + date + time + staff
+      const groups = new Map<string, any[]>();
+      (allBookings || []).forEach((b: any) => {
+        const key = `${b.migrated_customer_id}|${b.booking_date}|${b.booking_time}|${(b.staff_name || "").toLowerCase()}`;
+        const list = groups.get(key) || [];
+        list.push(b);
+        groups.set(key, list);
+      });
+
+      let fixedGroups = 0;
+      let removedRows = 0;
+
+      for (const [, group] of groups) {
+        if (group.length < 2) continue;
+
+        const uniqueServices = new Set(group.map((b: any) => (b.service_name || "").toLowerCase()));
+
+        if (uniqueServices.size === 1) {
+          // Same service — multiple dogs, just add note
+          for (const b of group) {
+            if (!b.notes?.includes("Multiple dogs")) {
+              await supabase
+                .from("migrated_bookings")
+                .update({ notes: (b.notes ? b.notes + " | " : "") + "Multiple dogs — same time slot" })
+                .eq("id", b.id);
+            }
+          }
+          fixedGroups++;
+          continue;
+        }
+
+        // Different services — find main vs add-ons
+        const mainRows = group.filter((b: any) => !isAddOnService(b.service_name || "", b.duration_minutes || 60));
+        const addOnRows = group.filter((b: any) => isAddOnService(b.service_name || "", b.duration_minutes || 60));
+
+        if (mainRows.length === 0) {
+          // No clear main — pick longest duration
+          const sorted = [...group].sort((a: any, b: any) => (b.duration_minutes || 0) - (a.duration_minutes || 0));
+          mainRows.push(sorted[0]);
+          addOnRows.length = 0;
+          sorted.slice(1).forEach((r: any) => addOnRows.push(r));
+        }
+
+        if (addOnRows.length === 0) continue;
+
+        const main = mainRows[0];
+        const addOnNames = addOnRows.map((b: any) => b.service_name);
+        const totalDuration = group.reduce((sum: number, b: any) => sum + (b.duration_minutes || 0), 0);
+
+        const existingNotes = main.notes || "";
+        const newNotes = (existingNotes ? existingNotes + " | " : "") + "Add-ons: " + addOnNames.join(", ");
+
+        // Update main booking
+        await supabase
+          .from("migrated_bookings")
+          .update({ notes: newNotes, duration_minutes: totalDuration })
+          .eq("id", main.id);
+
+        // Delete add-on rows
+        const idsToDelete = addOnRows.map((b: any) => b.id);
+        await supabase
+          .from("migrated_bookings")
+          .delete()
+          .in("id", idsToDelete);
+
+        fixedGroups++;
+        removedRows += idsToDelete.length;
+      }
+
+      setFixResult({ groups: fixedGroups, removed: removedRows });
+      queryClient.invalidateQueries({ queryKey: ["migrated-bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["migrated-bookings-for-customers"] });
+      toast.success(`Fixed ${fixedGroups} groups — ${removedRows} duplicate rows removed`);
+    } catch (err: any) {
+      toast.error(err.message || "Fix failed");
+    } finally {
+      setFixing(false);
     }
   };
 
@@ -437,6 +607,35 @@ function ImportTab({ onSwitchTab }: { onSwitchTab?: (tab: string) => void }) {
           </CardContent>
         </Card>
       )}
+
+      {/* Fix duplicate same-time bookings */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Wrench className="h-4 w-4" /> Fix Existing Data
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Scan already-imported bookings for same-time add-on duplicates (e.g. Teeth Cleaning booked as a separate row alongside a Full Groom).
+            Merges add-ons into the main booking and removes duplicate rows.
+          </p>
+          <Button
+            variant="outline"
+            onClick={fixDuplicateSameTimeBookings}
+            disabled={fixing}
+            className="gap-2"
+          >
+            <Wrench className="h-4 w-4" />
+            {fixing ? "Fixing…" : "🔧 Fix Duplicate Same-Time Bookings"}
+          </Button>
+          {fixResult && (
+            <div className="p-3 rounded-lg bg-green-50 border border-green-200 text-sm text-green-700">
+              Fixed {fixResult.groups} group{fixResult.groups !== 1 ? "s" : ""} — {fixResult.removed} duplicate row{fixResult.removed !== 1 ? "s" : ""} removed
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
