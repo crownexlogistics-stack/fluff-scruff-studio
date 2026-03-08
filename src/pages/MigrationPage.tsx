@@ -71,7 +71,7 @@ interface ImportProgress {
   total: number;
 }
 
-function ImportTab() {
+function ImportTab({ onSwitchTab }: { onSwitchTab?: (tab: string) => void }) {
   const queryClient = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
   const [selectedFiles, setSelectedFiles] = useState<SelectedFile[]>([]);
