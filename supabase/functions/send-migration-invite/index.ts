@@ -151,7 +151,7 @@ serve(async (req) => {
                     <table cellpadding="0" cellspacing="0">
                       <tr>
                         <td align="center" style="background-color:#F97316;border-radius:30px;">
-                          <a href="${redirectUrl}" target="_blank" style="display:inline-block;padding:14px 40px;font-family:'Fredoka One','Nunito',Arial,sans-serif;font-size:16px;color:#ffffff;text-decoration:none;font-weight:bold;">
+                          <a href="${ctaUrl}" target="_blank" style="display:inline-block;padding:14px 40px;font-family:'Fredoka One','Nunito',Arial,sans-serif;font-size:16px;color:#ffffff;text-decoration:none;font-weight:bold;">
                             Set Up My Account 🐾
                           </a>
                         </td>
