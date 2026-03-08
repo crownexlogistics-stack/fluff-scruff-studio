@@ -756,7 +756,7 @@ export default function CustomerProfilePage() {
             </Card>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <MiniStat label="Total Bookings" value={String(bookings?.length || 0)} />
+              <MiniStat label="Total Bookings" value={String((bookings?.length || 0) + (migratedBookings?.length || 0))} />
               <MiniStat label="Upcoming" value={String(upcomingBookings.length)} />
               <MiniStat label="Completed" value={String(bookings?.filter((b) => b.status === "Completed").length || 0)} />
               <MiniStat label="No Shows" value={String(bookings?.filter((b) => b.status === "No Show").length || 0)} />
