@@ -61,6 +61,24 @@ const StaffPage = () => {
     signed: "bg-success/15 text-success",
   }[status] || "bg-muted text-muted-foreground");
 
+  const getStaffStatusBadge = (s: any) => {
+    if (s.account_blocked) {
+      return <Badge variant="destructive" className="text-xs">Access Blocked</Badge>;
+    }
+    if (s.employment_end_date) {
+      const endDate = new Date(s.employment_end_date);
+      const now = new Date();
+      const daysUntil = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      if (daysUntil < 0) {
+        return <Badge variant="secondary" className="text-xs text-muted-foreground">No longer active</Badge>;
+      }
+      if (daysUntil <= 30) {
+        return <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-400 hover:bg-amber-500/15 text-xs">Leaving {format(endDate, "dd MMM")}</Badge>;
+      }
+    }
+    return null;
+  };
+
   return (
     <AppLayout>
       <div className="space-y-6">
