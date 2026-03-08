@@ -517,6 +517,35 @@ function ImportTab({ onSwitchTab }: { onSwitchTab?: (tab: string) => void }) {
           </CardContent>
         </Card>
       )}
+
+      {/* Fix duplicate same-time bookings */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Wrench className="h-4 w-4" /> Fix Existing Data
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Scan already-imported bookings for same-time add-on duplicates (e.g. Teeth Cleaning booked as a separate row alongside a Full Groom).
+            Merges add-ons into the main booking and removes duplicate rows.
+          </p>
+          <Button
+            variant="outline"
+            onClick={fixDuplicateSameTimeBookings}
+            disabled={fixing}
+            className="gap-2"
+          >
+            <Wrench className="h-4 w-4" />
+            {fixing ? "Fixing…" : "🔧 Fix Duplicate Same-Time Bookings"}
+          </Button>
+          {fixResult && (
+            <div className="p-3 rounded-lg bg-green-50 border border-green-200 text-sm text-green-700">
+              Fixed {fixResult.groups} group{fixResult.groups !== 1 ? "s" : ""} — {fixResult.removed} duplicate row{fixResult.removed !== 1 ? "s" : ""} removed
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
