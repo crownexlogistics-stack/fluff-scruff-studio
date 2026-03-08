@@ -141,6 +141,35 @@ export default function BookingSuccessPage() {
     enabled: !!bookingId,
   });
 
+  // Check if this user is a returning migrated customer
+  const { data: migratedCustomer } = useQuery({
+    queryKey: ["migrated-welcome-back", user?.email],
+    queryFn: async () => {
+      if (!user?.email) return null;
+      const { data: mc } = await supabase
+        .from("migrated_customers")
+        .select("id, status")
+        .eq("email", user.email.toLowerCase())
+        .eq("status", "activated")
+        .maybeSingle();
+      if (!mc) return null;
+      // Check if they have any migrated bookings
+      const { count } = await supabase
+        .from("migrated_bookings")
+        .select("id", { count: "exact", head: true })
+        .eq("migrated_customer_id", mc.id);
+      if (!count || count === 0) return null;
+      return { ...mc, bookingCount: count };
+    },
+    enabled: !!user?.email && !!booking && !isCancelledBooking,
+  });
+
+  const isCancelledBooking = useMemo(() => {
+    if (!booking) return false;
+    const s = (booking.status || "").trim();
+    return s === "Cancelled" || ["Refunded", "Refunded/Cancelled", "Cancelled/Refunded"].includes(s);
+  }, [booking]);
+
   // Fire confetti on mount
   useEffect(() => {
     if (booking && !confettiFired.current) {
