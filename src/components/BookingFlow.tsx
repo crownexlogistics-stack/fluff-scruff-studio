@@ -340,8 +340,9 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
     queryFn: async () => {
       const { data, error } = await supabase
         .from("staff")
-        .select("id, name, role")
+        .select("id, name, role, booking_priority, is_accepting_bookings")
         .ilike("role", "%groomer%")
+        .eq("is_accepting_bookings", true)
         .order("name");
       if (error) throw error;
       return data as Groomer[];
@@ -397,21 +398,47 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
     queryKey: ["last-groomer", user?.email],
     queryFn: async () => {
       if (!user?.email) return null;
-      const { data, error } = await supabase
+      // Check real bookings first
+      const { data: realBooking } = await supabase
         .from("bookings")
-        .select("staff_id")
+        .select("staff_id, staff:staff_id(name)")
         .eq("customer_email", user.email)
+        .eq("status", "Completed")
         .not("staff_id", "is", null)
         .order("booking_date", { ascending: false })
         .limit(1)
         .maybeSingle();
-      if (error) throw error;
-      return data;
+      if (realBooking) return { staff_id: realBooking.staff_id, staff_name: (realBooking as any).staff?.name || null };
+
+      // Check migrated bookings
+      const { data: mc } = await supabase
+        .from("migrated_customers")
+        .select("id")
+        .eq("supabase_user_id", user.id)
+        .maybeSingle();
+      if (mc) {
+        const { data: migratedBooking } = await supabase
+          .from("migrated_bookings")
+          .select("staff_name")
+          .eq("migrated_customer_id", mc.id)
+          .not("staff_name", "is", null)
+          .order("booking_date", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (migratedBooking?.staff_name) {
+          // Match by first name
+          const firstName = migratedBooking.staff_name.split(" ")[0]?.toLowerCase();
+          const matched = groomers?.find(g => g.name.split(" ")[0].toLowerCase() === firstName);
+          if (matched) return { staff_id: matched.id, staff_name: matched.name };
+        }
+      }
+      return null;
     },
     enabled: isExistingCustomer && !!user?.email,
   });
 
   const lastGroomerId = lastGroomerBooking?.staff_id ?? null;
+  const lastGroomerName = lastGroomerBooking?.staff_name ?? null;
 
   const { data: dbAddOns } = useQuery({
     queryKey: ["add_ons_active"],
@@ -654,7 +681,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
     if (isExistingCustomer && selectedStaffId) {
       assignedStaffId = selectedStaffId;
     } else if (groomers && groomers.length > 0 && baseSchedules) {
-      const [freshBookingsRes, freshOverridesRes] = await Promise.all([
+      const [freshBookingsRes, freshOverridesRes, freshMigratedRes] = await Promise.all([
         supabase
           .from("bookings")
           .select("booking_time, staff_id, services(duration_minutes), breeds(duration_minutes)")
@@ -664,9 +691,28 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
           .from("staff_schedule_overrides")
           .select("staff_id, override_date, start_time, end_time, is_working")
           .eq("override_date", selectedDate!),
+        supabase
+          .from("migrated_bookings")
+          .select("booking_time, staff_name, duration_minutes")
+          .eq("booking_date", selectedDate!)
+          .eq("is_future_booking", true),
       ]);
 
-      const freshBookings = (freshBookingsRes.data || []) as ExistingBooking[];
+      // Convert migrated bookings to ExistingBooking format by matching staff name
+      const migratedAsBookings: ExistingBooking[] = (freshMigratedRes.data || [])
+        .map((mb: any) => {
+          const firstName = mb.staff_name?.split(" ")[0]?.toLowerCase() || "";
+          const matched = groomers.find(g => g.name.split(" ")[0].toLowerCase() === firstName);
+          if (!matched || !mb.booking_time) return null;
+          return {
+            staff_id: matched.id,
+            booking_time: mb.booking_time,
+            services: { duration_minutes: mb.duration_minutes || 60 },
+          } as ExistingBooking;
+        })
+        .filter(Boolean) as ExistingBooking[];
+
+      const freshBookings = [...(freshBookingsRes.data || []) as ExistingBooking[], ...migratedAsBookings];
       const freshOverrides = (freshOverridesRes.data || []) as ScheduleOverride[];
       const bookingDate = new Date(selectedDate! + "T00:00:00");
 
@@ -1369,51 +1415,92 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
                 {isExistingCustomer && groomers && groomers.length > 0 && (
                   <div className="space-y-2">
                     <Label className="text-sm font-medium">Choose your groomer</Label>
-                    <div className="space-y-2">
-                      {groomers.map((g) => {
-                        const isLast = g.id === lastGroomerId;
-                        const isSelected = selectedStaffId === g.id;
-                        return (
+
+                    {/* Returning customer suggestion */}
+                    {lastGroomerId && lastGroomerName && (
+                      <div className="rounded-xl p-4 mb-2" style={{ backgroundColor: "#FFF3E0" }}>
+                        <p className="text-sm font-medium text-foreground mb-2">
+                          🐾 Last time you were seen by <span className="font-bold">{lastGroomerName}</span>
+                        </p>
+                        <p className="text-xs text-muted-foreground mb-3">Would you like to book with them again?</p>
+                        <div className="flex gap-2">
                           <button
-                            key={g.id}
-                            onClick={() => setSelectedStaffId(g.id)}
-                            className={`w-full flex items-center gap-3 rounded-xl border p-3.5 text-left transition-all duration-200
-                              ${isSelected
-                                ? 'border-accent bg-accent/10 shadow-sm'
-                                : 'border-border bg-card hover:border-accent/50 hover:shadow-sm'
+                            onClick={() => setSelectedStaffId(lastGroomerId)}
+                            className={`flex-1 py-2.5 rounded-full text-sm font-semibold transition-all duration-200
+                              ${selectedStaffId === lastGroomerId
+                                ? 'bg-primary text-primary-foreground shadow-md'
+                                : 'bg-card border border-border text-foreground hover:border-primary/30'
                               }`}
                           >
-                            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors
-                              ${isSelected ? 'bg-accent text-accent-foreground' : 'bg-muted text-muted-foreground'}`}>
-                              {isSelected ? <Check className="h-4 w-4" /> : <span className="text-sm font-semibold">{g.name.charAt(0)}</span>}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="font-medium text-foreground text-sm">{g.name}</p>
-                              {isLast && (
-                                <p className="text-xs text-accent font-medium">✨ Groomed your dog last time</p>
-                              )}
-                            </div>
+                            Yes, book with {lastGroomerName?.split(" ")[0]}
                           </button>
-                        );
-                      })}
-                      <button
-                        onClick={() => setSelectedStaffId(null)}
-                        className={`w-full flex items-center gap-3 rounded-xl border p-3.5 text-left transition-all duration-200
-                          ${selectedStaffId === null
-                            ? 'border-accent bg-accent/10 shadow-sm'
-                            : 'border-border bg-card hover:border-accent/50 hover:shadow-sm'
-                          }`}
-                      >
-                        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors
-                          ${selectedStaffId === null ? 'bg-accent text-accent-foreground' : 'bg-muted text-muted-foreground'}`}>
-                          {selectedStaffId === null ? <Check className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
+                          <button
+                            onClick={() => setSelectedStaffId(null)}
+                            className={`flex-1 py-2.5 rounded-full text-sm font-semibold transition-all duration-200
+                              ${selectedStaffId === null
+                                ? 'bg-primary text-primary-foreground shadow-md'
+                                : 'bg-card border border-border text-muted-foreground hover:border-primary/30'
+                              }`}
+                          >
+                            No preference
+                          </button>
                         </div>
-                        <div className="flex-1">
-                          <p className="font-medium text-foreground text-sm">No preference</p>
-                          <p className="text-xs text-muted-foreground">We'll assign the best available groomer</p>
-                        </div>
-                      </button>
-                    </div>
+                      </div>
+                    )}
+
+                    {/* No preference message */}
+                    {selectedStaffId === null && (
+                      <div className="rounded-xl bg-muted/50 border border-border/40 p-3 text-center">
+                        <p className="text-sm text-muted-foreground">
+                          Our next available groomer will be assigned to your booking
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Groomer list (only show if no last groomer, or user wants to browse) */}
+                    {!lastGroomerId && (
+                      <div className="space-y-2">
+                        {groomers.map((g) => {
+                          const isSelected = selectedStaffId === g.id;
+                          return (
+                            <button
+                              key={g.id}
+                              onClick={() => setSelectedStaffId(g.id)}
+                              className={`w-full flex items-center gap-3 rounded-xl border p-3.5 text-left transition-all duration-200
+                                ${isSelected
+                                  ? 'border-accent bg-accent/10 shadow-sm'
+                                  : 'border-border bg-card hover:border-accent/50 hover:shadow-sm'
+                                }`}
+                            >
+                              <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors
+                                ${isSelected ? 'bg-accent text-accent-foreground' : 'bg-muted text-muted-foreground'}`}>
+                                {isSelected ? <Check className="h-4 w-4" /> : <span className="text-sm font-semibold">{g.name.charAt(0)}</span>}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-foreground text-sm">{g.name}</p>
+                              </div>
+                            </button>
+                          );
+                        })}
+                        <button
+                          onClick={() => setSelectedStaffId(null)}
+                          className={`w-full flex items-center gap-3 rounded-xl border p-3.5 text-left transition-all duration-200
+                            ${selectedStaffId === null
+                              ? 'border-accent bg-accent/10 shadow-sm'
+                              : 'border-border bg-card hover:border-accent/50 hover:shadow-sm'
+                            }`}
+                        >
+                          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors
+                            ${selectedStaffId === null ? 'bg-accent text-accent-foreground' : 'bg-muted text-muted-foreground'}`}>
+                            {selectedStaffId === null ? <Check className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
+                          </div>
+                          <div className="flex-1">
+                            <p className="font-medium text-foreground text-sm">No preference</p>
+                            <p className="text-xs text-muted-foreground">We'll assign the best available groomer</p>
+                          </div>
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
 

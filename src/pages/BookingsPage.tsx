@@ -61,9 +61,9 @@ const BookingsPage = () => {
   const { data: staff = [] } = useQuery({
     queryKey: ["staff-list"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("staff").select("id, name").order("name");
+      const { data, error } = await supabase.from("staff").select("id, name, booking_priority").order("name");
       if (error) throw error;
-      return data;
+      return data as { id: string; name: string; booking_priority: number | null }[];
     },
   });
 
@@ -403,10 +403,12 @@ const BookingsPage = () => {
         <div className="flex flex-wrap gap-2">
           {staff.map((s, i) => {
             const colors = getStaffColor(i);
+            const priorityEmoji = s.booking_priority === 1 ? "🥇" : s.booking_priority === 2 ? "🥈" : s.booking_priority === 3 ? "🥉" : null;
             return (
               <div key={s.id} className="flex items-center gap-1.5 text-xs">
                 <div className={cn("h-3 w-3 rounded-sm", colors.bg)} />
                 <span>{s.name}</span>
+                {priorityEmoji && <span className="text-[10px]">{priorityEmoji}</span>}
               </div>
             );
           })}

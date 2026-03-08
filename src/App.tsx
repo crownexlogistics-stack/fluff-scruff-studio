@@ -39,6 +39,7 @@ import SystemHealthPage from "./pages/SystemHealthPage";
 import TestRunnerPage from "./pages/TestRunnerPage";
 import MigrationPage from "./pages/MigrationPage";
 import WelcomePage from "./pages/WelcomePage";
+import BookingPriorityPage from "./pages/BookingPriorityPage";
 
 const queryClient = new QueryClient();
 
@@ -78,6 +79,7 @@ const App = () => (
           <Route path="/staff" element={<ProtectedRoute allowedRoles={["manager", "director"]}><StaffPage /></ProtectedRoute>} />
           <Route path="/staff/:id" element={<ProtectedRoute allowedRoles={["manager", "director"]}><StaffDetailPage /></ProtectedRoute>} />
           <Route path="/staff/schedule" element={<ProtectedRoute allowedRoles={["manager", "director"]}><WorkSchedulePage /></ProtectedRoute>} />
+          <Route path="/staff/priority" element={<ProtectedRoute allowedRoles={["director"]}><BookingPriorityPage /></ProtectedRoute>} />
           <Route path="/staff/incidents" element={<ProtectedRoute allowedRoles={["manager", "director"]}><IncidentReportsPage /></ProtectedRoute>} />
           <Route path="/staff/risk-assessments" element={<ProtectedRoute allowedRoles={["manager", "director"]}><RiskAssessmentsPage /></ProtectedRoute>} />
           <Route path="/staff/rules" element={<ProtectedRoute allowedRoles={["manager", "director", "groomer", "volunteer", "work_placement"]}><RulesPage /></ProtectedRoute>} />

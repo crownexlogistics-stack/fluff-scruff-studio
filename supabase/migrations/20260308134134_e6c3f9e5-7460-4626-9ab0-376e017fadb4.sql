@@ -1,0 +1,2 @@
+ALTER TABLE public.staff ADD COLUMN IF NOT EXISTS booking_priority INTEGER DEFAULT NULL;
+ALTER TABLE public.staff ADD COLUMN IF NOT EXISTS is_accepting_bookings BOOLEAN DEFAULT true;

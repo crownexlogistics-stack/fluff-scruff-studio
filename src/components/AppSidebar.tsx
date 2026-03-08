@@ -47,6 +47,7 @@ const directorNavItems = [
 
 const hrSubItems = [
   { title: "Manage Staff", url: "/staff", icon: UserPlus },
+  { title: "Booking Priority", url: "/staff/priority", icon: Crown },
   { title: "Work Schedule", url: "/staff/schedule", icon: CalendarClock },
   { title: "Incident Reports", url: "/staff/incidents", icon: AlertTriangle },
   { title: "Risk Assessments", url: "/staff/risk-assessments", icon: ShieldCheck },
