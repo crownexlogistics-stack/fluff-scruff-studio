@@ -340,8 +340,9 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
     queryFn: async () => {
       const { data, error } = await supabase
         .from("staff")
-        .select("id, name, role")
+        .select("id, name, role, booking_priority, is_accepting_bookings")
         .ilike("role", "%groomer%")
+        .eq("is_accepting_bookings", true)
         .order("name");
       if (error) throw error;
       return data as Groomer[];
