@@ -372,6 +372,96 @@ function ImportTab({ onSwitchTab }: { onSwitchTab?: (tab: string) => void }) {
     }
   };
 
+  const fixDuplicateSameTimeBookings = async () => {
+    setFixing(true);
+    setFixResult(null);
+    try {
+      // Fetch all migrated bookings
+      const { data: allBookings, error } = await supabase
+        .from("migrated_bookings")
+        .select("id, migrated_customer_id, booking_date, booking_time, staff_name, service_name, duration_minutes, notes");
+      if (error) throw error;
+
+      // Group by customer + date + time + staff
+      const groups = new Map<string, any[]>();
+      (allBookings || []).forEach((b: any) => {
+        const key = `${b.migrated_customer_id}|${b.booking_date}|${b.booking_time}|${(b.staff_name || "").toLowerCase()}`;
+        const list = groups.get(key) || [];
+        list.push(b);
+        groups.set(key, list);
+      });
+
+      let fixedGroups = 0;
+      let removedRows = 0;
+
+      for (const [, group] of groups) {
+        if (group.length < 2) continue;
+
+        const uniqueServices = new Set(group.map((b: any) => (b.service_name || "").toLowerCase()));
+
+        if (uniqueServices.size === 1) {
+          // Same service — multiple dogs, just add note
+          for (const b of group) {
+            if (!b.notes?.includes("Multiple dogs")) {
+              await supabase
+                .from("migrated_bookings")
+                .update({ notes: (b.notes ? b.notes + " | " : "") + "Multiple dogs — same time slot" })
+                .eq("id", b.id);
+            }
+          }
+          fixedGroups++;
+          continue;
+        }
+
+        // Different services — find main vs add-ons
+        const mainRows = group.filter((b: any) => !isAddOnService(b.service_name || "", b.duration_minutes || 60));
+        const addOnRows = group.filter((b: any) => isAddOnService(b.service_name || "", b.duration_minutes || 60));
+
+        if (mainRows.length === 0) {
+          // No clear main — pick longest duration
+          const sorted = [...group].sort((a: any, b: any) => (b.duration_minutes || 0) - (a.duration_minutes || 0));
+          mainRows.push(sorted[0]);
+          addOnRows.length = 0;
+          sorted.slice(1).forEach((r: any) => addOnRows.push(r));
+        }
+
+        if (addOnRows.length === 0) continue;
+
+        const main = mainRows[0];
+        const addOnNames = addOnRows.map((b: any) => b.service_name);
+        const totalDuration = group.reduce((sum: number, b: any) => sum + (b.duration_minutes || 0), 0);
+
+        const existingNotes = main.notes || "";
+        const newNotes = (existingNotes ? existingNotes + " | " : "") + "Add-ons: " + addOnNames.join(", ");
+
+        // Update main booking
+        await supabase
+          .from("migrated_bookings")
+          .update({ notes: newNotes, duration_minutes: totalDuration })
+          .eq("id", main.id);
+
+        // Delete add-on rows
+        const idsToDelete = addOnRows.map((b: any) => b.id);
+        await supabase
+          .from("migrated_bookings")
+          .delete()
+          .in("id", idsToDelete);
+
+        fixedGroups++;
+        removedRows += idsToDelete.length;
+      }
+
+      setFixResult({ groups: fixedGroups, removed: removedRows });
+      queryClient.invalidateQueries({ queryKey: ["migrated-bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["migrated-bookings-for-customers"] });
+      toast.success(`Fixed ${fixedGroups} groups — ${removedRows} duplicate rows removed`);
+    } catch (err: any) {
+      toast.error(err.message || "Fix failed");
+    } finally {
+      setFixing(false);
+    }
+  };
+
   const progressPercent = progress && progress.total > 0 ? Math.round((progress.current / progress.total) * 100) : 0;
 
   return (
