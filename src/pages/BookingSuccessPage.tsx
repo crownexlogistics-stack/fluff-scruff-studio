@@ -544,6 +544,7 @@ export default function BookingSuccessPage() {
         </DialogContent>
       </Dialog>
       <ErrorReportButton />
+      <AIChatWidget />
     </div>
   );
 }
