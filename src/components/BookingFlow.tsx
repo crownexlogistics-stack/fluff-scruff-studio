@@ -681,7 +681,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
     if (isExistingCustomer && selectedStaffId) {
       assignedStaffId = selectedStaffId;
     } else if (groomers && groomers.length > 0 && baseSchedules) {
-      const [freshBookingsRes, freshOverridesRes] = await Promise.all([
+      const [freshBookingsRes, freshOverridesRes, freshMigratedRes] = await Promise.all([
         supabase
           .from("bookings")
           .select("booking_time, staff_id, services(duration_minutes), breeds(duration_minutes)")
@@ -691,9 +691,28 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
           .from("staff_schedule_overrides")
           .select("staff_id, override_date, start_time, end_time, is_working")
           .eq("override_date", selectedDate!),
+        supabase
+          .from("migrated_bookings")
+          .select("booking_time, staff_name, duration_minutes")
+          .eq("booking_date", selectedDate!)
+          .eq("is_future_booking", true),
       ]);
 
-      const freshBookings = (freshBookingsRes.data || []) as ExistingBooking[];
+      // Convert migrated bookings to ExistingBooking format by matching staff name
+      const migratedAsBookings: ExistingBooking[] = (freshMigratedRes.data || [])
+        .map((mb: any) => {
+          const firstName = mb.staff_name?.split(" ")[0]?.toLowerCase() || "";
+          const matched = groomers.find(g => g.name.split(" ")[0].toLowerCase() === firstName);
+          if (!matched || !mb.booking_time) return null;
+          return {
+            staff_id: matched.id,
+            booking_time: mb.booking_time,
+            services: { duration_minutes: mb.duration_minutes || 60 },
+          } as ExistingBooking;
+        })
+        .filter(Boolean) as ExistingBooking[];
+
+      const freshBookings = [...(freshBookingsRes.data || []) as ExistingBooking[], ...migratedAsBookings];
       const freshOverrides = (freshOverridesRes.data || []) as ScheduleOverride[];
       const bookingDate = new Date(selectedDate! + "T00:00:00");
 
