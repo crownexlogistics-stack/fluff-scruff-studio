@@ -129,7 +129,7 @@ serve(async (req) => {
               </p>
               
               <p style="font-size:16px;color:#333;line-height:1.6;margin:0 0 16px;">
-                Fluff &amp; Scruff Studio now has its very own app — and your full appointment history is already loaded in and waiting for you.
+                Fluff &amp; Scruff Studio now has its very own website — and your full appointment history is already loaded in and waiting for you.
               </p>
               
               <p style="font-size:16px;color:#333;line-height:1.6;margin:0 0 24px;">
