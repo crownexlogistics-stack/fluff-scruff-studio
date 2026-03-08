@@ -710,18 +710,61 @@ export default function CustomerProfilePage() {
                   <Textarea placeholder="Add a note about this customer..." value={newNote} onChange={(e) => setNewNote(e.target.value)} className="min-h-[60px]" />
                   <Button size="icon" className="shrink-0 self-end" disabled={!newNote.trim() || addNoteMutation.isPending} onClick={() => addNoteMutation.mutate(newNote.trim())}><Send className="h-4 w-4" /></Button>
                 </div>
-                {notes && notes.length > 0 ? (
-                  <div className="space-y-2">
-                    {notes.map((note) => (
-                      <div key={note.id} className="p-3 rounded-lg border bg-muted/30">
-                        <p className="text-sm">{note.note}</p>
-                        <p className="text-xs text-muted-foreground mt-1">{getStaffName(note.created_by)} • {format(new Date(note.created_at), "dd MMM yyyy, HH:mm")}</p>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground text-center py-4">No notes yet.</p>
-                )}
+                {(() => {
+                  // Merge staff notes + customer booking notes, sorted newest first
+                  const staffNotes = (notes || []).map((n: any) => ({
+                    type: "staff" as const,
+                    id: n.id,
+                    text: n.note,
+                    date: new Date(n.created_at),
+                    author: getStaffName(n.created_by),
+                  }));
+                  const bookingNotes = (bookings || [])
+                    .filter((b: any) => b.notes && b.notes.trim())
+                    .map((b: any) => ({
+                      type: "customer" as const,
+                      id: `booking-note-${b.id}`,
+                      text: b.notes,
+                      date: new Date(b.created_at),
+                      serviceName: (b.service as any)?.name || "Grooming",
+                      bookingDate: b.booking_date,
+                    }));
+                  const allNotes = [...staffNotes, ...bookingNotes].sort((a, b) => b.date.getTime() - a.date.getTime());
+
+                  if (allNotes.length === 0) {
+                    return <p className="text-sm text-muted-foreground text-center py-4">No notes yet.</p>;
+                  }
+
+                  return (
+                    <div className="space-y-2">
+                      {allNotes.map((note) =>
+                        note.type === "customer" ? (
+                          <div
+                            key={note.id}
+                            className="p-3 rounded-lg border"
+                            style={{ borderLeft: "4px solid #FF6B35", backgroundColor: "#FFF3E0" }}
+                          >
+                            <span
+                              className="text-[10px] font-bold uppercase tracking-wider"
+                              style={{ color: "#FF6B35" }}
+                            >
+                              🐾 Customer Note
+                            </span>
+                            <p className="text-sm mt-1" style={{ color: "#2D1B0E" }}>{note.text}</p>
+                            <p className="text-xs mt-1.5" style={{ color: "#2D1B0E", opacity: 0.6 }}>
+                              From booking — {note.serviceName} on {format(new Date(note.bookingDate), "dd MMM yyyy")}
+                            </p>
+                          </div>
+                        ) : (
+                          <div key={note.id} className="p-3 rounded-lg border bg-muted/30">
+                            <p className="text-sm">{note.text}</p>
+                            <p className="text-xs text-muted-foreground mt-1">{note.author} • {format(note.date, "dd MMM yyyy, HH:mm")}</p>
+                          </div>
+                        )
+                      )}
+                    </div>
+                  );
+                })()}
               </CardContent>
             </Card>
           </TabsContent>
