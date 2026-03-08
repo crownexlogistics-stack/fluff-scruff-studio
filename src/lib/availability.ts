@@ -41,6 +41,7 @@ export interface Groomer {
   name: string;
   booking_priority?: number | null;
   is_accepting_bookings?: boolean;
+  employment_end_date?: string | null;
 }
 
 export function parseTimeToMinutes(time: string): number {
@@ -172,14 +173,17 @@ export function generateAvailableSlots(
   existingBookings: ExistingBooking[],
   slotIntervalMins: number = 30
 ): string[] {
-  if (!groomers.length) return [];
+  // Filter out groomers whose employment has ended by this date
+  const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  const activeGroomers = groomers.filter(g => !g.employment_end_date || g.employment_end_date >= dateStr);
+  if (!activeGroomers.length) return [];
 
   // Convert JS getDay() (0=Sun,1=Mon,...,6=Sat) to DB format (0=Mon,1=Tue,...,6=Sun)
   const dayOfWeek = (date.getDay() + 6) % 7;
 
   // For each groomer, compute available windows after blocks
   const groomerWindows = new Map<string, TimeWindow[]>();
-  for (const g of groomers) {
+  for (const g of activeGroomers) {
     const windows = getGroomerWindows(g.id, dayOfWeek, baseSchedules, overrides);
     if (windows.length > 0) {
       groomerWindows.set(g.id, windows);
@@ -207,7 +211,7 @@ export function generateAvailableSlots(
 
     let hasAvailableGroomer = false;
 
-    for (const g of groomers) {
+    for (const g of activeGroomers) {
       const windows = groomerWindows.get(g.id);
       if (!windows) continue;
 
@@ -256,9 +260,10 @@ export function dateHasAnyAvailability(
   baseSchedules: StaffAvailability[],
   overrides: ScheduleOverride[]
 ): boolean {
-  // Convert JS getDay() (0=Sun,1=Mon,...,6=Sat) to DB format (0=Mon,1=Tue,...,6=Sun)
+  const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  const activeGroomers = groomers.filter(g => !g.employment_end_date || g.employment_end_date >= dateStr);
   const dayOfWeek = (date.getDay() + 6) % 7;
-  for (const g of groomers) {
+  for (const g of activeGroomers) {
     const windows = getGroomerWindows(g.id, dayOfWeek, baseSchedules, overrides);
     if (windows.length > 0) return true;
   }
@@ -278,12 +283,15 @@ export function findFreeGroomer(
   overrides: ScheduleOverride[],
   existingBookings: ExistingBooking[]
 ): Groomer | null {
-  // Sort groomers by priority (lower number = higher priority, null = last)
-  const sorted = [...groomers].sort((a, b) => {
-    const pa = a.booking_priority ?? 999;
-    const pb = b.booking_priority ?? 999;
-    return pa - pb;
-  });
+  const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  // Filter by end date and sort by priority
+  const sorted = [...groomers]
+    .filter(g => !g.employment_end_date || g.employment_end_date >= dateStr)
+    .sort((a, b) => {
+      const pa = a.booking_priority ?? 999;
+      const pb = b.booking_priority ?? 999;
+      return pa - pb;
+    });
 
   // Convert JS getDay() (0=Sun,1=Mon,...,6=Sat) to DB format (0=Mon,1=Tue,...,6=Sun)
   const dayOfWeek = (date.getDay() + 6) % 7;

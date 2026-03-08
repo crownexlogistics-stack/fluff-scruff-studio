@@ -1554,6 +1554,7 @@ export type Database = {
       }
       staff: {
         Row: {
+          account_blocked: boolean | null
           auth_user_id: string | null
           booking_priority: number | null
           contact_number: string | null
@@ -1563,6 +1564,7 @@ export type Database = {
           date_of_birth: string | null
           description: string | null
           email: string | null
+          employment_end_date: string | null
           hs_signature_data: string | null
           hs_signed_at: string | null
           hs_signed_ip: string | null
@@ -1577,6 +1579,7 @@ export type Database = {
           start_date: string | null
         }
         Insert: {
+          account_blocked?: boolean | null
           auth_user_id?: string | null
           booking_priority?: number | null
           contact_number?: string | null
@@ -1586,6 +1589,7 @@ export type Database = {
           date_of_birth?: string | null
           description?: string | null
           email?: string | null
+          employment_end_date?: string | null
           hs_signature_data?: string | null
           hs_signed_at?: string | null
           hs_signed_ip?: string | null
@@ -1600,6 +1604,7 @@ export type Database = {
           start_date?: string | null
         }
         Update: {
+          account_blocked?: boolean | null
           auth_user_id?: string | null
           booking_priority?: number | null
           contact_number?: string | null
@@ -1609,6 +1614,7 @@ export type Database = {
           date_of_birth?: string | null
           description?: string | null
           email?: string | null
+          employment_end_date?: string | null
           hs_signature_data?: string | null
           hs_signed_at?: string | null
           hs_signed_ip?: string | null
