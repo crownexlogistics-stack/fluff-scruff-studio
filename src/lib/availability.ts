@@ -211,7 +211,7 @@ export function generateAvailableSlots(
 
     let hasAvailableGroomer = false;
 
-    for (const g of groomers) {
+    for (const g of activeGroomers) {
       const windows = groomerWindows.get(g.id);
       if (!windows) continue;
 
