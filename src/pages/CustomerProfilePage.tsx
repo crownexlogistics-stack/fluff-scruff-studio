@@ -95,6 +95,28 @@ export default function CustomerProfilePage() {
     enabled: !!decodedEmail,
   });
 
+  // Fetch migrated bookings for this customer
+  const { data: migratedBookings } = useQuery({
+    queryKey: ["customer-migrated-bookings", decodedEmail],
+    queryFn: async () => {
+      // Find migrated customer by email
+      const { data: mc } = await supabase
+        .from("migrated_customers")
+        .select("id")
+        .ilike("email", decodedEmail)
+        .limit(1);
+      if (!mc || mc.length === 0) return [];
+      const { data, error } = await supabase
+        .from("migrated_bookings")
+        .select("*")
+        .eq("migrated_customer_id", mc[0].id)
+        .order("booking_date", { ascending: false });
+      if (error) throw error;
+      return (data || []).map((b: any) => ({ ...b, _source: "wix" }));
+    },
+    enabled: !!decodedEmail,
+  });
+
   // Check if this customer is "owned" by the groomer
   const isOwnCustomer = !isGroomer || (bookings || []).some(
     (b) => b.staff_id === groomerStaff?.id
@@ -374,9 +396,29 @@ export default function CustomerProfilePage() {
   const customerPhone = bookings?.find((b) => b.customer_phone)?.customer_phone || "";
   const initials = customerName.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
 
+  // Merge migrated bookings into past bookings display
+  const migratedAsBookings = (migratedBookings || []).map((mb: any) => ({
+    id: `migrated-${mb.id}`,
+    booking_date: mb.booking_date,
+    booking_time: mb.booking_time || "00:00",
+    dog_name: mb.dog_name || "Unknown",
+    total_price: mb.total_price || 0,
+    deposit_paid: mb.deposit_paid || 0,
+    status: mb.payment_status === "Paid" ? "Completed" : mb.payment_status || "Unknown",
+    notes: mb.notes,
+    staff: mb.staff_name ? { name: mb.staff_name } : null,
+    service: { name: mb.service_name },
+    breed: mb.dog_breed ? { name: mb.dog_breed } : null,
+    _source: "wix" as const,
+    customer_name: customerName,
+  }));
+
   const today = new Date().toISOString().split("T")[0];
   const upcomingBookings = bookings?.filter((b) => b.booking_date >= today && b.status !== "Cancelled") || [];
-  const pastBookings = bookings?.filter((b) => b.booking_date < today || b.status === "Cancelled") || [];
+  const pastBookings = [
+    ...(bookings?.filter((b) => b.booking_date < today || b.status === "Cancelled") || []),
+    ...migratedAsBookings,
+  ].sort((a, b) => b.booking_date.localeCompare(a.booking_date));
   const fallbackDogsFromBookings = Array.from(
     new Map(
       (bookings || [])
@@ -590,8 +632,8 @@ export default function CustomerProfilePage() {
                   )}
                 </div>
                 <div className="flex flex-wrap items-center gap-2 mt-1">
-                  <Badge variant="secondary">{bookings?.length || 0} booking{(bookings?.length || 0) !== 1 ? "s" : ""}</Badge>
-                  {(bookings?.length || 0) >= 2 && (
+                  <Badge variant="secondary">{(bookings?.length || 0) + (migratedBookings?.length || 0)} booking{((bookings?.length || 0) + (migratedBookings?.length || 0)) !== 1 ? "s" : ""}</Badge>
+                  {((bookings?.length || 0) + (migratedBookings?.length || 0)) >= 2 && (
                     <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">Returning</Badge>
                   )}
                   {customerIsOwn && (
@@ -714,7 +756,7 @@ export default function CustomerProfilePage() {
             </Card>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <MiniStat label="Total Bookings" value={String(bookings?.length || 0)} />
+              <MiniStat label="Total Bookings" value={String((bookings?.length || 0) + (migratedBookings?.length || 0))} />
               <MiniStat label="Upcoming" value={String(upcomingBookings.length)} />
               <MiniStat label="Completed" value={String(bookings?.filter((b) => b.status === "Completed").length || 0)} />
               <MiniStat label="No Shows" value={String(bookings?.filter((b) => b.status === "No Show").length || 0)} />
@@ -1121,6 +1163,9 @@ function BookingRow({ booking, onEdit, onCancel, showActions, onClick }: { booki
         <p className="text-sm font-medium">
           {serviceName || "Service"} — {booking.dog_name}
           {breedName && <span className="text-muted-foreground"> ({breedName})</span>}
+          {booking._source === "wix" && (
+            <Badge variant="outline" className="ml-2 text-[9px] px-1.5 py-0 border-amber-300 text-amber-600">W</Badge>
+          )}
         </p>
         <p className="text-xs text-muted-foreground">
           {format(parseISO(booking.booking_date), "EEE, dd MMM yyyy")} at {booking.booking_time?.slice(0, 5)}
@@ -1137,7 +1182,7 @@ function BookingRow({ booking, onEdit, onCancel, showActions, onClick }: { booki
             <span className="text-[10px] text-muted-foreground">Due: £{balanceDue.toFixed(2)}</span>
           )}
         </div>
-        {showActions && (
+        {showActions && !booking._source && (
           <>
             <Button size="icon" variant="ghost" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); onEdit?.(); }} title="Edit">
               <Pencil className="h-3.5 w-3.5" />

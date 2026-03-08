@@ -67,6 +67,39 @@ export function CustomerSearchBar({ currentStaffId, className }: CustomerSearchB
         }
       });
 
+      // Also search migrated_customers for those not already in bookings
+      const { data: migrated } = await supabase
+        .from("migrated_customers")
+        .select("id, full_name, email, phone")
+        .or(`full_name.ilike.%${q}%,email.ilike.%${q}%,phone.ilike.%${q}%`)
+        .limit(20);
+
+      for (const mc of migrated || []) {
+        if (!mc.email) continue;
+        const key = mc.email.toLowerCase();
+        if (!customerMap.has(key)) {
+          // Get their latest migrated booking for dog name
+          const { data: mbData } = await supabase
+            .from("migrated_bookings")
+            .select("dog_name, staff_name, booking_date")
+            .eq("migrated_customer_id", mc.id)
+            .order("booking_date", { ascending: false })
+            .limit(1);
+          const mb = mbData?.[0];
+          customerMap.set(key, {
+            customer_name: mc.full_name || "Unknown",
+            customer_email: mc.email,
+            customer_phone: mc.phone,
+            dog_name: mb?.dog_name || "Unknown",
+            last_staff_name: mb?.staff_name || null,
+            last_staff_id: null,
+            last_booking_date: mb?.booking_date || null,
+            is_own_customer: false,
+            _source: "wix",
+          } as any);
+        }
+      }
+
       setResults(Array.from(customerMap.values()));
       setOpen(true);
     } catch (e) {
@@ -124,6 +157,9 @@ export function CustomerSearchBar({ currentStaffId, className }: CustomerSearchB
                   <div className="flex items-center gap-2">
                     <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                     <span className="font-medium text-sm truncate">{r.customer_name}</span>
+                    {(r as any)._source === "wix" && (
+                      <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-muted-foreground/40 text-muted-foreground">Wix</Badge>
+                    )}
                   </div>
                   <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
                     {r.customer_email && (

@@ -64,6 +64,42 @@ export function CustomerSearchInput({ onSelect, onAddNew, disabled, initialSelec
           });
         }
       }
+
+      // Also include migrated customers not already in bookings
+      const { data: migrated } = await supabase
+        .from("migrated_customers")
+        .select("id, full_name, email, phone")
+        .not("email", "is", null);
+
+      for (const mc of migrated || []) {
+        if (!mc.email) continue;
+        const key = mc.email.toLowerCase().trim();
+        if (!map.has(key)) {
+          // Get dog name from their migrated bookings
+          const { data: mbData } = await supabase
+            .from("migrated_bookings")
+            .select("dog_name, dog_breed")
+            .eq("migrated_customer_id", mc.id)
+            .limit(5);
+          const dogs = (mbData || [])
+            .filter((b: any) => b.dog_name)
+            .reduce((acc: { name: string; breed_id: string | null }[], b: any) => {
+              if (!acc.some(d => d.name.toLowerCase() === b.dog_name.toLowerCase())) {
+                acc.push({ name: b.dog_name, breed_id: null });
+              }
+              return acc;
+            }, []);
+          map.set(key, {
+            customer_name: mc.full_name || "Unknown",
+            customer_email: mc.email,
+            customer_phone: mc.phone || "",
+            dog_name: dogs[0]?.name || "",
+            breed_id: null,
+            dogs,
+          });
+        }
+      }
+
       return Array.from(map.values());
     },
   });

@@ -1220,6 +1220,7 @@ export type Database = {
           id: string
           invited_at: string | null
           phone: string | null
+          profile_id: string | null
           status: string
           supabase_user_id: string | null
         }
@@ -1231,6 +1232,7 @@ export type Database = {
           id?: string
           invited_at?: string | null
           phone?: string | null
+          profile_id?: string | null
           status?: string
           supabase_user_id?: string | null
         }
@@ -1242,10 +1244,19 @@ export type Database = {
           id?: string
           invited_at?: string | null
           phone?: string | null
+          profile_id?: string | null
           status?: string
           supabase_user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "migrated_customers_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       payout_records: {
         Row: {

@@ -80,3 +80,6 @@ verify_jwt = false
 
 [functions.run-e2e-tests]
 verify_jwt = false
+
+[functions.sync-migrated-profiles]
+verify_jwt = false

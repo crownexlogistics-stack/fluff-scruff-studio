@@ -1090,6 +1090,81 @@ function MigrationCustomersTab() {
   );
 }
 
+// ─── Sync Tab ───
+function SyncTab() {
+  const [syncing, setSyncing] = useState(false);
+  const [result, setResult] = useState<{ total: number; linked: number; alreadyLinked: number; unlinked: number; errors: string[] } | null>(null);
+
+  const runSync = async () => {
+    setSyncing(true);
+    setResult(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("sync-migrated-profiles");
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setResult(data);
+      toast.success(`Sync complete — ${data.linked} profiles linked`);
+    } catch (err: any) {
+      toast.error(err.message || "Sync failed");
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            🔗 Sync to Main System
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            This links all migrated customers to the main customer database so they appear in
+            search, profiles and the dashboard. Customers who have already signed up will be
+            matched by email automatically.
+          </p>
+          <Button onClick={runSync} disabled={syncing} className="gap-2">
+            🔗 {syncing ? "Syncing…" : "Sync Migrated Customers to Profiles"}
+          </Button>
+          {result && (
+            <div className="p-4 rounded-lg bg-green-50 border border-green-200 dark:bg-green-950/20 dark:border-green-900 space-y-2">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-5 w-5 text-green-600" />
+                <p className="font-semibold text-green-700 dark:text-green-400">Sync Complete</p>
+              </div>
+              <div className="text-sm text-muted-foreground space-y-1">
+                <p>• {result.total} total migrated customers</p>
+                <p>• {result.linked} newly linked to profiles</p>
+                <p>• {result.alreadyLinked} already linked</p>
+                <p>• {result.unlinked} without accounts (will be found via email search)</p>
+              </div>
+              {result.errors.length > 0 && (
+                <div className="text-xs text-destructive space-y-0.5 mt-2">
+                  {result.errors.map((e, i) => <p key={i}>⚠️ {e}</p>)}
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="p-5">
+          <h3 className="text-sm font-semibold mb-2">How it works</h3>
+          <div className="text-sm text-muted-foreground space-y-2">
+            <p>✅ All migrated customers are searchable in the customer search bar by name, email, phone or dog name</p>
+            <p>✅ Customer profiles show full booking history from both the main system and Wix</p>
+            <p>✅ Wix bookings are marked with a <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-amber-300 text-amber-600 mx-1">W</Badge> badge</p>
+            <p>✅ Dashboard revenue and appointment counts include migrated data</p>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 // ─── Page ───
 export default function MigrationPage() {
   const [activeTab, setActiveTab] = useState("import");
@@ -1107,10 +1182,12 @@ export default function MigrationPage() {
             <TabsTrigger value="import">Import</TabsTrigger>
             <TabsTrigger value="bookings">Bookings</TabsTrigger>
             <TabsTrigger value="customers">Customers</TabsTrigger>
+            <TabsTrigger value="sync">Sync</TabsTrigger>
           </TabsList>
           <TabsContent value="import"><ImportTab onSwitchTab={setActiveTab} /></TabsContent>
           <TabsContent value="bookings"><MigrationBookingsTab /></TabsContent>
           <TabsContent value="customers"><MigrationCustomersTab /></TabsContent>
+          <TabsContent value="sync"><SyncTab /></TabsContent>
         </Tabs>
       </div>
     </AppLayout>
