@@ -129,7 +129,7 @@ serve(async (req) => {
               </p>
               
               <p style="font-size:16px;color:#333;line-height:1.6;margin:0 0 16px;">
-                Fluff &amp; Scruff Studio now has its very own app — and your full appointment history is already loaded in and waiting for you.
+                Fluff &amp; Scruff Studio now has its very own website — and your full appointment history is already loaded in and waiting for you.
               </p>
               
               <p style="font-size:16px;color:#333;line-height:1.6;margin:0 0 24px;">
@@ -159,7 +159,8 @@ serve(async (req) => {
               
               <table cellpadding="0" cellspacing="0" style="margin:0 0 16px;">
                 <tr><td style="padding:4px 0;font-size:15px;color:#333;">✅ See all your past appointments</td></tr>
-                <tr><td style="padding:4px 0;font-size:15px;color:#333;">📅 Book your next visit in seconds</td></tr>
+                <tr><td style="padding:4px 0;font-size:15px;color:#333;">📅 Book your next appointment in seconds</td></tr>
+                <tr><td style="padding:4px 0;font-size:15px;color:#333;">🔄 Reschedule or cancel appointments yourself</td></tr>
                 <tr><td style="padding:4px 0;font-size:15px;color:#333;">📸 View your pup's grooming photos</td></tr>
                 <tr><td style="padding:4px 0;font-size:15px;color:#333;">💡 Get daily breed care tips</td></tr>
               </table>
