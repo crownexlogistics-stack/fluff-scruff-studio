@@ -157,6 +157,9 @@ export function CustomerSearchBar({ currentStaffId, className }: CustomerSearchB
                   <div className="flex items-center gap-2">
                     <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                     <span className="font-medium text-sm truncate">{r.customer_name}</span>
+                    {(r as any)._source === "wix" && (
+                      <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-muted-foreground/40 text-muted-foreground">Wix</Badge>
+                    )}
                   </div>
                   <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
                     {r.customer_email && (

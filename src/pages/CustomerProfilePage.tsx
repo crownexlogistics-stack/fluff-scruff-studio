@@ -1163,6 +1163,9 @@ function BookingRow({ booking, onEdit, onCancel, showActions, onClick }: { booki
         <p className="text-sm font-medium">
           {serviceName || "Service"} — {booking.dog_name}
           {breedName && <span className="text-muted-foreground"> ({breedName})</span>}
+          {booking._source === "wix" && (
+            <Badge variant="outline" className="ml-2 text-[9px] px-1.5 py-0 border-amber-300 text-amber-600">W</Badge>
+          )}
         </p>
         <p className="text-xs text-muted-foreground">
           {format(parseISO(booking.booking_date), "EEE, dd MMM yyyy")} at {booking.booking_time?.slice(0, 5)}
@@ -1179,7 +1182,7 @@ function BookingRow({ booking, onEdit, onCancel, showActions, onClick }: { booki
             <span className="text-[10px] text-muted-foreground">Due: £{balanceDue.toFixed(2)}</span>
           )}
         </div>
-        {showActions && (
+        {showActions && !booking._source && (
           <>
             <Button size="icon" variant="ghost" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); onEdit?.(); }} title="Edit">
               <Pencil className="h-3.5 w-3.5" />
