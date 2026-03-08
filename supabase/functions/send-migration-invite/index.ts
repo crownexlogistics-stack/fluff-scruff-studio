@@ -118,7 +118,7 @@ serve(async (req) => {
           <!-- Header -->
           <tr>
             <td align="center" style="padding:32px 40px 16px;">
-              <img src="https://fluff-scruff-studio.lovable.app/logo-transparent.png" alt="Fluff & Scruff" width="80" style="width:80px;height:auto;" />
+              <img src="https://fluffandscruff.co.uk/logo-transparent.png" alt="Fluff & Scruff" width="80" style="width:80px;height:auto;" />
             </td>
           </tr>
           <!-- Body -->
