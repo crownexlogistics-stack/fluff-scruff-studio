@@ -95,6 +95,47 @@ const BookingsPage = () => {
     },
   });
 
+  // Fetch future migrated bookings for calendar display
+  const { data: migratedBookings = [] } = useQuery({
+    queryKey: ["migrated-calendar-bookings", format(weekStart, "yyyy-MM-dd")],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("migrated_bookings")
+        .select("*, migrated_customers(full_name, email, phone)")
+        .gte("booking_date", format(weekStart, "yyyy-MM-dd"))
+        .lte("booking_date", format(weekEnd, "yyyy-MM-dd"))
+        .eq("is_future_booking", true);
+      if (error) throw error;
+      return (data || []).map((mb: any) => {
+        // Match staff by first word of staff_name
+        const staffFirstName = mb.staff_name?.split(" ")[0]?.trim() || "";
+        const matchedStaff = staff.find(s => s.name.split(" ")[0].toLowerCase() === staffFirstName.toLowerCase());
+        return {
+          id: mb.id,
+          customer_name: mb.migrated_customers?.full_name || "Unknown",
+          dog_name: mb.dog_name || "",
+          booking_date: mb.booking_date,
+          booking_time: mb.booking_time || "09:00",
+          total_price: Number(mb.total_price || 0),
+          deposit_paid: Number(mb.deposit_paid || 0),
+          status: "Confirmed",
+          notes: mb.notes,
+          customer_email: mb.migrated_customers?.email || null,
+          customer_phone: mb.migrated_customers?.phone || null,
+          staff_name: matchedStaff?.name || mb.staff_name || "Unassigned",
+          staff_id: matchedStaff?.id || undefined,
+          breed_name: mb.dog_breed || "",
+          service_name: mb.service_name || "",
+          duration_minutes: mb.duration_minutes || 60,
+          is_migrated: true,
+          migrated_payment_status: mb.payment_status,
+          migrated_amount_due: mb.amount_due != null ? Number(mb.amount_due) : null,
+        } as BookingData;
+      });
+    },
+    enabled: staff.length > 0,
+  });
+
   const { data: overrides = [] } = useQuery({
     queryKey: ["schedule-overrides", format(weekStart, "yyyy-MM-dd")],
     queryFn: async () => {
@@ -127,7 +168,7 @@ const BookingsPage = () => {
     },
   });
 
-  const allEvents = useMemo(() => [...bookings, ...overrides], [bookings, overrides]);
+  const allEvents = useMemo(() => [...bookings, ...migratedBookings, ...overrides], [bookings, migratedBookings, overrides]);
 
   // Cancel block mutation
   const cancelBlockMutation = useMutation({

@@ -232,6 +232,9 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
             </p>
           ) : (
             <>
+              {booking.is_migrated && (
+                <span className="absolute top-0.5 right-0.5 bg-amber-500 text-white text-[8px] font-bold rounded px-0.5 leading-tight z-20">W</span>
+              )}
               <p className="text-[10px] opacity-70">{booking.booking_time.slice(0, 5)}</p>
               <p className="font-bold truncate">{booking.service_name || "Appointment"}</p>
               <p className="truncate">{booking.breed_name || booking.dog_name}</p>
