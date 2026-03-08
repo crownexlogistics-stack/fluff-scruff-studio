@@ -939,6 +939,51 @@ export type Database = {
         }
         Relationships: []
       }
+      expenses: {
+        Row: {
+          amount: number
+          category: string
+          created_at: string
+          created_by: string
+          expense_date: string | null
+          expense_type: string
+          frequency: string | null
+          id: string
+          name: string
+          notes: string | null
+          recurring_end_date: string | null
+          recurring_start_date: string | null
+        }
+        Insert: {
+          amount?: number
+          category?: string
+          created_at?: string
+          created_by: string
+          expense_date?: string | null
+          expense_type?: string
+          frequency?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          recurring_end_date?: string | null
+          recurring_start_date?: string | null
+        }
+        Update: {
+          amount?: number
+          category?: string
+          created_at?: string
+          created_by?: string
+          expense_date?: string | null
+          expense_type?: string
+          frequency?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          recurring_end_date?: string | null
+          recurring_start_date?: string | null
+        }
+        Relationships: []
+      }
       groomer_recommendations: {
         Row: {
           created_at: string

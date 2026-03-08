@@ -270,6 +270,34 @@ const Index = () => {
     },
   });
 
+  // Expenses — recurring
+  const { data: recurringExpenses = [] } = useQuery({
+    queryKey: ["dash-recurring-expenses"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("expenses")
+        .select("amount, frequency")
+        .eq("expense_type", "recurring");
+      return (data ?? []) as any[];
+    },
+  });
+
+  // Expenses — one-off in current period
+  const monthStart = format(startOfMonth(new Date()), "yyyy-MM-dd");
+  const monthEnd = format(endOfMonth(new Date()), "yyyy-MM-dd");
+  const { data: oneOffExpenses = [] } = useQuery({
+    queryKey: ["dash-oneoff-expenses", monthStart, monthEnd],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("expenses")
+        .select("amount")
+        .eq("expense_type", "one_off")
+        .gte("expense_date", monthStart)
+        .lte("expense_date", monthEnd);
+      return (data ?? []) as any[];
+    },
+  });
+
   // ── Computed Stats ───────────────────────────
   const completed = bookings.filter((b: any) => b.status === "Completed" || b.status === "No Show");
   const cancelled = bookings.filter((b: any) => b.status === "Cancelled");
@@ -289,6 +317,17 @@ const Index = () => {
   const prevStudioShare = prevCommissions.reduce((s: number, c: any) => s + Number(c.studio_share), 0);
 
   const projectedGross = upcomingAll.reduce((s: number, b: any) => s + Number(b.total_price), 0);
+
+  // Expenses totals
+  const toMonthly = (amount: number, freq: string) => {
+    if (freq === "weekly") return amount * 4.33;
+    if (freq === "annual") return amount / 12;
+    return amount;
+  };
+  const monthlyRecurringExpenses = recurringExpenses.reduce((s: number, e: any) => s + toMonthly(Number(e.amount), e.frequency || "monthly"), 0);
+  const monthlyOneOffExpenses = oneOffExpenses.reduce((s: number, e: any) => s + Number(e.amount), 0);
+  const totalMonthlyExpenses = monthlyRecurringExpenses + monthlyOneOffExpenses;
+  const netProfit = totalStudioShare - totalMonthlyExpenses;
 
   const calcDelta = (curr: number, prev: number) => prev > 0 ? Math.round(((curr - prev) / prev) * 100) : 0;
 
@@ -584,17 +623,22 @@ const Index = () => {
           </Card>
 
           {/* Net Profit */}
-          <Card className={cn("rounded-xl border-l-4", totalStudioShare >= 0 ? "border-l-green-500" : "border-l-destructive")}>
+          <Card className={cn("rounded-xl border-l-4", netProfit >= 0 ? "border-l-green-500" : "border-l-destructive")}>
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-xs font-medium text-muted-foreground">Salon Profit</span>
                 <Wallet className="h-4 w-4 text-green-600" />
               </div>
-              <p className={cn("text-2xl font-bold font-heading", totalStudioShare >= 0 ? "text-green-600" : "text-destructive")}>
-                £{totalStudioShare.toLocaleString()}
+              <p className={cn("text-2xl font-bold font-heading", netProfit >= 0 ? "text-green-600" : "text-destructive")}>
+                £{netProfit.toLocaleString()}
               </p>
-              <p className="text-xs text-muted-foreground">After groomer pay</p>
-              <DeltaBadge current={totalStudioShare} previous={prevStudioShare} />
+              <p className="text-xs text-muted-foreground">After groomer pay & expenses</p>
+              {totalMonthlyExpenses > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Expenses: £{Math.round(monthlyRecurringExpenses)} recurring + £{Math.round(monthlyOneOffExpenses)} one-off
+                </p>
+              )}
+              <DeltaBadge current={netProfit} previous={prevStudioShare} />
             </CardContent>
           </Card>
 
