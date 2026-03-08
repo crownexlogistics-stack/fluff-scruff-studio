@@ -61,9 +61,9 @@ const BookingsPage = () => {
   const { data: staff = [] } = useQuery({
     queryKey: ["staff-list"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("staff").select("id, name").order("name");
+      const { data, error } = await supabase.from("staff").select("id, name, booking_priority").order("name");
       if (error) throw error;
-      return data;
+      return data as { id: string; name: string; booking_priority: number | null }[];
     },
   });
 
