@@ -39,6 +39,7 @@ import SystemHealthPage from "./pages/SystemHealthPage";
 import TestRunnerPage from "./pages/TestRunnerPage";
 import MigrationPage from "./pages/MigrationPage";
 import WelcomePage from "./pages/WelcomePage";
+import BookingPriorityPage from "./pages/BookingPriorityPage";
 
 const queryClient = new QueryClient();
 
