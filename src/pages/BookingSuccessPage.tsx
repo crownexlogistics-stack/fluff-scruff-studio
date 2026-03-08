@@ -16,7 +16,7 @@ import { toast } from "sonner";
 import { motion } from "framer-motion";
 import confetti from "canvas-confetti";
 import logo from "@/assets/logo-transparent.png";
-import { ErrorReportButton } from "@/components/error-reporting/ErrorReportButton";
+
 import { AIChatWidget } from "@/components/AIChatWidget";
 
 // ─── Happy Dog Animation (inline SVG) ──────────────────────────────
