@@ -38,6 +38,8 @@ const QUICK_REPLIES = [
 ];
 
 export function AIChatWidget() {
+  const SCRUFF_ENABLED = false;
+
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([WELCOME_MESSAGE]);
   const [input, setInput] = useState("");
@@ -218,6 +220,8 @@ export function AIChatWidget() {
   const userMsgCount = messages.filter((m) => m.role === "user").length;
   const shouldShowProactive =
     !proactiveSuggestionShown && !bookingTapped && userMsgCount >= 3;
+
+  if (!SCRUFF_ENABLED) return null;
 
   return (
     <>
