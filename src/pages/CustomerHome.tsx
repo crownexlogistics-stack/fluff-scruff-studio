@@ -101,48 +101,7 @@ const CustomerHome = () => {
       </nav>
 
       {/* ══════ HERO ══════ */}
-      <section className="relative">
-        <div className="relative w-full h-[300px] sm:h-[400px] overflow-hidden">
-          <img
-            src={heroDog}
-            alt="Beautifully groomed dog at Fluff & Scruff studio"
-            className="w-full h-full object-cover"
-            style={{ objectPosition: 'center 40%' }}
-          />
-          <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, transparent 40%, hsl(30 100% 98%) 100%)' }} />
-        </div>
-
-        <div className="relative z-10 px-5 sm:px-6 text-center -mt-4 pb-2">
-          <h1 className="text-[28px] sm:text-4xl lg:text-5xl font-heading text-foreground leading-tight">
-            Where every pup leaves looking their absolute best ✨
-          </h1>
-          <div className="flex items-center justify-center gap-1.5 mt-2">
-            <div className="flex gap-0.5">
-              {[1,2,3,4,5].map(s => <Star key={s} className="h-4 w-4 text-gold fill-gold" />)}
-            </div>
-            <span className="text-xs font-body font-semibold text-muted-foreground">4.9 from 69+ Google reviews</span>
-          </div>
-          <p className="text-[13px] sm:text-base text-muted-foreground font-body max-w-sm mx-auto leading-relaxed mt-2">
-            Your pup deserves the royal treatment 👑 We wash, snip, fluff and love every single dog that walks through our door.
-          </p>
-          <div className="flex flex-col gap-2 mt-3 max-w-md mx-auto">
-            <button
-              onClick={() => navigate("/book")}
-              className="w-full font-bold font-body text-base py-4 bg-accent text-accent-foreground hover:bg-accent/90 transition-all active:scale-[0.97] shadow-lg shadow-accent/20"
-              style={{ borderRadius: '30px' }}
-            >
-              🐾 Book My Pup In!
-            </button>
-            <a
-              href="tel:01708606655"
-              className="w-full flex items-center justify-center gap-2 font-bold font-body text-base py-4 bg-card text-foreground border-2 border-border hover:border-accent/40 transition-all active:scale-[0.97]"
-              style={{ borderRadius: '30px' }}
-            >
-              📞 Call Us
-            </a>
-          </div>
-        </div>
-      </section>
+      <HeroSection navigate={navigate} />
 
 
       {/* ══════ SERVICES ══════ */}
