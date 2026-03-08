@@ -153,11 +153,11 @@ function ExpenseForm({
     <div className="space-y-4">
       <div>
         <Label>Name</Label>
-        <Input value={form.name} onChange={handleNameChange} placeholder="e.g. Rent" />
+        <Input value={form.name} onChange={onNameChange} placeholder="e.g. Rent" />
       </div>
       <div>
         <Label>Category</Label>
-        <Select value={form.category} onValueChange={handleCategoryChange}>
+        <Select value={form.category} onValueChange={onCategoryChange}>
           <SelectTrigger><SelectValue /></SelectTrigger>
           <SelectContent>
             {CATEGORIES.map(c => (
@@ -168,12 +168,12 @@ function ExpenseForm({
       </div>
       <div>
         <Label>Amount (£)</Label>
-        <NumericInput value={form.amount} onValueChange={handleAmountChange} />
+        <NumericInput value={form.amount} onValueChange={onAmountChange} />
       </div>
       {type === "recurring" && (
         <div>
           <Label>Frequency</Label>
-          <Select value={form.frequency} onValueChange={handleFrequencyChange}>
+          <Select value={form.frequency} onValueChange={onFrequencyChange}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="weekly">Weekly</SelectItem>
@@ -194,7 +194,7 @@ function ExpenseForm({
                   {form.recurring_start_date ? format(form.recurring_start_date, "PPP") : "Pick date"}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={form.recurring_start_date} onSelect={handleStartDateChange} className="p-3 pointer-events-auto" /></PopoverContent>
+              <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={form.recurring_start_date} onSelect={onStartDateChange} className="p-3 pointer-events-auto" /></PopoverContent>
             </Popover>
           </div>
           <div>
@@ -206,7 +206,7 @@ function ExpenseForm({
                   {form.recurring_end_date ? format(form.recurring_end_date, "PPP") : "Ongoing"}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={form.recurring_end_date} onSelect={handleEndDateChange} className="p-3 pointer-events-auto" /></PopoverContent>
+              <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={form.recurring_end_date} onSelect={onEndDateChange} className="p-3 pointer-events-auto" /></PopoverContent>
             </Popover>
           </div>
         </div>
@@ -221,13 +221,13 @@ function ExpenseForm({
                 {form.expense_date ? format(form.expense_date, "PPP") : "Pick date"}
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={form.expense_date} onSelect={handleExpenseDateChange} className="p-3 pointer-events-auto" /></PopoverContent>
+            <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={form.expense_date} onSelect={onExpenseDateChange} className="p-3 pointer-events-auto" /></PopoverContent>
           </Popover>
         </div>
       )}
       <div>
         <Label>Notes (optional)</Label>
-        <Textarea value={form.notes} onChange={handleNotesChange} placeholder="Additional details..." />
+        <Textarea value={form.notes} onChange={onNotesChange} placeholder="Additional details..." />
       </div>
     </div>
   );
