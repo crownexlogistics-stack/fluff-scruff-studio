@@ -220,6 +220,25 @@ export function BookingPopoverCard({
         )}
       </div>
 
+      {/* Migrated booking payment info */}
+      {booking.is_migrated && (
+        <div className="bg-amber-50 border border-amber-200 rounded-md px-3 py-2 text-xs text-amber-800 space-y-1">
+          <p className="font-medium">Imported from Wix</p>
+          {booking.migrated_payment_status && (
+            <div className="flex justify-between">
+              <span>Payment Status</span>
+              <span className="font-semibold">{booking.migrated_payment_status}</span>
+            </div>
+          )}
+          {booking.migrated_amount_due != null && booking.migrated_amount_due > 0 && (
+            <div className="flex justify-between">
+              <span>Amount Due</span>
+              <span className="font-bold">£{booking.migrated_amount_due.toFixed(2)}</span>
+            </div>
+          )}
+        </div>
+      )}
+
       {booking.notes && (
         <div className="border-t pt-3">
           <p className="text-xs text-muted-foreground">{booking.notes}</p>
