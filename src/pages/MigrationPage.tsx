@@ -421,16 +421,14 @@ function ImportTab({ onSwitchTab }: { onSwitchTab?: (tab: string) => void }) {
             </div>
             <div className="flex gap-2 justify-center">
               <Button variant="outline" size="sm" onClick={() => {
-                const tabsList = document.querySelector('[data-state="active"][value="import"]')?.closest('[role="tablist"]');
-                const bookingsTab = tabsList?.querySelector('[value="bookings"]') as HTMLElement;
-                bookingsTab?.click();
+                onSwitchTab?.("bookings");
+                window.scrollTo({ top: 0, behavior: "smooth" });
               }}>
                 Go to Bookings tab →
               </Button>
               <Button variant="outline" size="sm" onClick={() => {
-                const tabsList = document.querySelector('[data-state="active"][value="import"]')?.closest('[role="tablist"]');
-                const customersTab = tabsList?.querySelector('[value="customers"]') as HTMLElement;
-                customersTab?.click();
+                onSwitchTab?.("customers");
+                window.scrollTo({ top: 0, behavior: "smooth" });
               }}>
                 Go to Customers tab →
               </Button>
