@@ -1,0 +1,1 @@
+ALTER TABLE public.migrated_customers ADD COLUMN IF NOT EXISTS profile_id UUID REFERENCES public.profiles(id);
