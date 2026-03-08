@@ -392,7 +392,10 @@ export default function CustomerProfilePage() {
 
   // ── Derived data ──────────────────────────────────────────────────
 
-  const customerName = bookings?.[0]?.customer_name || "Customer";
+  // Try to get name from bookings first, then migrated
+  const customerName = bookings?.[0]?.customer_name
+    || (migratedBookings?.[0] as any)?.migrated_customers?.full_name
+    || (() => { /* try to extract from migrated_customers query */ return "Customer"; })();
   const customerPhone = bookings?.find((b) => b.customer_phone)?.customer_phone || "";
   const initials = customerName.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
 
