@@ -623,7 +623,7 @@ export default function CustomerProfilePage() {
           <div className="border border-t-0 rounded-b-lg bg-card px-2">
             <TabsList className="bg-transparent h-auto min-h-[3rem] w-full justify-start gap-0 rounded-none border-b flex-wrap py-1">
               <TabsTrigger value="overview" className={tabTriggerClass}>Overview</TabsTrigger>
-              <TabsTrigger value="notes" className={tabTriggerClass}>Notes {notes && notes.length > 0 && `(${notes.length})`}</TabsTrigger>
+              <TabsTrigger value="notes" className={tabTriggerClass}>Notes {((notes?.length || 0) + (bookings?.filter((b: any) => b.notes?.trim()).length || 0)) > 0 && `(${(notes?.length || 0) + (bookings?.filter((b: any) => b.notes?.trim()).length || 0)})`}</TabsTrigger>
               <TabsTrigger value="bookings" className={tabTriggerClass}>Bookings</TabsTrigger>
               {isOwnCustomer && (
                 <>
