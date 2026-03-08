@@ -58,16 +58,30 @@ export function AIChatWidget() {
   const [proactiveSuggestionShown, setProactiveSuggestionShown] = useState(false);
   const [bookingTapped, setBookingTapped] = useState(false);
 
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const prevMessageCount = useRef(messages.length);
+
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, []);
 
+  // Only scroll to bottom when a NEW message is added, not on initial open
   useEffect(() => {
-    scrollToBottom();
-  }, [messages, isTyping, scrollToBottom]);
+    if (messages.length > prevMessageCount.current) {
+      scrollToBottom();
+    }
+    prevMessageCount.current = messages.length;
+  }, [messages, scrollToBottom]);
 
   useEffect(() => {
-    if (isOpen) inputRef.current?.focus();
+    if (isTyping) scrollToBottom();
+  }, [isTyping, scrollToBottom]);
+
+  // Scroll to TOP when chat opens
+  useEffect(() => {
+    if (isOpen && messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = 0;
+    }
   }, [isOpen]);
 
   // Personalise reply with breed/name memory
