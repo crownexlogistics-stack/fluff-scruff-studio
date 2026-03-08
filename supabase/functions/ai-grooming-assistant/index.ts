@@ -117,32 +117,40 @@ Deno.serve(async (req) => {
       { role: "user", content: message },
     ];
 
-    const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
-    if (!anthropicKey) {
+    const googleApiKey = Deno.env.get("GOOGLE_AI_API_KEY");
+    if (!googleApiKey) {
       return new Response(
-        JSON.stringify({ error: "ANTHROPIC_API_KEY not configured" }),
+        JSON.stringify({ error: "GOOGLE_AI_API_KEY not configured" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": anthropicKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-3-5-haiku-20241022",
-        max_tokens: 500,
-        system: SYSTEM_PROMPT + availabilityContext,
-        messages,
-      }),
-    });
+    const contents = [
+      ...conversation.map((m: any) => ({
+        role: m.role === "assistant" ? "model" : "user",
+        parts: [{ text: m.content }],
+      })),
+      { role: "user", parts: [{ text: message }] },
+    ];
+
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${googleApiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          system_instruction: {
+            parts: [{ text: SYSTEM_PROMPT + availabilityContext }],
+          },
+          contents,
+          generationConfig: { maxOutputTokens: 500 },
+        }),
+      }
+    );
 
     if (!response.ok) {
       const errText = await response.text();
-      console.error("Anthropic error:", errText);
+      console.error("Gemini error:", errText);
       return new Response(
         JSON.stringify({ error: "AI service error" }),
         { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -150,7 +158,7 @@ Deno.serve(async (req) => {
     }
 
     const data = await response.json();
-    const reply = data.content?.[0]?.text || "Woof! Something went wrong. Please try again! 🐾";
+    const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "Woof! Something went wrong. Please try again! 🐾";
 
     const replyLower = reply.toLowerCase();
     const show_booking_button =
