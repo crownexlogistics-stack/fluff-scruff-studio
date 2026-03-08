@@ -72,7 +72,7 @@ serve(async (req) => {
     }
 
     const firstName = (customer.full_name || "").split(" ")[0] || "there";
-    const redirectUrl = "https://fluff-scruff-studio.lovable.app/welcome";
+    const redirectUrl = "https://fluffandscruff.co.uk/welcome";
 
     // Create user without sending Supabase's default invite email
     const { data: createData, error: createErr } = await supabase.auth.admin.createUser({
