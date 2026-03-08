@@ -15,6 +15,7 @@ import { GoogleReviews } from "@/components/GoogleReviews";
 import { BookingFlow } from "@/components/BookingFlow";
 import { ErrorReportButton } from "@/components/error-reporting/ErrorReportButton";
 import { TrustStrip } from "@/components/TrustStrip";
+import { AIChatWidget } from "@/components/AIChatWidget";
 
 const CustomerHome = () => {
   const { user, signOut, loading: authLoading } = useAuth();
@@ -301,6 +302,7 @@ const CustomerHome = () => {
         <BookingFlow service={activeService} onClose={() => setActiveService(null)} />
       )}
       <ErrorReportButton />
+      <AIChatWidget />
     </div>
   );
 };
