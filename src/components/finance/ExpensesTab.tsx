@@ -126,53 +126,38 @@ function PLCard({ title, data }: { title: string; data: PLData }) {
 interface ExpenseFormProps {
   type: "recurring" | "one_off";
   form: FormState;
-  onFormChange: (updater: (prev: FormState) => FormState) => void;
+  onNameChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onNotesChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
+  onAmountChange: (value: number) => void;
+  onCategoryChange: (value: string) => void;
+  onFrequencyChange: (value: string) => void;
+  onStartDateChange: (date: Date | undefined) => void;
+  onEndDateChange: (date: Date | undefined) => void;
+  onExpenseDateChange: (date: Date | undefined) => void;
 }
 
-function ExpenseForm({ type, form, onFormChange }: ExpenseFormProps) {
-  const handleNameChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    onFormChange(f => ({ ...f, name: val }));
-  }, [onFormChange]);
-
-  const handleNotesChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const val = e.target.value;
-    onFormChange(f => ({ ...f, notes: val }));
-  }, [onFormChange]);
-
-  const handleAmountChange = useCallback((v: number) => {
-    onFormChange(f => ({ ...f, amount: v }));
-  }, [onFormChange]);
-
-  const handleCategoryChange = useCallback((v: string) => {
-    onFormChange(f => ({ ...f, category: v }));
-  }, [onFormChange]);
-
-  const handleFrequencyChange = useCallback((v: string) => {
-    onFormChange(f => ({ ...f, frequency: v }));
-  }, [onFormChange]);
-
-  const handleStartDateChange = useCallback((d: Date | undefined) => {
-    onFormChange(f => ({ ...f, recurring_start_date: d }));
-  }, [onFormChange]);
-
-  const handleEndDateChange = useCallback((d: Date | undefined) => {
-    onFormChange(f => ({ ...f, recurring_end_date: d }));
-  }, [onFormChange]);
-
-  const handleExpenseDateChange = useCallback((d: Date | undefined) => {
-    onFormChange(f => ({ ...f, expense_date: d }));
-  }, [onFormChange]);
+function ExpenseForm({
+  type,
+  form,
+  onNameChange,
+  onNotesChange,
+  onAmountChange,
+  onCategoryChange,
+  onFrequencyChange,
+  onStartDateChange,
+  onEndDateChange,
+  onExpenseDateChange,
+}: ExpenseFormProps) {
 
   return (
     <div className="space-y-4">
       <div>
         <Label>Name</Label>
-        <Input value={form.name} onChange={handleNameChange} placeholder="e.g. Rent" />
+        <Input value={form.name} onChange={onNameChange} placeholder="e.g. Rent" />
       </div>
       <div>
         <Label>Category</Label>
-        <Select value={form.category} onValueChange={handleCategoryChange}>
+        <Select value={form.category} onValueChange={onCategoryChange}>
           <SelectTrigger><SelectValue /></SelectTrigger>
           <SelectContent>
             {CATEGORIES.map(c => (
@@ -183,12 +168,12 @@ function ExpenseForm({ type, form, onFormChange }: ExpenseFormProps) {
       </div>
       <div>
         <Label>Amount (£)</Label>
-        <NumericInput value={form.amount} onValueChange={handleAmountChange} />
+        <NumericInput value={form.amount} onValueChange={onAmountChange} />
       </div>
       {type === "recurring" && (
         <div>
           <Label>Frequency</Label>
-          <Select value={form.frequency} onValueChange={handleFrequencyChange}>
+          <Select value={form.frequency} onValueChange={onFrequencyChange}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="weekly">Weekly</SelectItem>
@@ -209,7 +194,7 @@ function ExpenseForm({ type, form, onFormChange }: ExpenseFormProps) {
                   {form.recurring_start_date ? format(form.recurring_start_date, "PPP") : "Pick date"}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={form.recurring_start_date} onSelect={handleStartDateChange} className="p-3 pointer-events-auto" /></PopoverContent>
+              <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={form.recurring_start_date} onSelect={onStartDateChange} className="p-3 pointer-events-auto" /></PopoverContent>
             </Popover>
           </div>
           <div>
@@ -221,7 +206,7 @@ function ExpenseForm({ type, form, onFormChange }: ExpenseFormProps) {
                   {form.recurring_end_date ? format(form.recurring_end_date, "PPP") : "Ongoing"}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={form.recurring_end_date} onSelect={handleEndDateChange} className="p-3 pointer-events-auto" /></PopoverContent>
+              <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={form.recurring_end_date} onSelect={onEndDateChange} className="p-3 pointer-events-auto" /></PopoverContent>
             </Popover>
           </div>
         </div>
@@ -236,13 +221,13 @@ function ExpenseForm({ type, form, onFormChange }: ExpenseFormProps) {
                 {form.expense_date ? format(form.expense_date, "PPP") : "Pick date"}
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={form.expense_date} onSelect={handleExpenseDateChange} className="p-3 pointer-events-auto" /></PopoverContent>
+            <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={form.expense_date} onSelect={onExpenseDateChange} className="p-3 pointer-events-auto" /></PopoverContent>
           </Popover>
         </div>
       )}
       <div>
         <Label>Notes (optional)</Label>
-        <Textarea value={form.notes} onChange={handleNotesChange} placeholder="Additional details..." />
+        <Textarea value={form.notes} onChange={onNotesChange} placeholder="Additional details..." />
       </div>
     </div>
   );
@@ -414,9 +399,36 @@ export default function ExpensesTab({ periodStart, periodEnd, totalRevenue, tota
   const pl = calcPL(plBookings, plCommissions, plOneOffs);
   const cmpPl = compareMonth ? calcPL(cmpBookings, cmpCommissions, cmpOneOffs) : null;
 
-  // Stable form change handler
-  const handleFormChange = useCallback((updater: (prev: FormState) => FormState) => {
-    setForm(updater);
+  const handleNameChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setForm((prev) => ({ ...prev, name: e.target.value }));
+  }, []);
+
+  const handleNotesChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setForm((prev) => ({ ...prev, notes: e.target.value }));
+  }, []);
+
+  const handleAmountChange = useCallback((amount: number) => {
+    setForm((prev) => ({ ...prev, amount }));
+  }, []);
+
+  const handleCategoryChange = useCallback((category: string) => {
+    setForm((prev) => ({ ...prev, category }));
+  }, []);
+
+  const handleFrequencyChange = useCallback((frequency: string) => {
+    setForm((prev) => ({ ...prev, frequency }));
+  }, []);
+
+  const handleStartDateChange = useCallback((recurring_start_date: Date | undefined) => {
+    setForm((prev) => ({ ...prev, recurring_start_date }));
+  }, []);
+
+  const handleEndDateChange = useCallback((recurring_end_date: Date | undefined) => {
+    setForm((prev) => ({ ...prev, recurring_end_date }));
+  }, []);
+
+  const handleExpenseDateChange = useCallback((expense_date: Date | undefined) => {
+    setForm((prev) => ({ ...prev, expense_date }));
   }, []);
 
   // Mutations
@@ -628,7 +640,18 @@ export default function ExpensesTab({ periodStart, periodEnd, totalRevenue, tota
           <DialogHeader>
             <DialogTitle>{editingId ? "Edit Recurring Expense" : "Add Recurring Expense"}</DialogTitle>
           </DialogHeader>
-          <ExpenseForm type="recurring" form={form} onFormChange={handleFormChange} />
+          <ExpenseForm
+            type="recurring"
+            form={form}
+            onNameChange={handleNameChange}
+            onNotesChange={handleNotesChange}
+            onAmountChange={handleAmountChange}
+            onCategoryChange={handleCategoryChange}
+            onFrequencyChange={handleFrequencyChange}
+            onStartDateChange={handleStartDateChange}
+            onEndDateChange={handleEndDateChange}
+            onExpenseDateChange={handleExpenseDateChange}
+          />
           <DialogFooter>
             <Button variant="outline" onClick={() => setRecurringOpen(false)}>Cancel</Button>
             <Button onClick={() => saveMutation.mutate("recurring")} disabled={saveMutation.isPending}>
@@ -644,7 +667,18 @@ export default function ExpensesTab({ periodStart, periodEnd, totalRevenue, tota
           <DialogHeader>
             <DialogTitle>{editingId ? "Edit Purchase" : "Add Purchase"}</DialogTitle>
           </DialogHeader>
-          <ExpenseForm type="one_off" form={form} onFormChange={handleFormChange} />
+          <ExpenseForm
+            type="one_off"
+            form={form}
+            onNameChange={handleNameChange}
+            onNotesChange={handleNotesChange}
+            onAmountChange={handleAmountChange}
+            onCategoryChange={handleCategoryChange}
+            onFrequencyChange={handleFrequencyChange}
+            onStartDateChange={handleStartDateChange}
+            onEndDateChange={handleEndDateChange}
+            onExpenseDateChange={handleExpenseDateChange}
+          />
           <DialogFooter>
             <Button variant="outline" onClick={() => setOneOffOpen(false)}>Cancel</Button>
             <Button onClick={() => saveMutation.mutate("one_off")} disabled={saveMutation.isPending}>
