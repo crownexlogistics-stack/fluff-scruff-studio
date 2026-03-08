@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -139,6 +139,34 @@ export default function BookingSuccessPage() {
       return data;
     },
     enabled: !!bookingId,
+  });
+
+  const isCancelledBooking = useMemo(() => {
+    if (!booking) return false;
+    const s = (booking.status || "").trim();
+    return s === "Cancelled" || ["Refunded", "Refunded/Cancelled", "Cancelled/Refunded"].includes(s);
+  }, [booking]);
+
+  // Check if this user is a returning migrated customer
+  const { data: migratedCustomer } = useQuery({
+    queryKey: ["migrated-welcome-back", user?.email],
+    queryFn: async () => {
+      if (!user?.email) return null;
+      const { data: mc } = await supabase
+        .from("migrated_customers")
+        .select("id, status")
+        .eq("email", user.email.toLowerCase())
+        .eq("status", "activated")
+        .maybeSingle();
+      if (!mc) return null;
+      const { count } = await supabase
+        .from("migrated_bookings")
+        .select("id", { count: "exact", head: true })
+        .eq("migrated_customer_id", mc.id);
+      if (!count || count === 0) return null;
+      return { ...mc, bookingCount: count };
+    },
+    enabled: !!user?.email && !!booking && !isCancelledBooking,
   });
 
   // Fire confetti on mount
@@ -294,6 +322,30 @@ export default function BookingSuccessPage() {
             <h1 className="text-2xl sm:text-3xl font-heading text-foreground">{isRefunded ? "Refunded & Cancelled" : "Booking Cancelled"}</h1>
             <p className="text-muted-foreground text-sm">{isRefunded ? "Your refund has been processed and should arrive within 5–10 business days." : "This appointment has been cancelled. Your deposit is non-refundable."}</p>
           </div>
+        )}
+
+        {/* Welcome Back Banner for migrated customers */}
+        {migratedCustomer && !isCancelled && (
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.8, type: "spring", stiffness: 300, damping: 25 }}
+            className="rounded-2xl p-4 border"
+            style={{ backgroundColor: "#FFF3E0", borderColor: "#FF6B35" }}
+          >
+            <p className="text-sm font-semibold text-foreground mb-1">👋 Welcome back to Fluff & Scruff!</p>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Your previous appointment history has been restored to your account. You can see all your past visits in My Bookings.
+            </p>
+            <Button
+              size="sm"
+              variant="outline"
+              className="mt-3 text-xs"
+              onClick={() => navigate("/my-pets")}
+            >
+              View My History 🐾
+            </Button>
+          </motion.div>
         )}
 
         {/* Booking Details Card */}
