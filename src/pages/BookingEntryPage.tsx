@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { BookingFlow } from "@/components/BookingFlow";
 import { ServiceJourney } from "@/components/ServiceJourney";
 import logo from "@/assets/logo-transparent.png";
-import { ErrorReportButton } from "@/components/error-reporting/ErrorReportButton";
+
 import { AIChatWidget } from "@/components/AIChatWidget";
 import serviceFullGroom from "@/assets/service-full-groom.jpg";
 import servicePuppy from "@/assets/service-puppy.jpg";
