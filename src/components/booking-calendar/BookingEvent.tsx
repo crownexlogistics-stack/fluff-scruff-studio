@@ -387,7 +387,7 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
                 </div>
               )}
             </div>
-          )
+          )}
 
           {booking.notes && (
             <div className="border-t pt-3">
