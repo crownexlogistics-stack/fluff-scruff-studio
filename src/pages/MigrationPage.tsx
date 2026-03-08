@@ -324,6 +324,7 @@ function ImportTab({ onSwitchTab }: { onSwitchTab?: (tab: string) => void }) {
             duration_minutes: r.duration_minutes,
             payment_status: r.payment_status,
             is_future_booking: r.is_future_booking,
+            notes: r.notes || null,
           },
         }));
 
