@@ -324,6 +324,30 @@ export default function BookingSuccessPage() {
           </div>
         )}
 
+        {/* Welcome Back Banner for migrated customers */}
+        {migratedCustomer && !isCancelled && (
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.8, type: "spring", stiffness: 300, damping: 25 }}
+            className="rounded-2xl p-4 border"
+            style={{ backgroundColor: "#FFF3E0", borderColor: "#FF6B35" }}
+          >
+            <p className="text-sm font-semibold text-foreground mb-1">👋 Welcome back to Fluff & Scruff!</p>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Your previous appointment history has been restored to your account. You can see all your past visits in My Bookings.
+            </p>
+            <Button
+              size="sm"
+              variant="outline"
+              className="mt-3 text-xs"
+              onClick={() => navigate("/my-pets")}
+            >
+              View My History 🐾
+            </Button>
+          </motion.div>
+        )}
+
         {/* Booking Details Card */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
