@@ -681,7 +681,7 @@ const BookingEntryPage = () => {
           </div>
         )}
       </div>
-      <ErrorReportButton />
+      
       <AIChatWidget />
     </div>
   );

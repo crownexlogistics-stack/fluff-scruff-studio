@@ -562,7 +562,7 @@ const MyPetsPage = () => {
           </div>
         </DialogContent>
       </Dialog>
-      <ErrorReportButton />
+      
       <AIChatWidget />
     </div>
   );

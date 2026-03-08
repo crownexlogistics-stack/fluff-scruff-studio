@@ -301,7 +301,7 @@ const CustomerHome = () => {
       {activeService && (
         <BookingFlow service={activeService} onClose={() => setActiveService(null)} />
       )}
-      <ErrorReportButton />
+      
       <AIChatWidget />
     </div>
   );

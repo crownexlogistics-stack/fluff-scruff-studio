@@ -543,7 +543,7 @@ export default function BookingSuccessPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      <ErrorReportButton />
+      
       <AIChatWidget />
     </div>
   );
