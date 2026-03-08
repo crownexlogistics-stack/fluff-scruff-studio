@@ -718,7 +718,7 @@ function MigrationCustomersTab() {
   };
 
   const sendAllPending = async () => {
-    const pending = customers.filter((c: any) => c.status === "pending");
+    const pending = customers.filter((c: any) => c.status === "pending" && !staffEmailSet.has(c.email?.toLowerCase()));
     if (!pending.length) return;
     setSendingAll(true);
     let sent = 0;
