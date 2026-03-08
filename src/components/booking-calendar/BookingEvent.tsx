@@ -41,6 +41,9 @@ export interface BookingData {
   sms_24h_sent?: boolean;
   sms_2h_sent?: boolean;
   duration_minutes?: number | null;
+  is_migrated?: boolean;
+  migrated_payment_status?: string | null;
+  migrated_amount_due?: number | null;
 }
 
 interface BookingEventProps {
