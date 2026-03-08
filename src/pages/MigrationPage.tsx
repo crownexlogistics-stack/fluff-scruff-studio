@@ -821,6 +821,8 @@ function MigrationCustomersTab() {
 
 // ─── Page ───
 export default function MigrationPage() {
+  const [activeTab, setActiveTab] = useState("import");
+
   return (
     <AppLayout>
       <div className="p-6 max-w-7xl mx-auto space-y-6">
@@ -829,13 +831,13 @@ export default function MigrationPage() {
           <p className="text-sm text-muted-foreground">Import customers and booking history from Wix</p>
         </div>
 
-        <Tabs defaultValue="import">
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList>
             <TabsTrigger value="import">Import</TabsTrigger>
             <TabsTrigger value="bookings">Bookings</TabsTrigger>
             <TabsTrigger value="customers">Customers</TabsTrigger>
           </TabsList>
-          <TabsContent value="import"><ImportTab /></TabsContent>
+          <TabsContent value="import"><ImportTab onSwitchTab={setActiveTab} /></TabsContent>
           <TabsContent value="bookings"><MigrationBookingsTab /></TabsContent>
           <TabsContent value="customers"><MigrationCustomersTab /></TabsContent>
         </Tabs>
