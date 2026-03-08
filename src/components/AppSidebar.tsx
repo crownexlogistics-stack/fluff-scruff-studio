@@ -76,6 +76,7 @@ export function AppSidebar() {
   const { role } = useUserRole(user?.id);
   const { totalUnread } = useUnreadSmsCount();
   const newErrorCount = useNewErrorReportsCount();
+  const { hasCustomerBookings } = useStaffIsCustomer(user?.email ?? undefined);
 
   return (
     <Sidebar collapsible="icon">
