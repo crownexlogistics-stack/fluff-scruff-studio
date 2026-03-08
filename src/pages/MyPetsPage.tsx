@@ -21,6 +21,7 @@ import { PawsitiveGallery } from "@/components/my-account/PawsitiveGallery";
 import { GroomersCorner } from "@/components/my-account/GroomersCorner";
 import { NumericInput } from "@/components/ui/numeric-input";
 import { ErrorReportButton } from "@/components/error-reporting/ErrorReportButton";
+import { AIChatWidget } from "@/components/AIChatWidget";
 
 const MyPetsPage = () => {
   const { user, signOut } = useAuth();
