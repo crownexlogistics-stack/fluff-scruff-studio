@@ -716,6 +716,48 @@ export type Database = {
         }
         Relationships: []
       }
+      customer_pay_links: {
+        Row: {
+          amount: number
+          created_at: string | null
+          created_by: string | null
+          customer_email: string
+          customer_name: string | null
+          id: string
+          notes: string | null
+          paid_at: string | null
+          status: string
+          stripe_payment_link_id: string | null
+          stripe_url: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string | null
+          created_by?: string | null
+          customer_email: string
+          customer_name?: string | null
+          id?: string
+          notes?: string | null
+          paid_at?: string | null
+          status?: string
+          stripe_payment_link_id?: string | null
+          stripe_url?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string | null
+          created_by?: string | null
+          customer_email?: string
+          customer_name?: string | null
+          id?: string
+          notes?: string | null
+          paid_at?: string | null
+          status?: string
+          stripe_payment_link_id?: string | null
+          stripe_url?: string | null
+        }
+        Relationships: []
+      }
       customer_pets: {
         Row: {
           breed_id: string | null
