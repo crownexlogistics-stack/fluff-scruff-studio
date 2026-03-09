@@ -226,6 +226,8 @@ export function BookingAnalyticsSection() {
     refetchBookings();
   };
 
+  if (isGroomer) return <Navigate to="/portal" replace />;
+
   if (isLoading) {
     return (
       <div className="space-y-6">
