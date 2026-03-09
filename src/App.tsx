@@ -84,6 +84,13 @@ const App = () => (
           <Route path="/booking-success" element={<BookingSuccessPage />} />
           <Route path="/welcome" element={<WelcomePage />} />
 
+          {/* Old Wix URL redirects */}
+          <Route path="/blank" element={<Navigate to="/" replace />} />
+          <Route path="/services-2" element={<Navigate to="/" replace />} />
+          <Route path="/booking-form" element={<Navigate to="/book" replace />} />
+          <Route path="/about" element={<Navigate to="/" replace />} />
+          <Route path="/contact" element={<Navigate to="/" replace />} />
+
           {/* Customer only */}
           <Route path="/my-pets" element={<ProtectedRoute allowedRoles={["customer", "manager", "director"]}><MyPetsPage /></ProtectedRoute>} />
 
