@@ -57,8 +57,9 @@ serve(async (req) => {
                 Authorization: `Bearer ${RESEND_API_KEY}`,
               },
               body: JSON.stringify({
-                from: "Fluff & Scruff Studio <info@fluffandscruff.co.uk>",
+                from: "Fluff & Scruff Studio <onboarding@resend.dev>",
                 to: emails,
+                reply_to: "info@fluffandscruff.co.uk",
                 subject: `Contract Signed — ${staff.name}`,
                 html: `
                   <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
