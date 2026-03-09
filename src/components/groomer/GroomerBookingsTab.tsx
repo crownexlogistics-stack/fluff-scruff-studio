@@ -118,6 +118,46 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
     enabled: allStaff.length > 0,
   });
 
+  // Fetch migrated bookings for calendar display
+  const { data: migratedBookings = [] } = useQuery({
+    queryKey: ["groomer-migrated-bookings", format(currentDate, "yyyy-MM-dd"), daysToShow],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("migrated_bookings")
+        .select("*, migrated_customers(full_name, email, phone)")
+        .gte("booking_date", format(currentDate, "yyyy-MM-dd"))
+        .lte("booking_date", format(endDate, "yyyy-MM-dd"))
+        .eq("is_future_booking", true);
+      if (error) throw error;
+      return (data || []).map((mb: any) => {
+        const staffFirstName = mb.staff_name?.split(" ")[0]?.trim() || "";
+        const matchedStaff = allStaff.find(s => s.name.split(" ")[0].toLowerCase() === staffFirstName.toLowerCase());
+        return {
+          id: mb.id,
+          customer_name: mb.migrated_customers?.full_name || "Unknown",
+          dog_name: mb.dog_name || "",
+          booking_date: mb.booking_date,
+          booking_time: mb.booking_time || "09:00",
+          total_price: Number(mb.total_price || 0),
+          deposit_paid: Number(mb.deposit_paid || 0),
+          status: "Confirmed",
+          notes: mb.notes,
+          customer_email: mb.migrated_customers?.email || null,
+          customer_phone: mb.migrated_customers?.phone || null,
+          staff_name: matchedStaff?.name || mb.staff_name || "Unassigned",
+          staff_id: matchedStaff?.id || undefined,
+          breed_name: mb.dog_breed || "",
+          service_name: mb.service_name || "",
+          duration_minutes: mb.duration_minutes || 60,
+          is_migrated: true,
+          is_block: false,
+          is_own: matchedStaff?.id === staffId,
+        } as GroomerCalendarBooking;
+      });
+    },
+    enabled: allStaff.length > 0,
+  });
+
   const { data: overrides = [] } = useQuery({
     queryKey: ["groomer-overrides", format(currentDate, "yyyy-MM-dd"), daysToShow],
     queryFn: async () => {
@@ -151,7 +191,62 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
     },
   });
 
-  const allEvents = useMemo(() => [...bookings, ...overrides], [bookings, overrides]);
+  // Fetch staff availability (off-days)
+  const { data: staffAvailability = [] } = useQuery({
+    queryKey: ["staff-availability-calendar"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("staff_availability")
+        .select("*")
+        .eq("is_available", false);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Create off-day blocks from staff_availability
+  const offDayBlocks = useMemo(() => {
+    const blocks: GroomerCalendarBooking[] = [];
+    for (let i = 0; i < daysToShow; i++) {
+      const day = addDays(currentDate, i);
+      const dayOfWeek = day.getDay(); // 0=Sunday
+      const dateStr = format(day, "yyyy-MM-dd");
+
+      for (const avail of staffAvailability) {
+        if (avail.day_of_week === dayOfWeek) {
+          const staffMember = allStaff.find(s => s.id === avail.staff_id);
+          // Skip if there's an override for this staff on this date (override takes precedence)
+          const hasOverride = overrides.some(o => o.booking_date === dateStr && o.staff_id === avail.staff_id);
+          if (staffMember && !hasOverride) {
+            blocks.push({
+              id: `offday-${avail.staff_id}-${dateStr}`,
+              customer_name: "Off",
+              dog_name: "",
+              booking_date: dateStr,
+              booking_time: "08:00",
+              end_time: "18:00",
+              status: "Blocked",
+              notes: null,
+              staff_id: avail.staff_id,
+              staff_name: staffMember.name,
+              service_name: "",
+              breed_name: "",
+              is_block: true,
+              is_off_day: true,
+              is_own: avail.staff_id === staffId,
+              total_price: 0,
+              deposit_paid: 0,
+              customer_email: null,
+              customer_phone: null,
+            });
+          }
+        }
+      }
+    }
+    return blocks;
+  }, [staffAvailability, allStaff, currentDate, daysToShow, staffId, overrides]);
+
+  const allEvents = useMemo(() => [...bookings, ...migratedBookings, ...overrides, ...offDayBlocks], [bookings, migratedBookings, overrides, offDayBlocks]);
 
   const ownBookings = useMemo(() =>
     bookings

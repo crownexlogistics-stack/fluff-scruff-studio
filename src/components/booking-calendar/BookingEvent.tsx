@@ -248,11 +248,22 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
               {booking.is_migrated && (
                 <span className="absolute top-0.5 right-0.5 bg-amber-500 text-white text-[8px] font-bold rounded px-0.5 leading-tight z-20">W</span>
               )}
-              <p className="text-[10px] opacity-70">{booking.booking_time.slice(0, 5)}</p>
-              <p className="font-bold truncate">{booking.service_name || "Appointment"}</p>
-              <p className="truncate">{booking.breed_name || booking.dog_name}</p>
-              <p className="truncate">{booking.customer_name}</p>
-              <p className="opacity-80 truncate text-[10px]">With: {booking.staff_name}</p>
+              {height < 50 ? (
+                <p className="text-[10px] font-bold truncate">{booking.booking_time.slice(0, 5)}</p>
+              ) : height < 80 ? (
+                <>
+                  <p className="text-[10px] opacity-70">{booking.booking_time.slice(0, 5)}</p>
+                  <p className="font-bold truncate">{booking.customer_name}</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-[10px] opacity-70">{booking.booking_time.slice(0, 5)}</p>
+                  <p className="font-bold truncate">{booking.service_name || "Appointment"}</p>
+                  <p className="truncate">{booking.breed_name || booking.dog_name}</p>
+                  <p className="truncate">{booking.customer_name}</p>
+                  <p className="opacity-80 truncate text-[10px]">With: {booking.staff_name}</p>
+                </>
+              )}
             </>
           )}
         </div>
