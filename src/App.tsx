@@ -123,6 +123,9 @@ const App = () => (
           <Route path="/admin/error-reports" element={<ProtectedRoute allowedRoles={["manager", "director"]}><ErrorReportsPage /></ProtectedRoute>} />
           <Route path="/admin/health" element={<ProtectedRoute allowedRoles={["director"]}><SystemHealthPage /></ProtectedRoute>} />
           <Route path="/admin/tests" element={<ProtectedRoute allowedRoles={["director"]}><TestRunnerPage /></ProtectedRoute>} />
+          <Route path="/admin/scruff/conversations" element={<ProtectedRoute allowedRoles={["manager", "director"]}><ScruffConversationsPage /></ProtectedRoute>} />
+          <Route path="/admin/scruff/handoffs" element={<ProtectedRoute allowedRoles={["manager", "director"]}><ScruffHandoffsPage /></ProtectedRoute>} />
+          <Route path="/admin/scruff/settings" element={<ProtectedRoute allowedRoles={["director"]}><ScruffSettingsPage /></ProtectedRoute>} />
           <Route path="/admin/migration" element={<ProtectedRoute allowedRoles={["manager", "director"]}><MigrationPage /></ProtectedRoute>} />
 
           <Route path="*" element={<NotFound />} />
