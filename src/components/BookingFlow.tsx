@@ -1522,8 +1522,50 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
                       </div>
                       <div className="space-y-2">
                         <Label className="text-sm font-medium">{isNewCustomer ? "Email *" : "Email"}</Label>
-                        <Input value={guestForm.email} onChange={(e) => setGuestForm({ ...guestForm, email: e.target.value })} placeholder="jane@example.com" type="email" className="h-12 rounded-xl" />
-                        {isNewCustomer && (
+                        <div className="relative">
+                          <Input
+                            value={guestForm.email}
+                            onChange={(e) => {
+                              setGuestForm({ ...guestForm, email: e.target.value });
+                              if (migratedDetected) setMigratedDetected(null);
+                            }}
+                            onBlur={async () => {
+                              const trimmed = guestForm.email.trim().toLowerCase();
+                              if (!trimmed || !trimmed.includes("@") || !isNewCustomer) return;
+                              setCheckingMigrated(true);
+                              try {
+                                const { data } = await supabase.functions.invoke("check-migrated-customer", {
+                                  body: { email: trimmed, action: "check" },
+                                });
+                                if (data?.found && data.status === "pending") {
+                                  setMigratedDetected({ found: true, name: data.name });
+                                } else {
+                                  setMigratedDetected(null);
+                                }
+                              } catch {
+                                setMigratedDetected(null);
+                              } finally {
+                                setCheckingMigrated(false);
+                              }
+                            }}
+                            placeholder="jane@example.com"
+                            type="email"
+                            className="h-12 rounded-xl"
+                          />
+                          {checkingMigrated && (
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                              <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full" />
+                            </div>
+                          )}
+                        </div>
+                        {migratedDetected?.found && (
+                          <div className="rounded-xl p-3 mt-1" style={{ backgroundColor: "#FFF3E0" }}>
+                            <p className="text-sm text-foreground">
+                              👋 We recognise you{migratedDetected.name ? `, ${migratedDetected.name.split(" ")[0]}` : ""}! You've visited us before. Your booking history will be connected to this booking.
+                            </p>
+                          </div>
+                        )}
+                        {isNewCustomer && !migratedDetected?.found && (
                           <p className="text-xs italic" style={{ color: "#8B6F5C" }}>
                             Been with us before? Use your same email address and we'll restore your history 🐾
                           </p>
