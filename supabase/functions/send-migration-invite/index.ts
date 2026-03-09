@@ -107,7 +107,7 @@ serve(async (req) => {
     // Generate a password recovery link to use as the "set up account" link
     const { data: linkData, error: linkErr } = await supabase.auth.admin.generateLink({
       type: "recovery",
-      email: customer.email,
+      email,
       options: { redirectTo: redirectUrl },
     });
 
