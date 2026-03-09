@@ -958,7 +958,11 @@ function MigrationCustomersTab() {
   }, [allBookings]);
 
   const activatedCount = customers.filter((c: any) => c.status === "activated").length;
-  const progress = customers.length > 0 ? (activatedCount / customers.length) * 100 : 0;
+  const selfRegisteredCount = customers.filter((c: any) => c.status === "self_registered").length;
+  const invitedCount = customers.filter((c: any) => c.status === "invited").length;
+  const pendingCount = customers.filter((c: any) => c.status === "pending").length;
+  const totalActivated = activatedCount + selfRegisteredCount;
+  const progress = customers.length > 0 ? (totalActivated / customers.length) * 100 : 0;
 
   const sendInvite = async (customer: any) => {
     setSendingId(customer.id);
