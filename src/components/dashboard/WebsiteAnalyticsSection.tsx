@@ -157,13 +157,24 @@ function getMockData(period: AnalyticsPeriod) {
   ];
 
   const locations = [
-    { country: "United Kingdom", city: "London", visitors: Math.round(base * 0.4) },
-    { country: "United Kingdom", city: "Manchester", visitors: Math.round(base * 0.15) },
-    { country: "United Kingdom", city: "Birmingham", visitors: Math.round(base * 0.1) },
-    { country: "United Kingdom", city: "Leeds", visitors: Math.round(base * 0.08) },
-    { country: "United Kingdom", city: "Bristol", visitors: Math.round(base * 0.06) },
-    { country: "United States", city: "New York", visitors: Math.round(base * 0.04) },
-    { country: "Ireland", city: "Dublin", visitors: Math.round(base * 0.03) },
+    { country: "United Kingdom", city: "Romford", visitors: Math.round(base * 0.18) },
+    { country: "United Kingdom", city: "Hornchurch", visitors: Math.round(base * 0.15) },
+    { country: "United Kingdom", city: "Upminster", visitors: Math.round(base * 0.1) },
+    { country: "United Kingdom", city: "Dagenham", visitors: Math.round(base * 0.08) },
+    { country: "United Kingdom", city: "Barking", visitors: Math.round(base * 0.06) },
+    { country: "United Kingdom", city: "Ilford", visitors: Math.round(base * 0.05) },
+    { country: "United Kingdom", city: "Havering", visitors: Math.round(base * 0.04) },
+    { country: "United Kingdom", city: "Rainham", visitors: Math.round(base * 0.03) },
+    { country: "United Kingdom", city: "Redbridge", visitors: Math.round(base * 0.03) },
+    { country: "United Kingdom", city: "East Ham", visitors: Math.round(base * 0.02) },
+    { country: "United Kingdom", city: "Stratford", visitors: Math.round(base * 0.02) },
+    { country: "United Kingdom", city: "Newham", visitors: Math.round(base * 0.015) },
+    { country: "United Kingdom", city: "Walthamstow", visitors: Math.round(base * 0.01) },
+    { country: "United Kingdom", city: "Manchester", visitors: Math.round(base * 0.04) },
+    { country: "United Kingdom", city: "Birmingham", visitors: Math.round(base * 0.03) },
+    { country: "United Kingdom", city: "Leeds", visitors: Math.round(base * 0.02) },
+    { country: "United States", city: "New York", visitors: Math.round(base * 0.01) },
+    { country: "Ireland", city: "Dublin", visitors: Math.round(base * 0.008) },
   ];
 
   return { metrics, visitorTrend, trafficSources, devices, topPages, locations };
