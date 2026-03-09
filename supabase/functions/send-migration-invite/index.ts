@@ -74,12 +74,22 @@ serve(async (req) => {
       });
     }
 
+    // Validate email exists and is properly formatted
+    const email = (customer.email || "").trim();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email || !emailRegex.test(email)) {
+      return new Response(JSON.stringify({ error: `Customer "${customer.full_name || "unknown"}" has no valid email address on file. Cannot send invite.` }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const firstName = (customer.full_name || "").split(" ")[0] || "there";
     const redirectUrl = "https://fluffandscruff.co.uk/welcome";
 
     // Create user without sending Supabase's default invite email
     const { data: createData, error: createErr } = await supabase.auth.admin.createUser({
-      email: customer.email,
+      email,
       email_confirm: false,
       user_metadata: {
         migrated: true,
@@ -97,7 +107,7 @@ serve(async (req) => {
     // Generate a password recovery link to use as the "set up account" link
     const { data: linkData, error: linkErr } = await supabase.auth.admin.generateLink({
       type: "recovery",
-      email: customer.email,
+      email,
       options: { redirectTo: redirectUrl },
     });
 
@@ -204,7 +214,7 @@ serve(async (req) => {
 
     await sendEmail(
       resendKey,
-      [customer.email],
+      [email],
       "Fluff & Scruff has a brand new home online 🐾",
       emailHtml
     );
@@ -219,10 +229,10 @@ serve(async (req) => {
     await supabase.from("audit_logs").insert({
       user_id: caller.id,
       action: "migration_invite_sent",
-      details: `Sent migration invite to ${customer.email} (${customer.full_name || "unknown"})`,
+      details: `Sent migration invite to ${email} (${customer.full_name || "unknown"})`,
     });
 
-    return new Response(JSON.stringify({ success: true, email: customer.email }), {
+    return new Response(JSON.stringify({ success: true, email }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
