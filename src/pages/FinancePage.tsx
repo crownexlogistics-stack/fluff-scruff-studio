@@ -99,6 +99,25 @@ const FinancePage = () => {
     },
   });
 
+  // Ad-hoc pay links revenue for the period
+  const { data: paidPayLinks = [] } = useQuery({
+    queryKey: ["finance-pay-links", periodStartStr, periodEndStr],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("customer_pay_links")
+        .select("*")
+        .eq("status", "paid")
+        .gte("paid_at", `${periodStartStr}T00:00:00`)
+        .lte("paid_at", `${periodEndStr}T23:59:59`);
+      if (error) throw error;
+      return data as any[];
+    },
+  });
+
+  const payLinksRevenue = useMemo(() => {
+    return paidPayLinks.reduce((s, pl: any) => s + Number(pl.amount || 0), 0);
+  }, [paidPayLinks]);
+
   const migratedRevenue = useMemo(() => {
     return migratedBookings.reduce((s, b: any) => s + Number(b.total_price || 0), 0);
   }, [migratedBookings]);
