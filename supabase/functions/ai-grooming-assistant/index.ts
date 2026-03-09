@@ -556,6 +556,19 @@ Deno.serve(async (req) => {
       memoryContext = `\n\nCONVERSATION MEMORY (from earlier in chat):${memoryContext}`;
     }
 
+    // ── Fetch live data from database ──────────────────
+    const liveData = await fetchLiveData(supabase);
+    let liveContext = `\n\nCURRENT SALON INFORMATION (live from database — use this as the source of truth):`;
+    liveContext += `\n\nOPENING HOURS:\n${liveData.openingHoursText}`;
+    if (liveData.servicesText) {
+      liveContext += `\n\nSERVICES AND PRICING:\n${liveData.servicesText}`;
+    } else {
+      liveContext += `\n\nSERVICES: Could not load live service data. Direct customer to booking page or call 01708 606655 for pricing.`;
+    }
+    if (liveData.breedPricingText) {
+      liveContext += `\n\nBREED-SPECIFIC PRICING:\n${liveData.breedPricingText}`;
+    }
+
     // ── Call Anthropic ──────────────────────────────────
     const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
     if (!anthropicKey) {
@@ -584,7 +597,7 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514",
         max_tokens: 800,
-        system: SYSTEM_PROMPT + availabilityContext + breedContext + memoryContext,
+        system: BASE_SYSTEM_PROMPT + liveContext + availabilityContext + breedContext + memoryContext,
         messages,
       }),
     });
