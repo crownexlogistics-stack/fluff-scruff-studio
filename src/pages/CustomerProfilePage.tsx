@@ -54,6 +54,12 @@ export default function CustomerProfilePage() {
   const [viewBookingOpen, setViewBookingOpen] = useState(false);
   const [viewBookingData, setViewBookingData] = useState<any>(null);
 
+  // Pay Links state
+  const [payLinkAmount, setPayLinkAmount] = useState(0);
+  const [payLinkNotes, setPayLinkNotes] = useState("");
+  const [payLinkSending, setPayLinkSending] = useState(false);
+  const [checkingPayLinkId, setCheckingPayLinkId] = useState<string | null>(null);
+
   // Pet edit dialog
   const [editingPet, setEditingPet] = useState<any>(null);
   const [petForm, setPetForm] = useState({ pet_name: "", breed_id: "", dog_age_years: 0, dog_age_months: 0, notes: "" });
