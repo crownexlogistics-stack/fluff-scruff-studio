@@ -12,15 +12,14 @@ serve(async (req) => {
   }
 
   try {
-    const SENDGRID_API_KEY = Deno.env.get("SENDGRID_API_KEY");
-    if (!SENDGRID_API_KEY) throw new Error("SENDGRID_API_KEY is not configured");
+    const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+    if (!RESEND_API_KEY) throw new Error("RESEND_API_KEY is not configured");
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     const { booking_id, notification_type, extra } = await req.json();
-    // notification_type: "new_booking" | "booking_edited" | "booking_cancelled" | "customer_message"
 
     if (!booking_id || !notification_type) {
       return new Response(JSON.stringify({ error: "booking_id and notification_type required" }), {
@@ -137,25 +136,25 @@ serve(async (req) => {
       });
     }
 
-    // Send via SendGrid
-    const res = await fetch("https://api.sendgrid.com/v3/mail/send", {
+    // Send via Resend
+    const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${SENDGRID_API_KEY}`,
+        Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        personalizations: [{ to: [{ email: groomerEmail }] }],
-        from: { email: "info@fluffandscruff.co.uk", name: "Fluff & Scruff Studio" },
-        reply_to: { email: "info@fluffandscruff.co.uk" },
+        from: "Fluff & Scruff Studio <info@fluffandscruff.co.uk>",
+        to: [groomerEmail],
+        reply_to: "info@fluffandscruff.co.uk",
         subject,
-        content: [{ type: "text/html", value: bodyHtml }],
+        html: bodyHtml,
       }),
     });
 
     if (!res.ok) {
       const errData = await res.text();
-      throw new Error(`SendGrid error: ${errData}`);
+      throw new Error(`Resend error: ${errData}`);
     }
 
     return new Response(JSON.stringify({ success: true }), {

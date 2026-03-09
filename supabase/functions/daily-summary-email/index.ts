@@ -29,14 +29,14 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const sendgridKey = Deno.env.get("SENDGRID_API_KEY")!;
+    const resendKey = Deno.env.get("RESEND_API_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Determine yesterday's date
     const now = new Date();
     const yesterday = new Date(now);
     yesterday.setDate(yesterday.getDate() - 1);
-    const yStr = yesterday.toISOString().split("T")[0]; // YYYY-MM-DD
+    const yStr = yesterday.toISOString().split("T")[0];
 
     // Allow manual override of date
     let body: any = {};
@@ -90,7 +90,6 @@ serve(async (req) => {
     const salonNet = grossRevenue - totalGroomerPay;
 
     // ── STAT 6: Groomer breakdown ──
-    // Get all staff names
     const staffIds = [...new Set(completedData?.map((b) => b.staff_id).filter(Boolean) || [])];
     const { data: staffData } = await supabase
       .from("staff")
@@ -100,13 +99,11 @@ serve(async (req) => {
     const staffMap: Record<string, string> = {};
     staffData?.forEach((s) => { staffMap[s.id] = s.name; });
 
-    // Build commission lookup by booking_id
     const commissionByBooking: Record<string, number> = {};
     commissionData?.forEach((c) => {
       commissionByBooking[c.booking_id] = Number(c.groomer_pay || 0);
     });
 
-    // Group by groomer
     const groomerStats: Record<string, { appointments: number; revenue: number; pay: number | null }> = {};
     completedData?.forEach((b) => {
       const name = staffMap[b.staff_id] || "Unassigned";
@@ -238,24 +235,24 @@ serve(async (req) => {
 </body>
 </html>`;
 
-    // ── SEND VIA SENDGRID ──
-    const sgRes = await fetch("https://api.sendgrid.com/v3/mail/send", {
+    // ── SEND VIA RESEND ──
+    const emailRes = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${sendgridKey}`,
+        Authorization: `Bearer ${resendKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        personalizations: [{ to: [{ email: "info@fluffandscruff.co.uk" }] }],
-        from: { email: "info@fluffandscruff.co.uk", name: "Fluff & Scruff Studio" },
+        from: "Fluff & Scruff Studio <info@fluffandscruff.co.uk>",
+        to: ["info@fluffandscruff.co.uk"],
         subject: `🐾 Fluff & Scruff — Daily Summary ${dateLabel}`,
-        content: [{ type: "text/html", value: htmlBody }],
+        html: htmlBody,
       }),
     });
 
-    if (!sgRes.ok) {
-      const errText = await sgRes.text();
-      throw new Error(`SendGrid error ${sgRes.status}: ${errText}`);
+    if (!emailRes.ok) {
+      const errText = await emailRes.text();
+      throw new Error(`Resend error ${emailRes.status}: ${errText}`);
     }
 
     return new Response(

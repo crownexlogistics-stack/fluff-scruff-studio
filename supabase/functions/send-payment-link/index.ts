@@ -16,7 +16,7 @@ serve(async (req) => {
   try {
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     if (!stripeKey) throw new Error("STRIPE_SECRET_KEY not set");
-    const SENDGRID_API_KEY = Deno.env.get("SENDGRID_API_KEY");
+    const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
     const TWILIO_ACCOUNT_SID = Deno.env.get("TWILIO_ACCOUNT_SID");
     const TWILIO_AUTH_TOKEN = Deno.env.get("TWILIO_AUTH_TOKEN");
     const TWILIO_PHONE_NUMBER = Deno.env.get("TWILIO_PHONE_NUMBER");
@@ -70,7 +70,7 @@ serve(async (req) => {
     });
 
     // Send via Email
-    if ((send_via === "email" || send_via === "both") && booking.customer_email && SENDGRID_API_KEY) {
+    if ((send_via === "email" || send_via === "both") && booking.customer_email && RESEND_API_KEY) {
       const html = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
           <h2 style="color: #1a1a1a;">Your Payment Link 🐾</h2>
@@ -106,18 +106,18 @@ serve(async (req) => {
         </div>
       `;
 
-      await fetch("https://api.sendgrid.com/v3/mail/send", {
+      await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${SENDGRID_API_KEY}`,
+          Authorization: `Bearer ${RESEND_API_KEY}`,
         },
         body: JSON.stringify({
-          personalizations: [{ to: [{ email: booking.customer_email }] }],
-          from: { email: "info@fluffandscruff.co.uk", name: "Fluff & Scruff Studio" },
-          reply_to: { email: "info@fluffandscruff.co.uk" },
+          from: "Fluff & Scruff Studio <info@fluffandscruff.co.uk>",
+          to: [booking.customer_email],
+          reply_to: "info@fluffandscruff.co.uk",
           subject: "Your payment link from Fluff & Scruff 🐾",
-          content: [{ type: "text/html", value: html }],
+          html,
         }),
       });
     }

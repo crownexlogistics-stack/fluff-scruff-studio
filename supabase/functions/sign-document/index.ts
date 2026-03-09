@@ -39,8 +39,8 @@ serve(async (req) => {
 
       // Send confirmation email
       try {
-        const SENDGRID_API_KEY = Deno.env.get("SENDGRID_API_KEY");
-        if (SENDGRID_API_KEY) {
+        const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+        if (RESEND_API_KEY) {
           const { data: staff } = await supabase.from("staff").select("*").eq("id", staff_id).single();
           if (staff?.email) {
             const logoUrl = "https://fluff-scruff-studio.lovable.app/logo-transparent.png";
@@ -50,17 +50,17 @@ serve(async (req) => {
             const emails = ["info@fluffandscruff.co.uk"];
             if (staff.email) emails.push(staff.email);
 
-            await fetch("https://api.sendgrid.com/v3/mail/send", {
+            await fetch("https://api.resend.com/emails", {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
-                Authorization: `Bearer ${SENDGRID_API_KEY}`,
+                Authorization: `Bearer ${RESEND_API_KEY}`,
               },
               body: JSON.stringify({
-                personalizations: [{ to: emails.map(email => ({ email })) }],
-                from: { email: "info@fluffandscruff.co.uk", name: "Fluff & Scruff Studio" },
+                from: "Fluff & Scruff Studio <info@fluffandscruff.co.uk>",
+                to: emails,
                 subject: `Contract Signed — ${staff.name}`,
-                content: [{ type: "text/html", value: `
+                html: `
                   <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
                     <div style="text-align: center; padding: 16px 0;">
                       <img src="${logoUrl}" alt="Fluff & Scruff Studio" style="height: 60px; width: auto;" />
@@ -79,7 +79,7 @@ serve(async (req) => {
                     <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
                     <p style="color: #999; font-size: 12px;">Fluff & Scruff Studio · 138 Hillview Avenue, Hornchurch RM11 2DL</p>
                   </div>
-                ` }],
+                `,
               }),
             });
           }
@@ -142,24 +142,24 @@ serve(async (req) => {
             if (linkError) {
               console.error("Link generation error:", linkError);
             } else {
-              // Send account setup email via SendGrid
-              const SENDGRID_API_KEY = Deno.env.get("SENDGRID_API_KEY");
-              if (SENDGRID_API_KEY && linkData?.properties?.action_link) {
+              // Send account setup email via Resend
+              const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+              if (RESEND_API_KEY && linkData?.properties?.action_link) {
                 const logoUrl = "https://fluff-scruff-studio.lovable.app/logo-transparent.png";
                 const portalName = appRole === "manager" || appRole === "director" ? "Management Dashboard" : "Staff Portal";
 
-                await fetch("https://api.sendgrid.com/v3/mail/send", {
+                await fetch("https://api.resend.com/emails", {
                   method: "POST",
                   headers: {
                     "Content-Type": "application/json",
-                    Authorization: `Bearer ${SENDGRID_API_KEY}`,
+                    Authorization: `Bearer ${RESEND_API_KEY}`,
                   },
                   body: JSON.stringify({
-                    personalizations: [{ to: [{ email: staff.email }] }],
-                    from: { email: "info@fluffandscruff.co.uk", name: "Fluff & Scruff Studio" },
-                    reply_to: { email: "info@fluffandscruff.co.uk", name: "Fluff & Scruff Studio" },
+                    from: "Fluff & Scruff Studio <info@fluffandscruff.co.uk>",
+                    to: [staff.email],
+                    reply_to: "info@fluffandscruff.co.uk",
                     subject: `Set Up Your ${portalName} Account — Fluff & Scruff Studio`,
-                    content: [{ type: "text/html", value: `
+                    html: `
                       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
                         <div style="text-align: center; padding: 16px 0;">
                           <img src="${logoUrl}" alt="Fluff & Scruff Studio" style="height: 60px; width: auto;" />
@@ -177,7 +177,7 @@ serve(async (req) => {
                         <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
                         <p style="color: #999; font-size: 12px;">Fluff & Scruff Studio · 138 Hillview Avenue, Hornchurch RM11 2DL</p>
                       </div>
-                    ` }],
+                    `,
                   }),
                 });
               }

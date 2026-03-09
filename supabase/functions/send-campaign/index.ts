@@ -10,8 +10,8 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const SENDGRID_API_KEY = Deno.env.get("SENDGRID_API_KEY");
-    if (!SENDGRID_API_KEY) throw new Error("SENDGRID_API_KEY is not configured");
+    const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+    if (!RESEND_API_KEY) throw new Error("RESEND_API_KEY is not configured");
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -47,7 +47,6 @@ serve(async (req) => {
     let groupRemainder: string[] = [];
 
     if (isABTest) {
-      // Shuffle emails for random split
       const shuffled = [...validEmails].sort(() => Math.random() - 0.5);
       const testSize = Math.floor(shuffled.length * (abTestPercentage / 100));
       groupA = shuffled.slice(0, testSize);
@@ -60,7 +59,7 @@ serve(async (req) => {
     const batchSize = 20;
 
     // Send function
-    const sendBatch = async (emailList: string[], subjectLine: string, variant: string) => {
+    const sendBatch = async (emailList: string[], subjectLine: string, _variant: string) => {
       let count = 0;
       for (let i = 0; i < emailList.length; i += batchSize) {
         const batch = emailList.slice(i, i + batchSize);
@@ -77,23 +76,18 @@ serve(async (req) => {
             );
           }
 
-          const res = await fetch("https://api.sendgrid.com/v3/mail/send", {
+          const res = await fetch("https://api.resend.com/emails", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              Authorization: `Bearer ${SENDGRID_API_KEY}`,
+              Authorization: `Bearer ${RESEND_API_KEY}`,
             },
             body: JSON.stringify({
-              personalizations: [{ to: [{ email }] }],
-              from: { email: "info@fluffandscruff.co.uk", name: "Fluff & Scruff Studio" },
-              reply_to: { email: "info@fluffandscruff.co.uk" },
+              from: "Fluff & Scruff Studio <info@fluffandscruff.co.uk>",
+              to: [email],
+              reply_to: "info@fluffandscruff.co.uk",
               subject: subjectLine,
-              content: [{ type: "text/html", value: personalizedHtml }],
-              custom_args: campaignId ? { campaign_id: campaignId, ab_variant: variant } : undefined,
-              tracking_settings: {
-                click_tracking: { enable: true },
-                open_tracking: { enable: true },
-              },
+              html: personalizedHtml,
             }),
           });
 
@@ -130,9 +124,8 @@ serve(async (req) => {
       // Trigger attribution processing asynchronously
       supabase.functions.invoke("attribute-campaign-bookings").catch(() => {});
 
-      // If A/B test, schedule remainder send after 2 hours (handled by pick-ab-winner function)
+      // If A/B test, store remainder emails for later pickup
       if (isABTest && groupRemainder.length > 0) {
-        // Store remainder emails for later pickup
         await supabase.from("site_config").upsert({
           key: `ab_remainder_${campaignId}`,
           value: { emails: groupRemainder, htmlBody },
