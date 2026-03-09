@@ -21,6 +21,7 @@ import { Switch } from "@/components/ui/switch";
 import {
   ArrowLeft, Mail, Phone, Dog, Calendar, Send,
   Pencil, Check, X, MessageSquare, MailOpen, Ban, CalendarPlus, UserCheck, ChevronDown, ChevronUp,
+  CreditCard, RefreshCw, ExternalLink,
 } from "lucide-react";
 import { AdminPetTools } from "@/components/customer-profile/AdminPetTools";
 import { format, parseISO } from "date-fns";
