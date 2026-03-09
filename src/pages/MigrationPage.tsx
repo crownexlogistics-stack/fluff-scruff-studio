@@ -1096,7 +1096,7 @@ function MigrationCustomersTab() {
                                 </TooltipContent>
                               </Tooltip>
                             </TooltipProvider>
-                            {c.status !== "activated" && (
+                            {c.status !== "activated" && c.status !== "self_registered" && (
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -1109,7 +1109,7 @@ function MigrationCustomersTab() {
                               </Button>
                             )}
                           </div>
-                        ) : c.status !== "activated" ? (
+                        ) : c.status !== "activated" && c.status !== "self_registered" ? (
                           <Button
                             size="sm"
                             variant="outline"
