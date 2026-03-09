@@ -83,3 +83,6 @@ verify_jwt = false
 
 [functions.sync-migrated-profiles]
 verify_jwt = false
+
+[functions.daily-summary-email]
+verify_jwt = false

@@ -3,8 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { RefreshCw, Activity } from "lucide-react";
+import { RefreshCw, Activity, Mail } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
+import { toast } from "sonner";
 
 type CheckStatus = "pass" | "fail" | "warning" | "checking";
 
@@ -240,6 +241,23 @@ export default function SystemHealthPage() {
     return () => clearInterval(interval);
   }, [runAllChecks]);
 
+  const [sendingSummary, setSendingSummary] = useState(false);
+
+  const handleSendDailySummary = useCallback(async () => {
+    setSendingSummary(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("daily-summary-email", {
+        body: { date: new Date().toISOString().split("T")[0] },
+      });
+      if (error) throw error;
+      toast.success("Summary email sent to info@fluffandscruff.co.uk ✅");
+    } catch (e: any) {
+      toast.error(`Failed to send summary: ${e.message}`);
+    } finally {
+      setSendingSummary(false);
+    }
+  }, []);
+
   const passed = checks.filter((c) => c.status === "pass").length;
   const failed = checks.filter((c) => c.status === "fail").length;
   const warnings = checks.filter((c) => c.status === "warning").length;
@@ -262,10 +280,16 @@ export default function SystemHealthPage() {
               </p>
             )}
           </div>
-          <Button onClick={runAllChecks} disabled={running}>
-            <RefreshCw className={`mr-2 h-4 w-4 ${running ? "animate-spin" : ""}`} />
-            Run All Checks
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={runAllChecks} disabled={running}>
+              <RefreshCw className={`mr-2 h-4 w-4 ${running ? "animate-spin" : ""}`} />
+              Run All Checks
+            </Button>
+            <Button variant="outline" onClick={handleSendDailySummary} disabled={sendingSummary}>
+              <Mail className="mr-2 h-4 w-4" />
+              {sendingSummary ? "Sending…" : "📧 Send Today's Summary"}
+            </Button>
+          </div>
         </div>
 
         {/* Summary bar */}
