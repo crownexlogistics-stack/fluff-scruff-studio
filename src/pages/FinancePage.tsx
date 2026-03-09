@@ -331,7 +331,7 @@ const FinancePage = () => {
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <Card><CardContent className="p-4 text-center"><Dog className="h-5 w-5 mx-auto text-muted-foreground mb-1" /><p className="text-xs text-muted-foreground">Dogs Groomed</p><p className="text-2xl font-bold">{totalDogs}</p></CardContent></Card>
-              <Card><CardContent className="p-4 text-center"><TrendingUp className="h-5 w-5 mx-auto text-muted-foreground mb-1" /><p className="text-xs text-muted-foreground">Total Revenue</p><p className="text-2xl font-bold">£{totalRevenue.toFixed(2)}</p></CardContent></Card>
+              <Card><CardContent className="p-4 text-center"><TrendingUp className="h-5 w-5 mx-auto text-muted-foreground mb-1" /><p className="text-xs text-muted-foreground">Total Revenue</p><p className="text-2xl font-bold">£{totalRevenue.toFixed(2)}</p>{migratedRevenue > 0 && <p className="text-xs text-amber-600">incl. £{migratedRevenue.toFixed(2)} Wix</p>}</CardContent></Card>
               <Card><CardContent className="p-4 text-center"><Users className="h-5 w-5 mx-auto text-muted-foreground mb-1" /><p className="text-xs text-muted-foreground">Groomer Pay</p><p className="text-2xl font-bold text-primary">£{totalGroomerPay.toFixed(2)}</p></CardContent></Card>
               <Card><CardContent className="p-4 text-center"><CreditCard className="h-5 w-5 mx-auto text-muted-foreground mb-1" /><p className="text-xs text-muted-foreground">Studio Share</p><p className="text-2xl font-bold">£{totalStudioShare.toFixed(2)}</p></CardContent></Card>
             </div>
