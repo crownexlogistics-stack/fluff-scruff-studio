@@ -347,7 +347,7 @@ const Index = () => {
   const prevGroomerPay = prevCommissions.reduce((s: number, c: any) => s + Number(c.groomer_pay), 0);
   const prevStudioShare = prevCommissions.reduce((s: number, c: any) => s + Number(c.studio_share), 0);
 
-  const projectedGross = upcomingAll.reduce((s: number, b: any) => s + Number(b.total_price), 0);
+  const projectedGross = upcomingAll.reduce((s: number, b: any) => s + Number(b.total_price || 0), 0);
 
   // Expenses totals
   const toMonthly = (amount: number, freq: string) => {
