@@ -86,6 +86,7 @@ export function HeroSection({ onBook }: HeroSectionProps) {
           </button>
           <a
             href="tel:01708606655"
+            onClick={() => window.gtag?.("event", "contact_click", { event_category: "engagement", event_label: "phone" })}
             className="w-full flex items-center justify-center font-body font-bold text-base py-3 transition-all active:scale-[0.97]"
             style={{
               background: "transparent",

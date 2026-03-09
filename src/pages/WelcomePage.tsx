@@ -84,6 +84,7 @@ export default function WelcomePage() {
     if (error) {
       toast({ title: "Error setting password", description: error.message, variant: "destructive" });
     } else {
+      window.gtag?.("event", "sign_up", { method: "invite" });
       toast({ title: "Password set! 🎉", description: "You're all set. Taking you to your account..." });
       setPasswordSet(true);
     }
