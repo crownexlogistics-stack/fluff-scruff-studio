@@ -170,13 +170,23 @@ export default function BookingSuccessPage() {
     enabled: !!user?.email && !!booking && !isCancelledBooking,
   });
 
-  // Fire confetti on mount
+  // Fire confetti on mount + GA purchase event
   useEffect(() => {
     if (booking && !confettiFired.current) {
       const status = (booking.status || "").trim().toLowerCase();
       const isCancelled = status === "cancelled" || status.includes("refund");
       if (!isCancelled) {
         confettiFired.current = true;
+        // GA4 purchase event
+        window.gtag?.("event", "purchase", {
+          transaction_id: booking.id,
+          value: booking.deposit_paid || 0,
+          currency: "GBP",
+          items: [{
+            item_name: (booking.service as any)?.name || "Grooming",
+            price: booking.total_price || 0,
+          }],
+        });
         // Small delay so the page renders first
         setTimeout(() => {
           const accent = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim();
