@@ -61,6 +61,12 @@ const marketingSubItems = [
   { title: "Email Marketing", url: "/marketing/email", icon: Mail },
 ];
 
+const scruffSubItems = [
+  { title: "Conversations", url: "/admin/scruff/conversations", icon: MessageSquare },
+  { title: "Handoffs", url: "/admin/scruff/handoffs", icon: PhoneForwarded },
+  { title: "Settings", url: "/admin/scruff/settings", icon: Settings },
+];
+
 const directorOnlyItems = [
   { title: "Users", url: "/admin/users", icon: Crown },
   { title: "Terms & Conditions", url: "/admin/terms", icon: FileText },
