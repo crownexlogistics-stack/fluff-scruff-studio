@@ -157,34 +157,34 @@ Deno.serve(async (req) => {
 
     // ─── EMAIL TESTS ───
 
-    const sgKey = Deno.env.get("SENDGRID_API_KEY");
+    const resendKey = Deno.env.get("RESEND_API_KEY");
 
-    allTests["sendgrid_connection"] = async () => {
-      if (!sgKey) return { status: "fail", message: "SENDGRID_API_KEY not configured" };
-      const res = await fetch("https://api.sendgrid.com/v3/user/credits", {
-        headers: { Authorization: `Bearer ${sgKey}` },
+    allTests["resend_connection"] = async () => {
+      if (!resendKey) return { status: "fail", message: "RESEND_API_KEY not configured" };
+      const res = await fetch("https://api.resend.com/domains", {
+        headers: { Authorization: `Bearer ${resendKey}` },
       });
-      if (res.ok) { await res.text(); return { status: "pass", message: "SendGrid connection OK" }; }
+      if (res.ok) { await res.text(); return { status: "pass", message: "Resend connection OK" }; }
       const t = await res.text();
-      return { status: "fail", message: "SendGrid auth failed", detail: t };
+      return { status: "fail", message: "Resend auth failed", detail: t };
     };
 
-    allTests["sendgrid_send_test"] = async () => {
-      if (!sgKey) return { status: "fail", message: "SENDGRID_API_KEY not configured" };
+    allTests["resend_send_test"] = async () => {
+      if (!resendKey) return { status: "fail", message: "RESEND_API_KEY not configured" };
       const now = new Date().toISOString();
-      const res = await fetch("https://api.sendgrid.com/v3/mail/send", {
+      const res = await fetch("https://api.resend.com/emails", {
         method: "POST",
-        headers: { Authorization: `Bearer ${sgKey}`, "Content-Type": "application/json" },
+        headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          personalizations: [{ to: [{ email: "info@fluffandscruff.co.uk" }] }],
-          from: { email: "info@fluffandscruff.co.uk", name: "Fluff & Scruff Tests" },
+          from: "Fluff & Scruff Tests <info@fluffandscruff.co.uk>",
+          to: ["info@fluffandscruff.co.uk"],
           subject: "🧪 Fluff & Scruff — Automated Test Email",
-          content: [{ type: "text/plain", value: `This is an automated test from the E2E test suite. Sent at ${now}. If you received this, SendGrid is working.` }],
+          text: `This is an automated test from the E2E test suite. Sent at ${now}. If you received this, Resend is working.`,
         }),
       });
-      if (res.status === 202) { await res.text(); return { status: "pass", message: "Test email sent to info@fluffandscruff.co.uk" }; }
+      if (res.ok) { await res.text(); return { status: "pass", message: "Test email sent to info@fluffandscruff.co.uk" }; }
       const t = await res.text();
-      return { status: "fail", message: `SendGrid rejected email (${res.status})`, detail: t };
+      return { status: "fail", message: `Resend rejected email (${res.status})`, detail: t };
     };
 
     // ─── SMS TESTS ───
