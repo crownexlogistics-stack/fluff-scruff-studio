@@ -232,7 +232,7 @@ serve(async (req) => {
       details: `Sent migration invite to ${email} (${customer.full_name || "unknown"})`,
     });
 
-    return new Response(JSON.stringify({ success: true, email: customer.email }), {
+    return new Response(JSON.stringify({ success: true, email }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
