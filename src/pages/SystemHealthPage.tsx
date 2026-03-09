@@ -280,14 +280,16 @@ export default function SystemHealthPage() {
               </p>
             )}
           </div>
-          <Button onClick={runAllChecks} disabled={running}>
-            <RefreshCw className={`mr-2 h-4 w-4 ${running ? "animate-spin" : ""}`} />
-            Run All Checks
-          </Button>
-          <Button variant="outline" onClick={handleSendDailySummary} disabled={sendingSummary}>
-            <Mail className="mr-2 h-4 w-4" />
-            {sendingSummary ? "Sending…" : "📧 Send Today's Summary Now"}
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={runAllChecks} disabled={running}>
+              <RefreshCw className={`mr-2 h-4 w-4 ${running ? "animate-spin" : ""}`} />
+              Run All Checks
+            </Button>
+            <Button variant="outline" onClick={handleSendDailySummary} disabled={sendingSummary}>
+              <Mail className="mr-2 h-4 w-4" />
+              {sendingSummary ? "Sending…" : "📧 Send Today's Summary"}
+            </Button>
+          </div>
         </div>
 
         {/* Summary bar */}
