@@ -3,6 +3,7 @@ import { format, addDays, isToday } from "date-fns";
 import { cn } from "@/lib/utils";
 import { getStaffColor } from "@/components/booking-calendar/staffColors";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -43,6 +44,8 @@ export interface GroomerCalendarBooking {
   final_charge?: number | null;
   stripe_payment_id?: string | null;
   duration_minutes?: number | null;
+  is_migrated?: boolean;
+  is_off_day?: boolean;
 }
 
 type UserRole = string | null;
