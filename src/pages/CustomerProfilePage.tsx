@@ -262,6 +262,21 @@ export default function CustomerProfilePage() {
     },
   });
 
+  // Pay Links query
+  const { data: payLinks, refetch: refetchPayLinks } = useQuery({
+    queryKey: ["customer-pay-links", decodedEmail],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("customer_pay_links")
+        .select("*")
+        .eq("customer_email", decodedEmail)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!decodedEmail && isOwnCustomer,
+  });
+
   // ── Mutations ─────────────────────────────────────────────────────
 
   const addNoteMutation = useMutation({
