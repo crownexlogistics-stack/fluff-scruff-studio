@@ -636,6 +636,9 @@ function ImportTab({ onSwitchTab }: { onSwitchTab?: (tab: string) => void }) {
           )}
         </CardContent>
       </Card>
+
+      {/* Sync to profiles */}
+      <SyncProfilesCard />
     </div>
   );
 }
