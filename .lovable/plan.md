@@ -1,43 +1,54 @@
 
 
-# Fix: Include Migrated Wix Customers in Messages
+## Booking Flow UI Overhaul — Pet-Themed Animations
 
-## Problem
+This plan adds playful, on-brand animations to the booking flow while preserving all existing logic (Stripe, puppy auto-switch, back navigation).
 
-The Messages page (both admin and groomer views) only queries the `bookings` table for customers. The 812 migrated Wix customers exist in `migrated_customers` (with phone numbers) and their booking history is in `migrated_bookings` — but neither table is queried by the messaging feature. This means:
+---
 
-- Admins cannot find or message any Wix-migrated customer
-- Groomers cannot see customers they previously groomed (via Wix) in their message list
+### 1. Walking Paw Progress Bar
 
-## Solution
+- Add a **paw-print step indicator** at the top of the BookingFlow, below the header.
+- Define the steps as an ordered array (e.g. `["sub-service", "breed", "calendar", "addons", "guest-details"]`), filtered based on whether the flow needs breed/addons.
+- Render a row of `PawPrint` icons — completed steps use the brand accent color, current step is highlighted, future steps are greyed out (`text-muted-foreground/30`).
+- Use `framer-motion`'s `layoutId` on a small underline/highlight element that animates smoothly between paw positions as the step changes, creating the "walking" effect.
+- Each paw tilts slightly (`rotate: -15deg` → `15deg`) using a short spring animation on the active paw.
 
-Update the customer-fetching queries in both `MessagesPage.tsx` and `GroomerMessagesTab.tsx` to also pull from `migrated_customers` (joined with `migrated_bookings` for groomer filtering), then merge and deduplicate by phone number.
+### 2. Tail Wag Loading Animation
 
-## Changes
+- Create a small `TailWagSpinner` component using an inline SVG of a simplified dog tail.
+- Animate with `framer-motion` using a repeating `rotate` keyframe (`[-20, 20, -20]` on loop) with `duration: 0.4s`.
+- Replace the existing CSS spinner (line 825: `animate-spin h-8 w-8 border-4...`) and the "Processing..." text in submit buttons with this component.
 
-### 1. `src/pages/MessagesPage.tsx` — Admin/Manager customer query
+### 3. Bouncy Page Transitions (Framer Motion)
 
-After fetching from `bookings`, also fetch from `migrated_customers` where phone is not null. For groomers, join through `migrated_bookings` filtering by `staff_name` (since migrated bookings use staff_name, not staff_id). Merge both sets into the same `Map<phone, CustomerContact>`, with the `bookings` record taking priority (newer data).
+- Wrap each step's content block in a `<motion.div>` with `AnimatePresence` and keyed by `step`.
+- Entry: `initial={{ x: 80, opacity: 0 }}`, `animate={{ x: 0, opacity: 1 }}` with `type: "spring", stiffness: 300, damping: 25`.
+- Exit: `exit={{ x: -80, opacity: 0 }}` with a fast tween.
+- Track navigation direction (forward/back) to reverse the slide direction when going back (slide in from left instead of right).
 
-### 2. `src/components/groomer/GroomerMessagesTab.tsx` — Groomer customer query
+### 4. Back Button & Puppy Logic
 
-Same approach: fetch the groomer's `staff.name`, then query `migrated_bookings` joined with `migrated_customers` where `staff_name` matches. Merge with existing bookings-based customers, deduplicating by phone.
+- The existing `goBack` function already resets state per step — no changes needed there.
+- For the **Puppy Special "pop" effect**: when `showPuppyPopup` closes and the calendar step appears, add a `motion.div` around the "Puppy Special" service name in the calendar's summary card with `animate={{ scale: [1, 1.15, 1] }}` and a sparkle keyframe, triggered when `puppySwitched` is true.
 
-### 3. No database changes needed
+### 5. Styling Constraints
 
-Both `migrated_customers` and `migrated_bookings` already have appropriate RLS policies — directors/managers have full access, and customers can read their own records. The edge function uses a service role key so queries will work. The frontend queries run as authenticated users with manager/director/groomer roles which already have SELECT access to both tables.
+- All animations use `duration: 0.3–0.5s` max.
+- Spring transitions use high stiffness (300+) and moderate damping (25+) for snappy feel.
+- No layout shifts — all animated elements have fixed dimensions or use `layout` prop.
 
-## Technical Detail
+---
 
-```text
-Current flow:
-  bookings → Map<phone, customer> → customer list
+### Files to Edit
 
-New flow:
-  bookings → Map<phone, customer>
-  migrated_customers (+ migrated_bookings for groomers) → merge into same Map
-  → deduplicated customer list
-```
+| File | Change |
+|------|--------|
+| `src/components/BookingFlow.tsx` | Add `AnimatePresence`, `motion.div` wrappers per step, paw progress bar component, tail wag spinner, direction tracking for transitions, sparkle effect on puppy switch |
 
-For groomers: `migrated_bookings.staff_name` will be matched against the groomer's `staff.name` to filter relevant migrated customers. The bookings entry takes priority if both exist (same phone), ensuring the most up-to-date name/email is shown.
+### Technical Notes
+
+- `framer-motion` is already installed.
+- The `TailWagSpinner` and `PawProgressBar` will be inline components within `BookingFlow.tsx` to keep changes contained.
+- No database or edge function changes needed.
 

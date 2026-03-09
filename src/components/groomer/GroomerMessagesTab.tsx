@@ -32,10 +32,11 @@ export function GroomerMessagesTab({ staffId }: GroomerMessagesTabProps) {
     enabled: !!staffId,
   });
 
-  // Customers from groomer's bookings only
+  // Customers from groomer's bookings + migrated bookings
   const { data: rawCustomers } = useQuery({
-    queryKey: ["groomer-msg-customers", staffId],
+    queryKey: ["groomer-msg-customers", staffId, staffRecord?.name],
     queryFn: async () => {
+      // 1. From bookings table
       const { data, error } = await supabase
         .from("bookings")
         .select("customer_name, customer_phone, customer_email")
@@ -54,6 +55,34 @@ export function GroomerMessagesTab({ staffId }: GroomerMessagesTabProps) {
           });
         }
       });
+
+      // 2. From migrated_bookings matching this groomer's name
+      if (staffRecord?.name) {
+        const { data: migratedBookings } = await supabase
+          .from("migrated_bookings")
+          .select("migrated_customer_id")
+          .ilike("staff_name", staffRecord.name);
+
+        if (migratedBookings && migratedBookings.length > 0) {
+          const customerIds = [...new Set(migratedBookings.map((mb) => mb.migrated_customer_id))];
+          const { data: migratedCustomers } = await supabase
+            .from("migrated_customers")
+            .select("full_name, phone, email")
+            .in("id", customerIds)
+            .not("phone", "is", null);
+
+          migratedCustomers?.forEach((mc) => {
+            if (mc.phone && !map.has(mc.phone)) {
+              map.set(mc.phone, {
+                customer_name: mc.full_name || "Unknown",
+                customer_phone: mc.phone,
+                customer_email: mc.email,
+              });
+            }
+          });
+        }
+      }
+
       return Array.from(map.values());
     },
     enabled: !!staffId,
