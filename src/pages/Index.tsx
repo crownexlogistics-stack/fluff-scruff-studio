@@ -725,102 +725,188 @@ const Index = () => {
           </CardContent>
         </Card>
 
-        {/* ── 3. Appointments Health ───────────────── */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {/* Booking Sources */}
-          <Card className="rounded-xl">
-            <CardHeader className="p-4 pb-2">
-              <CardTitle className="text-sm font-semibold">Booking Sources</CardTitle>
-            </CardHeader>
-            <CardContent className="p-4 pt-0">
-              {sourceData.length > 0 ? (
-                <div className="flex flex-col items-center gap-3">
-                  <ChartContainer config={sourceChartConfig} className="h-[160px] w-[160px]">
-                    <PieChart>
-                      <ChartTooltip content={<ChartTooltipContent nameKey="name" />} />
-                      <Pie data={sourceData} dataKey="value" nameKey="label" cx="50%" cy="50%" innerRadius={40} outerRadius={65} strokeWidth={2}>
-                        {sourceData.map((entry, idx) => <Cell key={idx} fill={entry.fill} />)}
-                      </Pie>
-                    </PieChart>
-                  </ChartContainer>
-                  <div className="flex flex-wrap gap-2 justify-center">
-                    {sourceData.map((s) => (
-                      <div key={s.name} className="flex items-center gap-1.5">
-                        <div className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: s.fill }} />
+        {/* ── 3. Appointments Health + Forecast ─────── */}
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+          {/* Left column — 60% */}
+          <div className="lg:col-span-3 space-y-4">
+            {/* Booking Sources */}
+            <Card className="rounded-xl">
+              <CardHeader className="p-5 pb-2">
+                <CardTitle className="text-sm font-semibold">Booking Sources</CardTitle>
+              </CardHeader>
+              <CardContent className="p-5 pt-0">
+                {sourceData.length > 0 ? (
+                  <div className="flex flex-col items-center gap-3">
+                    <ChartContainer config={sourceChartConfig} className="h-[160px] w-[160px]">
+                      <PieChart>
+                        <ChartTooltip content={<ChartTooltipContent nameKey="name" />} />
+                        <Pie data={sourceData} dataKey="value" nameKey="label" cx="50%" cy="50%" innerRadius={40} outerRadius={65} strokeWidth={2}>
+                          {sourceData.map((entry, idx) => <Cell key={idx} fill={entry.fill} />)}
+                        </Pie>
+                      </PieChart>
+                    </ChartContainer>
+                    <div className="flex flex-wrap gap-2 justify-center">
+                      {sourceData.map((s) => (
+                        <div key={s.name} className="flex items-center gap-1.5">
+                          <div className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: s.fill }} />
+                          <span className="text-xs text-muted-foreground">
+                            {s.label} <strong className="text-foreground">{s.value}</strong> ({totalBookingsCount > 0 ? Math.round((s.value / totalBookingsCount) * 100) : 0}%)
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground py-8 text-center">No booking data yet</p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Status Breakdown */}
+            <Card className="rounded-xl">
+              <CardHeader className="p-5 pb-2">
+                <CardTitle className="text-sm font-semibold">Booking Status</CardTitle>
+              </CardHeader>
+              <CardContent className="p-5 pt-0">
+                {statusData.length > 0 ? (
+                  <div className="space-y-3">
+                    {statusData.map((s) => {
+                      const pct = totalBookingsCount > 0 ? Math.round((s.value / totalBookingsCount) * 100) : 0;
+                      return (
+                        <div key={s.name}>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs font-medium">{s.name}</span>
+                            <span className="text-xs text-muted-foreground">{s.value} ({pct}%)</span>
+                          </div>
+                          <div className="h-2 rounded-full bg-muted overflow-hidden">
+                            <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: s.fill }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground py-8 text-center">No data</p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Cancellation Rate */}
+            <Card className="rounded-xl">
+              <CardHeader className="p-5 pb-2">
+                <CardTitle className="text-sm font-semibold">Cancellation Rate</CardTitle>
+              </CardHeader>
+              <CardContent className="p-5 pt-0 flex flex-col items-center justify-center">
+                <p className={cn(
+                  "text-5xl font-bold font-heading",
+                  cancellationRate < 10 ? "text-green-600" : cancellationRate < 20 ? "text-amber-500" : "text-destructive"
+                )}>
+                  {cancellationRate}%
+                </p>
+                <p className="text-xs text-muted-foreground mt-2">{cancelled.length} of {totalBookingsCount} bookings cancelled</p>
+                <div className="mt-3 px-3 py-1.5 rounded-full bg-muted text-xs text-muted-foreground">
+                  Industry average: 8–12%
+                </div>
+                {cancellationRate < 10 && <Badge className="mt-2 bg-green-100 text-green-700 hover:bg-green-100">Below average ✅</Badge>}
+                {cancellationRate >= 10 && cancellationRate < 20 && <Badge className="mt-2 bg-amber-100 text-amber-700 hover:bg-amber-100">At industry average</Badge>}
+                {cancellationRate >= 20 && <Badge className="mt-2 bg-red-100 text-red-700 hover:bg-red-100">Above average ⚠️</Badge>}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Right column — 40% */}
+          <div className="lg:col-span-2 space-y-4">
+            {/* Upcoming Revenue Forecast */}
+            <Card className="rounded-xl">
+              <CardHeader className="p-5 pb-2">
+                <CardTitle className="text-sm font-semibold">Upcoming Revenue Forecast</CardTitle>
+              </CardHeader>
+              <CardContent className="p-5 pt-0">
+                <div className="grid grid-cols-3 gap-3 mb-4">
+                  <div className="text-center p-3 rounded-lg bg-muted/50">
+                    <p className="text-lg font-bold font-heading">£{projectedGross.toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground">Confirmed (30d)</p>
+                  </div>
+                  <div className="text-center p-3 rounded-lg bg-muted/50">
+                    <p className="text-lg font-bold font-heading text-green-600">£{totalDepositsCollected.toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground">Deposits In</p>
+                  </div>
+                  <div className="text-center p-3 rounded-lg bg-muted/50">
+                    <p className="text-lg font-bold font-heading text-amber-500">£{totalBalanceDue.toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground">Balance Due</p>
+                  </div>
+                </div>
+                {unbilledCount > 0 && (
+                  <p className="text-xs text-amber-600 mb-3">⚠️ {unbilledCount} appointment{unbilledCount > 1 ? "s" : ""} with no price set</p>
+                )}
+                <div className="space-y-1.5">
+                  {next7Days.map((d) => (
+                    <div key={d.label} className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-muted/50 text-sm">
+                      <span className="text-muted-foreground">{d.label}</span>
+                      <div className="flex items-center gap-3">
                         <span className="text-xs text-muted-foreground">
-                          {s.label} <strong className="text-foreground">{s.value}</strong> ({totalBookingsCount > 0 ? Math.round((s.value / totalBookingsCount) * 100) : 0}%)
+                          {d.count} appt{d.count !== 1 ? "s" : ""}
+                          {d.wixCount > 0 && <Badge variant="outline" className="ml-1 text-[10px] px-1 py-0 bg-amber-50 text-amber-700 border-amber-300">W {d.wixCount}</Badge>}
                         </span>
+                        <span className="font-semibold min-w-[60px] text-right">£{d.revenue.toLocaleString()}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Recent Activity Feed */}
+            <Card className="rounded-xl">
+              <CardHeader className="p-5 pb-2">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm font-semibold">Recent Activity</CardTitle>
+                  <Activity className="h-4 w-4 text-muted-foreground" />
+                </div>
+              </CardHeader>
+              <CardContent className="p-5 pt-0">
+                {recentActivity.length > 0 ? (
+                  <div className="space-y-2">
+                    {recentActivity.map((b: any) => (
+                      <div
+                        key={b.id}
+                        className="flex items-start gap-3 p-2.5 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
+                        onClick={() => navigate("/bookings")}
+                      >
+                        {getActivityIcon(b.status)}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm leading-tight">
+                            {b.status === "Completed" && <><strong>{b.customer_name}</strong>'s {b.services?.name || "groom"} with {b.staff?.name || "groomer"}</>}
+                            {b.status === "Cancelled" && <><strong>{b.customer_name}</strong> cancelled {format(parseISO(b.booking_date), "dd MMM")} booking</>}
+                            {b.status === "No Show" && <><strong>{b.customer_name}</strong> no-show for {format(parseISO(b.booking_date), "dd MMM")}</>}
+                            {!["Completed", "Cancelled", "No Show"].includes(b.status) && (
+                              <>New booking — <strong>{b.customer_name}</strong> booked {b.services?.name || "service"} for {format(parseISO(b.booking_date), "dd MMM")}
+                                {Number(b.deposit_paid) > 0 && <> — £{Number(b.deposit_paid)} deposit</>}
+                              </>
+                            )}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{format(parseISO(b.created_at), "dd MMM · HH:mm")}</p>
+                        </div>
+                        {Number(b.total_price) > 0 && (
+                          <span className="text-sm font-semibold shrink-0">£{Number(b.total_price)}</span>
+                        )}
                       </div>
                     ))}
                   </div>
-                  <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                    <ExternalLink className="h-3 w-3" /> Connect Google Analytics for detailed traffic sources
-                  </p>
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground py-8 text-center">No booking data yet</p>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Status Breakdown */}
-          <Card className="rounded-xl">
-            <CardHeader className="p-4 pb-2">
-              <CardTitle className="text-sm font-semibold">Booking Status</CardTitle>
-            </CardHeader>
-            <CardContent className="p-4 pt-0">
-              {statusData.length > 0 ? (
-                <div className="space-y-3">
-                  {statusData.map((s) => {
-                    const pct = totalBookingsCount > 0 ? Math.round((s.value / totalBookingsCount) * 100) : 0;
-                    return (
-                      <div key={s.name}>
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs font-medium">{s.name}</span>
-                          <span className="text-xs text-muted-foreground">{s.value} ({pct}%)</span>
-                        </div>
-                        <div className="h-2 rounded-full bg-muted overflow-hidden">
-                          <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: s.fill }} />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground py-8 text-center">No data</p>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Cancellation Rate */}
-          <Card className="rounded-xl">
-            <CardHeader className="p-4 pb-2">
-              <CardTitle className="text-sm font-semibold">Cancellation Rate</CardTitle>
-            </CardHeader>
-            <CardContent className="p-4 pt-0 flex flex-col items-center justify-center">
-              <p className={cn(
-                "text-5xl font-bold font-heading",
-                cancellationRate < 10 ? "text-green-600" : cancellationRate < 20 ? "text-amber-500" : "text-destructive"
-              )}>
-                {cancellationRate}%
-              </p>
-              <p className="text-xs text-muted-foreground mt-2">{cancelled.length} of {totalBookingsCount} bookings cancelled</p>
-              <div className="mt-3 px-3 py-1.5 rounded-full bg-muted text-xs text-muted-foreground">
-                Industry average: 8–12%
-              </div>
-              {cancellationRate < 10 && <Badge className="mt-2 bg-green-100 text-green-700 hover:bg-green-100">Below average ✅</Badge>}
-              {cancellationRate >= 10 && cancellationRate < 20 && <Badge className="mt-2 bg-amber-100 text-amber-700 hover:bg-amber-100">At industry average</Badge>}
-              {cancellationRate >= 20 && <Badge className="mt-2 bg-red-100 text-red-700 hover:bg-red-100">Above average ⚠️</Badge>}
-            </CardContent>
-          </Card>
+                ) : (
+                  <p className="text-sm text-muted-foreground py-8 text-center">No recent activity</p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </div>
 
         {/* ── 4. Groomer Performance Table ─────────── */}
         <Card className="rounded-xl">
-          <CardHeader className="p-4 pb-2">
+          <CardHeader className="p-5 pb-2">
             <CardTitle className="text-sm font-semibold">Groomer Performance</CardTitle>
           </CardHeader>
-          <CardContent className="p-4 pt-0 overflow-x-auto">
+          <CardContent className="p-5 pt-0 overflow-x-auto">
             {groomerPerformance.length > 0 ? (
               <Table>
                 <TableHeader>
@@ -892,92 +978,14 @@ const Index = () => {
           </CardContent>
         </Card>
 
-        {/* ── 5. Forecast + Activity ──────────────── */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {/* Upcoming Revenue Forecast */}
-          <Card className="rounded-xl">
-            <CardHeader className="p-4 pb-2">
-              <CardTitle className="text-sm font-semibold">Upcoming Revenue Forecast</CardTitle>
-            </CardHeader>
-            <CardContent className="p-4 pt-0">
-              <div className="grid grid-cols-3 gap-3 mb-4">
-                <div className="text-center p-3 rounded-lg bg-muted/50">
-                  <p className="text-lg font-bold font-heading">£{projectedGross.toLocaleString()}</p>
-                  <p className="text-xs text-muted-foreground">Confirmed (30d)</p>
-                </div>
-                <div className="text-center p-3 rounded-lg bg-muted/50">
-                  <p className="text-lg font-bold font-heading text-green-600">£{totalDepositsCollected.toLocaleString()}</p>
-                  <p className="text-xs text-muted-foreground">Deposits In</p>
-                </div>
-                <div className="text-center p-3 rounded-lg bg-muted/50">
-                  <p className="text-lg font-bold font-heading text-amber-500">£{totalBalanceDue.toLocaleString()}</p>
-                  <p className="text-xs text-muted-foreground">Balance Due</p>
-                </div>
-              </div>
-              {unbilledCount > 0 && (
-                <p className="text-xs text-amber-600 mb-3">⚠️ {unbilledCount} appointment{unbilledCount > 1 ? "s" : ""} with no price set</p>
-              )}
-              <div className="space-y-1.5">
-                {next7Days.map((d) => (
-                  <div key={d.label} className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-muted/50 text-sm">
-                    <span className="text-muted-foreground">{d.label}</span>
-                    <div className="flex items-center gap-3">
-                      <span className="text-xs text-muted-foreground">
-                        {d.count} appt{d.count !== 1 ? "s" : ""}
-                        {d.wixCount > 0 && <Badge variant="outline" className="ml-1 text-[10px] px-1 py-0 bg-amber-50 text-amber-700 border-amber-300">W {d.wixCount}</Badge>}
-                      </span>
-                      <span className="font-semibold min-w-[60px] text-right">£{d.revenue.toLocaleString()}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Recent Activity Feed */}
-          <Card className="rounded-xl">
-            <CardHeader className="p-4 pb-2">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-semibold">Recent Activity</CardTitle>
-                <Activity className="h-4 w-4 text-muted-foreground" />
-              </div>
-            </CardHeader>
-            <CardContent className="p-4 pt-0">
-              {recentActivity.length > 0 ? (
-                <div className="space-y-2">
-                  {recentActivity.map((b: any) => (
-                    <div
-                      key={b.id}
-                      className="flex items-start gap-3 p-2.5 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
-                      onClick={() => navigate("/bookings")}
-                    >
-                      {getActivityIcon(b.status)}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm leading-tight">
-                          {b.status === "Completed" && <><strong>{b.customer_name}</strong>'s {b.services?.name || "groom"} with {b.staff?.name || "groomer"}</>}
-                          {b.status === "Cancelled" && <><strong>{b.customer_name}</strong> cancelled {format(parseISO(b.booking_date), "dd MMM")} booking</>}
-                          {b.status === "No Show" && <><strong>{b.customer_name}</strong> no-show for {format(parseISO(b.booking_date), "dd MMM")}</>}
-                          {!["Completed", "Cancelled", "No Show"].includes(b.status) && (
-                            <>New booking — <strong>{b.customer_name}</strong> booked {b.services?.name || "service"} for {format(parseISO(b.booking_date), "dd MMM")}
-                              {Number(b.deposit_paid) > 0 && <> — £{Number(b.deposit_paid)} deposit</>}
-                            </>
-                          )}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-0.5">{format(parseISO(b.created_at), "dd MMM · HH:mm")}</p>
-                      </div>
-                      {Number(b.total_price) > 0 && (
-                        <span className="text-sm font-semibold shrink-0">£{Number(b.total_price)}</span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground py-8 text-center">No recent activity</p>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+        {/* ── 5. Website Analytics — Full Width ──────── */}
+        <WebsiteAnalyticsSection />
       </div>
+    </AppLayout>
+  );
+};
+
+export default Index;
     </AppLayout>
   );
 };
