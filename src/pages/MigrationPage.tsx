@@ -1019,8 +1019,9 @@ function MigrationCustomersTab() {
 
   const statusBadge = (status: string) => {
     switch (status) {
-      case "activated": return <Badge className="bg-green-100 text-green-700 border-0 text-[10px]">Activated</Badge>;
-      case "self_registered": return <Badge className="bg-blue-100 text-blue-700 border-0 text-[10px]">Self-Registered</Badge>;
+      case "activated":
+      case "self_registered":
+        return <Badge className="bg-green-100 text-green-700 border-0 text-[10px]">Signed In</Badge>;
       case "invited": return <Badge className="bg-orange-100 text-orange-700 border-0 text-[10px]">Invited</Badge>;
       default: return <Badge variant="secondary" className="text-[10px]">Pending</Badge>;
     }
