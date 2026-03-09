@@ -89,3 +89,6 @@ verify_jwt = false
 
 [functions.get-analytics-data]
 verify_jwt = false
+
+[functions.check-migrated-customer]
+verify_jwt = false
