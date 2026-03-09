@@ -176,7 +176,7 @@ Deno.serve(async (req) => {
         method: "POST",
         headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          from: "Fluff & Scruff Tests <info@fluffandscruff.co.uk>",
+          from: "Fluff & Scruff Tests <onboarding@resend.dev>",
           to: ["info@fluffandscruff.co.uk"],
           subject: "🧪 Fluff & Scruff — Automated Test Email",
           text: `This is an automated test from the E2E test suite. Sent at ${now}. If you received this, Resend is working.`,

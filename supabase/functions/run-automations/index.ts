@@ -139,7 +139,7 @@ serve(async (req) => {
             Authorization: `Bearer ${RESEND_API_KEY}`,
           },
           body: JSON.stringify({
-            from: "Fluff & Scruff Studio <info@fluffandscruff.co.uk>",
+            from: "Fluff & Scruff Studio <onboarding@resend.dev>",
             to: [customer.email],
             reply_to: "info@fluffandscruff.co.uk",
             subject: rule.email_subject.replace(/\{\{CUSTOMER_NAME\}\}/g, customer.name || "there"),

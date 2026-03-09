@@ -243,8 +243,9 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "Fluff & Scruff Studio <info@fluffandscruff.co.uk>",
+        from: "Fluff & Scruff Studio <onboarding@resend.dev>",
         to: ["info@fluffandscruff.co.uk"],
+        reply_to: "info@fluffandscruff.co.uk",
         subject: `🐾 Fluff & Scruff — Daily Summary ${dateLabel}`,
         html: htmlBody,
       }),
