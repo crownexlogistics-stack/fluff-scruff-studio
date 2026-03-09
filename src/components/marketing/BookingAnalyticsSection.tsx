@@ -95,8 +95,6 @@ export function BookingAnalyticsSection() {
   const [period, setPeriod] = useState<Period>("month");
   const [compare, setCompare] = useState(false);
 
-  if (isGroomer) return <Navigate to="/portal" replace />;
-
   const { data: bookings, isLoading: loadingBookings, refetch: refetchBookings } = useQuery({
     queryKey: ["analytics-bookings"],
     queryFn: async () => {
