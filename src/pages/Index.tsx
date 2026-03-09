@@ -986,8 +986,5 @@ const Index = () => {
 };
 
 export default Index;
-    </AppLayout>
-  );
-};
 
 export default Index;
