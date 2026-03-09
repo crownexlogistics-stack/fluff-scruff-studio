@@ -220,6 +220,43 @@ export function AppSidebar() {
             </CollapsibleContent>
           </Collapsible>
         </SidebarGroup>
+
+        {/* Scruff AI Section */}
+        <SidebarGroup>
+          <Collapsible defaultOpen className="group/scruff">
+            <SidebarGroupLabel className="text-sidebar-foreground/50 text-xs uppercase tracking-wider p-0">
+              <CollapsibleTrigger className="flex w-full items-center justify-between px-2 py-1.5 hover:bg-sidebar-accent/30 rounded-md transition-colors">
+                <span className="flex items-center gap-2">
+                  <Bot className="h-3.5 w-3.5" />
+                  {!collapsed && "🤖 Scruff AI"}
+                </span>
+                {!collapsed && (
+                  <ChevronDown className="h-3.5 w-3.5 transition-transform group-data-[state=open]/scruff:rotate-180" />
+                )}
+              </CollapsibleTrigger>
+            </SidebarGroupLabel>
+            <CollapsibleContent>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {scruffSubItems.map((item) => (
+                    <SidebarMenuItem key={item.title}>
+                      <SidebarMenuButton asChild>
+                        <NavLink
+                          to={item.url}
+                          className="hover:bg-sidebar-accent/50 transition-colors pl-6"
+                          activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
+                        >
+                          <item.icon className="mr-2 h-4 w-4" />
+                          {!collapsed && <span>{item.title}</span>}
+                        </NavLink>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </CollapsibleContent>
+          </Collapsible>
+        </SidebarGroup>
         {role === "director" && (
           <SidebarGroup>
             <SidebarGroupLabel className="text-sidebar-foreground/50 text-xs uppercase tracking-wider">
