@@ -1,54 +1,90 @@
 
 
-## Booking Flow UI Overhaul — Pet-Themed Animations
+# Ad-Hoc Pay Links from Customer Profile
 
-This plan adds playful, on-brand animations to the booking flow while preserving all existing logic (Stripe, puppy auto-switch, back navigation).
+## What We're Building
 
----
+A new "💳 Pay Links" tab on the customer profile page where admins (and groomers for their own customers) can generate standalone Stripe payment links for any amount, with optional notes. These are independent of bookings — for forgotten charges, off-system grooms, etc.
 
-### 1. Walking Paw Progress Bar
+The system tracks each pay link's status live from Stripe (pending → paid), shows history per customer, and feeds into the finance/dashboard revenue.
 
-- Add a **paw-print step indicator** at the top of the BookingFlow, below the header.
-- Define the steps as an ordered array (e.g. `["sub-service", "breed", "calendar", "addons", "guest-details"]`), filtered based on whether the flow needs breed/addons.
-- Render a row of `PawPrint` icons — completed steps use the brand accent color, current step is highlighted, future steps are greyed out (`text-muted-foreground/30`).
-- Use `framer-motion`'s `layoutId` on a small underline/highlight element that animates smoothly between paw positions as the step changes, creating the "walking" effect.
-- Each paw tilts slightly (`rotate: -15deg` → `15deg`) using a short spring animation on the active paw.
+## Database
 
-### 2. Tail Wag Loading Animation
+### New table: `customer_pay_links`
 
-- Create a small `TailWagSpinner` component using an inline SVG of a simplified dog tail.
-- Animate with `framer-motion` using a repeating `rotate` keyframe (`[-20, 20, -20]` on loop) with `duration: 0.4s`.
-- Replace the existing CSS spinner (line 825: `animate-spin h-8 w-8 border-4...`) and the "Processing..." text in submit buttons with this component.
+```sql
+CREATE TABLE customer_pay_links (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  customer_email TEXT NOT NULL,
+  customer_name TEXT,
+  amount NUMERIC NOT NULL,
+  notes TEXT,
+  stripe_payment_link_id TEXT,
+  stripe_url TEXT,
+  status TEXT NOT NULL DEFAULT 'pending',  -- pending, paid, expired
+  paid_at TIMESTAMP,
+  created_by UUID REFERENCES auth.users(id),
+  created_at TIMESTAMP DEFAULT now()
+);
 
-### 3. Bouncy Page Transitions (Framer Motion)
+ALTER TABLE customer_pay_links ENABLE ROW LEVEL SECURITY;
 
-- Wrap each step's content block in a `<motion.div>` with `AnimatePresence` and keyed by `step`.
-- Entry: `initial={{ x: 80, opacity: 0 }}`, `animate={{ x: 0, opacity: 1 }}` with `type: "spring", stiffness: 300, damping: 25`.
-- Exit: `exit={{ x: -80, opacity: 0 }}` with a fast tween.
-- Track navigation direction (forward/back) to reverse the slide direction when going back (slide in from left instead of right).
+-- Directors/managers: full access
+CREATE POLICY "Directors and managers can manage pay links"
+ON customer_pay_links FOR ALL TO authenticated
+USING (public.has_role(auth.uid(), 'admin') OR public.has_role(auth.uid(), 'moderator'));
 
-### 4. Back Button & Puppy Logic
+-- Groomers: read their own created links
+CREATE POLICY "Groomers can view own pay links"
+ON customer_pay_links FOR SELECT TO authenticated
+USING (created_by = auth.uid());
 
-- The existing `goBack` function already resets state per step — no changes needed there.
-- For the **Puppy Special "pop" effect**: when `showPuppyPopup` closes and the calendar step appears, add a `motion.div` around the "Puppy Special" service name in the calendar's summary card with `animate={{ scale: [1, 1.15, 1] }}` and a sparkle keyframe, triggered when `puppySwitched` is true.
+CREATE POLICY "Groomers can insert pay links"
+ON customer_pay_links FOR INSERT TO authenticated
+WITH CHECK (created_by = auth.uid());
+```
 
-### 5. Styling Constraints
+### New edge function: `create-customer-pay-link`
 
-- All animations use `duration: 0.3–0.5s` max.
-- Spring transitions use high stiffness (300+) and moderate damping (25+) for snappy feel.
-- No layout shifts — all animated elements have fixed dimensions or use `layout` prop.
+- Accepts: `customer_email`, `customer_name`, `amount`, `notes` (optional)
+- Creates a Stripe product + price + payment link for the amount
+- Sends the link via email (Resend) to the customer
+- Inserts into `customer_pay_links` with `stripe_payment_link_id` and `stripe_url`
+- Records audit log
+- After-completion redirect URL includes the pay link ID for status tracking
 
----
+### New edge function: `check-pay-link-status`
 
-### Files to Edit
+- Accepts: `pay_link_id` (our UUID)
+- Looks up the `stripe_payment_link_id`, queries Stripe for completed sessions
+- If a completed session is found, updates status to `paid` and sets `paid_at`
+- Returns current status
 
-| File | Change |
-|------|--------|
-| `src/components/BookingFlow.tsx` | Add `AnimatePresence`, `motion.div` wrappers per step, paw progress bar component, tail wag spinner, direction tracking for transitions, sparkle effect on puppy switch |
+### UI: New "Pay Links" tab on CustomerProfilePage
 
-### Technical Notes
+Added next to the Email tab. Contains:
 
-- `framer-motion` is already installed.
-- The `TailWagSpinner` and `PawProgressBar` will be inline components within `BookingFlow.tsx` to keep changes contained.
-- No database or edge function changes needed.
+1. **Generate form**: Amount input (£), optional notes textarea, "Generate & Send" button
+2. **History list**: All pay links for this customer, showing amount, date sent, status badge (🟡 Pending / 🟢 Paid with date), notes, and a "Check Status" button that calls `check-pay-link-status`
+
+### Finance Integration
+
+The Finance page revenue query will be updated to also sum `paid` entries from `customer_pay_links` within the period, so ad-hoc payments appear in revenue totals alongside booking payments.
+
+### Dashboard Integration
+
+Dashboard revenue cards will include paid pay links in their totals.
+
+## Files to Create
+- `supabase/functions/create-customer-pay-link/index.ts`
+- `supabase/functions/check-pay-link-status/index.ts`
+- Migration SQL for `customer_pay_links` table + RLS
+
+## Files to Edit
+- `src/pages/CustomerProfilePage.tsx` — add Pay Links tab with form + history
+- `src/pages/FinancePage.tsx` — include pay link revenue in totals
+- `src/integrations/supabase/types.ts` — will auto-update after migration
+
+## Not Modified
+- `record-payment`, `cancel-booking-with-refund`, or any existing booking logic
 
