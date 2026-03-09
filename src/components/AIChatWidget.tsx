@@ -47,6 +47,10 @@ export function AIChatWidget() {
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
 
+  // Session tracking
+  const [sessionId] = useState(() => crypto.randomUUID());
+  const deviceType = /Mobi|Android/i.test(navigator.userAgent) ? "mobile" : "desktop";
+
   // Conversation context memory
   const [context, setContext] = useState<ConversationContext>({
     customerName: null,
@@ -139,6 +143,9 @@ export function AIChatWidget() {
           message: text.trim(),
           conversation: conversationHistory,
           context,
+          session_id: sessionId,
+          device_type: deviceType,
+          page_url: window.location.pathname,
         },
       });
 

@@ -1474,6 +1474,143 @@ export type Database = {
         }
         Relationships: []
       }
+      scruff_conversations: {
+        Row: {
+          customer_email: string | null
+          customer_name: string | null
+          device_type: string | null
+          ended_at: string | null
+          escalated_at: string | null
+          id: string
+          message_count: number | null
+          page_started_from: string | null
+          session_id: string
+          started_at: string | null
+          visitor_id: string | null
+          was_escalated: boolean | null
+        }
+        Insert: {
+          customer_email?: string | null
+          customer_name?: string | null
+          device_type?: string | null
+          ended_at?: string | null
+          escalated_at?: string | null
+          id?: string
+          message_count?: number | null
+          page_started_from?: string | null
+          session_id: string
+          started_at?: string | null
+          visitor_id?: string | null
+          was_escalated?: boolean | null
+        }
+        Update: {
+          customer_email?: string | null
+          customer_name?: string | null
+          device_type?: string | null
+          ended_at?: string | null
+          escalated_at?: string | null
+          id?: string
+          message_count?: number | null
+          page_started_from?: string | null
+          session_id?: string
+          started_at?: string | null
+          visitor_id?: string | null
+          was_escalated?: boolean | null
+        }
+        Relationships: []
+      }
+      scruff_handoffs: {
+        Row: {
+          assigned_at: string | null
+          assigned_to: string | null
+          conversation_id: string
+          created_at: string | null
+          customer_contact: string | null
+          customer_message: string | null
+          customer_name: string | null
+          id: string
+          resolution_notes: string | null
+          resolved_at: string | null
+          status: string | null
+        }
+        Insert: {
+          assigned_at?: string | null
+          assigned_to?: string | null
+          conversation_id: string
+          created_at?: string | null
+          customer_contact?: string | null
+          customer_message?: string | null
+          customer_name?: string | null
+          id?: string
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          status?: string | null
+        }
+        Update: {
+          assigned_at?: string | null
+          assigned_to?: string | null
+          conversation_id?: string
+          created_at?: string | null
+          customer_contact?: string | null
+          customer_message?: string | null
+          customer_name?: string | null
+          id?: string
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scruff_handoffs_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scruff_handoffs_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "scruff_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scruff_messages: {
+        Row: {
+          content: string
+          conversation_id: string
+          created_at: string | null
+          id: string
+          response_time_ms: number | null
+          role: string
+        }
+        Insert: {
+          content: string
+          conversation_id: string
+          created_at?: string | null
+          id?: string
+          response_time_ms?: number | null
+          role: string
+        }
+        Update: {
+          content?: string
+          conversation_id?: string
+          created_at?: string | null
+          id?: string
+          response_time_ms?: number | null
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scruff_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "scruff_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       service_prices: {
         Row: {
           breed_id: string
