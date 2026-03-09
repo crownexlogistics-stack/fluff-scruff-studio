@@ -310,7 +310,7 @@ const FinancePage = () => {
   }
 
   // Main view with tabs
-  const totalRevenue = staffSummaries.reduce((sum, s) => sum + s.totalRevenue, 0) + migratedRevenue;
+  const totalRevenue = staffSummaries.reduce((sum, s) => sum + s.totalRevenue, 0) + migratedRevenue + payLinksRevenue;
   const totalGroomerPay = staffSummaries.reduce((sum, s) => sum + s.totalGroomerPay, 0);
   const totalStudioShare = staffSummaries.reduce((sum, s) => sum + s.totalStudioShare, 0);
   const totalDogs = staffSummaries.reduce((sum, s) => sum + s.totalDogs, 0) + migratedBookings.length;
