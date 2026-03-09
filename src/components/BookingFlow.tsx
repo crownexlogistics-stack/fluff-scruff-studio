@@ -199,6 +199,8 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
   const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null);
   const [puppySwitched, setPuppySwitched] = useState(false);
   const [showPuppyPopup, setShowPuppyPopup] = useState(false);
+  const [migratedDetected, setMigratedDetected] = useState<{ found: boolean; name?: string } | null>(null);
+  const [checkingMigrated, setCheckingMigrated] = useState(false);
 
   const effectiveService = puppySwitched ? "Puppy Special" : service;
 
