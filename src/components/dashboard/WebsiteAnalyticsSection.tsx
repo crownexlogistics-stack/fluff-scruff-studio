@@ -29,6 +29,7 @@ import {
   Smartphone,
   Tablet,
   ExternalLink,
+  MapPin,
 } from "lucide-react";
 import {
   Table,
@@ -39,6 +40,65 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+
+// London boroughs/areas list
+const LONDON_AREAS = new Set([
+  "Romford", "Hornchurch", "Upminster", "Barking", "Dagenham", "Ilford",
+  "Stratford", "Hackney", "Islington", "Camden", "Westminster", "Southwark",
+  "Lewisham", "Greenwich", "Woolwich", "Bromley", "Croydon", "Sutton",
+  "Merton", "Wimbledon", "Kingston", "Richmond", "Hounslow", "Ealing",
+  "Acton", "Hammersmith", "Fulham", "Chelsea", "Kensington", "Paddington",
+  "Brent", "Harrow", "Wembley", "Barnet", "Enfield", "Haringey",
+  "Tottenham", "Walthamstow", "Leyton", "Newham", "Canning Town",
+  "Forest Gate", "Manor Park", "Plaistow", "East Ham", "West Ham",
+  "Havering", "Redbridge", "Tower Hamlets", "Bethnal Green", "Bow",
+  "Stepney", "Poplar", "Canary Wharf", "Bermondsey", "Peckham",
+  "Deptford", "Catford", "Eltham", "Bexley", "Sidcup", "Erith",
+  "Thamesmead", "Rainham",
+]);
+
+// Approximate distance from Hornchurch RM11 2DL
+const DISTANCE_MAP: Record<string, number> = {
+  "Hornchurch": 0, "Upminster": 2, "Romford": 3, "Havering": 3,
+  "Rainham": 4, "Dagenham": 5, "Barking": 7, "Ilford": 8,
+  "Redbridge": 9, "East Ham": 9, "Forest Gate": 9, "Newham": 10,
+  "Stratford": 11, "Walthamstow": 10, "Leyton": 11, "Manor Park": 9,
+  "Plaistow": 10, "West Ham": 10, "Canning Town": 11,
+  "Bexley": 7, "Sidcup": 9, "Erith": 8, "Thamesmead": 10,
+  "Greenwich": 13, "Woolwich": 11, "Eltham": 11, "Lewisham": 14,
+  "Bromley": 13, "Catford": 14, "Deptford": 15, "Bermondsey": 15,
+  "Southwark": 16, "Peckham": 15, "Tower Hamlets": 14,
+  "Bethnal Green": 14, "Bow": 12, "Stepney": 14, "Poplar": 13,
+  "Canary Wharf": 13, "Hackney": 13, "Islington": 15, "Camden": 17,
+  "Westminster": 17, "Kensington": 18, "Chelsea": 19, "Paddington": 17,
+  "Hammersmith": 19, "Fulham": 19, "Acton": 19, "Ealing": 19,
+  "Brent": 17, "Wembley": 18, "Harrow": 19, "Barnet": 16,
+  "Enfield": 14, "Haringey": 14, "Tottenham": 14,
+  "Hounslow": 22, "Richmond": 22, "Kingston": 23, "Wimbledon": 21,
+  "Merton": 21, "Sutton": 20, "Croydon": 18,
+};
+
+function isLondonArea(city: string): boolean {
+  if (LONDON_AREAS.has(city)) return true;
+  if (city.toLowerCase().includes("london")) return true;
+  return false;
+}
+
+function getDistance(city: string): number {
+  return DISTANCE_MAP[city] ?? 15;
+}
+
+function getDistanceColor(miles: number): string {
+  if (miles <= 5) return "text-green-600";
+  if (miles <= 10) return "text-amber-500";
+  return "text-destructive";
+}
+
+function getDistanceDot(miles: number): string {
+  if (miles <= 5) return "bg-green-500";
+  if (miles <= 10) return "bg-amber-500";
+  return "bg-destructive";
+}
 
 type AnalyticsPeriod = "today" | "yesterday" | "this_month" | "last_month" | "this_year";
 
