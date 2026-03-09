@@ -32,13 +32,32 @@ export function CustomersSection() {
     },
   });
 
-  const customers = useMemo(() => {
-    if (!bookings) return [];
+  // Also fetch migrated customers + their booking counts
+  const { data: migratedData } = useQuery({
+    queryKey: ["migrated-customers-for-section"],
+    queryFn: async () => {
+      const { data: customers, error } = await supabase
+        .from("migrated_customers")
+        .select("id, full_name, email, phone, created_at")
+        .not("email", "is", null);
+      if (error) throw error;
 
+      // Fetch migrated bookings counts in one go
+      const { data: mBookings, error: mbErr } = await supabase
+        .from("migrated_bookings")
+        .select("migrated_customer_id, booking_date");
+      if (mbErr) throw mbErr;
+
+      return { customers: customers || [], bookings: mBookings || [] };
+    },
+  });
+
+
+  const customers = useMemo(() => {
     const map = new Map<string, CustomerSummary>();
 
-    for (const b of bookings) {
-      // Group by email (preferred) or name as fallback
+    // Add bookings data
+    for (const b of bookings || []) {
       const key = (b.customer_email || b.customer_name).toLowerCase().trim();
       const existing = map.get(key);
 
@@ -46,7 +65,6 @@ export function CustomersSection() {
         existing.bookingCount++;
         if (b.booking_date < existing.firstBooking) existing.firstBooking = b.booking_date;
         if (b.booking_date > existing.lastBooking) existing.lastBooking = b.booking_date;
-        // Update phone/email if we have better data
         if (!existing.email && b.customer_email) existing.email = b.customer_email;
         if (!existing.phone && b.customer_phone) existing.phone = b.customer_phone;
       } else {
@@ -61,14 +79,59 @@ export function CustomersSection() {
       }
     }
 
+    // Add migrated customers (only if not already in map from bookings)
+    if (migratedData) {
+      // Build a booking count map for migrated bookings
+      const mBookingMap = new Map<string, { count: number; first: string; last: string }>();
+      for (const mb of migratedData.bookings) {
+        const existing = mBookingMap.get(mb.migrated_customer_id);
+        if (existing) {
+          existing.count++;
+          if (mb.booking_date < existing.first) existing.first = mb.booking_date;
+          if (mb.booking_date > existing.last) existing.last = mb.booking_date;
+        } else {
+          mBookingMap.set(mb.migrated_customer_id, {
+            count: 1,
+            first: mb.booking_date,
+            last: mb.booking_date,
+          });
+        }
+      }
+
+      for (const mc of migratedData.customers) {
+        if (!mc.email) continue;
+        const key = mc.email.toLowerCase().trim();
+        if (map.has(key)) {
+          // Merge migrated booking counts into existing entry
+          const existing = map.get(key)!;
+          const mStats = mBookingMap.get(mc.id);
+          if (mStats) {
+            existing.bookingCount += mStats.count;
+            if (mStats.first < existing.firstBooking) existing.firstBooking = mStats.first;
+            if (mStats.last > existing.lastBooking) existing.lastBooking = mStats.last;
+          }
+          if (!existing.phone && mc.phone) existing.phone = mc.phone;
+        } else {
+          const mStats = mBookingMap.get(mc.id);
+          map.set(key, {
+            name: mc.full_name || "Unknown",
+            email: mc.email,
+            phone: mc.phone,
+            bookingCount: mStats?.count || 0,
+            firstBooking: mStats?.first || mc.created_at?.slice(0, 10) || "2024-01-01",
+            lastBooking: mStats?.last || mc.created_at?.slice(0, 10) || "2024-01-01",
+          });
+        }
+      }
+    }
+
     return Array.from(map.values()).sort((a, b) => b.lastBooking.localeCompare(a.lastBooking));
-  }, [bookings]);
+  }, [bookings, migratedData]);
 
   const totalCustomers = customers.length;
   const returningCustomers = customers.filter((c) => c.bookingCount >= 2);
   const oneTimeCustomers = customers.filter((c) => c.bookingCount === 1);
 
-  // New customers this month
   const now = new Date();
   const thisMonthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
   const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);

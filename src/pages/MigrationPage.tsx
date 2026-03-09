@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AppLayout } from "@/components/AppLayout";
-import { Upload, FileSpreadsheet, CheckCircle2, Users, Calendar, ChevronDown, ChevronRight, Pencil, Send, AlertCircle, ShieldCheck, Wrench } from "lucide-react";
+import { Upload, FileSpreadsheet, CheckCircle2, Users, Calendar, ChevronDown, ChevronRight, Pencil, Send, AlertCircle, ShieldCheck, Wrench, Link2 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import Papa from "papaparse";
@@ -145,6 +145,57 @@ interface ImportProgress {
   message: string;
   current: number;
   total: number;
+}
+
+function SyncProfilesCard() {
+  const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState<string | null>(null);
+
+  const handleSync = async () => {
+    setSyncing(true);
+    setSyncResult(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("sync-migrated-profiles");
+      if (error) throw error;
+      const r = data;
+      setSyncResult(`✅ ${r.linked} profiles linked, ${r.alreadyLinked} already linked — total ${r.total} customers synced`);
+      toast.success("Sync complete!");
+    } catch (err: any) {
+      toast.error(err.message || "Sync failed");
+      setSyncResult(null);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <Link2 className="h-4 w-4" /> Sync Customers to Profiles
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-sm text-muted-foreground">
+          Links migrated customers to auth profiles so they appear across the entire system. Run this after importing new data.
+        </p>
+        <Button
+          variant="outline"
+          onClick={handleSync}
+          disabled={syncing}
+          className="gap-2"
+        >
+          <Link2 className="h-4 w-4" />
+          {syncing ? "Syncing…" : "🔗 Sync All Customers to Profiles"}
+        </Button>
+        {syncResult && (
+          <div className="p-3 rounded-lg bg-green-50 border border-green-200 text-sm text-green-700">
+            {syncResult}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
 }
 
 function ImportTab({ onSwitchTab }: { onSwitchTab?: (tab: string) => void }) {
@@ -636,6 +687,9 @@ function ImportTab({ onSwitchTab }: { onSwitchTab?: (tab: string) => void }) {
           )}
         </CardContent>
       </Card>
+
+      {/* Sync to profiles */}
+      <SyncProfilesCard />
     </div>
   );
 }
