@@ -677,6 +677,8 @@ Deno.serve(async (req) => {
     const data = await response.json();
     let reply = data.content?.[0]?.text || "Woof! Something went wrong 🐾";
 
+    const responseTimeMs = Date.now() - startTime;
+
     // ── Handle handoff markers ──────────────────────────
     let handoff_requested = false;
     let handoff_completed = false;
@@ -707,7 +709,49 @@ Deno.serve(async (req) => {
         console.error("Failed to send escalation email:", e);
       }
 
+      // Create handoff record in DB
+      try {
+        if (conversationId) {
+          await supabase.from("scruff_handoffs").insert({
+            conversation_id: conversationId,
+            customer_name: hName,
+            customer_contact: hContact,
+            customer_message: hQuery,
+            status: "pending",
+          });
+          // Mark conversation as escalated
+          await supabase
+            .from("scruff_conversations")
+            .update({ was_escalated: true, escalated_at: new Date().toISOString(), customer_name: hName })
+            .eq("id", conversationId);
+        }
+      } catch (handoffErr) {
+        console.error("Handoff tracking error (non-fatal):", handoffErr);
+      }
+
       reply = reply.replace(handoffMatch[0], "").trim();
+    }
+
+    // ── Save assistant response to DB ───────────────────
+    try {
+      if (conversationId) {
+        await supabase.from("scruff_messages").insert({
+          conversation_id: conversationId,
+          role: "assistant",
+          content: reply,
+          response_time_ms: responseTimeMs,
+        });
+
+        // Update customer name if detected
+        if (context.customerName) {
+          await supabase
+            .from("scruff_conversations")
+            .update({ customer_name: context.customerName })
+            .eq("id", conversationId);
+        }
+      }
+    } catch (saveErr) {
+      console.error("Message save error (non-fatal):", saveErr);
     }
 
     const replyLower = reply.toLowerCase();
@@ -726,6 +770,7 @@ Deno.serve(async (req) => {
         handoff_completed,
         detected_breed: breedName,
         detected_size: breedSize,
+        conversation_id: conversationId,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
