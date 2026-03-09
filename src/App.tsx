@@ -61,6 +61,9 @@ import TestRunnerPage from "./pages/TestRunnerPage";
 import MigrationPage from "./pages/MigrationPage";
 import WelcomePage from "./pages/WelcomePage";
 import BookingPriorityPage from "./pages/BookingPriorityPage";
+import ScruffConversationsPage from "./pages/ScruffConversationsPage";
+import ScruffHandoffsPage from "./pages/ScruffHandoffsPage";
+import ScruffSettingsPage from "./pages/ScruffSettingsPage";
 
 const queryClient = new QueryClient();
 
