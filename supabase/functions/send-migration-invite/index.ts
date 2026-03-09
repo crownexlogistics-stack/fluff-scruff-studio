@@ -89,7 +89,7 @@ serve(async (req) => {
 
     // Create user without sending Supabase's default invite email
     const { data: createData, error: createErr } = await supabase.auth.admin.createUser({
-      email: customer.email,
+      email,
       email_confirm: false,
       user_metadata: {
         migrated: true,
