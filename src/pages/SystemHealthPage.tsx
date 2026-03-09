@@ -3,8 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { RefreshCw, Activity } from "lucide-react";
+import { RefreshCw, Activity, Mail } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
+import { toast } from "sonner";
 
 type CheckStatus = "pass" | "fail" | "warning" | "checking";
 
