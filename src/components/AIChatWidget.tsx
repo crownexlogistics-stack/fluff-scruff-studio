@@ -143,6 +143,9 @@ export function AIChatWidget() {
           message: text.trim(),
           conversation: conversationHistory,
           context,
+          session_id: sessionId,
+          device_type: deviceType,
+          page_url: window.location.pathname,
         },
       });
 
