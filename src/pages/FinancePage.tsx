@@ -85,6 +85,30 @@ const FinancePage = () => {
     },
   });
 
+  // Migrated bookings for the period
+  const { data: migratedBookings = [] } = useQuery({
+    queryKey: ["finance-migrated", periodStartStr, periodEndStr],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("migrated_bookings")
+        .select("*, migrated_customers(full_name)")
+        .gte("booking_date", periodStartStr)
+        .lte("booking_date", periodEndStr);
+      if (error) throw error;
+      return data as any[];
+    },
+  });
+
+  const migratedRevenue = useMemo(() => {
+    return migratedBookings.reduce((s, b: any) => s + Number(b.total_price || 0), 0);
+  }, [migratedBookings]);
+
+  const migratedOutstanding = useMemo(() => {
+    return migratedBookings
+      .filter((b: any) => b.is_future_booking && b.amount_due && Number(b.amount_due) > 0)
+      .reduce((s, b: any) => s + Number(b.amount_due || 0), 0);
+  }, [migratedBookings]);
+
   const staffSummaries = useMemo(() => {
     const map = new Map<string, { staffId: string; name: string; totalDogs: number; totalRevenue: number; totalGroomerPay: number; totalStudioShare: number; commissions: any[] }>();
     staff.forEach(s => {
@@ -267,10 +291,10 @@ const FinancePage = () => {
   }
 
   // Main view with tabs
-  const totalRevenue = staffSummaries.reduce((sum, s) => sum + s.totalRevenue, 0);
+  const totalRevenue = staffSummaries.reduce((sum, s) => sum + s.totalRevenue, 0) + migratedRevenue;
   const totalGroomerPay = staffSummaries.reduce((sum, s) => sum + s.totalGroomerPay, 0);
   const totalStudioShare = staffSummaries.reduce((sum, s) => sum + s.totalStudioShare, 0);
-  const totalDogs = staffSummaries.reduce((sum, s) => sum + s.totalDogs, 0);
+  const totalDogs = staffSummaries.reduce((sum, s) => sum + s.totalDogs, 0) + migratedBookings.length;
 
   return (
     <AppLayout>
@@ -307,7 +331,7 @@ const FinancePage = () => {
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <Card><CardContent className="p-4 text-center"><Dog className="h-5 w-5 mx-auto text-muted-foreground mb-1" /><p className="text-xs text-muted-foreground">Dogs Groomed</p><p className="text-2xl font-bold">{totalDogs}</p></CardContent></Card>
-              <Card><CardContent className="p-4 text-center"><TrendingUp className="h-5 w-5 mx-auto text-muted-foreground mb-1" /><p className="text-xs text-muted-foreground">Total Revenue</p><p className="text-2xl font-bold">£{totalRevenue.toFixed(2)}</p></CardContent></Card>
+              <Card><CardContent className="p-4 text-center"><TrendingUp className="h-5 w-5 mx-auto text-muted-foreground mb-1" /><p className="text-xs text-muted-foreground">Total Revenue</p><p className="text-2xl font-bold">£{totalRevenue.toFixed(2)}</p>{migratedRevenue > 0 && <p className="text-xs text-amber-600">incl. £{migratedRevenue.toFixed(2)} Wix</p>}</CardContent></Card>
               <Card><CardContent className="p-4 text-center"><Users className="h-5 w-5 mx-auto text-muted-foreground mb-1" /><p className="text-xs text-muted-foreground">Groomer Pay</p><p className="text-2xl font-bold text-primary">£{totalGroomerPay.toFixed(2)}</p></CardContent></Card>
               <Card><CardContent className="p-4 text-center"><CreditCard className="h-5 w-5 mx-auto text-muted-foreground mb-1" /><p className="text-xs text-muted-foreground">Studio Share</p><p className="text-2xl font-bold">£{totalStudioShare.toFixed(2)}</p></CardContent></Card>
             </div>

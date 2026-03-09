@@ -219,7 +219,7 @@ const Index = () => {
   });
 
   // Upcoming (next 30 days for forecast)
-  const { data: upcomingAll = [] } = useQuery({
+  const { data: upcomingLive = [] } = useQuery({
     queryKey: ["dash-upcoming-30", todayStr],
     queryFn: async () => {
       const { data } = await supabase
@@ -233,6 +233,37 @@ const Index = () => {
       return (data ?? []) as any[];
     },
   });
+
+  // Upcoming migrated bookings (future)
+  const { data: upcomingMigrated = [] } = useQuery({
+    queryKey: ["dash-upcoming-migrated", todayStr],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("migrated_bookings")
+        .select("*, migrated_customers(full_name, email)")
+        .gte("booking_date", todayStr)
+        .eq("is_future_booking", true);
+      return (data ?? []) as any[];
+    },
+  });
+
+  // Combine upcoming bookings
+  const upcomingAll = useMemo(() => {
+    const live = upcomingLive.map((b: any) => ({ ...b, _source: "live" as const }));
+    const migrated = upcomingMigrated.map((b: any) => ({
+      ...b,
+      _source: "wix" as const,
+      customer_name: b.migrated_customers?.full_name || "Wix Customer",
+      total_price: b.total_price || 0,
+      deposit_paid: b.deposit_paid || 0,
+      status: "Confirmed",
+    }));
+    return [...live, ...migrated].sort((a, b) => {
+      const dateA = a.booking_date + (a.booking_time || "");
+      const dateB = b.booking_date + (b.booking_time || "");
+      return dateA.localeCompare(dateB);
+    });
+  }, [upcomingLive, upcomingMigrated]);
 
   // Recent activity (last 10 bookings by created_at)
   const { data: recentActivity = [] } = useQuery({
@@ -316,7 +347,7 @@ const Index = () => {
   const prevGroomerPay = prevCommissions.reduce((s: number, c: any) => s + Number(c.groomer_pay), 0);
   const prevStudioShare = prevCommissions.reduce((s: number, c: any) => s + Number(c.studio_share), 0);
 
-  const projectedGross = upcomingAll.reduce((s: number, b: any) => s + Number(b.total_price), 0);
+  const projectedGross = upcomingAll.reduce((s: number, b: any) => s + Number(b.total_price || 0), 0);
 
   // Expenses totals
   const toMonthly = (amount: number, freq: string) => {
@@ -481,13 +512,14 @@ const Index = () => {
     const days = eachDayOfInterval({ start: new Date(), end: addDays(new Date(), 6) });
     return days.map(d => {
       const dayBookings = upcomingAll.filter((b: any) => isSameDay(parseISO(b.booking_date), d));
-      const rev = dayBookings.reduce((s: number, b: any) => s + Number(b.total_price), 0);
-      return { date: d, label: format(d, "EEE dd MMM"), count: dayBookings.length, revenue: rev };
+      const rev = dayBookings.reduce((s: number, b: any) => s + Number(b.total_price || 0), 0);
+      const wixCount = dayBookings.filter((b: any) => b._source === "wix").length;
+      return { date: d, label: format(d, "EEE dd MMM"), count: dayBookings.length, revenue: rev, wixCount };
     });
   }, [upcomingAll]);
 
   const totalDepositsCollected = upcomingAll.reduce((s: number, b: any) => s + Number(b.deposit_paid || 0), 0);
-  const totalBalanceDue = upcomingAll.reduce((s: number, b: any) => s + Math.max(0, Number(b.total_price) - Number(b.deposit_paid || 0)), 0);
+  const totalBalanceDue = upcomingAll.reduce((s: number, b: any) => s + Math.max(0, Number(b.total_price || 0) - Number(b.deposit_paid || 0)), 0);
   const unbilledCount = upcomingAll.filter((b: any) => !b.total_price || Number(b.total_price) === 0).length;
 
   const displayName = profile?.full_name || user?.email?.split("@")[0] || "Director";
@@ -614,9 +646,9 @@ const Index = () => {
                 <span className="text-xs font-medium text-muted-foreground">Appointments</span>
                 <CalendarDays className="h-4 w-4 text-primary" />
               </div>
-              <p className="text-2xl font-bold font-heading">{bookings.length}</p>
+              <p className="text-2xl font-bold font-heading">{totalBookingsCount}</p>
               <p className="text-xs text-muted-foreground">
-                {completed.length} completed · {confirmed.length + pending.length} upcoming · {cancelled.length} cancelled
+                {completed.length} completed · {confirmed.length + pending.length + upcomingMigrated.length} upcoming · {cancelled.length} cancelled
               </p>
               <DeltaBadge current={bookings.length} previous={prevBookings.length} />
             </CardContent>
@@ -889,7 +921,10 @@ const Index = () => {
                   <div key={d.label} className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-muted/50 text-sm">
                     <span className="text-muted-foreground">{d.label}</span>
                     <div className="flex items-center gap-3">
-                      <span className="text-xs text-muted-foreground">{d.count} appt{d.count !== 1 ? "s" : ""}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {d.count} appt{d.count !== 1 ? "s" : ""}
+                        {d.wixCount > 0 && <Badge variant="outline" className="ml-1 text-[10px] px-1 py-0 bg-amber-50 text-amber-700 border-amber-300">W {d.wixCount}</Badge>}
+                      </span>
                       <span className="font-semibold min-w-[60px] text-right">£{d.revenue.toLocaleString()}</span>
                     </div>
                   </div>
