@@ -39,9 +39,44 @@ const AuthPage = () => {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
   const { role, loading: roleLoading } = useUserRole(user?.id);
-
-  // Migrated customer detection
   const [migrated, setMigrated] = useState<MigratedInfo>({ status: null });
+
+  const checkMigratedCustomer = useCallback(async (emailToCheck: string, currentMode: Mode) => {
+    const trimmed = emailToCheck.trim().toLowerCase();
+    if (!trimmed || !trimmed.includes("@")) {
+      setMigrated({ status: null });
+      return;
+    }
+
+    setMigrated({ status: "checking" });
+
+    try {
+      const { data, error } = await supabase.functions.invoke("check-migrated-customer", {
+        body: { email: trimmed, action: "check" },
+      });
+
+      if (error) throw error;
+
+      if (!data.found) {
+        setMigrated({ status: "not_found" });
+      } else if (data.status === "already_active") {
+        setMigrated({ status: "already_active", name: data.name });
+      } else {
+        setMigrated({ status: "pending", name: data.name, migrated_id: data.migrated_id });
+        if (data.name && currentMode === "signup") {
+          setFullName(data.name);
+        }
+      }
+    } catch {
+      setMigrated({ status: null });
+    }
+  }, []);
+
+  const handleEmailBlur = useCallback(() => {
+    if (email.trim()) {
+      checkMigratedCustomer(email, mode);
+    }
+  }, [email, mode, checkMigratedCustomer]);
 
   if (loading || (user && roleLoading)) return null;
   if (user) return <Navigate to={getRoleRedirect(role)} replace />;
