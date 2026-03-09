@@ -103,8 +103,9 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
     calculatedDuration = booking.duration_minutes / 60;
   }
 
-  // No Show: shrink to thin strip
-  const height = isGhost ? 16 : calculatedDuration * 64;
+  // No Show: shrink to thin strip; minimum 30px for real bookings
+  const rawHeight = isGhost ? 16 : calculatedDuration * 64;
+  const height = isGhost ? 16 : Math.max(rawHeight, 30);
 
   // Overlap layout: side-by-side columns
   const colWidthPercent = 100 / overlapTotalColumns;
