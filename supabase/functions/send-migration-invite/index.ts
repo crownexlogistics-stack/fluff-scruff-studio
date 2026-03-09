@@ -42,12 +42,15 @@ serve(async (req) => {
 
     // Authenticate the caller
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) throw new Error("Not authenticated");
+    if (!authHeader?.startsWith("Bearer ")) throw new Error("Not authenticated");
     const token = authHeader.replace("Bearer ", "");
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const supabaseAuth = createClient(supabaseUrl, anonKey);
-    const { data: { user: caller }, error: authErr } = await supabaseAuth.auth.getUser(token);
-    if (authErr || !caller) throw new Error("Not authenticated");
+    const supabaseAuth = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: claimsData, error: authErr } = await supabaseAuth.auth.getClaims(token);
+    if (authErr || !claimsData?.claims) throw new Error("Not authenticated");
+    const caller = { id: claimsData.claims.sub as string };
 
     const { migrated_customer_id } = await req.json();
     if (!migrated_customer_id) {

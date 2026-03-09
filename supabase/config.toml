@@ -92,3 +92,6 @@ verify_jwt = false
 
 [functions.check-migrated-customer]
 verify_jwt = false
+
+[functions.send-migration-invite]
+verify_jwt = false
