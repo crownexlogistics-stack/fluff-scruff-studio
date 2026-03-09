@@ -921,7 +921,10 @@ const Index = () => {
                   <div key={d.label} className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-muted/50 text-sm">
                     <span className="text-muted-foreground">{d.label}</span>
                     <div className="flex items-center gap-3">
-                      <span className="text-xs text-muted-foreground">{d.count} appt{d.count !== 1 ? "s" : ""}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {d.count} appt{d.count !== 1 ? "s" : ""}
+                        {d.wixCount > 0 && <Badge variant="outline" className="ml-1 text-[10px] px-1 py-0 bg-amber-50 text-amber-700 border-amber-300">W {d.wixCount}</Badge>}
+                      </span>
                       <span className="font-semibold min-w-[60px] text-right">£{d.revenue.toLocaleString()}</span>
                     </div>
                   </div>
