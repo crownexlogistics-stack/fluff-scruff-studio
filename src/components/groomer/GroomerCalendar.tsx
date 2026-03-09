@@ -3,6 +3,7 @@ import { format, addDays, isToday } from "date-fns";
 import { cn } from "@/lib/utils";
 import { getStaffColor } from "@/components/booking-calendar/staffColors";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -43,6 +44,8 @@ export interface GroomerCalendarBooking {
   final_charge?: number | null;
   stripe_payment_id?: string | null;
   duration_minutes?: number | null;
+  is_migrated?: boolean;
+  is_off_day?: boolean;
 }
 
 type UserRole = string | null;
@@ -418,28 +421,67 @@ export function GroomerCalendar({ currentDate, daysToShow, staff, bookings, curr
                         const isNoShow = booking.status === "No Show";
                         const isRefunded = booking.status === "Refunded";
                         const isGhost = isNoShow || isCancelled || isRefunded;
-                        const height = isGhost ? 16 : durationHours * SLOT_HEIGHT;
+                        const rawHeight = isGhost ? 16 : durationHours * SLOT_HEIGHT;
+                        const height = Math.max(rawHeight, isGhost ? 16 : 30);
                         const color = isGhost ? { bg: "bg-muted", text: "text-muted-foreground" } : getStaffColor(staffIdx);
+
+                        const isAdmin = userRole === "manager" || userRole === "director";
+
+                        // Off-day rendering (full-day grey block)
+                        if (booking.is_off_day) {
+                          return (
+                            <TooltipProvider key={booking.id}>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div
+                                    className="absolute left-0 right-0 bg-muted/60 z-[5] flex items-center justify-center"
+                                    style={{ top: `${topOffset}px`, height: `${height}px` }}
+                                  >
+                                    <p className="text-[10px] font-medium text-muted-foreground/70 rotate-0">🚫 Off</p>
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">
+                                  <p className="text-xs font-medium">{booking.staff_name} — Day Off</p>
+                                  <p className="text-xs text-muted-foreground">{booking.booking_time.slice(0, 5)} to {booking.end_time?.slice(0, 5) || "18:00"}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          );
+                        }
 
                         // Block rendering
                         if (booking.is_block) {
                           const canEditBlock = booking.is_own && (userRole === "groomer" || userRole === "manager" || userRole === "director");
+                          const blockTimeLabel = `${booking.booking_time.slice(0, 5)} — ${booking.end_time?.slice(0, 5) || "?"}`;
+
                           if (canEditBlock && onEditBlock && onCancelBlock) {
                             return (
                               <Popover key={booking.id}>
                                 <PopoverTrigger asChild>
                                   <div
                                     className={cn("absolute left-0.5 right-0.5 rounded px-1 py-0.5 text-[10px] z-10 cursor-pointer hover:opacity-90", color.bg, color.text, "opacity-70")}
-                                    style={{ top: `${topOffset}px`, height: `${durationHours * SLOT_HEIGHT}px`, minHeight: "20px" }}
+                                    style={{ top: `${topOffset}px`, height: `${height}px`, minHeight: "20px" }}
                                   >
-                                    <p className="font-bold truncate">Off</p>
-                                    {booking.notes && <p className="truncate opacity-80">{booking.notes}</p>}
+                                    {height >= 50 ? (
+                                      <>
+                                        <p className="font-bold truncate">⛔ Unavailable</p>
+                                        <p className="truncate opacity-80">{blockTimeLabel}</p>
+                                        {booking.notes && <p className="truncate opacity-70">{booking.notes}</p>}
+                                      </>
+                                    ) : height >= 30 ? (
+                                      <p className="font-bold truncate">⛔ {blockTimeLabel}</p>
+                                    ) : (
+                                      <p className="font-bold truncate">⛔</p>
+                                    )}
                                   </div>
                                 </PopoverTrigger>
                                 <PopoverContent className="w-48 sm:w-52 p-2" side="bottom" align="center" sideOffset={4}>
                                   <div className="space-y-1">
                                     <p className="text-xs font-medium px-2 py-1 text-muted-foreground">
-                                      {booking.booking_time.slice(0, 5)} – {booking.end_time?.slice(0, 5) || "?"}
+                                      {booking.staff_name} — Unavailable
+                                    </p>
+                                    <p className="text-xs px-2 pb-1 text-muted-foreground">
+                                      {blockTimeLabel}
                                     </p>
                                     {booking.notes && <p className="text-xs px-2 pb-1 text-muted-foreground">{booking.notes}</p>}
                                     <button
@@ -460,12 +502,30 @@ export function GroomerCalendar({ currentDate, daysToShow, staff, bookings, curr
                             );
                           }
                           return (
-                            <div key={booking.id}
-                              className={cn("absolute left-0.5 right-0.5 rounded px-1 py-0.5 text-[10px] z-10", color.bg, color.text, "opacity-70")}
-                              style={{ top: `${topOffset}px`, height: `${durationHours * SLOT_HEIGHT}px`, minHeight: "20px" }}
-                            >
-                              <p className="font-bold truncate">Off</p>
-                            </div>
+                            <TooltipProvider key={booking.id}>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div
+                                    className={cn("absolute left-0.5 right-0.5 rounded px-1 py-0.5 text-[10px] z-10", color.bg, color.text, "opacity-70")}
+                                    style={{ top: `${topOffset}px`, height: `${height}px`, minHeight: "20px" }}
+                                  >
+                                    {height >= 50 ? (
+                                      <>
+                                        <p className="font-bold truncate">⛔ Unavailable</p>
+                                        <p className="truncate opacity-80">{blockTimeLabel}</p>
+                                      </>
+                                    ) : (
+                                      <p className="font-bold truncate">⛔</p>
+                                    )}
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">
+                                  <p className="text-xs font-medium">{booking.staff_name} — Unavailable</p>
+                                  <p className="text-xs text-muted-foreground">{blockTimeLabel}</p>
+                                  {booking.notes && <p className="text-xs text-muted-foreground">{booking.notes}</p>}
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
                           );
                         }
 
@@ -478,7 +538,7 @@ export function GroomerCalendar({ currentDate, daysToShow, staff, bookings, curr
                                 <PopoverTrigger asChild>
                                   <div
                                     className="absolute left-0.5 right-0.5 rounded px-1 py-0.5 text-[10px] z-10 cursor-pointer hover:opacity-90 bg-emerald-100 text-emerald-900 border border-emerald-300"
-                                    style={{ top: `${topOffset}px`, height: `${durationHours * SLOT_HEIGHT}px`, minHeight: "20px" }}
+                                    style={{ top: `${topOffset}px`, height: `${height}px`, minHeight: "20px" }}
                                   >
                                     <p className="font-bold truncate flex items-center gap-0.5"><Clock className="h-2.5 w-2.5" /> OT</p>
                                     {booking.notes && <p className="truncate opacity-80">{booking.notes}</p>}
@@ -508,28 +568,61 @@ export function GroomerCalendar({ currentDate, daysToShow, staff, bookings, curr
                             );
                           }
                           return (
-                            <div key={booking.id}
-                              className="absolute left-0.5 right-0.5 rounded px-1 py-0.5 text-[10px] z-10 bg-emerald-100 text-emerald-900 border border-emerald-300 opacity-70"
-                              style={{ top: `${topOffset}px`, height: `${durationHours * SLOT_HEIGHT}px`, minHeight: "20px" }}
-                            >
-                              <p className="font-bold truncate flex items-center gap-0.5"><Clock className="h-2.5 w-2.5" /> OT</p>
-                            </div>
+                            <TooltipProvider key={booking.id}>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div
+                                    className="absolute left-0.5 right-0.5 rounded px-1 py-0.5 text-[10px] z-10 bg-emerald-100 text-emerald-900 border border-emerald-300 opacity-70"
+                                    style={{ top: `${topOffset}px`, height: `${height}px`, minHeight: "20px" }}
+                                  >
+                                    <p className="font-bold truncate flex items-center gap-0.5"><Clock className="h-2.5 w-2.5" /> OT</p>
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">
+                                  <p className="text-xs font-medium">{booking.staff_name} — Overtime</p>
+                                  <p className="text-xs text-muted-foreground">{booking.booking_time.slice(0, 5)} – {booking.end_time?.slice(0, 5) || "?"}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
                           );
                         }
 
-                        // Not own booking - just show "Booked" (availability only)
-                        if (!booking.is_own) {
+                        // Not own booking - show "Booked" with tooltip (privacy)
+                        if (!booking.is_own && !isAdmin) {
+                          const endTimeStr = booking.end_time?.slice(0, 5) || 
+                            (() => { const dur = booking.duration_minutes || 60; const endM = hour * 60 + minutes + dur; return `${Math.floor(endM / 60).toString().padStart(2, '0')}:${(endM % 60).toString().padStart(2, '0')}`; })();
                           return (
-                            <div key={booking.id}
-                              className={cn("absolute left-0.5 right-0.5 rounded px-1 py-0.5 text-[10px] z-10 opacity-60", color.bg, color.text)}
-                              style={{ top: `${topOffset}px`, height: `${height}px`, minHeight: "20px" }}
-                            >
-                              <p className="font-bold truncate">Booked</p>
-                            </div>
+                            <TooltipProvider key={booking.id}>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div
+                                    className={cn("absolute left-0.5 right-0.5 rounded px-1 py-0.5 text-[10px] z-10 opacity-60", color.bg, color.text)}
+                                    style={{ top: `${topOffset}px`, height: `${height}px`, minHeight: "20px" }}
+                                  >
+                                    {booking.is_migrated && (
+                                      <span className="absolute top-0 right-0.5 bg-amber-500 text-white text-[7px] font-bold rounded px-0.5 leading-tight z-20">W</span>
+                                    )}
+                                    {height >= 50 ? (
+                                      <>
+                                        <p className="font-bold truncate">Booked</p>
+                                        <p className="truncate opacity-80">{booking.booking_time.slice(0, 5)}</p>
+                                      </>
+                                    ) : (
+                                      <p className="font-bold truncate">Booked</p>
+                                    )}
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">
+                                  <p className="text-xs font-medium">Booked — {booking.booking_time.slice(0, 5)} to {endTimeStr}</p>
+                                  <p className="text-xs text-muted-foreground">{durationHours >= 1 ? `${Math.floor(durationHours)}h${Math.round((durationHours % 1) * 60) > 0 ? ` ${Math.round((durationHours % 1) * 60)}m` : ""}` : `${Math.round(durationHours * 60)}m`}</p>
+                                  {booking.is_migrated && <p className="text-xs text-amber-600">Wix migrated booking</p>}
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
                           );
                         }
 
-                        // Own booking - full admin-style popover
+                        // Own booking OR admin viewing any booking - full details
                         return (
                           <Popover key={booking.id}>
                             <PopoverTrigger asChild>
@@ -541,10 +634,20 @@ export function GroomerCalendar({ currentDate, daysToShow, staff, bookings, curr
                                  )}
                                  style={{ top: `${topOffset}px`, height: `${height}px`, minHeight: isGhost ? "16px" : "20px" }}
                                >
+                                 {booking.is_migrated && (
+                                   <span className="absolute top-0 right-0.5 bg-amber-500 text-white text-[7px] font-bold rounded px-0.5 leading-tight z-20">W</span>
+                                 )}
                                  {isGhost ? (
                                    <p className="font-medium truncate">
                                      {booking.customer_name} — {isRefunded ? "Refunded" : isCancelled ? "Cancelled" : "No Show"}
                                    </p>
+                                 ) : height < 50 ? (
+                                   <p className="font-bold truncate">{booking.booking_time.slice(0, 5)}</p>
+                                 ) : height < 80 ? (
+                                   <>
+                                     <p className="font-bold truncate">{booking.customer_name}</p>
+                                     <p className="truncate opacity-80">{booking.booking_time.slice(0, 5)}</p>
+                                   </>
                                  ) : (
                                    <>
                                      <p className="font-bold truncate">{booking.service_name || "Appt"}</p>

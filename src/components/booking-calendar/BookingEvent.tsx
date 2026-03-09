@@ -2,6 +2,7 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -102,8 +103,9 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
     calculatedDuration = booking.duration_minutes / 60;
   }
 
-  // No Show: shrink to thin strip
-  const height = isGhost ? 16 : calculatedDuration * 64;
+  // No Show: shrink to thin strip; minimum 30px for real bookings
+  const rawHeight = isGhost ? 16 : calculatedDuration * 64;
+  const height = isGhost ? 16 : Math.max(rawHeight, 30);
 
   // Overlap layout: side-by-side columns
   const colWidthPercent = 100 / overlapTotalColumns;
@@ -115,32 +117,43 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
   };
 
   if (booking.is_block) {
+    const blockHeight = Math.max(calculatedDuration * 64, 30);
+    const blockTimeLabel = `${booking.booking_time.slice(0, 5)} — ${booking.end_time?.slice(0, 5) || "Unknown"}`;
     return (
       <Popover>
         <PopoverTrigger asChild>
           <div
             className={cn("absolute rounded-md px-2 py-1 text-xs font-medium cursor-pointer z-10 hover:opacity-90 transition-opacity overflow-hidden", color.bg, color.text)}
-            style={{ ...overlapStyle, height: `${calculatedDuration * 64}px`, minHeight: "28px" }}
+            style={{ ...overlapStyle, height: `${blockHeight}px`, minHeight: "28px" }}
           >
-            <p className="font-bold">Blocked</p>
-            <p className="opacity-80">{booking.staff_name}</p>
-            {booking.notes && <p className="opacity-70 truncate text-[10px]">{booking.notes}</p>}
+            {blockHeight >= 80 ? (
+              <>
+                <p className="font-bold">⛔ Unavailable</p>
+                <p className="opacity-80">{booking.staff_name}</p>
+                <p className="opacity-70 text-[10px]">{blockTimeLabel}</p>
+                {booking.notes && <p className="opacity-70 truncate text-[10px]">{booking.notes}</p>}
+              </>
+            ) : blockHeight >= 50 ? (
+              <>
+                <p className="font-bold">⛔ Unavailable</p>
+                <p className="opacity-80 text-[10px]">{blockTimeLabel}</p>
+              </>
+            ) : (
+              <p className="font-bold truncate">⛔ {blockTimeLabel}</p>
+            )}
           </div>
         </PopoverTrigger>
         <PopoverContent className="w-[calc(100vw-2rem)] sm:w-72 max-w-sm p-0" side="bottom" align="center" sideOffset={4}>
           <div className="p-4 space-y-3">
             <div className="flex items-center justify-between">
               <div>
-                <p className="font-semibold text-sm">Blocked Time</p>
-                <p className="text-xs text-muted-foreground">{booking.staff_name}</p>
+                <p className="font-semibold text-sm">{booking.staff_name} — Unavailable</p>
               </div>
               <Badge variant="destructive">Blocked</Badge>
             </div>
             <div className="text-sm space-y-1">
               <p>{format(new Date(booking.booking_date), "EEEE, dd MMM yyyy")}</p>
-              <p className="text-muted-foreground">
-                {booking.booking_time.slice(0, 5)} — {booking.end_time?.slice(0, 5) || "Unknown"}
-              </p>
+              <p className="text-muted-foreground">{blockTimeLabel}</p>
             </div>
             {booking.notes && (
               <div className="border-t pt-2">
@@ -235,11 +248,22 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
               {booking.is_migrated && (
                 <span className="absolute top-0.5 right-0.5 bg-amber-500 text-white text-[8px] font-bold rounded px-0.5 leading-tight z-20">W</span>
               )}
-              <p className="text-[10px] opacity-70">{booking.booking_time.slice(0, 5)}</p>
-              <p className="font-bold truncate">{booking.service_name || "Appointment"}</p>
-              <p className="truncate">{booking.breed_name || booking.dog_name}</p>
-              <p className="truncate">{booking.customer_name}</p>
-              <p className="opacity-80 truncate text-[10px]">With: {booking.staff_name}</p>
+              {height < 50 ? (
+                <p className="text-[10px] font-bold truncate">{booking.booking_time.slice(0, 5)}</p>
+              ) : height < 80 ? (
+                <>
+                  <p className="text-[10px] opacity-70">{booking.booking_time.slice(0, 5)}</p>
+                  <p className="font-bold truncate">{booking.customer_name}</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-[10px] opacity-70">{booking.booking_time.slice(0, 5)}</p>
+                  <p className="font-bold truncate">{booking.service_name || "Appointment"}</p>
+                  <p className="truncate">{booking.breed_name || booking.dog_name}</p>
+                  <p className="truncate">{booking.customer_name}</p>
+                  <p className="opacity-80 truncate text-[10px]">With: {booking.staff_name}</p>
+                </>
+              )}
             </>
           )}
         </div>
