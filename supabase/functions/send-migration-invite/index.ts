@@ -7,24 +7,24 @@ const corsHeaders = {
 };
 
 async function sendEmail(apiKey: string, to: string[], subject: string, html: string) {
-  const res = await fetch("https://api.sendgrid.com/v3/mail/send", {
+  const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      personalizations: [{ to: to.map(email => ({ email })) }],
-      from: { email: "info@fluffandscruff.co.uk", name: "Fluff & Scruff Studio" },
-      reply_to: { email: "info@fluffandscruff.co.uk" },
+      from: "Fluff & Scruff Studio <info@fluffandscruff.co.uk>",
+      to,
+      reply_to: "info@fluffandscruff.co.uk",
       subject,
-      content: [{ type: "text/html", value: html }],
+      html,
     }),
   });
 
   if (!res.ok) {
     const errData = await res.text();
-    throw new Error(`SendGrid error: ${errData}`);
+    throw new Error(`Resend error: ${errData}`);
   }
 }
 
@@ -36,7 +36,7 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const sendgridKey = Deno.env.get("SENDGRID_API_KEY")!;
+    const resendKey = Deno.env.get("RESEND_API_KEY")!;
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
@@ -89,7 +89,6 @@ serve(async (req) => {
     });
 
     if (createErr) {
-      // If user already exists, that's okay — we'll still send the branded email
       if (!createErr.message?.includes("already been registered") && !createErr.message?.includes("already exists")) {
         throw createErr;
       }
@@ -102,10 +101,9 @@ serve(async (req) => {
       options: { redirectTo: redirectUrl },
     });
 
-    // Use the recovery link in the email if available, otherwise fall back to redirect URL
     const ctaUrl = linkData?.properties?.action_link || redirectUrl;
 
-    // Now send the branded email via SendGrid
+    // Now send the branded email via Resend
     const emailHtml = `
 <!DOCTYPE html>
 <html>
@@ -205,7 +203,7 @@ serve(async (req) => {
 </html>`;
 
     await sendEmail(
-      sendgridKey,
+      resendKey,
       [customer.email],
       "Fluff & Scruff has a brand new home online 🐾",
       emailHtml

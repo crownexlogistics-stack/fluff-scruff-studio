@@ -14,8 +14,8 @@ serve(async (req) => {
   }
 
   try {
-    const SENDGRID_API_KEY = Deno.env.get("SENDGRID_API_KEY");
-    if (!SENDGRID_API_KEY) throw new Error("SENDGRID_API_KEY is not configured");
+    const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+    if (!RESEND_API_KEY) throw new Error("RESEND_API_KEY is not configured");
 
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not set");
@@ -114,7 +114,7 @@ serve(async (req) => {
     const timeFormatted = booking.booking_time.slice(0, 5);
     const depositDisplay = (depositAmount / 100).toFixed(2);
 
-    // Send email via SendGrid
+    // Send email via Resend
     const bodyHtml = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
         <h2 style="color: #1a1a1a;">Your Appointment is Pre-Booked! 🐾</h2>
@@ -158,24 +158,24 @@ serve(async (req) => {
       </div>
     `;
 
-    const res = await fetch("https://api.sendgrid.com/v3/mail/send", {
+    const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${SENDGRID_API_KEY}`,
+        Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        personalizations: [{ to: [{ email: booking.customer_email }] }],
-        from: { email: "info@fluffandscruff.co.uk", name: "Fluff & Scruff Studio" },
-        reply_to: { email: "info@fluffandscruff.co.uk" },
+        from: "Fluff & Scruff Studio <info@fluffandscruff.co.uk>",
+        to: [booking.customer_email],
+        reply_to: "info@fluffandscruff.co.uk",
         subject: `Pay Your Deposit — ${dogName}'s Appointment on ${dateFormatted}`,
-        content: [{ type: "text/html", value: bodyHtml }],
+        html: bodyHtml,
       }),
     });
 
     if (!res.ok) {
       const errData = await res.text();
-      throw new Error(`SendGrid error: ${errData}`);
+      throw new Error(`Resend error: ${errData}`);
     }
 
     // Record in booking_emails

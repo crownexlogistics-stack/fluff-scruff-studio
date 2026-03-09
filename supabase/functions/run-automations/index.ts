@@ -10,8 +10,8 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const SENDGRID_API_KEY = Deno.env.get("SENDGRID_API_KEY");
-    if (!SENDGRID_API_KEY) throw new Error("SENDGRID_API_KEY is not configured");
+    const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+    if (!RESEND_API_KEY) throw new Error("RESEND_API_KEY is not configured");
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -132,18 +132,18 @@ serve(async (req) => {
           .replace(/\{\{UNSUBSCRIBE_URL\}\}/g, unsubUrl)
           .replace(/\{\{CUSTOMER_NAME\}\}/g, customer.name || "there");
 
-        const res = await fetch("https://api.sendgrid.com/v3/mail/send", {
+        const res = await fetch("https://api.resend.com/emails", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${SENDGRID_API_KEY}`,
+            Authorization: `Bearer ${RESEND_API_KEY}`,
           },
           body: JSON.stringify({
-            personalizations: [{ to: [{ email: customer.email }] }],
-            from: { email: "info@fluffandscruff.co.uk", name: "Fluff & Scruff Studio" },
-            reply_to: { email: "info@fluffandscruff.co.uk" },
+            from: "Fluff & Scruff Studio <info@fluffandscruff.co.uk>",
+            to: [customer.email],
+            reply_to: "info@fluffandscruff.co.uk",
             subject: rule.email_subject.replace(/\{\{CUSTOMER_NAME\}\}/g, customer.name || "there"),
-            content: [{ type: "text/html", value: personalizedHtml }],
+            html: personalizedHtml,
           }),
         });
 
@@ -153,7 +153,7 @@ serve(async (req) => {
           await supabase.from("automation_sends").insert({
             rule_id: rule.id,
             customer_email: customer.email.toLowerCase(),
-          }).onConflict("rule_id,customer_email").ignore();
+          });
         } else {
           console.error(`Automation send failed for ${customer.email}:`, await res.text());
         }

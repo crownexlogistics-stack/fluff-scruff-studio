@@ -7,24 +7,24 @@ const corsHeaders = {
 };
 
 async function sendEmail(apiKey: string, to: string[], subject: string, html: string) {
-  const res = await fetch("https://api.sendgrid.com/v3/mail/send", {
+  const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      personalizations: [{ to: to.map(email => ({ email })) }],
-      from: { email: "info@fluffandscruff.co.uk", name: "Fluff & Scruff Studio" },
-      reply_to: { email: "info@fluffandscruff.co.uk" },
+      from: "Fluff & Scruff Studio <info@fluffandscruff.co.uk>",
+      to,
+      reply_to: "info@fluffandscruff.co.uk",
       subject,
-      content: [{ type: "text/html", value: html }],
+      html,
     }),
   });
 
   if (!res.ok) {
     const errData = await res.text();
-    throw new Error(`SendGrid error: ${errData}`);
+    throw new Error(`Resend error: ${errData}`);
   }
 }
 
@@ -34,9 +34,9 @@ serve(async (req) => {
   }
 
   try {
-    const SENDGRID_API_KEY = Deno.env.get("SENDGRID_API_KEY");
-    if (!SENDGRID_API_KEY) {
-      throw new Error("SENDGRID_API_KEY is not configured");
+    const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+    if (!RESEND_API_KEY) {
+      throw new Error("RESEND_API_KEY is not configured");
     }
 
     const { staff_id, type, signing_url } = await req.json();
@@ -79,7 +79,7 @@ serve(async (req) => {
         );
       }
 
-      await sendEmail(SENDGRID_API_KEY, [staff.email], "Your Documents from Fluff & Scruff Studio", `
+      await sendEmail(RESEND_API_KEY, [staff.email], "Your Documents from Fluff & Scruff Studio", `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
           ${emailHeader}
           <p>Hi ${staff.name},</p>
@@ -112,7 +112,7 @@ serve(async (req) => {
 
       const contractUrl = signing_url || `https://fluff-scruff-studio.lovable.app/contract/sign/${staff_id}`;
 
-      await sendEmail(SENDGRID_API_KEY, emails, `Contract Signed — ${staff.name}`, `
+      await sendEmail(RESEND_API_KEY, emails, `Contract Signed — ${staff.name}`, `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
           ${emailHeader}
           <h2 style="color: #1a1a1a;">Contract Signed ✓</h2>
@@ -143,7 +143,7 @@ serve(async (req) => {
         );
       }
 
-      await sendEmail(SENDGRID_API_KEY, [staff.email], "Health & Safety Policy — Fluff & Scruff Studio", `
+      await sendEmail(RESEND_API_KEY, [staff.email], "Health & Safety Policy — Fluff & Scruff Studio", `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
           ${emailHeader}
           <p>Hi ${staff.name},</p>
@@ -183,7 +183,7 @@ serve(async (req) => {
       const appRole = roleMap[staff.role?.toLowerCase()] || "groomer";
       const portalName = appRole === "manager" || appRole === "director" ? "Management Dashboard" : "Staff Portal";
 
-      await sendEmail(SENDGRID_API_KEY, [staff.email], `Set Up Your ${portalName} Account — Fluff & Scruff Studio`, `
+      await sendEmail(RESEND_API_KEY, [staff.email], `Set Up Your ${portalName} Account — Fluff & Scruff Studio`, `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
           ${emailHeader}
           <h2 style="color: #1a1a1a;">Welcome to the Team! 🎉</h2>
@@ -218,7 +218,7 @@ serve(async (req) => {
       });
       if (linkError) throw linkError;
 
-      await sendEmail(SENDGRID_API_KEY, [staff.email], "Password Reset — Fluff & Scruff Studio", `
+      await sendEmail(RESEND_API_KEY, [staff.email], "Password Reset — Fluff & Scruff Studio", `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
           ${emailHeader}
           <h2 style="color: #1a1a1a;">Password Reset</h2>
