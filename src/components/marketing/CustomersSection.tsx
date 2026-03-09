@@ -52,17 +52,6 @@ export function CustomersSection() {
     },
   });
 
-  const { isLoading } = useQuery({
-    queryKey: ["all-bookings-for-customers"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("bookings")
-        .select("customer_name, customer_email, customer_phone, booking_date, created_at")
-        .order("booking_date", { ascending: false });
-      if (error) throw error;
-      return data;
-    },
-  });
 
   const customers = useMemo(() => {
     const map = new Map<string, CustomerSummary>();
