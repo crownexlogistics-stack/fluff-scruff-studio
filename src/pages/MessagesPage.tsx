@@ -52,10 +52,21 @@ export default function MessagesPage() {
     enabled: !!user?.id && role === "groomer",
   });
 
-  // Customer list from bookings
-  const { data: rawCustomers } = useQuery({
-    queryKey: ["msg-customers", role, myStaff?.id],
+  // Groomer's staff name for matching migrated bookings
+  const { data: myStaffRecord } = useQuery({
+    queryKey: ["my-staff-name", myStaff?.id],
     queryFn: async () => {
+      const { data } = await supabase.from("staff").select("name").eq("id", myStaff!.id).maybeSingle();
+      return data;
+    },
+    enabled: !!myStaff?.id && role === "groomer",
+  });
+
+  // Customer list from bookings + migrated customers
+  const { data: rawCustomers } = useQuery({
+    queryKey: ["msg-customers", role, myStaff?.id, myStaffRecord?.name],
+    queryFn: async () => {
+      // 1. Fetch from bookings
       let query = supabase
         .from("bookings")
         .select("customer_name, customer_phone, customer_email")
@@ -66,11 +77,11 @@ export default function MessagesPage() {
         query = query.eq("staff_id", myStaff.id);
       }
 
-      const { data, error } = await query;
+      const { data: bookingData, error } = await query;
       if (error) throw error;
 
       const map = new Map<string, CustomerContact>();
-      data?.forEach((b) => {
+      bookingData?.forEach((b) => {
         if (b.customer_phone && !map.has(b.customer_phone)) {
           map.set(b.customer_phone, {
             customer_name: b.customer_name,
@@ -79,9 +90,54 @@ export default function MessagesPage() {
           });
         }
       });
+
+      // 2. Fetch from migrated_customers
+      if (role === "groomer" && myStaffRecord?.name) {
+        // For groomers: only migrated customers whose bookings match this groomer's name
+        const { data: migratedBookings } = await supabase
+          .from("migrated_bookings")
+          .select("migrated_customer_id")
+          .ilike("staff_name", myStaffRecord.name);
+
+        if (migratedBookings && migratedBookings.length > 0) {
+          const customerIds = [...new Set(migratedBookings.map((mb) => mb.migrated_customer_id))];
+          const { data: migratedCustomers } = await supabase
+            .from("migrated_customers")
+            .select("full_name, phone, email")
+            .in("id", customerIds)
+            .not("phone", "is", null);
+
+          migratedCustomers?.forEach((mc) => {
+            if (mc.phone && !map.has(mc.phone)) {
+              map.set(mc.phone, {
+                customer_name: mc.full_name || "Unknown",
+                customer_phone: mc.phone,
+                customer_email: mc.email,
+              });
+            }
+          });
+        }
+      } else if (role !== "groomer") {
+        // For admin/manager: all migrated customers with phone numbers
+        const { data: migratedCustomers } = await supabase
+          .from("migrated_customers")
+          .select("full_name, phone, email")
+          .not("phone", "is", null);
+
+        migratedCustomers?.forEach((mc) => {
+          if (mc.phone && !map.has(mc.phone)) {
+            map.set(mc.phone, {
+              customer_name: mc.full_name || "Unknown",
+              customer_phone: mc.phone,
+              customer_email: mc.email,
+            });
+          }
+        });
+      }
+
       return Array.from(map.values());
     },
-    enabled: !!role && (role !== "groomer" || !!myStaff?.id),
+    enabled: !!role && (role !== "groomer" || (!!myStaff?.id && !!myStaffRecord?.name)),
   });
 
   // Last messages per phone for list preview
