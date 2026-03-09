@@ -16,7 +16,7 @@ export default function MarketingPage() {
         <Routes>
           <Route index element={<Navigate to="customers" replace />} />
           <Route path="customers" element={<CustomersSection />} />
-          <Route path="analytics" element={<Placeholder title="Booking Analytics" icon={BarChart3} />} />
+          <Route path="analytics" element={<BookingAnalyticsSection />} />
           <Route path="email" element={<EmailMarketingSection />} />
         </Routes>
       </div>
