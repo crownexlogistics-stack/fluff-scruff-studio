@@ -342,28 +342,118 @@ export function WebsiteAnalyticsSection() {
           </div>
         </div>
 
-        {/* Row 4 — Visitor Locations */}
-        <div className="rounded-xl border border-border/50 p-4">
-          <h4 className="text-sm font-semibold mb-3">Visitor Locations</h4>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="text-xs">Country</TableHead>
-                <TableHead className="text-xs">City</TableHead>
-                <TableHead className="text-xs text-right">Visitors</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.locations.map((loc, i) => (
-                <TableRow key={i}>
-                  <TableCell className="text-sm">{loc.country}</TableCell>
-                  <TableCell className="text-sm">{loc.city}</TableCell>
-                  <TableCell className="text-sm text-right font-semibold">{loc.visitors}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        {/* Row 4 — Catchment Summary + Visitor Locations */}
+        {(() => {
+          const londonLocs = data.locations.filter(l => isLondonArea(l.city));
+          const nonLondonLocs = data.locations.filter(l => !isLondonArea(l.city));
+          const totalLondon = londonLocs.reduce((s, l) => s + l.visitors, 0);
+          const totalAll = data.locations.reduce((s, l) => s + l.visitors, 0);
+
+          const within5 = londonLocs.filter(l => getDistance(l.city) <= 5).reduce((s, l) => s + l.visitors, 0);
+          const within10 = londonLocs.filter(l => { const d = getDistance(l.city); return d > 5 && d <= 10; }).reduce((s, l) => s + l.visitors, 0);
+          const outside10 = londonLocs.filter(l => getDistance(l.city) > 10).reduce((s, l) => s + l.visitors, 0) + nonLondonLocs.reduce((s, l) => s + l.visitors, 0);
+          const catchmentPct = totalAll > 0 ? Math.round(((within5 + within10) / totalAll) * 100) : 0;
+
+          return (
+            <>
+              {/* Catchment Summary Card */}
+              <div className="rounded-xl border border-border/50 p-5 bg-muted/30">
+                <div className="flex items-center gap-2 mb-3">
+                  <MapPin className="h-4 w-4 text-primary" />
+                  <h4 className="text-sm font-semibold">Local Catchment Analysis</h4>
+                </div>
+                <div className="grid grid-cols-3 gap-4 mb-3">
+                  <div className="text-center p-3 rounded-lg bg-background">
+                    <div className="flex items-center justify-center gap-1.5 mb-1">
+                      <div className="h-2 w-2 rounded-full bg-green-500" />
+                      <span className="text-xs text-muted-foreground">Within 5 miles</span>
+                    </div>
+                    <p className="text-lg font-bold font-heading">{within5}</p>
+                  </div>
+                  <div className="text-center p-3 rounded-lg bg-background">
+                    <div className="flex items-center justify-center gap-1.5 mb-1">
+                      <div className="h-2 w-2 rounded-full bg-amber-500" />
+                      <span className="text-xs text-muted-foreground">5–10 miles</span>
+                    </div>
+                    <p className="text-lg font-bold font-heading">{within10}</p>
+                  </div>
+                  <div className="text-center p-3 rounded-lg bg-background">
+                    <div className="flex items-center justify-center gap-1.5 mb-1">
+                      <div className="h-2 w-2 rounded-full bg-destructive" />
+                      <span className="text-xs text-muted-foreground">Outside 10 miles</span>
+                    </div>
+                    <p className="text-lg font-bold font-heading">{outside10}</p>
+                  </div>
+                </div>
+                <div className="text-center">
+                  <span className={cn(
+                    "text-sm font-semibold",
+                    catchmentPct >= 70 ? "text-green-600" : catchmentPct >= 50 ? "text-amber-500" : "text-destructive"
+                  )}>
+                    {catchmentPct}% of visitors are in your target catchment area 🎯
+                  </span>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {catchmentPct >= 70 ? "Great local reach" : catchmentPct >= 50 ? "Good but improvable — consider local SEO" : "Consider investing in local SEO"}
+                  </p>
+                </div>
+              </div>
+
+              {/* Visitor Locations */}
+              <div className="rounded-xl border border-border/50 p-4">
+                <h4 className="text-sm font-semibold mb-3">Visitor Locations</h4>
+
+                {/* London area section */}
+                {londonLocs.length > 0 && (
+                  <div className="mb-4">
+                    <div className="flex items-center gap-2 py-2 px-3 rounded-lg bg-muted/50 mb-1">
+                      <span className="text-sm">🇬🇧</span>
+                      <span className="text-sm font-semibold">London area</span>
+                      <span className="text-xs text-muted-foreground ml-auto">{totalLondon} visitors total</span>
+                    </div>
+                    <div className="ml-4 border-l-2 border-border/50 pl-3 space-y-0.5">
+                      {londonLocs
+                        .sort((a, b) => b.visitors - a.visitors)
+                        .map((loc, i) => {
+                          const dist = getDistance(loc.city);
+                          const isLast = i === londonLocs.length - 1;
+                          return (
+                            <div key={loc.city} className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-muted/30 text-sm">
+                              <div className="flex items-center gap-2">
+                                <span className="text-muted-foreground text-xs">{isLast ? "└" : "├"}</span>
+                                <div className={cn("h-2 w-2 rounded-full shrink-0", getDistanceDot(dist))} />
+                                <span className="font-medium">{loc.city}</span>
+                                <span className={cn("text-xs", getDistanceColor(dist))}>
+                                  {dist === 0 ? "🏠 your area" : `${dist} mi`}
+                                </span>
+                              </div>
+                              <span className="font-semibold text-sm">{loc.visitors}</span>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Non-London locations */}
+                {nonLondonLocs.length > 0 && (
+                  <div className="space-y-0.5">
+                    {nonLondonLocs
+                      .sort((a, b) => b.visitors - a.visitors)
+                      .map((loc) => (
+                        <div key={loc.city} className="flex items-center justify-between py-1.5 px-3 rounded hover:bg-muted/30 text-sm">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm">{loc.country === "United Kingdom" ? "🇬🇧" : loc.country === "United States" ? "🇺🇸" : loc.country === "Ireland" ? "🇮🇪" : "🌍"}</span>
+                            <span className="font-medium">{loc.city}</span>
+                          </div>
+                          <span className="font-semibold">{loc.visitors}</span>
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </div>
+            </>
+          );
+        })()}
 
         <p className="text-xs text-muted-foreground flex items-center gap-1">
           <ExternalLink className="h-3 w-3" />
