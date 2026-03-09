@@ -957,12 +957,10 @@ function MigrationCustomersTab() {
     return map;
   }, [allBookings]);
 
-  const activatedCount = customers.filter((c: any) => c.status === "activated").length;
-  const selfRegisteredCount = customers.filter((c: any) => c.status === "self_registered").length;
+  const activatedCount = customers.filter((c: any) => c.status === "activated" || c.status === "self_registered").length;
   const invitedCount = customers.filter((c: any) => c.status === "invited").length;
   const pendingCount = customers.filter((c: any) => c.status === "pending").length;
-  const totalActivated = activatedCount + selfRegisteredCount;
-  const progress = customers.length > 0 ? (totalActivated / customers.length) * 100 : 0;
+  const progress = customers.length > 0 ? (activatedCount / customers.length) * 100 : 0;
 
   const sendInvite = async (customer: any) => {
     setSendingId(customer.id);
@@ -1021,8 +1019,9 @@ function MigrationCustomersTab() {
 
   const statusBadge = (status: string) => {
     switch (status) {
-      case "activated": return <Badge className="bg-green-100 text-green-700 border-0 text-[10px]">Activated</Badge>;
-      case "self_registered": return <Badge className="bg-blue-100 text-blue-700 border-0 text-[10px]">Self-Registered</Badge>;
+      case "activated":
+      case "self_registered":
+        return <Badge className="bg-green-100 text-green-700 border-0 text-[10px]">Signed In</Badge>;
       case "invited": return <Badge className="bg-orange-100 text-orange-700 border-0 text-[10px]">Invited</Badge>;
       default: return <Badge variant="secondary" className="text-[10px]">Pending</Badge>;
     }
@@ -1032,13 +1031,12 @@ function MigrationCustomersTab() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="space-y-1 flex-1 mr-4">
-          <p className="text-sm text-muted-foreground">{totalActivated} of {customers.length} customers activated</p>
+          <p className="text-sm text-muted-foreground">{activatedCount} of {customers.length} customers signed in</p>
           <Progress value={progress} className="h-2" />
           <div className="flex flex-wrap gap-3 text-xs text-muted-foreground mt-1">
-            <span>✅ Activated via invite: {activatedCount}</span>
-            <span>✅ Self-registered: {selfRegisteredCount}</span>
-            <span>📧 Invited: {invitedCount}</span>
-            <span>⏳ Pending: {pendingCount}</span>
+            <span>✅ Activated (signed in): {activatedCount}</span>
+            <span>📧 Invited (link sent, not signed in): {invitedCount}</span>
+            <span>⏳ Pending (not yet invited): {pendingCount}</span>
           </div>
         </div>
         <Button size="sm" onClick={sendAllPending} disabled={sendingAll} className="gap-1">
