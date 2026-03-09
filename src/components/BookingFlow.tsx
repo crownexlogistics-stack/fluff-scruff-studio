@@ -276,6 +276,9 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
     if (step === null) {
       setStep(getInitialStep());
     }
+    if (step === "sub-service" || step === "breed") {
+      window.gtag?.("event", "booking_started", { event_category: "booking" });
+    }
   }, [dbService, isFixedPrice]);
 
   const today = new Date();

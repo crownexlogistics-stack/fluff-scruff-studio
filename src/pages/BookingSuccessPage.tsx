@@ -243,6 +243,7 @@ export default function BookingSuccessPage() {
     onSuccess: (data) => {
       setCancelDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ["booking-success", bookingId] });
+      window.gtag?.("event", "booking_cancelled", { event_category: "booking" });
       if (data?.refunded) {
         toast.success(`Booking cancelled. Your refund of £${data.refund_amount?.toFixed(2)} is on its way and will appear in your account within 5-10 business days.`);
       } else {
