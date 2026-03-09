@@ -117,32 +117,43 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
   };
 
   if (booking.is_block) {
+    const blockHeight = Math.max(calculatedDuration * 64, 30);
+    const blockTimeLabel = `${booking.booking_time.slice(0, 5)} — ${booking.end_time?.slice(0, 5) || "Unknown"}`;
     return (
       <Popover>
         <PopoverTrigger asChild>
           <div
             className={cn("absolute rounded-md px-2 py-1 text-xs font-medium cursor-pointer z-10 hover:opacity-90 transition-opacity overflow-hidden", color.bg, color.text)}
-            style={{ ...overlapStyle, height: `${calculatedDuration * 64}px`, minHeight: "28px" }}
+            style={{ ...overlapStyle, height: `${blockHeight}px`, minHeight: "28px" }}
           >
-            <p className="font-bold">Blocked</p>
-            <p className="opacity-80">{booking.staff_name}</p>
-            {booking.notes && <p className="opacity-70 truncate text-[10px]">{booking.notes}</p>}
+            {blockHeight >= 80 ? (
+              <>
+                <p className="font-bold">⛔ Unavailable</p>
+                <p className="opacity-80">{booking.staff_name}</p>
+                <p className="opacity-70 text-[10px]">{blockTimeLabel}</p>
+                {booking.notes && <p className="opacity-70 truncate text-[10px]">{booking.notes}</p>}
+              </>
+            ) : blockHeight >= 50 ? (
+              <>
+                <p className="font-bold">⛔ Unavailable</p>
+                <p className="opacity-80 text-[10px]">{blockTimeLabel}</p>
+              </>
+            ) : (
+              <p className="font-bold truncate">⛔ {blockTimeLabel}</p>
+            )}
           </div>
         </PopoverTrigger>
         <PopoverContent className="w-[calc(100vw-2rem)] sm:w-72 max-w-sm p-0" side="bottom" align="center" sideOffset={4}>
           <div className="p-4 space-y-3">
             <div className="flex items-center justify-between">
               <div>
-                <p className="font-semibold text-sm">Blocked Time</p>
-                <p className="text-xs text-muted-foreground">{booking.staff_name}</p>
+                <p className="font-semibold text-sm">{booking.staff_name} — Unavailable</p>
               </div>
               <Badge variant="destructive">Blocked</Badge>
             </div>
             <div className="text-sm space-y-1">
               <p>{format(new Date(booking.booking_date), "EEEE, dd MMM yyyy")}</p>
-              <p className="text-muted-foreground">
-                {booking.booking_time.slice(0, 5)} — {booking.end_time?.slice(0, 5) || "Unknown"}
-              </p>
+              <p className="text-muted-foreground">{blockTimeLabel}</p>
             </div>
             {booking.notes && (
               <div className="border-t pt-2">
