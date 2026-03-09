@@ -20,7 +20,7 @@ export function CustomersSection() {
   const navigate = useNavigate();
   const [filter, setFilter] = useState<FilterType>("all");
 
-  const { data: bookings } = useQuery({
+  const { data: bookings, isLoading } = useQuery({
     queryKey: ["all-bookings-for-customers"],
     queryFn: async () => {
       const { data, error } = await supabase
