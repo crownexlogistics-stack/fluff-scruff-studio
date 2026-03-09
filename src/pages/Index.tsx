@@ -512,13 +512,14 @@ const Index = () => {
     const days = eachDayOfInterval({ start: new Date(), end: addDays(new Date(), 6) });
     return days.map(d => {
       const dayBookings = upcomingAll.filter((b: any) => isSameDay(parseISO(b.booking_date), d));
-      const rev = dayBookings.reduce((s: number, b: any) => s + Number(b.total_price), 0);
-      return { date: d, label: format(d, "EEE dd MMM"), count: dayBookings.length, revenue: rev };
+      const rev = dayBookings.reduce((s: number, b: any) => s + Number(b.total_price || 0), 0);
+      const wixCount = dayBookings.filter((b: any) => b._source === "wix").length;
+      return { date: d, label: format(d, "EEE dd MMM"), count: dayBookings.length, revenue: rev, wixCount };
     });
   }, [upcomingAll]);
 
   const totalDepositsCollected = upcomingAll.reduce((s: number, b: any) => s + Number(b.deposit_paid || 0), 0);
-  const totalBalanceDue = upcomingAll.reduce((s: number, b: any) => s + Math.max(0, Number(b.total_price) - Number(b.deposit_paid || 0)), 0);
+  const totalBalanceDue = upcomingAll.reduce((s: number, b: any) => s + Math.max(0, Number(b.total_price || 0) - Number(b.deposit_paid || 0)), 0);
   const unbilledCount = upcomingAll.filter((b: any) => !b.total_price || Number(b.total_price) === 0).length;
 
   const displayName = profile?.full_name || user?.email?.split("@")[0] || "Director";
