@@ -86,3 +86,6 @@ verify_jwt = false
 
 [functions.daily-summary-email]
 verify_jwt = false
+
+[functions.get-analytics-data]
+verify_jwt = false
