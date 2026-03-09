@@ -74,6 +74,16 @@ serve(async (req) => {
       });
     }
 
+    // Validate email exists and is properly formatted
+    const email = (customer.email || "").trim();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email || !emailRegex.test(email)) {
+      return new Response(JSON.stringify({ error: `Customer "${customer.full_name || "unknown"}" has no valid email address on file. Cannot send invite.` }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const firstName = (customer.full_name || "").split(" ")[0] || "there";
     const redirectUrl = "https://fluffandscruff.co.uk/welcome";
 
