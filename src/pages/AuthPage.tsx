@@ -81,43 +81,6 @@ const AuthPage = () => {
   if (loading || (user && roleLoading)) return null;
   if (user) return <Navigate to={getRoleRedirect(role)} replace />;
 
-  const checkMigratedCustomer = async (emailToCheck: string) => {
-    const trimmed = emailToCheck.trim().toLowerCase();
-    if (!trimmed || !trimmed.includes("@")) {
-      setMigrated({ status: null });
-      return;
-    }
-
-    setMigrated({ status: "checking" });
-
-    try {
-      const { data, error } = await supabase.functions.invoke("check-migrated-customer", {
-        body: { email: trimmed, action: "check" },
-      });
-
-      if (error) throw error;
-
-      if (!data.found) {
-        setMigrated({ status: "not_found" });
-      } else if (data.status === "already_active") {
-        setMigrated({ status: "already_active", name: data.name });
-      } else {
-        setMigrated({ status: "pending", name: data.name, migrated_id: data.migrated_id });
-        if (data.name && mode === "signup") {
-          setFullName(data.name);
-        }
-      }
-    } catch {
-      setMigrated({ status: null });
-    }
-  };
-
-  const handleEmailBlur = useCallback(() => {
-    if (email.trim()) {
-      checkMigratedCustomer(email);
-    }
-  }, [email, mode]);
-
   // Handle migrated customer activation (create account + link)
   const handleMigratedActivation = async (e: React.FormEvent) => {
     e.preventDefault();
