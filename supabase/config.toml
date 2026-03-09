@@ -95,3 +95,15 @@ verify_jwt = false
 
 [functions.send-migration-invite]
 verify_jwt = false
+
+[functions.ai-grooming-assistant]
+verify_jwt = false
+
+[functions.generate-breed-advice]
+verify_jwt = false
+
+[functions.send-payment-link]
+verify_jwt = false
+
+[functions.system-health-check]
+verify_jwt = false
