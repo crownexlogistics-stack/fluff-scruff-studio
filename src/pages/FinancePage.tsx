@@ -85,6 +85,30 @@ const FinancePage = () => {
     },
   });
 
+  // Migrated bookings for the period
+  const { data: migratedBookings = [] } = useQuery({
+    queryKey: ["finance-migrated", periodStartStr, periodEndStr],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("migrated_bookings")
+        .select("*, migrated_customers(full_name)")
+        .gte("booking_date", periodStartStr)
+        .lte("booking_date", periodEndStr);
+      if (error) throw error;
+      return data as any[];
+    },
+  });
+
+  const migratedRevenue = useMemo(() => {
+    return migratedBookings.reduce((s, b: any) => s + Number(b.total_price || 0), 0);
+  }, [migratedBookings]);
+
+  const migratedOutstanding = useMemo(() => {
+    return migratedBookings
+      .filter((b: any) => b.is_future_booking && b.amount_due && Number(b.amount_due) > 0)
+      .reduce((s, b: any) => s + Number(b.amount_due || 0), 0);
+  }, [migratedBookings]);
+
   const staffSummaries = useMemo(() => {
     const map = new Map<string, { staffId: string; name: string; totalDogs: number; totalRevenue: number; totalGroomerPay: number; totalStudioShare: number; commissions: any[] }>();
     staff.forEach(s => {
