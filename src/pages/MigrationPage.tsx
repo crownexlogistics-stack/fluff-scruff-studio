@@ -1030,13 +1030,12 @@ function MigrationCustomersTab() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="space-y-1 flex-1 mr-4">
-          <p className="text-sm text-muted-foreground">{totalActivated} of {customers.length} customers activated</p>
+          <p className="text-sm text-muted-foreground">{activatedCount} of {customers.length} customers signed in</p>
           <Progress value={progress} className="h-2" />
           <div className="flex flex-wrap gap-3 text-xs text-muted-foreground mt-1">
-            <span>✅ Activated via invite: {activatedCount}</span>
-            <span>✅ Self-registered: {selfRegisteredCount}</span>
-            <span>📧 Invited: {invitedCount}</span>
-            <span>⏳ Pending: {pendingCount}</span>
+            <span>✅ Activated (signed in): {activatedCount}</span>
+            <span>📧 Invited (link sent, not signed in): {invitedCount}</span>
+            <span>⏳ Pending (not yet invited): {pendingCount}</span>
           </div>
         </div>
         <Button size="sm" onClick={sendAllPending} disabled={sendingAll} className="gap-1">
