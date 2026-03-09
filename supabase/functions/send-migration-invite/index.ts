@@ -229,7 +229,7 @@ serve(async (req) => {
     await supabase.from("audit_logs").insert({
       user_id: caller.id,
       action: "migration_invite_sent",
-      details: `Sent migration invite to ${customer.email} (${customer.full_name || "unknown"})`,
+      details: `Sent migration invite to ${email} (${customer.full_name || "unknown"})`,
     });
 
     return new Response(JSON.stringify({ success: true, email: customer.email }), {
