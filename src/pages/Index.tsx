@@ -219,7 +219,7 @@ const Index = () => {
   });
 
   // Upcoming (next 30 days for forecast)
-  const { data: upcomingAll = [] } = useQuery({
+  const { data: upcomingLive = [] } = useQuery({
     queryKey: ["dash-upcoming-30", todayStr],
     queryFn: async () => {
       const { data } = await supabase
@@ -233,6 +233,37 @@ const Index = () => {
       return (data ?? []) as any[];
     },
   });
+
+  // Upcoming migrated bookings (future)
+  const { data: upcomingMigrated = [] } = useQuery({
+    queryKey: ["dash-upcoming-migrated", todayStr],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("migrated_bookings")
+        .select("*, migrated_customers(full_name, email)")
+        .gte("booking_date", todayStr)
+        .eq("is_future_booking", true);
+      return (data ?? []) as any[];
+    },
+  });
+
+  // Combine upcoming bookings
+  const upcomingAll = useMemo(() => {
+    const live = upcomingLive.map((b: any) => ({ ...b, _source: "live" as const }));
+    const migrated = upcomingMigrated.map((b: any) => ({
+      ...b,
+      _source: "wix" as const,
+      customer_name: b.migrated_customers?.full_name || "Wix Customer",
+      total_price: b.total_price || 0,
+      deposit_paid: b.deposit_paid || 0,
+      status: "Confirmed",
+    }));
+    return [...live, ...migrated].sort((a, b) => {
+      const dateA = a.booking_date + (a.booking_time || "");
+      const dateB = b.booking_date + (b.booking_time || "");
+      return dateA.localeCompare(dateB);
+    });
+  }, [upcomingLive, upcomingMigrated]);
 
   // Recent activity (last 10 bookings by created_at)
   const { data: recentActivity = [] } = useQuery({
