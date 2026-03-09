@@ -429,7 +429,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { message, conversation = [], context = {} } = await req.json();
+    const { message, conversation = [], context = {}, session_id, device_type, page_url } = await req.json();
 
     if (!message || typeof message !== "string") {
       return new Response(
@@ -442,6 +442,56 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
+
+    // ── Track conversation in DB ────────────────────────
+    const startTime = Date.now();
+    let conversationId: string | null = null;
+
+    try {
+      if (session_id) {
+        // Check if conversation exists for this session
+        const { data: existing } = await supabase
+          .from("scruff_conversations")
+          .select("id, message_count")
+          .eq("session_id", session_id)
+          .maybeSingle();
+
+        if (existing) {
+          conversationId = existing.id;
+          // Increment message count
+          await supabase
+            .from("scruff_conversations")
+            .update({ message_count: (existing.message_count || 0) + 1 })
+            .eq("id", existing.id);
+        } else {
+          // Create new conversation
+          const { data: newConv } = await supabase
+            .from("scruff_conversations")
+            .insert({
+              session_id,
+              device_type: device_type || null,
+              page_started_from: page_url || null,
+              customer_name: context.customerName || null,
+              customer_email: null,
+              message_count: 1,
+            })
+            .select("id")
+            .single();
+          if (newConv) conversationId = newConv.id;
+        }
+
+        // Save user message
+        if (conversationId) {
+          await supabase.from("scruff_messages").insert({
+            conversation_id: conversationId,
+            role: "user",
+            content: message,
+          });
+        }
+      }
+    } catch (trackErr) {
+      console.error("Conversation tracking error (non-fatal):", trackErr);
+    }
 
     const lowerMsg = message.toLowerCase();
 
