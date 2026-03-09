@@ -60,6 +60,7 @@ export default function CustomerProfilePage() {
   const [payLinkNotes, setPayLinkNotes] = useState("");
   const [payLinkSending, setPayLinkSending] = useState(false);
   const [checkingPayLinkId, setCheckingPayLinkId] = useState<string | null>(null);
+  const [payLinkDelivery, setPayLinkDelivery] = useState<"email" | "sms" | "both">("email");
 
   // Pet edit dialog
   const [editingPet, setEditingPet] = useState<any>(null);
