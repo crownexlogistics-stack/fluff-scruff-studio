@@ -214,7 +214,7 @@ serve(async (req) => {
 
     await sendEmail(
       resendKey,
-      [customer.email],
+      [email],
       "Fluff & Scruff has a brand new home online 🐾",
       emailHtml
     );
