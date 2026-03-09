@@ -21,6 +21,7 @@ import { Switch } from "@/components/ui/switch";
 import {
   ArrowLeft, Mail, Phone, Dog, Calendar, Send,
   Pencil, Check, X, MessageSquare, MailOpen, Ban, CalendarPlus, UserCheck, ChevronDown, ChevronUp,
+  CreditCard, RefreshCw, ExternalLink,
 } from "lucide-react";
 import { AdminPetTools } from "@/components/customer-profile/AdminPetTools";
 import { format, parseISO } from "date-fns";
@@ -52,6 +53,12 @@ export default function CustomerProfilePage() {
   const [emailBody, setEmailBody] = useState("");
   const [viewBookingOpen, setViewBookingOpen] = useState(false);
   const [viewBookingData, setViewBookingData] = useState<any>(null);
+
+  // Pay Links state
+  const [payLinkAmount, setPayLinkAmount] = useState(0);
+  const [payLinkNotes, setPayLinkNotes] = useState("");
+  const [payLinkSending, setPayLinkSending] = useState(false);
+  const [checkingPayLinkId, setCheckingPayLinkId] = useState<string | null>(null);
 
   // Pet edit dialog
   const [editingPet, setEditingPet] = useState<any>(null);
@@ -253,6 +260,21 @@ export default function CustomerProfilePage() {
       if (error) throw error;
       return data;
     },
+  });
+
+  // Pay Links query
+  const { data: payLinks, refetch: refetchPayLinks } = useQuery({
+    queryKey: ["customer-pay-links", decodedEmail],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("customer_pay_links")
+        .select("*")
+        .eq("customer_email", decodedEmail)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!decodedEmail && isOwnCustomer,
   });
 
   // ── Mutations ─────────────────────────────────────────────────────
@@ -671,6 +693,7 @@ export default function CustomerProfilePage() {
                 <>
                   <TabsTrigger value="messages" className={tabTriggerClass}><MessageSquare className="h-3.5 w-3.5 mr-1.5" />Messages {messages && messages.length > 0 && `(${messages.length})`}</TabsTrigger>
                   <TabsTrigger value="email" className={tabTriggerClass}><MailOpen className="h-3.5 w-3.5 mr-1.5" />Email {allEmails.length > 0 && `(${allEmails.length})`}</TabsTrigger>
+                  <TabsTrigger value="paylinks" className={tabTriggerClass}><CreditCard className="h-3.5 w-3.5 mr-1.5" />Pay Links {payLinks && payLinks.length > 0 && `(${payLinks.length})`}</TabsTrigger>
                 </>
               )}
             </TabsList>
@@ -969,6 +992,122 @@ export default function CustomerProfilePage() {
                       <Mail className="h-10 w-10 mx-auto text-muted-foreground/40 mb-3" />
                       <p className="font-medium text-sm">No emails yet</p>
                       <p className="text-xs text-muted-foreground">Compose an email above or wait for customer replies.</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
+
+          {/* ── Pay Links ── */}
+          {isOwnCustomer && (
+            <TabsContent value="paylinks" className="mt-4">
+              <Card>
+                <CardContent className="p-5 space-y-4">
+                  <h3 className="text-sm font-semibold flex items-center gap-2 mb-1"><CreditCard className="h-4 w-4" /> Generate Pay Link</h3>
+                  <div className="space-y-3">
+                    <div>
+                      <Label>Amount (£)</Label>
+                      <NumericInput value={payLinkAmount} onValueChange={setPayLinkAmount} />
+                    </div>
+                    <div>
+                      <Label>Notes (optional)</Label>
+                      <Textarea placeholder="e.g. Missed charge for nail trim" value={payLinkNotes} onChange={(e) => setPayLinkNotes(e.target.value)} className="min-h-[60px]" />
+                    </div>
+                    <div className="flex justify-end">
+                      <Button
+                        disabled={payLinkAmount <= 0 || payLinkSending}
+                        onClick={async () => {
+                          setPayLinkSending(true);
+                          try {
+                            const { data, error } = await supabase.functions.invoke("create-customer-pay-link", {
+                              body: { customer_email: decodedEmail, customer_name: customerName, amount: payLinkAmount, notes: payLinkNotes.trim() || null },
+                            });
+                            if (error) throw error;
+                            if (data?.error) throw new Error(data.error);
+                            toast({ title: "Pay link sent to customer! 🐾" });
+                            setPayLinkAmount(0);
+                            setPayLinkNotes("");
+                            refetchPayLinks();
+                          } catch (e: any) {
+                            toast({ title: `Failed: ${e.message}`, variant: "destructive" });
+                          } finally {
+                            setPayLinkSending(false);
+                          }
+                        }}
+                      >
+                        <Send className="h-4 w-4 mr-2" />{payLinkSending ? "Sending…" : "Generate & Send"}
+                      </Button>
+                    </div>
+                  </div>
+                  <Separator />
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Pay Link History</h4>
+                  {payLinks && payLinks.length > 0 ? (
+                    <div className="space-y-2">
+                      {payLinks.map((pl: any) => (
+                        <div key={pl.id} className="p-3 rounded-lg border bg-muted/30">
+                          <div className="flex items-center justify-between gap-2 mb-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-bold">£{Number(pl.amount).toFixed(2)}</span>
+                              {pl.status === "paid" ? (
+                                <Badge className="bg-emerald-600 text-white text-[10px] px-1.5 py-0">🟢 Paid</Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-amber-400 text-amber-600">🟡 Pending</Badge>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1">
+                              {pl.status !== "paid" && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-7 text-xs"
+                                  disabled={checkingPayLinkId === pl.id}
+                                  onClick={async () => {
+                                    setCheckingPayLinkId(pl.id);
+                                    try {
+                                      const { data, error } = await supabase.functions.invoke("check-pay-link-status", {
+                                        body: { pay_link_id: pl.id },
+                                      });
+                                      if (error) throw error;
+                                      if (data?.status === "paid") {
+                                        toast({ title: "Payment confirmed! ✅" });
+                                      } else {
+                                        toast({ title: "Still pending — not yet paid" });
+                                      }
+                                      refetchPayLinks();
+                                    } catch (e: any) {
+                                      toast({ title: `Error: ${e.message}`, variant: "destructive" });
+                                    } finally {
+                                      setCheckingPayLinkId(null);
+                                    }
+                                  }}
+                                >
+                                  <RefreshCw className={`h-3 w-3 mr-1 ${checkingPayLinkId === pl.id ? "animate-spin" : ""}`} />
+                                  Check
+                                </Button>
+                              )}
+                              {pl.stripe_url && (
+                                <Button size="sm" variant="ghost" className="h-7 text-xs" asChild>
+                                  <a href={pl.stripe_url} target="_blank" rel="noopener noreferrer">
+                                    <ExternalLink className="h-3 w-3 mr-1" />Link
+                                  </a>
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                          {pl.notes && <p className="text-xs text-muted-foreground">{pl.notes}</p>}
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Sent {format(new Date(pl.created_at), "dd MMM yyyy, HH:mm")}
+                            {pl.status === "paid" && pl.paid_at && ` • Paid ${format(new Date(pl.paid_at), "dd MMM yyyy, HH:mm")}`}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <CreditCard className="h-10 w-10 mx-auto text-muted-foreground/40 mb-3" />
+                      <p className="font-medium text-sm">No pay links yet</p>
+                      <p className="text-xs text-muted-foreground">Generate a pay link above to request payment from this customer.</p>
                     </div>
                   )}
                 </CardContent>
