@@ -1016,18 +1016,46 @@ export default function CustomerProfilePage() {
                       <Label>Notes (optional)</Label>
                       <Textarea placeholder="e.g. Missed charge for nail trim" value={payLinkNotes} onChange={(e) => setPayLinkNotes(e.target.value)} className="min-h-[60px]" />
                     </div>
+                    <div>
+                      <Label className="mb-2 block">Send via</Label>
+                      <RadioGroup value={payLinkDelivery} onValueChange={(v) => setPayLinkDelivery(v as "email" | "sms" | "both")} className="flex gap-4">
+                        <div className="flex items-center gap-1.5">
+                          <RadioGroupItem value="email" id="pl-email" />
+                          <Label htmlFor="pl-email" className="flex items-center gap-1 cursor-pointer text-sm font-normal"><Mail className="h-3.5 w-3.5" /> Email</Label>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <RadioGroupItem value="sms" id="pl-sms" disabled={!customerPhone} />
+                          <Label htmlFor="pl-sms" className={`flex items-center gap-1 cursor-pointer text-sm font-normal ${!customerPhone ? "opacity-40" : ""}`}><Smartphone className="h-3.5 w-3.5" /> SMS</Label>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <RadioGroupItem value="both" id="pl-both" disabled={!customerPhone} />
+                          <Label htmlFor="pl-both" className={`flex items-center gap-1 cursor-pointer text-sm font-normal ${!customerPhone ? "opacity-40" : ""}`}><Send className="h-3.5 w-3.5" /> Both</Label>
+                        </div>
+                      </RadioGroup>
+                      {!customerPhone && (payLinkDelivery === "sms" || payLinkDelivery === "both") && (
+                        <p className="text-xs text-destructive mt-1">No phone number on file — add one above first.</p>
+                      )}
+                    </div>
                     <div className="flex justify-end">
                       <Button
-                        disabled={payLinkAmount <= 0 || payLinkSending}
+                        disabled={payLinkAmount <= 0 || payLinkSending || ((payLinkDelivery === "sms" || payLinkDelivery === "both") && !customerPhone)}
                         onClick={async () => {
                           setPayLinkSending(true);
                           try {
                             const { data, error } = await supabase.functions.invoke("create-customer-pay-link", {
-                              body: { customer_email: decodedEmail, customer_name: customerName, amount: payLinkAmount, notes: payLinkNotes.trim() || null },
+                              body: {
+                                customer_email: decodedEmail,
+                                customer_name: customerName,
+                                amount: payLinkAmount,
+                                notes: payLinkNotes.trim() || null,
+                                delivery: payLinkDelivery,
+                                customer_phone: customerPhone || null,
+                              },
                             });
                             if (error) throw error;
                             if (data?.error) throw new Error(data.error);
-                            toast({ title: "Pay link sent to customer! 🐾" });
+                            const method = payLinkDelivery === "both" ? "email & SMS" : payLinkDelivery;
+                            toast({ title: `Pay link sent via ${method}! 🐾` });
                             setPayLinkAmount(0);
                             setPayLinkNotes("");
                             refetchPayLinks();

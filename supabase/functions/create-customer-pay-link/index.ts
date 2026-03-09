@@ -22,7 +22,7 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { customer_email, customer_name, amount, notes } = await req.json();
+    const { customer_email, customer_name, amount, notes, delivery = "email", customer_phone } = await req.json();
     if (!customer_email) throw new Error("customer_email required");
     if (!amount || Number(amount) <= 0) throw new Error("Valid amount required");
 
@@ -88,9 +88,12 @@ serve(async (req) => {
       })
       .eq("id", payLinkRecord.id);
 
-    // Send email
     const firstName = customer_name?.split(" ")[0] || "there";
-    if (RESEND_API_KEY && customer_email) {
+    const sendEmail = delivery === "email" || delivery === "both";
+    const sendSms = (delivery === "sms" || delivery === "both") && customer_phone;
+
+    // Send email
+    if (sendEmail && RESEND_API_KEY && customer_email) {
       const html = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
           <h2 style="color: #1a1a1a;">Payment Request 🐾</h2>
@@ -136,11 +139,56 @@ serve(async (req) => {
       });
     }
 
+    // Send SMS via Twilio
+    if (sendSms) {
+      const TWILIO_ACCOUNT_SID = Deno.env.get("TWILIO_ACCOUNT_SID");
+      const TWILIO_AUTH_TOKEN = Deno.env.get("TWILIO_AUTH_TOKEN");
+      const MESSAGING_SERVICE_SID = "MG3c95c22cb05574f545cc1b32d9db4600";
+
+      if (TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN) {
+        const smsBody = `Hi ${firstName}, Fluff & Scruff Studio has sent you a payment request for £${amountNum.toFixed(2)}.${notes ? ` Note: ${notes}` : ""}\n\nPay here: ${paymentLink.url}\n\nQuestions? Call 01708 606655 or WhatsApp +44 7476 452782`;
+
+        const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`;
+        const formData = new URLSearchParams();
+        formData.append("To", customer_phone);
+        formData.append("MessagingServiceSid", MESSAGING_SERVICE_SID);
+        formData.append("Body", smsBody);
+
+        const twilioRes = await fetch(twilioUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            Authorization: "Basic " + btoa(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`),
+          },
+          body: formData.toString(),
+        });
+
+        if (!twilioRes.ok) {
+          const err = await twilioRes.text();
+          console.error("Twilio SMS failed:", err);
+        } else {
+          // Log SMS in sms_messages table
+          const twilioData = await twilioRes.json();
+          await supabase.from("sms_messages").insert({
+            phone_number: customer_phone,
+            body: smsBody,
+            direction: "outbound",
+            status: "sent",
+            twilio_sid: twilioData.sid || null,
+            sent_by_name: "System",
+          });
+        }
+      }
+    }
+
+    // Determine delivery method for audit
+    const deliveryMethod = sendEmail && sendSms ? "email & SMS" : sendSms ? "SMS" : "email";
+
     // Audit log
     await supabase.from("audit_logs").insert({
       user_id: userId,
       action: "PAY_LINK_CREATED",
-      details: `Ad-hoc pay link of £${amountNum.toFixed(2)} sent to ${customer_email}${notes ? ` — ${notes}` : ""}`,
+      details: `Ad-hoc pay link of £${amountNum.toFixed(2)} sent via ${deliveryMethod} to ${customer_email}${notes ? ` — ${notes}` : ""}`,
     });
 
     return new Response(JSON.stringify({ success: true, id: payLinkRecord.id, url: paymentLink.url }), {
