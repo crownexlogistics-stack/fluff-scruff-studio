@@ -2,14 +2,6 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, Send, Phone, ExternalLink } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import {
-  getLocalChatResponse,
-  detectBreed,
-  detectName,
-  detectEmail,
-  type ConversationState,
-  type NavLink,
-} from "@/lib/chatRules";
 import { supabase } from "@/integrations/supabase/client";
 
 interface ChatMessage {
@@ -20,7 +12,13 @@ interface ChatMessage {
   show_booking_button?: boolean;
   show_call_button?: boolean;
   show_whatsapp_button?: boolean;
-  nav_links?: NavLink[];
+}
+
+interface ConversationContext {
+  customerName: string | null;
+  dogName: string | null;
+  breed: string | null;
+  serviceInterest: string | null;
 }
 
 const WELCOME_MESSAGE: ChatMessage = {
@@ -33,7 +31,7 @@ const WELCOME_MESSAGE: ChatMessage = {
 
 const QUICK_REPLIES = [
   "📅 Check availability",
-  "🐶 What breed do I have?",
+  "🐶 Breed grooming advice",
   "💰 Pricing info",
 ];
 
@@ -49,14 +47,15 @@ export function AIChatWidget() {
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
 
-  // Conversation state machine
-  const [conversationState, setConversationState] = useState<ConversationState>("idle");
+  // Conversation context memory
+  const [context, setContext] = useState<ConversationContext>({
+    customerName: null,
+    dogName: null,
+    breed: null,
+    serviceInterest: null,
+  });
 
-  // Conversation memory
-  const [breedMentioned, setBreedMentioned] = useState<string | null>(null);
-  const [customerName, setCustomerName] = useState<string | null>(null);
-
-  // Proactive suggestion — show only once
+  // Proactive suggestion
   const [proactiveSuggestionShown, setProactiveSuggestionShown] = useState(false);
   const [bookingTapped, setBookingTapped] = useState(false);
 
@@ -67,7 +66,6 @@ export function AIChatWidget() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, []);
 
-  // Only scroll to bottom when a NEW message is added, not on initial open
   useEffect(() => {
     if (messages.length > prevMessageCount.current) {
       scrollToBottom();
@@ -79,38 +77,46 @@ export function AIChatWidget() {
     if (isTyping) scrollToBottom();
   }, [isTyping, scrollToBottom]);
 
-  // Scroll to TOP when chat opens
   useEffect(() => {
     if (isOpen && messagesContainerRef.current) {
       messagesContainerRef.current.scrollTop = 0;
     }
   }, [isOpen]);
 
-  // Personalise reply with breed/name memory
-  const personalise = (reply: string, currentBreed: string | null): string => {
-    let r = reply;
-    const breed = currentBreed || breedMentioned;
-    if (breed) {
-      r = r.replace(/\byour dog\b/gi, `your ${breed}`);
-      r = r.replace(/\byour pup\b/gi, `your ${breed}`);
+  // Extract context from user messages
+  const extractContext = (text: string) => {
+    const lower = text.toLowerCase();
+
+    // Detect dog name patterns
+    const dogNameMatch = text.match(
+      /(?:my dog(?:'s name)?\s+(?:is\s+)?|my\s+(?:pup|puppy|boy|girl)(?:'s name)?\s+(?:is\s+)?|(?:called|named)\s+)([A-Z][a-z]+)/i
+    );
+    if (dogNameMatch) {
+      setContext((prev) => ({ ...prev, dogName: dogNameMatch[1] }));
     }
-    if (customerName) {
-      if (!r.startsWith("Great question") && !r.includes(customerName)) {
-        r = `Great question ${customerName}! ${r}`;
-      }
+
+    // Detect customer name
+    const nameMatch = text.match(
+      /(?:my name is|i'm|i am|this is|call me)\s+([A-Z][a-z]+)/i
+    );
+    if (nameMatch) {
+      setContext((prev) => ({ ...prev, customerName: nameMatch[1] }));
     }
-    return r;
+
+    // Detect service interest
+    if (/nail|claw/i.test(lower)) setContext((prev) => ({ ...prev, serviceInterest: "nail trim" }));
+    else if (/teeth|dental|ultrasonic/i.test(lower)) setContext((prev) => ({ ...prev, serviceInterest: "teeth cleaning" }));
+    else if (/puppy|first.?groom/i.test(lower)) setContext((prev) => ({ ...prev, serviceInterest: "puppy groom" }));
+    else if (/bath|wash/i.test(lower)) setContext((prev) => ({ ...prev, serviceInterest: "bath and blow dry" }));
+    else if (/full groom|groom/i.test(lower)) setContext((prev) => ({ ...prev, serviceInterest: "full groom" }));
   };
 
   const sendMessage = async (text: string) => {
     if (!text.trim()) return;
     setShowQuickReplies(false);
 
-    // Detect breed / name from user message
-    const detectedBreed = detectBreed(text);
-    if (detectedBreed) setBreedMentioned(detectedBreed);
-    const detectedNameVal = detectName(text);
-    if (detectedNameVal) setCustomerName(detectedNameVal);
+    // Extract context from user message
+    extractContext(text);
 
     const userMsg: ChatMessage = {
       id: crypto.randomUUID(),
@@ -123,77 +129,34 @@ export function AIChatWidget() {
     setIsTyping(true);
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 600));
+      // Build conversation history (exclude welcome message for cleaner context)
+      const conversationHistory = messages
+        .filter((m) => m.id !== "welcome")
+        .map((m) => ({ role: m.role, content: m.content }));
 
-      // Handle contact details collection state in the widget
-      if (conversationState === "waiting_for_contact_details") {
-        const email = detectEmail(text);
-        const name = detectName(text);
-        if (name) setCustomerName(name);
+      const { data, error } = await supabase.functions.invoke("ai-grooming-assistant", {
+        body: {
+          message: text.trim(),
+          conversation: conversationHistory,
+          context,
+        },
+      });
 
-        if (email) {
-          // Build conversation history
-          const allMsgs = [...messages, userMsg];
-          const convoHistory = allMsgs
-            .map((m) => `${m.role === "user" ? "Customer" : "Scruff"}: ${m.content}`)
-            .join("\n");
+      if (error) throw error;
 
-          const finalName = name || customerName || "Not provided";
-
-          const body = `A customer contacted Fluff & Scruff via the website chat assistant but Scruff was unable to resolve their query.\n\nCustomer name: ${finalName}\nCustomer email: ${email}\n\nOriginal conversation:\n${convoHistory}\n\nPlease respond to the customer directly.`;
-
-          try {
-            await supabase.functions.invoke("send-customer-email", {
-              body: {
-                customer_email: "info@fluffandscruff.co.uk",
-                subject: "💬 Scruff couldn't help — customer needs assistance",
-                body,
-              },
-            });
-          } catch (e) {
-            console.error("Failed to send escalation email:", e);
-          }
-
-          const confirmMsg: ChatMessage = {
-            id: crypto.randomUUID(),
-            role: "assistant",
-            content: `Perfect, I've passed this to the team at Fluff & Scruff! They'll be in touch at ${email} very soon 🐾`,
-            timestamp: new Date(),
-          };
-          setMessages((prev) => [...prev, confirmMsg]);
-          setConversationState("idle");
-        } else {
-          // No email found, ask again
-          const retryMsg: ChatMessage = {
-            id: crypto.randomUUID(),
-            role: "assistant",
-            content: "I just need your email address so the team can get back to you — could you pop it in below? 🐾",
-            timestamp: new Date(),
-          };
-          setMessages((prev) => [...prev, retryMsg]);
-        }
-        return;
-      }
-
-      // Normal flow — pass current state to rule engine
-      const data = await getLocalChatResponse(text.trim(), conversationState);
-
-      // Update conversation state
-      if (data.new_state) {
-        setConversationState(data.new_state);
-      } else {
-        setConversationState("idle");
+      // Update context from edge function response
+      if (data.detected_breed) {
+        setContext((prev) => ({ ...prev, breed: data.detected_breed }));
       }
 
       const assistantMsg: ChatMessage = {
         id: crypto.randomUUID(),
         role: "assistant",
-        content: personalise(data.reply, detectedBreed),
+        content: data.reply,
         timestamp: new Date(),
         show_booking_button: data.show_booking_button,
         show_call_button: data.show_call_button,
         show_whatsapp_button: data.show_whatsapp_button,
-        nav_links: data.nav_links,
       };
       setMessages((prev) => [...prev, assistantMsg]);
     } catch (err) {
@@ -216,7 +179,6 @@ export function AIChatWidget() {
   const formatTime = (d: Date) =>
     d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
 
-  // Should we show the proactive suggestion?
   const userMsgCount = messages.filter((m) => m.role === "user").length;
   const shouldShowProactive =
     !proactiveSuggestionShown && !bookingTapped && userMsgCount >= 3;
@@ -351,39 +313,6 @@ export function AIChatWidget() {
                     {formatTime(msg.timestamp)}
                   </div>
 
-                  {/* Nav link buttons */}
-                  {msg.role === "assistant" && msg.nav_links && msg.nav_links.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mt-2 pl-9">
-                      {msg.nav_links.map((link) =>
-                        link.external ? (
-                          <a
-                            key={link.url}
-                            href={link.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-xs font-bold px-3 py-1.5 rounded-full text-white inline-flex items-center gap-1"
-                            style={{ background: "#FF6B35", fontFamily: "Nunito, sans-serif" }}
-                          >
-                            {link.label} <ExternalLink className="w-3 h-3" />
-                          </a>
-                        ) : (
-                          <button
-                            key={link.url}
-                            onClick={() => {
-                              setBookingTapped(true);
-                              setIsOpen(false);
-                              navigate(link.url);
-                            }}
-                            className="text-xs font-bold px-3 py-1.5 rounded-full text-white"
-                            style={{ background: "#FF6B35", fontFamily: "Nunito, sans-serif" }}
-                          >
-                            {link.label}
-                          </button>
-                        )
-                      )}
-                    </div>
-                  )}
-
                   {/* Action buttons */}
                   {msg.role === "assistant" &&
                     (msg.show_booking_button ||
@@ -432,7 +361,7 @@ export function AIChatWidget() {
                       </div>
                     )}
 
-                  {/* Proactive suggestion — once per convo, after 3+ user messages */}
+                  {/* Proactive suggestion */}
                   {msg.role === "assistant" &&
                     idx === messages.length - 1 &&
                     shouldShowProactive && (
@@ -523,13 +452,7 @@ export function AIChatWidget() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && sendMessage(input)}
-                placeholder={
-                  conversationState === "waiting_for_breed"
-                    ? "Type your breed name..."
-                    : conversationState === "waiting_for_contact_details"
-                    ? "Your name and email..."
-                    : "Ask Scruff anything..."
-                }
+                placeholder="Ask Scruff anything..."
                 className="flex-1 text-sm px-3 py-2 rounded-full border-none outline-none"
                 style={{
                   background: "#F5EDE4",
