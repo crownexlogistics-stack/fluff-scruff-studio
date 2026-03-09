@@ -77,6 +77,7 @@ import {
 } from "@/components/ui/table";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { WebsiteAnalyticsSection } from "@/components/dashboard/WebsiteAnalyticsSection";
 
 // ── Types ───────────────────────────────────────────────────
 type RangeKey = "week" | "month" | "year" | "custom";
