@@ -269,8 +269,95 @@ async function sendEscalationEmail(
   });
 }
 
-// ── System prompt ───────────────────────────────────────
-const SYSTEM_PROMPT = `You are Scruff, the AI assistant for Fluff & Scruff Studio — a professional dog grooming salon in Hornchurch, Essex.
+// ── Fetch live data from database ────────────────────────
+async function fetchLiveData(supabase: any) {
+  const fallbackHours = "Tuesday to Saturday, 10am to 5pm. Closed Sunday and Monday.";
+  let openingHoursText = fallbackHours;
+  let servicesText = "";
+  let breedPricingText = "";
+
+  try {
+    // Fetch opening hours from site_config
+    const { data: configRows } = await supabase
+      .from("site_config")
+      .select("key, value")
+      .in("key", ["opening_hours", "opening_days", "holiday_dates", "special_closures"]);
+
+    if (configRows && configRows.length > 0) {
+      const configMap: Record<string, any> = {};
+      for (const row of configRows) {
+        configMap[row.key] = row.value;
+      }
+      const parts: string[] = [];
+      if (configMap.opening_hours) parts.push(`Hours: ${JSON.stringify(configMap.opening_hours)}`);
+      if (configMap.opening_days) parts.push(`Open days: ${JSON.stringify(configMap.opening_days)}`);
+      if (configMap.holiday_dates) parts.push(`Holiday closures: ${JSON.stringify(configMap.holiday_dates)}`);
+      if (configMap.special_closures) parts.push(`Special closures: ${JSON.stringify(configMap.special_closures)}`);
+      if (parts.length > 0) openingHoursText = parts.join("\n");
+    }
+  } catch (e) {
+    console.error("Failed to fetch opening hours:", e);
+  }
+
+  try {
+    // Fetch active services
+    const { data: services } = await supabase
+      .from("services")
+      .select("name, description, fixed_price, duration_minutes, is_active")
+      .eq("is_active", true)
+      .order("name");
+
+    if (services && services.length > 0) {
+      servicesText = services.map((s: any) => {
+        const priceInfo = s.fixed_price ? `£${s.fixed_price}` : "Price varies by breed";
+        const durInfo = s.duration_minutes ? `${s.duration_minutes} mins` : "Duration varies";
+        return `- ${s.name}: ${priceInfo} (${durInfo})${s.description ? ` — ${s.description}` : ""}`;
+      }).join("\n");
+    }
+  } catch (e) {
+    console.error("Failed to fetch services:", e);
+  }
+
+  try {
+    // Fetch breed-specific pricing from breeds table
+    const { data: breeds } = await supabase
+      .from("breeds")
+      .select("name, size_category, price_full_groom, price_bath_brush, duration_minutes")
+      .order("name");
+
+    if (breeds && breeds.length > 0) {
+      breedPricingText = breeds.map((b: any) => {
+        const parts: string[] = [];
+        if (b.price_full_groom > 0) parts.push(`Full Groom: £${b.price_full_groom}`);
+        if (b.price_bath_brush > 0) parts.push(`Bath & Brush: £${b.price_bath_brush}`);
+        return `- ${b.name} (${b.size_category}): ${parts.join(", ")} — ${b.duration_minutes} mins`;
+      }).join("\n");
+    }
+
+    // Also fetch service_prices for any additional service/breed combos
+    const { data: servicePrices } = await supabase
+      .from("service_prices")
+      .select("price, service_id, breed_id, services(name), breeds(name)")
+      .order("price");
+
+    if (servicePrices && servicePrices.length > 0) {
+      const extraPricing = servicePrices
+        .filter((sp: any) => sp.services?.name && sp.breeds?.name)
+        .map((sp: any) => `- ${sp.services.name} for ${sp.breeds.name}: £${sp.price}`)
+        .join("\n");
+      if (extraPricing) {
+        breedPricingText += "\n\nAdditional service-specific pricing:\n" + extraPricing;
+      }
+    }
+  } catch (e) {
+    console.error("Failed to fetch breed pricing:", e);
+  }
+
+  return { openingHoursText, servicesText, breedPricingText };
+}
+
+// ── System prompt (base) ────────────────────────────────
+const BASE_SYSTEM_PROMPT = `You are Scruff, the AI assistant for Fluff & Scruff Studio — a professional dog grooming salon in Hornchurch, Essex.
 
 CRITICAL RULES — ALWAYS FOLLOW THESE:
 
@@ -283,8 +370,11 @@ Before answering any question, consider: Is this question about a dog or another
 3. DO NOT MAKE UP INFORMATION
 If you don't know something — say so. Direct to the team: "I'm not sure about that — best to speak to our team directly! You can call us on 01708 606655, WhatsApp us on +44 7476 452782, or email info@fluffandscruff.co.uk"
 
-4. NEVER INVENT PRICES
-You do not know exact prices for every service and breed combination. Never quote a specific price unless you are 100% certain. Instead say: "Pricing depends on your dog's breed and coat condition — for an accurate quote please call us or check our website booking page where you can select your breed and see exact pricing."
+4. PRICING — USE LIVE DATA ONLY
+You now have access to LIVE pricing data from our database (shown below under "CURRENT SALON INFORMATION"). When a customer asks about pricing:
+- If the breed and service match exists in the live data, quote the exact price confidently.
+- If the breed is not listed but the service exists, say pricing starts from the lowest price for that service and suggest checking the booking page for exact pricing.
+- NEVER invent or guess prices that are not in the live data below.
 
 5. STAY ON TOPIC
 You help with: dog grooming questions, breed-specific coat advice, our services and what they include, booking availability and guidance, general dog care tips (brushing, bathing, nail care for DOGS only), salon information (hours, location, parking, what to bring).
@@ -300,20 +390,15 @@ Address: 138 Hillview Avenue, Hornchurch, Essex RM11 2DL
 Phone: 01708 606655
 WhatsApp: +44 7476 452782
 Email: info@fluffandscruff.co.uk
-Hours: Tuesday to Saturday, 10am to 5pm
-Closed: Sunday and Monday
 Rating: 4.9 stars on Google
 Speciality: All breeds welcome, family-run, dogs-first approach
 
-8. SERVICES WE OFFER (dogs only)
-Full Groom (wash, dry, cut, style), Bath and Blow Dry, Puppy's First Groom, Nail Trim & Filing, Ultrasonic Teeth Cleaning, De-Shedding Treatment, Brush Out. Duration and pricing varies by breed and size. Direct to booking page for exact pricing.
-
 BOOKING: All bookings are made online at fluff-scruff-studio.lovable.app/book. A deposit is required to secure the booking. We do not accept cash — card payments only.
 
-9. IF CUSTOMER SEEMS UPSET OR COMPLAINING
+8. IF CUSTOMER SEEMS UPSET OR COMPLAINING
 Do not argue or defend. Acknowledge their concern warmly: "I'm really sorry to hear that — I want to make sure this is looked into properly. Let me connect you with our team directly." Then trigger the human handoff flow.
 
-10. CONVERSATION MEMORY
+9. CONVERSATION MEMORY
 Remember within the conversation: customer's name if given, dog's name and breed, what service they asked about, what dates were mentioned. Use this to personalise responses naturally (e.g. "So for Bella's full groom on Saturday...").
 
 HUMAN HANDOFF RULES:
@@ -323,7 +408,7 @@ Then collect their name and contact details. Once you have them, confirm with: "
 IMPORTANT: When you detect a handoff request, include the marker [HANDOFF_REQUESTED] at the very end of your response (after your visible message). When a customer provides their contact details for a handoff, include [HANDOFF_DETAILS:name=Their Name|contact=their@email.com or phone|query=what they need help with] at the very end of your response.
 
 WHAT YOU DO NOT DO:
-You do not discuss competitor salons, guarantee specific groomers, discuss staff personal details, process payments or change bookings, or make up prices.`;
+You do not discuss competitor salons, guarantee specific groomers, discuss staff personal details, process payments or change bookings.`;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
