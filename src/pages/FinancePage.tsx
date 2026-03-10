@@ -334,11 +334,12 @@ const FinancePage = () => {
   return (
     <AppLayout>
       <div className="space-y-4 max-w-4xl">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
             <h1 className="text-2xl font-heading font-bold">Finance</h1>
             <p className="text-sm text-muted-foreground">Commission tracking, payouts & expenses</p>
           </div>
+          <FinanceExplainerButton />
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
