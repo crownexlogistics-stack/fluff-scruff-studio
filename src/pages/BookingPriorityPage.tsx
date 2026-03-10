@@ -82,7 +82,7 @@ const BookingPriorityPage = () => {
 
   // Build priority order preview
   const sortedByPriority = [...groomers]
-    .filter(g => g.is_accepting_bookings)
+    .filter(g => g.is_accepting_bookings && !g.block_new_bookings)
     .sort((a, b) => {
       const pa = a.booking_priority ?? 999;
       const pb = b.booking_priority ?? 999;
@@ -91,6 +91,7 @@ const BookingPriorityPage = () => {
 
   const prioritised = sortedByPriority.filter(g => g.booking_priority != null);
   const noPriority = sortedByPriority.filter(g => g.booking_priority == null);
+  const blocked = groomers.filter(g => g.block_new_bookings && g.is_accepting_bookings);
   const notAccepting = groomers.filter(g => !g.is_accepting_bookings);
 
   return (
