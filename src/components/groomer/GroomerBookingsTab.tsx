@@ -380,6 +380,7 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
             commission_rate: rate,
             groomer_pay: groomerPay,
             studio_share: studioShare,
+            booking_source: "migrated",
           } as any);
         }
 

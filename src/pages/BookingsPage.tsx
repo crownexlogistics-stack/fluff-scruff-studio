@@ -301,6 +301,7 @@ const BookingsPage = () => {
       toast.success("Appointment completed");
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
       queryClient.invalidateQueries({ queryKey: ["migrated-bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["migrated-calendar-bookings"] });
       queryClient.invalidateQueries({ queryKey: ["audit-logs"] });
       queryClient.invalidateQueries({ queryKey: ["commission-records"] });
     },

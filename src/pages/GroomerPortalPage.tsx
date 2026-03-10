@@ -95,10 +95,21 @@ function GroomerFinanceView({ staffId }: { staffId: string }) {
             <Table>
               <TableHeader><TableRow><TableHead>Customer</TableHead><TableHead>Service</TableHead><TableHead>Type</TableHead><TableHead className="text-right">Pay</TableHead></TableRow></TableHeader>
               <TableBody>
-                {commissions.map((c: any) => (
+                {commissions.map((c: any) => {
+                  const isMigrated = c.booking_source === "migrated" || c.migrated_booking_id;
+                  const customerName = isMigrated
+                    ? c.migrated_bookings?.migrated_customers?.full_name || "Wix Customer"
+                    : c.bookings?.customer_name || "—";
+                  const serviceName = isMigrated
+                    ? c.migrated_bookings?.service_name || "—"
+                    : c.bookings?.services?.name || "—";
+                  return (
                   <TableRow key={c.id}>
-                    <TableCell className="text-sm">{c.bookings?.customer_name || "—"}</TableCell>
-                    <TableCell className="text-sm">{c.bookings?.services?.name || "—"}</TableCell>
+                    <TableCell className="text-sm">
+                      {customerName}
+                      {isMigrated && <Badge className="ml-1 bg-amber-500 text-white hover:bg-amber-500 text-[8px] px-1 py-0">W</Badge>}
+                    </TableCell>
+                    <TableCell className="text-sm">{serviceName}</TableCell>
                     <TableCell>
                       <Badge variant={c.commission_type === "no_show" ? "destructive" : c.commission_type === "own_customer" ? "default" : "secondary"} className="text-xs">
                         {c.commission_type === "own_customer" ? "Own 50%" : c.commission_type === "no_show" ? "No Show" : "40%"}
@@ -106,7 +117,8 @@ function GroomerFinanceView({ staffId }: { staffId: string }) {
                     </TableCell>
                     <TableCell className="text-right font-medium">£{Number(c.groomer_pay).toFixed(2)}</TableCell>
                   </TableRow>
-                ))}
+                  );
+                })}
               </TableBody>
             </Table>
           </CardContent>
