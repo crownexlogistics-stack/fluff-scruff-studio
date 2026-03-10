@@ -140,7 +140,7 @@ const BookingPriorityPage = () => {
 
                       {/* Priority dropdown */}
                       <Select
-                        value={groomer.booking_priority != null ? String(groomer.booking_priority) : "none"}
+                        value={groomer.block_new_bookings ? "block" : groomer.booking_priority != null ? String(groomer.booking_priority) : "none"}
                         onValueChange={(v) => handlePriorityChange(groomer.id, v)}
                       >
                         <SelectTrigger className="w-[140px] h-9">
