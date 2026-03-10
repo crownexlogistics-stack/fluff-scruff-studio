@@ -74,8 +74,11 @@ function parseRow(row: Record<string, string>): ParsedRow {
   const orderNumber = (row["Order Number"] || "").trim() || null;
   const registrationDate = parseWixDate(row["Registration Date"]);
 
-  // Parse order total: strip £ and commas
-  const rawTotal = (row["Order Total"] || "0").replace(/[£$,]/g, "").trim();
+  // Parse order total: strip ALL £ signs and commas
+  const rawTotal = (row["Order Total"] || "0")
+    .replace(/£/g, "")
+    .replace(/,/g, "")
+    .trim();
   const orderTotal = parseFloat(rawTotal) || 0;
 
   // Form fields
@@ -147,15 +150,14 @@ export default function ImportDataTab() {
     });
   }, []);
 
-  const handleImport = async () => {
-    if (allParsed.length === 0) return;
+  const runImport = async (data: ParsedRow[]) => {
     setImporting(true);
     setProgress(0);
     const BATCH = 100;
     let imported = 0;
 
-    for (let i = 0; i < allParsed.length; i += BATCH) {
-      const batch = allParsed.slice(i, i + BATCH);
+    for (let i = 0; i < data.length; i += BATCH) {
+      const batch = data.slice(i, i + BATCH);
 
       const { error } = await supabase
         .from("wix_historical_bookings")
@@ -166,17 +168,32 @@ export default function ImportDataTab() {
 
       if (error) {
         console.error("Batch error at index", i, error);
-        // Do NOT break — always continue to next batch
       } else {
         imported += batch.length;
       }
 
-      setProgress(Math.round(Math.min(((i + BATCH) / allParsed.length) * 100, 100)));
+      setProgress(Math.round(Math.min(((i + BATCH) / data.length) * 100, 100)));
     }
 
     setImporting(false);
-    setResult({ imported, skipped: allParsed.length - imported });
+    setResult({ imported, skipped: data.length - imported });
+    return imported;
+  };
+
+  const handleImport = async () => {
+    if (allParsed.length === 0) return;
+    const imported = await runImport(allParsed);
     toast({ title: `✅ Import complete — ${imported} records processed` });
+  };
+
+  const handleClearAndReimport = async () => {
+    if (allParsed.length === 0) return;
+    setImporting(true);
+    setProgress(0);
+    // Delete all existing records
+    await supabase.from("wix_historical_bookings").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+    const imported = await runImport(allParsed);
+    toast({ title: `✅ Re-import complete — ${imported} records imported` });
   };
 
   return (
@@ -240,14 +257,24 @@ export default function ImportDataTab() {
             </div>
 
             {!result && (
-              <Button
-                className="rounded-[30px] font-bold w-full"
-                style={{ backgroundColor: "#FF6B35" }}
-                disabled={importing}
-                onClick={handleImport}
-              >
-                {importing ? "Importing…" : `Import ${allParsed.length} records`}
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  className="rounded-[30px] font-bold flex-1"
+                  style={{ backgroundColor: "#FF6B35" }}
+                  disabled={importing}
+                  onClick={handleImport}
+                >
+                  {importing ? "Importing…" : `Import ${allParsed.length} records`}
+                </Button>
+                <Button
+                  className="rounded-[30px] font-bold"
+                  variant="outline"
+                  disabled={importing}
+                  onClick={handleClearAndReimport}
+                >
+                  Clear &amp; Re-import
+                </Button>
+              </div>
             )}
 
             {importing && <Progress value={progress} className="h-2 rounded-full" />}

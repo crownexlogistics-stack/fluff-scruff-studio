@@ -107,11 +107,13 @@ export default function YearOnYearTab() {
   }, [filteredData]);
 
   const chartData = useMemo(() => {
-    return filteredData.map(d => ({
-      year: d.year.toString(),
-      revenue: d.revenue,
-      bookings: d.bookings,
-    }));
+    return filteredData
+      .map(d => ({
+        year: d.year.toString(),
+        revenue: d.revenue,
+        bookings: d.bookings,
+      }))
+      .sort((a, b) => parseInt(a.year) - parseInt(b.year));
   }, [filteredData]);
 
   const insight = useMemo(() => {
