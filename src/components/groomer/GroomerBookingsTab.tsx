@@ -348,7 +348,7 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
   });
 
   const completeMutation = useMutation({
-    mutationFn: async ({ bookingId, finalCharge, isMigrated }: { bookingId: string; finalCharge: number; isMigrated?: boolean }) => {
+    mutationFn: async ({ bookingId, finalCharge, isMigrated, isOwnCustomer }: { bookingId: string; finalCharge: number; isMigrated?: boolean; isOwnCustomer?: boolean }) => {
       if (isMigrated) {
         // For migrated bookings, update the migrated_bookings table
         const { error } = await supabase.from("migrated_bookings").update({
@@ -356,7 +356,30 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
           amount_due: 0,
         }).eq("id", bookingId);
         if (error) throw error;
-        logAudit({ action: "MIGRATED_BOOKING_COMPLETED", details: `Completed migrated booking ${bookingId}. Final charge: £${finalCharge.toFixed(2)}` });
+
+        // Create commission record so it shows on finance page
+        const migratedEvent = migratedBookings.find(b => b.id === bookingId);
+        const totalPrice = Number(migratedEvent?.total_price || checkoutBooking?.total_price || 0);
+        const eventStaffId = migratedEvent?.staff_id || checkoutBooking?.staff_id;
+        const rate = isOwnCustomer ? 0.5 : 0.4;
+        const groomerPay = Math.round(totalPrice * rate * 100) / 100;
+        const studioShare = Math.round((totalPrice - groomerPay) * 100) / 100;
+
+        if (eventStaffId) {
+          await supabase.from("commission_records").insert({
+            booking_id: bookingId,
+            staff_id: eventStaffId,
+            total_price: totalPrice,
+            deposit_paid: Number(migratedEvent?.deposit_paid || checkoutBooking?.deposit_paid || 0),
+            final_charge: finalCharge,
+            commission_type: isOwnCustomer ? "own_customer" : "normal",
+            commission_rate: rate,
+            groomer_pay: groomerPay,
+            studio_share: studioShare,
+          });
+        }
+
+        logAudit({ staffId: eventStaffId, action: "MIGRATED_BOOKING_COMPLETED", details: `Completed migrated booking for ${migratedEvent?.customer_name || checkoutBooking?.customer_name}. Total: £${totalPrice.toFixed(2)}. Final charge: £${finalCharge.toFixed(2)}. Commission: ${isOwnCustomer ? "Own 50%" : "Standard 40%"} = £${groomerPay.toFixed(2)} groomer / £${studioShare.toFixed(2)} studio.` });
       } else {
         const { error } = await (supabase.from("bookings") as any).update({ status: "Completed", final_charge: finalCharge }).eq("id", bookingId);
         if (error) throw error;
@@ -367,6 +390,7 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
       toast.success("Appointment completed");
       queryClient.invalidateQueries({ queryKey: ["groomer-bookings"] });
       queryClient.invalidateQueries({ queryKey: ["groomer-migrated-bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["commission-records"] });
     },
     onError: (e: any) => toast.error(e.message),
   });
