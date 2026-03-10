@@ -17,7 +17,8 @@ const PRIORITY_OPTIONS = [
   { value: "block", label: "No New Bookings", emoji: "🚫" },
 ];
 
-function getPriorityBadge(priority: number | null) {
+function getPriorityBadge(priority: number | null, blocked?: boolean) {
+  if (blocked) return <Badge className="bg-destructive/10 text-destructive hover:bg-destructive/10 text-xs">🚫 No New Bookings</Badge>;
   if (priority === 1) return <Badge className="bg-amber-400 text-amber-900 hover:bg-amber-400 text-xs">🥇 1st</Badge>;
   if (priority === 2) return <Badge className="bg-gray-300 text-gray-800 hover:bg-gray-300 text-xs">🥈 2nd</Badge>;
   if (priority === 3) return <Badge className="bg-amber-600 text-white hover:bg-amber-600 text-xs">🥉 3rd</Badge>;
