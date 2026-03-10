@@ -104,7 +104,7 @@ export default function YearOnYearTab() {
 
       {/* Annual Revenue Cards */}
       {annualSummary.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "row", flexWrap: "nowrap", gap: "16px" }}>
+        <div className="flex flex-wrap gap-4">
           {annualSummary.map(yr => {
             const yearColors: Record<number, string> = { 2024: "#FFB800", 2025: "#FF6B35", 2026: "#2D1B0E" };
             const borderColor = yearColors[yr.year] || "#FF6B35";
