@@ -186,9 +186,9 @@ const MonthForecastCard = () => {
   });
 
   const handleRefresh = useCallback(() => {
-    r1(); r2(); r3(); r4(); r5(); r6(); r7(); r8();
+    r1(); r2(); r3(); r4(); r5(); r6(); r7(); r8(); if (isPastMonth) r9();
     setLastRefresh(new Date());
-  }, [r1, r2, r3, r4, r5, r6, r7, r8]);
+  }, [r1, r2, r3, r4, r5, r6, r7, r8, r9, isPastMonth]);
 
   // ── Calculations ─────────────────────────────
   const earnedRevenue = completedBookings.reduce((s: number, b: any) => s + Number(b.total_price || 0), 0)
