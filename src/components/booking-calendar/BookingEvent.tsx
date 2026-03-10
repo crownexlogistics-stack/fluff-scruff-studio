@@ -522,6 +522,13 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
           )}
           <SendPaymentLinkDialog open={paymentLinkOpen} onOpenChange={setPaymentLinkOpen} booking={booking} />
 
+          {/* AI Dog Brief */}
+          {booking.status !== "Cancelled" && booking.status !== "Refunded" && (
+            <div className="border-t pt-3">
+              <DogBriefButton booking={booking} />
+            </div>
+          )}
+
           {/* Action bar */}
           <div className="border-t pt-3 flex flex-wrap items-center gap-2">
             {/* 3-dot menu */}
