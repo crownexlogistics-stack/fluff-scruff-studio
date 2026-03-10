@@ -265,6 +265,8 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
     breed_id: b.breed_id,
     final_charge: b.final_charge,
     stripe_payment_id: b.stripe_payment_id ?? null,
+    is_migrated: b.is_migrated,
+    duration_minutes: b.duration_minutes,
   });
 
   const handleBook = useCallback((date: Date, hour: number, sid: string) => {
