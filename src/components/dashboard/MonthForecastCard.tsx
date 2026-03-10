@@ -377,10 +377,13 @@ const MonthForecastCard = () => {
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between pt-2 border-t">
-          <Button variant="ghost" size="sm" className="text-xs gap-1.5 h-7" onClick={handleRefresh}>
-            <RefreshCw className="h-3 w-3" /> Refresh
-          </Button>
+        <div className="flex items-center justify-between pt-2 border-t flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" className="text-xs gap-1.5 h-7" onClick={handleRefresh}>
+              <RefreshCw className="h-3 w-3" /> Refresh
+            </Button>
+            <FinanceExplainerButton />
+          </div>
           <span className="text-[10px] text-muted-foreground">
             Last updated: {format(lastRefresh, "HH:mm")}
           </span>
