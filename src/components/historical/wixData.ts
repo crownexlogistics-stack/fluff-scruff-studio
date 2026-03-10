@@ -155,7 +155,7 @@ export type WixRawBooking = WixAppointment & { customerName: string; customerEma
 
 export const WIX_RAW_BOOKINGS: WixRawBooking[] = (() => {
   const records: WixRawBooking[] = [];
-  const records: any[] = [];
+  
   WIX_CUSTOMERS.forEach(c => {
     c.appointments.forEach(a => {
       records.push({
