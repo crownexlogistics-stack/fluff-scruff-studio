@@ -191,6 +191,8 @@ const MonthForecastCard = () => {
   }, [r1, r2, r3, r4, r5, r6, r7, r8, r9, isPastMonth]);
 
   // ── Calculations ─────────────────────────────
+  const wixHistoricalRevenue = wixHistorical.reduce((s: number, b: any) => s + Number(b.price_charged || 0), 0);
+
   const earnedRevenue = completedBookings.reduce((s: number, b: any) => s + Number(b.total_price || 0), 0)
     + migratedCompleted.reduce((s: number, b: any) => s + Number(b.total_price || 0), 0);
 
