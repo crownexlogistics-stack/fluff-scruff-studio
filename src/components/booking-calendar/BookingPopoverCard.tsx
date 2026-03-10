@@ -292,6 +292,13 @@ export function BookingPopoverCard({
         </div>
       )}
 
+      {/* AI Dog Brief */}
+      {booking.status !== "Cancelled" && booking.status !== "Refunded" && (
+        <div className="border-t pt-3">
+          <DogBriefButton booking={booking} />
+        </div>
+      )}
+
       {/* Action bar */}
       <div className="border-t pt-3 flex flex-wrap items-center gap-2">
         <DropdownMenu>
