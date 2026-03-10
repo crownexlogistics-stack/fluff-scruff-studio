@@ -46,13 +46,7 @@ const CATEGORIES = [
 
 const getCategoryDisplay = (val: string) => CATEGORIES.find(c => c.value === val) || { value: val, label: val, icon: "🎁" };
 
-const toMonthly = (amount: number, frequency: string) => {
-  switch (frequency) {
-    case "weekly": return amount * 4.33;
-    case "annual": return amount / 12;
-    default: return amount;
-  }
-};
+// toMonthly is now imported from @/lib/expenseCalc
 
 type ExpenseRow = {
   id: string;
