@@ -81,6 +81,8 @@ import { cn } from "@/lib/utils";
 import { WebsiteAnalyticsSection } from "@/components/dashboard/WebsiteAnalyticsSection";
 import { UnavailableBookingsWarning } from "@/components/dashboard/UnavailableBookingsWarning";
 import MonthForecastCard from "@/components/dashboard/MonthForecastCard";
+import { DailyBriefingCard } from "@/components/dashboard/DailyBriefingCard";
+import { usePermissions } from "@/config/rolePermissions";
 
 // ── Types ───────────────────────────────────────────────────
 type RangeKey = "week" | "month" | "year" | "custom";
