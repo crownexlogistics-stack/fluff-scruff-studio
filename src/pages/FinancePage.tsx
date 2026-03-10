@@ -14,6 +14,7 @@ import { NumericInput } from "@/components/ui/numeric-input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, PoundSterling, Dog, TrendingUp, Banknote, CreditCard, Users } from "lucide-react";
+import { FinanceExplainerButton } from "@/components/dashboard/FinanceExplainerDialog";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addWeeks, addMonths } from "date-fns";
 import { toast } from "sonner";
 import { logAudit } from "@/lib/auditLog";
@@ -333,11 +334,12 @@ const FinancePage = () => {
   return (
     <AppLayout>
       <div className="space-y-4 max-w-4xl">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
             <h1 className="text-2xl font-heading font-bold">Finance</h1>
             <p className="text-sm text-muted-foreground">Commission tracking, payouts & expenses</p>
           </div>
+          <FinanceExplainerButton />
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>

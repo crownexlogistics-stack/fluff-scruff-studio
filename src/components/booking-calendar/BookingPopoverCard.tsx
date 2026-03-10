@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { logAudit } from "@/lib/auditLog";
 import type { BookingData } from "./BookingEvent";
+import { DogBriefButton } from "./DogBriefButton";
 
 interface BookingPopoverCardProps {
   booking: BookingData;
@@ -288,6 +289,13 @@ export function BookingPopoverCard({
             <RotateCcw className="h-4 w-4 mr-1" />
             {processingRefund ? "Processing Refund…" : "Process Refund"}
           </Button>
+        </div>
+      )}
+
+      {/* AI Dog Brief */}
+      {booking.status !== "Cancelled" && booking.status !== "Refunded" && (
+        <div className="border-t pt-3">
+          <DogBriefButton booking={booking} />
         </div>
       )}
 

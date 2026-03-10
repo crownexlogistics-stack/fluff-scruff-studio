@@ -81,6 +81,8 @@ import { cn } from "@/lib/utils";
 import { WebsiteAnalyticsSection } from "@/components/dashboard/WebsiteAnalyticsSection";
 import { UnavailableBookingsWarning } from "@/components/dashboard/UnavailableBookingsWarning";
 import MonthForecastCard from "@/components/dashboard/MonthForecastCard";
+import { DailyBriefingCard } from "@/components/dashboard/DailyBriefingCard";
+import { usePermissions } from "@/config/rolePermissions";
 
 // ── Types ───────────────────────────────────────────────────
 type RangeKey = "week" | "month" | "year" | "custom";
@@ -145,6 +147,7 @@ const STATUS_COLORS: Record<string, string> = {
 const Index = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { isDirector, isManager } = usePermissions();
   const [rangeKey, setRangeKey] = useState<RangeKey>("month");
   const [customStart, setCustomStart] = useState<Date | undefined>();
   const [customEnd, setCustomEnd] = useState<Date | undefined>();
@@ -717,6 +720,9 @@ const Index = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* ── 1a. Daily Briefing ───────────────── */}
+        {(isDirector || isManager) && <DailyBriefingCard />}
 
         {/* ── 1b. Month Forecast ───────────────────── */}
         <MonthForecastCard />

@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FinanceExplainerButton } from "./FinanceExplainerDialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -376,10 +377,13 @@ const MonthForecastCard = () => {
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between pt-2 border-t">
-          <Button variant="ghost" size="sm" className="text-xs gap-1.5 h-7" onClick={handleRefresh}>
-            <RefreshCw className="h-3 w-3" /> Refresh
-          </Button>
+        <div className="flex items-center justify-between pt-2 border-t flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" className="text-xs gap-1.5 h-7" onClick={handleRefresh}>
+              <RefreshCw className="h-3 w-3" /> Refresh
+            </Button>
+            <FinanceExplainerButton />
+          </div>
           <span className="text-[10px] text-muted-foreground">
             Last updated: {format(lastRefresh, "HH:mm")}
           </span>

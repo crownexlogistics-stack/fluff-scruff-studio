@@ -110,3 +110,12 @@ verify_jwt = false
 
 [functions.analyse-error]
 verify_jwt = false
+
+[functions.daily-briefing]
+verify_jwt = false
+
+[functions.dog-brief]
+verify_jwt = false
+
+[functions.finance-explainer]
+verify_jwt = false
