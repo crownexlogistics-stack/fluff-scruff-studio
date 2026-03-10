@@ -360,7 +360,7 @@ export function GroomerCalendar({ currentDate, daysToShow, staff, bookings, curr
                 <div className={cn("flex-1 text-center py-1 text-xs font-bold text-primary truncate px-1")}>
                   {sortedStaff[0]?.name.split(" ")[0] || "You"}
                 </div>
-                {!isMobile && otherStaff.map((s) => (
+                {showNarrowCols && otherStaff.map((s) => (
                   <div key={s.id} className="text-center py-1 text-[9px] font-medium text-muted-foreground truncate border-l" style={{ width: `${NARROW_COL_WIDTH}px`, minWidth: `${NARROW_COL_WIDTH}px`, maxWidth: `${NARROW_COL_WIDTH}px` }}>
                     {s.name.split(" ")[0].slice(0, 4)}
                   </div>
