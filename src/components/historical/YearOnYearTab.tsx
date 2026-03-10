@@ -315,7 +315,7 @@ export default function YearOnYearTab() {
 
 function KpiPill({ label, value, subtitle, amber, badge }: { label: string; value: string; subtitle?: string; amber?: boolean; badge?: string }) {
   return (
-    <div className="rounded-[16px] px-4 py-3 shadow-sm" style={{ backgroundColor: amber ? "#fff8e7" : "#FFF8F0", border: "1px solid #f0e6da" }}>
+    <div className="rounded-[16px] px-4 py-3 shadow-sm" style={{ backgroundColor: amber ? "#fff8e7" : "#FFF8F0", border: "1px solid #f0e6da", flex: "1", minWidth: 0 }}>
       <p className="text-[10px] uppercase tracking-widest font-semibold" style={{ color: "#8B6F5C" }}>{label}</p>
       <div className="flex items-center gap-2">
         <p className="text-lg font-bold" style={{ color: "#2D1B0E" }}>{value}</p>
