@@ -66,6 +66,16 @@ function getGroomerWindows(
   baseSchedules: StaffAvailability[],
   overrides: ScheduleOverride[]
 ): TimeWindow[] {
+  // CRITICAL: Check for full-day off overrides FIRST (is_working=false with null times)
+  // When Work Schedule removes a shift, it creates an override with is_working=false
+  // and null start/end times — this means the groomer is NOT available all day.
+  const fullDayOff = overrides.some(
+    (o) => o.staff_id === groomerId && !o.is_working && !o.start_time && !o.end_time
+  );
+  if (fullDayOff) {
+    return []; // Groomer is completely unavailable this day
+  }
+
   // Get base schedule for this groomer + day
   const baseForDay = baseSchedules.filter(
     (s) => s.staff_id === groomerId && s.day_of_week === dayOfWeek && s.is_available
@@ -76,7 +86,7 @@ function getGroomerWindows(
     (o) => o.staff_id === groomerId && o.is_working && o.start_time && o.end_time
   );
 
-  // Check for blocks (is_working=false)
+  // Check for partial blocks (is_working=false WITH specific times)
   const blocks = overrides.filter(
     (o) => o.staff_id === groomerId && !o.is_working && o.start_time && o.end_time
   );
@@ -86,8 +96,6 @@ function getGroomerWindows(
 
   if (manualOpenings.length > 0) {
     // Manual openings REPLACE the base schedule for this day
-    // (if someone is normally off but opened, use the opening)
-    // (if someone is normally on and has an opening, the opening takes priority)
     for (const mo of manualOpenings) {
       windows.push({
         start: parseTimeToMinutes(mo.start_time!),
@@ -112,7 +120,7 @@ function getGroomerWindows(
     }
   }
 
-  // Subtract blocks
+  // Subtract partial blocks
   for (const block of blocks) {
     const blockStart = parseTimeToMinutes(block.start_time!);
     const blockEnd = parseTimeToMinutes(block.end_time!);
