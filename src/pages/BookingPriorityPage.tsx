@@ -195,6 +195,15 @@ const BookingPriorityPage = () => {
                       ))}
                     </div>
                   )}
+                  {blocked.length > 0 && (
+                    <div className="border-t border-border pt-2 mt-2">
+                      <p className="text-xs text-destructive mb-1">🚫 No New Bookings (hidden from customers)</p>
+                      {blocked.map(g => (
+                        <div key={g.id} className="flex items-center gap-2 text-sm pl-8">
+                          <span className="text-destructive/70">{g.name}</span>
+                        </div>
+                      ))}
+                    </div>
                   {notAccepting.length > 0 && (
                     <div className="border-t border-border pt-2 mt-2">
                       <p className="text-xs text-muted-foreground mb-1">Not Accepting Bookings</p>
