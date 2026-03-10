@@ -286,5 +286,27 @@ export function useTimelineAnalytics() {
     return { bestMonthEver: bestEver, bestMonthThisYear: bestThisYear, mostLoyalCustomer: mostLoyal, topGroomer: topGroomerH, busiestDay, vsLastYear };
   }, [dbData, timeline, groomers, currentYear, currentMonth]);
 
-  return { isLoading, isEmpty: !dbData?.length, timeline, kpi, bestMonthIdx, services, groomers, highlights };
+  // Annual summary
+  const annualSummary = useMemo((): AnnualSummary[] => {
+    if (!dbData?.length) return [];
+    const yearMap = new Map<number, { revenue: number; bookings: number }>();
+    dbData.forEach(row => {
+      if (row.booking_status !== "Confirmed" || !row.created_year) return;
+      if (!yearMap.has(row.created_year)) yearMap.set(row.created_year, { revenue: 0, bookings: 0 });
+      const y = yearMap.get(row.created_year)!;
+      y.revenue += Number(row.price_charged) || 0;
+      y.bookings += 1;
+    });
+    const years = [...yearMap.keys()].sort((a, b) => a - b);
+    return years.map((year, i) => {
+      const d = yearMap.get(year)!;
+      const prev = i > 0 ? yearMap.get(years[i - 1])! : null;
+      const growthPct = prev && prev.revenue > 0
+        ? Math.round(((d.revenue - prev.revenue) / prev.revenue) * 100)
+        : null;
+      return { year, revenue: Math.round(d.revenue), bookings: d.bookings, growthPct, isCurrentYear: year === currentYear };
+    });
+  }, [dbData, currentYear]);
+
+  return { isLoading, isEmpty: !dbData?.length, timeline, kpi, bestMonthIdx, services, groomers, highlights, annualSummary };
 }

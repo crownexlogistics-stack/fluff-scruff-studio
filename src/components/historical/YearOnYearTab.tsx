@@ -77,6 +77,40 @@ export default function YearOnYearTab() {
         <KpiPill label="Avg Monthly Revenue" value={`£${kpi.avgMonthlyRevenue.toLocaleString()}`} />
       </div>
 
+      {/* Annual Revenue Cards */}
+      {annualSummary.length > 0 && (
+        <div className="flex flex-wrap gap-4">
+          {annualSummary.map(yr => {
+            const yearColors: Record<number, string> = { 2024: "#FFB800", 2025: "#FF6B35", 2026: "#2D1B0E" };
+            const borderColor = yearColors[yr.year] || "#FF6B35";
+            return (
+              <div
+                key={yr.year}
+                className="rounded-[20px] bg-white shadow-sm px-5 py-4 min-w-[180px] flex-1"
+                style={{ borderLeft: `4px solid ${borderColor}` }}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="font-heading text-xl font-bold" style={{ color: "#2D1B0E" }}>{yr.year}</span>
+                  {yr.isCurrentYear && (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ backgroundColor: "#FFB800", color: "#2D1B0E" }}>In Progress</span>
+                  )}
+                </div>
+                <p className="font-heading text-2xl font-bold" style={{ color: "#2D1B0E" }}>£{yr.revenue.toLocaleString()}</p>
+                <p className="text-xs" style={{ color: "#8B6F5C" }}>{yr.bookings.toLocaleString()} confirmed bookings</p>
+                {yr.growthPct !== null && (
+                  <span
+                    className="inline-block mt-1 text-[10px] font-bold px-2 py-0.5 rounded-full text-white"
+                    style={{ backgroundColor: yr.growthPct >= 0 ? "#22c55e" : "#ef4444" }}
+                  >
+                    {yr.growthPct >= 0 ? "↑" : "↓"} {Math.abs(yr.growthPct)}% vs {yr.year - 1}
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {/* Main layout */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
