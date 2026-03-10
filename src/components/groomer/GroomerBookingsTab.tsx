@@ -367,7 +367,8 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
 
         if (eventStaffId) {
           await supabase.from("commission_records").insert({
-            booking_id: bookingId,
+            booking_id: null,
+            migrated_booking_id: bookingId,
             staff_id: eventStaffId,
             total_price: totalPrice,
             deposit_paid: Number(migratedEvent?.deposit_paid || checkoutBooking?.deposit_paid || 0),
@@ -376,7 +377,7 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
             commission_rate: rate,
             groomer_pay: groomerPay,
             studio_share: studioShare,
-          });
+          } as any);
         }
 
         logAudit({ staffId: eventStaffId, action: "MIGRATED_BOOKING_COMPLETED", details: `Completed migrated booking for ${migratedEvent?.customer_name || checkoutBooking?.customer_name}. Total: £${totalPrice.toFixed(2)}. Final charge: £${finalCharge.toFixed(2)}. Commission: ${isOwnCustomer ? "Own 50%" : "Standard 40%"} = £${groomerPay.toFixed(2)} groomer / £${studioShare.toFixed(2)} studio.` });
