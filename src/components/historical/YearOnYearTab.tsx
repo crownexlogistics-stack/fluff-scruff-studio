@@ -246,9 +246,9 @@ export default function YearOnYearTab() {
               <XAxis dataKey="year" />
               <YAxis />
               <Tooltip formatter={(v: number) => chartMetric === "revenue" ? `£${v.toLocaleString()}` : v} />
-              <Bar dataKey={chartMetric} radius={[8, 8, 0, 0]} fill="#FF6B35">
+              <Bar dataKey={chartMetric} radius={[8, 8, 0, 0]}>
                 {chartData.map((entry, i) => (
-                  <rect key={i} fill={YEAR_COLORS[parseInt(entry.year)] || "#FF6B35"} />
+                  <Cell key={i} fill={YEAR_COLORS[parseInt(entry.year)] || "#FF6B35"} />
                 ))}
               </Bar>
             </BarChart>
