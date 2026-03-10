@@ -60,6 +60,7 @@ export interface KpiSummary {
   totalBookings: number;
   totalRevenue: number;
   totalCustomers: number;
+  returningCustomers: number;
   avgMonthlyRevenue: number;
 }
 
