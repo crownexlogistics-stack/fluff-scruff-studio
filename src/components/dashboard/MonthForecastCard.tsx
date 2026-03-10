@@ -184,16 +184,35 @@ const MonthForecastCard = () => {
   const confirmedCount = completedBookings.length + upcomingBookings.length
     + migratedCompleted.length + migratedUpcoming.length;
 
-  // Groomer pay
+  // Groomer pay from commission records (already checked out)
+  const commissionBookingIds = useMemo(() => new Set(commissions.map((c: any) => c.booking_id).filter(Boolean)), [commissions]);
   const groomerPayPaid = commissions.reduce((s: number, c: any) => s + Number(c.groomer_pay || 0), 0);
 
-  // Estimate groomer pay on upcoming bookings
+  // Estimate groomer pay for completed bookings that have NO commission record yet
+  const groomerPayCompletedEstimate = useMemo(() => {
+    return completedBookings
+      .filter((b: any) => !commissionBookingIds.has(b.id))
+      .reduce((s: number, b: any) => {
+        if (b.status === "No Show") {
+          return s + Number(b.deposit_paid || 0) * 0.5;
+        }
+        const rate = b.is_groomers_own_customer ? 0.5 : 0.4;
+        return s + Number(b.total_price || 0) * rate;
+      }, 0);
+  }, [completedBookings, commissionBookingIds]);
+
+  // Estimate groomer pay on upcoming bookings (both main + migrated)
   const groomerPayUpcoming = useMemo(() => {
-    return upcomingBookings.reduce((s: number, b: any) => {
+    const mainPay = upcomingBookings.reduce((s: number, b: any) => {
       const rate = b.is_groomers_own_customer ? 0.5 : 0.4;
       return s + Number(b.total_price || 0) * rate;
     }, 0);
-  }, [upcomingBookings]);
+    // Migrated bookings don't have is_groomers_own_customer, default to 40%
+    const migratedPay = migratedUpcoming.reduce((s: number, b: any) => {
+      return s + Number(b.total_price || 0) * 0.4;
+    }, 0);
+    return mainPay + migratedPay;
+  }, [upcomingBookings, migratedUpcoming]);
 
   // Expenses
   const dateAware = calcDateAwareExpenses(recurringExpenses, forecastMonth, today);
