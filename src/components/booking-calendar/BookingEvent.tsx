@@ -14,6 +14,8 @@ import { toast } from "sonner";
 import { logAudit } from "@/lib/auditLog";
 import { useQuery } from "@tanstack/react-query";
 import { SendPaymentLinkDialog } from "./SendPaymentLinkDialog";
+import { DogBriefButton } from "./DogBriefButton";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 export interface BookingData {
   id: string;
