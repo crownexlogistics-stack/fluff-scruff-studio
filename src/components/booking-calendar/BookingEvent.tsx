@@ -14,6 +14,8 @@ import { toast } from "sonner";
 import { logAudit } from "@/lib/auditLog";
 import { useQuery } from "@tanstack/react-query";
 import { SendPaymentLinkDialog } from "./SendPaymentLinkDialog";
+import { DogBriefButton } from "./DogBriefButton";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 export interface BookingData {
   id: string;
@@ -321,6 +323,7 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
         </div>
       </PopoverTrigger>
       <PopoverContent className="w-[calc(100vw-2rem)] sm:w-80 max-w-sm p-0" side="bottom" align="center" sideOffset={4}>
+        <ScrollArea className="max-h-[70vh]">
         <div className="p-4 space-y-3">
           {/* Top: Customer info */}
           <div className="flex items-center gap-3">
@@ -519,6 +522,13 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
           )}
           <SendPaymentLinkDialog open={paymentLinkOpen} onOpenChange={setPaymentLinkOpen} booking={booking} />
 
+          {/* AI Dog Brief */}
+          {booking.status !== "Cancelled" && booking.status !== "Refunded" && (
+            <div className="border-t pt-3">
+              <DogBriefButton booking={booking} />
+            </div>
+          )}
+
           {/* Action bar */}
           <div className="border-t pt-3 flex flex-wrap items-center gap-2">
             {/* 3-dot menu */}
@@ -553,6 +563,7 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
             )}
           </div>
         </div>
+        </ScrollArea>
       </PopoverContent>
     </Popover>
   );
