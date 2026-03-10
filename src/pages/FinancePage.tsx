@@ -117,6 +117,27 @@ const FinancePage = () => {
     },
   });
 
+  // Wix historical bookings for the period
+  const { data: wixHistorical = [] } = useQuery({
+    queryKey: ["wix-historical-finance", periodStartStr, periodEndStr],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("wix_historical_bookings")
+        .select("price_charged, revenue_recognised, appointment_date")
+        .gte("appointment_date", `${periodStartStr}T00:00:00`)
+        .lte("appointment_date", `${periodEndStr}T23:59:59`)
+        .eq("revenue_recognised", true);
+      if (error) throw error;
+      return data as any[];
+    },
+    enabled: includeWixHistory,
+  });
+
+  const wixRevenue = useMemo(() => {
+    if (!includeWixHistory) return 0;
+    return wixHistorical.reduce((s: number, b: any) => s + Number(b.price_charged || 0), 0);
+  }, [wixHistorical, includeWixHistory]);
+
   const payLinksRevenue = useMemo(() => {
     return paidPayLinks.reduce((s, pl: any) => s + Number(pl.amount || 0), 0);
   }, [paidPayLinks]);
