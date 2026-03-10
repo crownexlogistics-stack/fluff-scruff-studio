@@ -348,14 +348,25 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
   });
 
   const completeMutation = useMutation({
-    mutationFn: async ({ bookingId, finalCharge }: { bookingId: string; finalCharge: number }) => {
-      const { error } = await (supabase.from("bookings") as any).update({ status: "Completed", final_charge: finalCharge }).eq("id", bookingId);
-      if (error) throw error;
-      logAudit({ action: "BOOKING_COMPLETED", details: `Completed booking ${bookingId}. Final charge: £${finalCharge.toFixed(2)}` });
+    mutationFn: async ({ bookingId, finalCharge, isMigrated }: { bookingId: string; finalCharge: number; isMigrated?: boolean }) => {
+      if (isMigrated) {
+        // For migrated bookings, update the migrated_bookings table
+        const { error } = await supabase.from("migrated_bookings").update({
+          payment_status: "Completed",
+          amount_due: 0,
+        }).eq("id", bookingId);
+        if (error) throw error;
+        logAudit({ action: "MIGRATED_BOOKING_COMPLETED", details: `Completed migrated booking ${bookingId}. Final charge: £${finalCharge.toFixed(2)}` });
+      } else {
+        const { error } = await (supabase.from("bookings") as any).update({ status: "Completed", final_charge: finalCharge }).eq("id", bookingId);
+        if (error) throw error;
+        logAudit({ action: "BOOKING_COMPLETED", details: `Completed booking ${bookingId}. Final charge: £${finalCharge.toFixed(2)}` });
+      }
     },
     onSuccess: () => {
       toast.success("Appointment completed");
       queryClient.invalidateQueries({ queryKey: ["groomer-bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["groomer-migrated-bookings"] });
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -563,7 +574,7 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
         open={checkoutOpen}
         onOpenChange={setCheckoutOpen}
         booking={checkoutBooking}
-        onComplete={(id, charge) => completeMutation.mutate({ bookingId: id, finalCharge: charge })}
+        onComplete={(id, charge) => completeMutation.mutate({ bookingId: id, finalCharge: charge, isMigrated: checkoutBooking?.is_migrated })}
         onNoShow={(id) => noShowMutation.mutate(id)}
       />
       <ViewOrderDialog open={viewOrderOpen} onOpenChange={setViewOrderOpen} booking={viewOrderBooking} />

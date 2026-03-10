@@ -221,47 +221,68 @@ const BookingsPage = () => {
   // Complete booking mutation — also creates commission record
   const completeMutation = useMutation({
     mutationFn: async ({ bookingId, finalCharge, isOwnCustomer }: { bookingId: string; finalCharge: number; isOwnCustomer: boolean }) => {
-      const { error } = await (supabase.from("bookings") as any).update({ status: "Completed", final_charge: finalCharge, is_groomers_own_customer: isOwnCustomer }).eq("id", bookingId);
-      if (error) throw error;
+      // Check if this is a migrated booking
+      const isMigrated = checkoutBooking?.is_migrated;
 
-      // Find the booking to calculate commission on TOTAL SERVICE PRICE (not final charge)
-      const booking = bookings.find(b => b.id === bookingId);
-      const totalPrice = Number(booking?.total_price || 0);
-      const rate = isOwnCustomer ? 0.5 : 0.4;
-      const groomerPay = Math.round(totalPrice * rate * 100) / 100;
-      const studioShare = Math.round((totalPrice - groomerPay) * 100) / 100;
+      if (isMigrated) {
+        const { error } = await supabase.from("migrated_bookings").update({
+          payment_status: "Completed",
+          amount_due: 0,
+        }).eq("id", bookingId);
+        if (error) throw error;
 
-      if (booking && booking.staff_id) {
-        await supabase.from("commission_records").insert({
-          booking_id: bookingId,
-          staff_id: booking.staff_id,
-          total_price: totalPrice,
-          deposit_paid: Number(booking.deposit_paid),
-          final_charge: finalCharge,
-          commission_type: isOwnCustomer ? "own_customer" : "normal",
-          commission_rate: rate,
-          groomer_pay: groomerPay,
-          studio_share: studioShare,
-        });
+        // Find staff for commission
+        const migratedBooking = migratedBookings?.find((b: any) => b.id === bookingId);
+        const totalPrice = Number(checkoutBooking?.total_price || 0);
+        const rate = isOwnCustomer ? 0.5 : 0.4;
+        const groomerPay = Math.round(totalPrice * rate * 100) / 100;
+        const studioShare = Math.round((totalPrice - groomerPay) * 100) / 100;
+
+        logAudit({ action: "MIGRATED_BOOKING_COMPLETED", details: `Completed migrated booking for ${checkoutBooking?.customer_name}. Total: £${totalPrice.toFixed(2)}. Final charge: £${finalCharge.toFixed(2)}. Commission: ${isOwnCustomer ? "Own 50%" : "Standard 40%"} = £${groomerPay.toFixed(2)} groomer / £${studioShare.toFixed(2)} studio.` });
+      } else {
+        const { error } = await (supabase.from("bookings") as any).update({ status: "Completed", final_charge: finalCharge, is_groomers_own_customer: isOwnCustomer }).eq("id", bookingId);
+        if (error) throw error;
+
+        // Find the booking to calculate commission on TOTAL SERVICE PRICE (not final charge)
+        const booking = bookings.find(b => b.id === bookingId);
+        const totalPrice = Number(booking?.total_price || 0);
+        const rate = isOwnCustomer ? 0.5 : 0.4;
+        const groomerPay = Math.round(totalPrice * rate * 100) / 100;
+        const studioShare = Math.round((totalPrice - groomerPay) * 100) / 100;
+
+        if (booking && booking.staff_id) {
+          await supabase.from("commission_records").insert({
+            booking_id: bookingId,
+            staff_id: booking.staff_id,
+            total_price: totalPrice,
+            deposit_paid: Number(booking.deposit_paid),
+            final_charge: finalCharge,
+            commission_type: isOwnCustomer ? "own_customer" : "normal",
+            commission_rate: rate,
+            groomer_pay: groomerPay,
+            studio_share: studioShare,
+          });
+        }
+
+        const expectedRemaining = totalPrice - Number(booking?.deposit_paid || 0);
+        const chargeChanged = Math.abs(finalCharge - expectedRemaining) > 0.01;
+        const auditParts = [
+          `Completed booking for ${booking?.customer_name || "Unknown"} (${booking?.dog_name || "Unknown"}).`,
+          `Service: ${booking?.service_name || "Unknown"}.`,
+          `Total price: £${totalPrice.toFixed(2)}.`,
+          `Deposit: £${Number(booking?.deposit_paid || 0).toFixed(2)}.`,
+          chargeChanged
+            ? `⚠️ FINAL CHARGE ADJUSTED — Expected: £${expectedRemaining.toFixed(2)} → Actual: £${finalCharge.toFixed(2)}`
+            : `Final charge: £${finalCharge.toFixed(2)}.`,
+          `Commission: ${isOwnCustomer ? "Own Customer 50%" : "Standard 40%"} = £${groomerPay.toFixed(2)} groomer / £${studioShare.toFixed(2)} studio.`,
+        ];
+        logAudit({ staffId: booking?.staff_id, action: chargeChanged ? "BOOKING_COMPLETED_CHARGE_ADJUSTED" : "BOOKING_COMPLETED", details: auditParts.join(" ") });
       }
-
-      const expectedRemaining = totalPrice - Number(booking?.deposit_paid || 0);
-      const chargeChanged = Math.abs(finalCharge - expectedRemaining) > 0.01;
-      const auditParts = [
-        `Completed booking for ${booking?.customer_name || "Unknown"} (${booking?.dog_name || "Unknown"}).`,
-        `Service: ${booking?.service_name || "Unknown"}.`,
-        `Total price: £${totalPrice.toFixed(2)}.`,
-        `Deposit: £${Number(booking?.deposit_paid || 0).toFixed(2)}.`,
-        chargeChanged
-          ? `⚠️ FINAL CHARGE ADJUSTED — Expected: £${expectedRemaining.toFixed(2)} → Actual: £${finalCharge.toFixed(2)}`
-          : `Final charge: £${finalCharge.toFixed(2)}.`,
-        `Commission: ${isOwnCustomer ? "Own Customer 50%" : "Standard 40%"} = £${groomerPay.toFixed(2)} groomer / £${studioShare.toFixed(2)} studio.`,
-      ];
-      logAudit({ staffId: booking?.staff_id, action: chargeChanged ? "BOOKING_COMPLETED_CHARGE_ADJUSTED" : "BOOKING_COMPLETED", details: auditParts.join(" ") });
     },
     onSuccess: () => {
       toast.success("Appointment completed");
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["migrated-bookings"] });
       queryClient.invalidateQueries({ queryKey: ["audit-logs"] });
       queryClient.invalidateQueries({ queryKey: ["commission-records"] });
     },
