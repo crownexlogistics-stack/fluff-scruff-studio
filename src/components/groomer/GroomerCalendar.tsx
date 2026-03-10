@@ -262,6 +262,9 @@ export function GroomerCalendar({ currentDate, daysToShow, staff, bookings, curr
   const scrollRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
   const canInteract = !!onBook && !!onBlock && (userRole === "groomer" || userRole === "manager" || userRole === "director");
+  // Only show narrow other-groomer columns in 1-day or 3-day view
+  const showNarrowCols = !isMobile && daysToShow <= 3;
+  const NARROW_COL_WIDTH = daysToShow === 1 ? 60 : 40;
 
   const days = useMemo(() => Array.from({ length: daysToShow }, (_, i) => addDays(currentDate, i)), [currentDate, daysToShow]);
 
