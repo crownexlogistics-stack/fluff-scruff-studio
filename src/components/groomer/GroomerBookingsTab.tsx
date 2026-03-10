@@ -72,9 +72,10 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
   const { data: allStaff = [] } = useQuery({
     queryKey: ["staff-list-groomer"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("staff").select("id, name").order("name");
+      const { data, error } = await supabase.from("staff").select("id, name, is_accepting_bookings").order("name");
       if (error) throw error;
-      return data;
+      // Filter: only show staff who are accepting bookings (or the current groomer themselves)
+      return (data || []).filter((s: any) => s.is_accepting_bookings !== false || s.id === staffId);
     },
   });
 
