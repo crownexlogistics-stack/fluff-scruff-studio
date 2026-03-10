@@ -74,8 +74,11 @@ function parseRow(row: Record<string, string>): ParsedRow {
   const orderNumber = (row["Order Number"] || "").trim() || null;
   const registrationDate = parseWixDate(row["Registration Date"]);
 
-  // Parse order total: strip £ and commas
-  const rawTotal = (row["Order Total"] || "0").replace(/[£$,]/g, "").trim();
+  // Parse order total: strip ALL £ signs and commas
+  const rawTotal = (row["Order Total"] || "0")
+    .replace(/£/g, "")
+    .replace(/,/g, "")
+    .trim();
   const orderTotal = parseFloat(rawTotal) || 0;
 
   // Form fields
