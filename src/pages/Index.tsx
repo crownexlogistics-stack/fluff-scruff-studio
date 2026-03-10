@@ -147,6 +147,7 @@ const STATUS_COLORS: Record<string, string> = {
 const Index = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { isDirector, isManager } = usePermissions();
   const [rangeKey, setRangeKey] = useState<RangeKey>("month");
   const [customStart, setCustomStart] = useState<Date | undefined>();
   const [customEnd, setCustomEnd] = useState<Date | undefined>();
