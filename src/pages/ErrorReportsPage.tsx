@@ -208,7 +208,7 @@ export default function ErrorReportsPage() {
   }, [nonLoginReports, filter]);
 
   const summaryCount = useMemo(() => {
-    const active = reports.filter(r => r.status !== "resolved");
+    const active = nonLoginReports.filter(r => r.status !== "resolved");
     const groups = new Map<string, string | null>();
     for (const r of active) {
       const key = `${r.error_description.slice(0, 120)}||${r.page_url}`;
@@ -221,7 +221,7 @@ export default function ErrorReportsPage() {
       else medium++;
     }
     return { high, medium, low, total: groups.size };
-  }, [reports]);
+  }, [nonLoginReports]);
 
   const analyseError = async (reportId: string) => {
     setAnalysingIds(prev => new Set(prev).add(reportId));
