@@ -90,6 +90,7 @@ export default function ErrorReportsPage() {
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
   const [analysingIds, setAnalysingIds] = useState<Set<string>>(new Set());
   const [resolveDialogGroup, setResolveDialogGroup] = useState<GroupedError | null>(null);
+  const [activeMainTab, setActiveMainTab] = useState<"errors" | "login">("errors");
 
   const fetchReports = async () => {
     const { data } = await supabase.from("error_reports" as any).select("*").order("created_at", { ascending: false });
