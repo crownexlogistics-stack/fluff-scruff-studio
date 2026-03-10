@@ -190,14 +190,11 @@ const MonthForecastCard = () => {
   const commissionBookingIds = useMemo(() => new Set(commissions.map((c: any) => c.booking_id).filter(Boolean)), [commissions]);
   const groomerPayPaid = commissions.reduce((s: number, c: any) => s + Number(c.groomer_pay || 0), 0);
 
-  // Estimate groomer pay for completed bookings that have NO commission record yet
+  // Estimate groomer pay for past bookings that have NO commission record yet
   const groomerPayCompletedEstimate = useMemo(() => {
     return completedBookings
       .filter((b: any) => !commissionBookingIds.has(b.id))
       .reduce((s: number, b: any) => {
-        if (b.status === "No Show") {
-          return s + Number(b.deposit_paid || 0) * 0.5;
-        }
         const rate = b.is_groomers_own_customer ? 0.5 : 0.4;
         return s + Number(b.total_price || 0) * rate;
       }, 0);
