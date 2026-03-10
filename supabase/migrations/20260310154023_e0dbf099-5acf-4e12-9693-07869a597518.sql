@@ -1,0 +1,1 @@
+ALTER TABLE public.commission_records ADD COLUMN IF NOT EXISTS booking_source TEXT NOT NULL DEFAULT 'booking';

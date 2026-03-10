@@ -474,6 +474,7 @@ export type Database = {
       commission_records: {
         Row: {
           booking_id: string | null
+          booking_source: string
           commission_rate: number
           commission_type: string
           created_at: string
@@ -488,6 +489,7 @@ export type Database = {
         }
         Insert: {
           booking_id?: string | null
+          booking_source?: string
           commission_rate?: number
           commission_type?: string
           created_at?: string
@@ -502,6 +504,7 @@ export type Database = {
         }
         Update: {
           booking_id?: string | null
+          booking_source?: string
           commission_rate?: number
           commission_type?: string
           created_at?: string
