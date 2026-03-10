@@ -286,8 +286,8 @@ export function AIChatWidget() {
     : { initial: { y: 40, opacity: 0, scale: 0.95 }, animate: { y: 0, opacity: 1, scale: 1 }, exit: { y: 40, opacity: 0, scale: 0.95 } };
 
   const panelTransition = isMobile
-    ? { type: "tween", duration: 0.3, ease: "easeOut" }
-    : { type: "spring", stiffness: 400, damping: 30 };
+    ? { type: "tween" as const, duration: 0.3, ease: [0, 0, 0.2, 1] as const }
+    : { type: "spring" as const, stiffness: 400, damping: 30 };
 
   return (
     <>
