@@ -14,6 +14,7 @@ const PRIORITY_OPTIONS = [
   { value: "3", label: "3rd Priority", emoji: "🥉" },
   { value: "4", label: "4th Priority", emoji: "4️⃣" },
   { value: "none", label: "No Priority", emoji: "" },
+  { value: "block", label: "No New Bookings", emoji: "🚫" },
 ];
 
 function getPriorityBadge(priority: number | null) {
