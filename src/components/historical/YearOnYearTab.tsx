@@ -32,9 +32,15 @@ export default function YearOnYearTab() {
 
   const handleDownload = useCallback(async () => {
     if (!exportRef.current) return;
+    const el = exportRef.current;
+    // Temporarily force wide layout for PDF capture
+    const origStyle = el.style.cssText;
+    el.style.width = "1200px";
+    el.style.padding = "32px";
     const html2canvas = (await import("html2canvas")).default;
     const jsPDF = (await import("jspdf")).default;
-    const canvas = await html2canvas(exportRef.current, { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
+    const canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
+    el.style.cssText = origStyle; // restore
     const imgData = canvas.toDataURL("image/png");
     const pdf = new jsPDF({ orientation: "landscape", unit: "px", format: [canvas.width, canvas.height] });
     pdf.addImage(imgData, "PNG", 0, 0, canvas.width, canvas.height);
