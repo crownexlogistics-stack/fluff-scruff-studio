@@ -5,6 +5,7 @@ import {
   LogOut, Sparkles, AlertTriangle, ShieldCheck, BookOpen,
   Inbox, FileText, Ticket, PoundSterling, Bug, Activity, ArrowRightLeft,
   PawPrint, Bot, MessageSquare, PhoneForwarded, Settings,
+  BookOpen as HistoryBook,
 } from "lucide-react";
 import logo from "@/assets/logo-transparent.png";
 import { useNewErrorReportsCount } from "@/hooks/useNewErrorReportsCount";
