@@ -721,6 +721,9 @@ const Index = () => {
           </Card>
         </div>
 
+        {/* ── 1a. Daily Briefing ───────────────── */}
+        {(isDirector || isManager) && <DailyBriefingCard />}
+
         {/* ── 1b. Month Forecast ───────────────────── */}
         <MonthForecastCard />
 
