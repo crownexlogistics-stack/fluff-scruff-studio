@@ -221,7 +221,8 @@ const MonthForecastCard = () => {
   const billsUpcoming = (isPastMonth ? 0 : dateAware.upcomingTotal)
     + oneOffUpcoming.reduce((s: number, e: any) => s + Number(e.amount || 0), 0);
 
-  const totalProjectedCosts = groomerPayPaid + groomerPayUpcoming + billsPaid + billsUpcoming;
+  const totalGroomerPay = groomerPayPaid + groomerPayCompletedEstimate + groomerPayUpcoming;
+  const totalProjectedCosts = totalGroomerPay + billsPaid + billsUpcoming;
   const projectedProfit = totalProjectedIncome - totalProjectedCosts;
   const isProfitable = projectedProfit >= 0;
 
