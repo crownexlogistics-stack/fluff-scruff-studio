@@ -1,5 +1,8 @@
+import { useRef, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Download } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   Cell, LineChart, Line, Legend, ComposedChart,
@@ -25,6 +28,18 @@ const gridProps = {
 
 export default function YearOnYearTab() {
   const { isLoading, isEmpty, timeline, kpi, bestMonthIdx, services, groomers, highlights, annualSummary } = useTimelineAnalytics();
+  const exportRef = useRef<HTMLDivElement>(null);
+
+  const handleDownload = useCallback(async () => {
+    if (!exportRef.current) return;
+    const html2canvas = (await import("html2canvas")).default;
+    const jsPDF = (await import("jspdf")).default;
+    const canvas = await html2canvas(exportRef.current, { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
+    const imgData = canvas.toDataURL("image/png");
+    const pdf = new jsPDF({ orientation: "landscape", unit: "px", format: [canvas.width, canvas.height] });
+    pdf.addImage(imgData, "PNG", 0, 0, canvas.width, canvas.height);
+    pdf.save("year-on-year-analytics.pdf");
+  }, []);
 
   if (isLoading) {
     return (
@@ -33,11 +48,8 @@ export default function YearOnYearTab() {
         <div className="flex gap-3">
           {[1,2,3,4].map(i => <Skeleton key={i} className="h-16 w-40 rounded-[16px]" />)}
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {[1,2,3,4,5,6].map(i => <Skeleton key={i} className="h-[320px] rounded-[20px]" />)}
-          </div>
-          <Skeleton className="h-[600px] rounded-[20px]" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {[1,2,3,4,5,6].map(i => <Skeleton key={i} className="h-[320px] rounded-[20px]" />)}
         </div>
       </div>
     );
@@ -57,10 +69,17 @@ export default function YearOnYearTab() {
 
   return (
     <div className="space-y-6">
-      {/* Subtitle */}
-      <p className="text-xs" style={{ color: "#8B6F5C" }}>
-        Showing all data from first booking to present
-      </p>
+      {/* Header row */}
+      <div className="flex items-center justify-between">
+        <p className="text-xs" style={{ color: "#8B6F5C" }}>
+          Showing all data from first booking to present
+        </p>
+        <Button onClick={handleDownload} variant="outline" size="sm" className="rounded-[30px] gap-2">
+          <Download className="h-4 w-4" /> Download PDF
+        </Button>
+      </div>
+
+      <div ref={exportRef} className="space-y-6" style={{ backgroundColor: "#ffffff", padding: "8px" }}>
 
       {/* KPI Pills */}
       <div className="flex flex-wrap gap-3">
@@ -111,9 +130,8 @@ export default function YearOnYearTab() {
         </div>
       )}
 
-      {/* Main layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Main layout — charts only (no sidebar in export) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Panel 1: Revenue Over Time */}
           <Card className="rounded-[20px] border-none shadow-sm md:col-span-2">
             <CardContent className="p-5">
@@ -285,12 +303,12 @@ export default function YearOnYearTab() {
                 <p className="text-sm" style={{ color: "#8B6F5C" }}>No groomer data</p>
               )}
             </CardContent>
-          </Card>
-        </div>
-
-        {/* Sidebar */}
-        <TimelineHighlightsSidebar highlights={highlights} />
+        </Card>
       </div>
+      </div>{/* end exportRef */}
+
+      {/* Sidebar — outside export area */}
+      <TimelineHighlightsSidebar highlights={highlights} />
     </div>
   );
 }
