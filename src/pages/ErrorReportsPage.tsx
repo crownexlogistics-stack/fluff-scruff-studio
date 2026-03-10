@@ -90,6 +90,7 @@ export default function ErrorReportsPage() {
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
   const [analysingIds, setAnalysingIds] = useState<Set<string>>(new Set());
   const [resolveDialogGroup, setResolveDialogGroup] = useState<GroupedError | null>(null);
+  const [activeMainTab, setActiveMainTab] = useState<"errors" | "login">("errors");
 
   const fetchReports = async () => {
     const { data } = await supabase.from("error_reports" as any).select("*").order("created_at", { ascending: false });
@@ -99,11 +100,68 @@ export default function ErrorReportsPage() {
 
   useEffect(() => { fetchReports(); }, []);
 
+  const loginEventTypes = ["LOGIN_FAILED", "ACCOUNT_LOCKED", "SESSION_EXPIRED", "PASSWORD_RESET_REQUESTED", "INVITE_LINK_EXPIRED"];
+
+  const loginReports = useMemo(() => {
+    return reports.filter(r => loginEventTypes.some(t => r.error_description.startsWith(`[${t}]`)));
+  }, [reports]);
+
+  const nonLoginReports = useMemo(() => {
+    return reports.filter(r => !loginEventTypes.some(t => r.error_description.startsWith(`[${t}]`)));
+  }, [reports]);
+
+  // Group login issues by email
+  const loginGrouped = useMemo(() => {
+    const map = new Map<string, { email: string; events: ErrorReport[]; failCount24h: number }>();
+    const now = Date.now();
+    for (const r of loginReports) {
+      const email = r.customer_email || r.steps_to_reproduce?.replace("Email: ", "") || "unknown";
+      if (!map.has(email)) map.set(email, { email, events: [], failCount24h: 0 });
+      const g = map.get(email)!;
+      g.events.push(r);
+      if (r.error_description.includes("LOGIN_FAILED") && (now - new Date(r.created_at).getTime()) < 24 * 60 * 60 * 1000) {
+        g.failCount24h++;
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => {
+      const aLatest = new Date(a.events[0].created_at).getTime();
+      const bLatest = new Date(b.events[0].created_at).getTime();
+      return bLatest - aLatest;
+    });
+  }, [loginReports]);
+
+  const sendFreshLoginLink = async (email: string) => {
+    try {
+      // Extract actual email from masked version - we can't, so use the steps_to_reproduce
+      toast.info("Sending fresh login link...");
+      await supabase.functions.invoke("send-customer-email", {
+        body: {
+          customer_email: "info@fluffandscruff.co.uk",
+          subject: "🔐 Customer Login Assistance Needed",
+          body: `A customer with masked email ${email} has been struggling to log in (3+ failed attempts in 24 hours).\n\nPlease check their account and send them a fresh login link manually from the admin panel.`,
+        },
+      });
+      toast.success("Admin notified — check email to assist this customer");
+    } catch {
+      toast.error("Failed to send notification");
+    }
+  };
+
+  const getLoginEventLabel = (desc: string) => {
+    if (desc.includes("LOGIN_FAILED")) return "❌ Wrong password";
+    if (desc.includes("ACCOUNT_LOCKED")) return "🔒 Account locked";
+    if (desc.includes("SESSION_EXPIRED")) return "⏱️ Session expired";
+    if (desc.includes("PASSWORD_RESET_REQUESTED")) return "🔑 Password reset requested";
+    if (desc.includes("INVITE_LINK_EXPIRED")) return "📨 Expired invite link";
+    return "🔐 Login event";
+  };
+
   const grouped = useMemo(() => {
     const map = new Map<string, GroupedError>();
+    const sourceReports = nonLoginReports;
     const filtered = filter === "resolved"
-      ? reports.filter(r => r.status === "resolved")
-      : reports.filter(r => r.status !== "resolved");
+      ? sourceReports.filter(r => r.status === "resolved")
+      : sourceReports.filter(r => r.status !== "resolved");
 
     for (const r of filtered) {
       const shortDesc = r.error_description.slice(0, 120);
@@ -147,10 +205,10 @@ export default function ErrorReportsPage() {
       if (sa !== sb) return sa - sb;
       return new Date(b.lastSeen).getTime() - new Date(a.lastSeen).getTime();
     });
-  }, [reports, filter]);
+  }, [nonLoginReports, filter]);
 
   const summaryCount = useMemo(() => {
-    const active = reports.filter(r => r.status !== "resolved");
+    const active = nonLoginReports.filter(r => r.status !== "resolved");
     const groups = new Map<string, string | null>();
     for (const r of active) {
       const key = `${r.error_description.slice(0, 120)}||${r.page_url}`;
@@ -163,7 +221,7 @@ export default function ErrorReportsPage() {
       else medium++;
     }
     return { high, medium, low, total: groups.size };
-  }, [reports]);
+  }, [nonLoginReports]);
 
   const analyseError = async (reportId: string) => {
     setAnalysingIds(prev => new Set(prev).add(reportId));
@@ -245,6 +303,63 @@ ${g.lovablePrompt || `Fix the error "${g.description}" on ${g.pageName}.`}
           <h1 className="text-2xl font-bold">Error Reports</h1>
           <p className="text-sm text-muted-foreground">AI-powered error analysis for your website</p>
         </div>
+
+        {/* Main tabs */}
+        <div className="flex gap-2 border-b pb-2">
+          <Button variant={activeMainTab === "errors" ? "default" : "ghost"} size="sm" onClick={() => setActiveMainTab("errors")}>
+            🐛 Errors ({summaryCount.total})
+          </Button>
+          <Button variant={activeMainTab === "login" ? "default" : "ghost"} size="sm" onClick={() => setActiveMainTab("login")}>
+            🔐 Login Issues ({loginReports.length})
+          </Button>
+        </div>
+
+        {activeMainTab === "login" ? (
+          <div className="space-y-4">
+            {loginGrouped.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">No login issues recorded yet.</div>
+            ) : (
+              loginGrouped.map(group => (
+                <Card key={group.email} className={`overflow-hidden ${group.failCount24h >= 3 ? "border-amber-300 dark:border-amber-700" : ""}`}>
+                  <CardContent className="p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-sm font-medium">{group.email}</span>
+                        {group.failCount24h >= 3 && (
+                          <Badge className="bg-amber-500 text-white">⚠️ Struggling</Badge>
+                        )}
+                      </div>
+                      <span className="text-xs text-muted-foreground">{group.events.length} event{group.events.length > 1 ? "s" : ""}</span>
+                    </div>
+                    {group.failCount24h >= 3 && (
+                      <div className="p-2 rounded-lg bg-amber-50 dark:bg-amber-950 text-sm text-amber-700 dark:text-amber-300">
+                        This customer may be struggling — consider sending them a fresh login link.
+                      </div>
+                    )}
+                    <div className="space-y-1">
+                      {group.events.slice(0, 10).map(e => (
+                        <div key={e.id} className="flex items-center justify-between text-xs">
+                          <span>{getLoginEventLabel(e.error_description)}</span>
+                          <span className="text-muted-foreground">{format(new Date(e.created_at), "dd MMM HH:mm")}</span>
+                        </div>
+                      ))}
+                      {group.events.length > 10 && (
+                        <p className="text-xs text-muted-foreground">...and {group.events.length - 10} more</p>
+                      )}
+                    </div>
+                    {group.failCount24h >= 3 && (
+                      <Button size="sm" variant="outline" onClick={() => sendFreshLoginLink(group.email)}>
+                        📧 Send fresh login link
+                      </Button>
+                    )}
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
+        ) : (
+          <>
+
 
         {/* Summary cards */}
         <div className="grid grid-cols-3 gap-3">
@@ -436,6 +551,8 @@ ${g.lovablePrompt || `Fix the error "${g.description}" on ${g.pageName}.`}
             <RefreshCw className="h-3.5 w-3.5 mr-1" /> Refresh
           </Button>
         </div>
+          </>
+        )}
       </div>
 
       {/* Resolve dialog */}

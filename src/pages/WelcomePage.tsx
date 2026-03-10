@@ -29,6 +29,18 @@ export default function WelcomePage() {
       setHasToken(true);
     } else {
       setHasToken(false);
+      // Log expired/invalid invite link attempt
+      if (hash && hash.includes("error")) {
+        supabase.from("error_reports" as any).insert({
+          error_description: "[INVITE_LINK_EXPIRED] Customer tried to use expired or invalid invite link",
+          steps_to_reproduce: `Attempted URL hash contained error`,
+          page_url: window.location.href,
+          browser_info: `${navigator.userAgent.includes("Chrome") ? "Chrome" : "Other"} — ${navigator.userAgent}`,
+          device_info: `${window.innerWidth < 768 ? "Mobile" : "Desktop"} — ${window.innerWidth}x${window.innerHeight}`,
+          status: "new",
+          severity: "medium",
+        } as any).then(() => {});
+      }
     }
   }, [user]);
 
