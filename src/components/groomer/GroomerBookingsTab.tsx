@@ -250,6 +250,43 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
 
   const allEvents = useMemo(() => [...bookings, ...migratedBookings, ...overrides, ...offDayBlocks], [bookings, migratedBookings, overrides, offDayBlocks]);
 
+  // Convert to BookingData[] for WeeklyCalendar
+  const calendarBookings = useMemo<BookingData[]>(() =>
+    allEvents.map(b => ({
+      id: b.id,
+      customer_name: b.customer_name,
+      dog_name: b.dog_name,
+      booking_date: b.booking_date,
+      booking_time: b.booking_time,
+      total_price: b.total_price || 0,
+      deposit_paid: b.deposit_paid || 0,
+      status: b.status,
+      notes: b.notes,
+      customer_email: b.customer_email || null,
+      customer_phone: b.customer_phone || null,
+      staff_name: b.staff_name,
+      staff_id: b.staff_id,
+      breed_name: b.breed_name,
+      service_name: b.service_name,
+      is_block: b.is_block,
+      is_overtime: b.is_overtime,
+      end_time: b.end_time,
+      service_id: b.service_id,
+      breed_id: b.breed_id,
+      final_charge: b.final_charge,
+      stripe_payment_id: b.stripe_payment_id ?? null,
+      duration_minutes: b.duration_minutes,
+      is_migrated: b.is_migrated,
+    })),
+    [allEvents]
+  );
+
+  const staffIndexMap = useMemo(() => {
+    const map = new Map<string, number>();
+    allStaff.forEach((s, i) => map.set(s.name, i));
+    return map;
+  }, [allStaff]);
+
   const ownBookings = useMemo(() =>
     bookings
       .filter(b => b.is_own && !b.is_block)
