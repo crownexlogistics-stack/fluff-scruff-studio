@@ -135,6 +135,7 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
       return (data || []).map((mb: any) => {
         const staffFirstName = mb.staff_name?.split(" ")[0]?.trim() || "";
         const matchedStaff = allStaff.find(s => s.name.split(" ")[0].toLowerCase() === staffFirstName.toLowerCase());
+        const isCompleted = mb.payment_status === "Completed";
         return {
           id: mb.id,
           customer_name: mb.migrated_customers?.full_name || "Unknown",
@@ -143,7 +144,7 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
           booking_time: mb.booking_time || "09:00",
           total_price: Number(mb.total_price || 0),
           deposit_paid: Number(mb.deposit_paid || 0),
-          status: "Confirmed",
+          status: isCompleted ? "Completed" : "Confirmed",
           notes: mb.notes,
           customer_email: mb.migrated_customers?.email || null,
           customer_phone: mb.migrated_customers?.phone || null,
@@ -155,6 +156,8 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
           is_migrated: true,
           is_block: false,
           is_own: matchedStaff?.id === staffId,
+          migrated_payment_status: mb.payment_status,
+          migrated_amount_due: mb.amount_due != null ? Number(mb.amount_due) : null,
         } as GroomerCalendarBooking;
       });
     },
