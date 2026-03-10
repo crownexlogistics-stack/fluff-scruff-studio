@@ -25,7 +25,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon, Plus, Pencil, Trash2, ChevronLeft, ChevronRight, ArrowLeftRight } from "lucide-react";
-import { format, startOfMonth, endOfMonth, addMonths, subMonths, parseISO } from "date-fns";
+import { format, startOfMonth, endOfMonth, addMonths, subMonths, parseISO, isSameMonth } from "date-fns";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
