@@ -85,7 +85,7 @@ export default function YearOnYearTab() {
         </Button>
       </div>
 
-      <div ref={exportRef} style={{ width: "1200px", backgroundColor: "#ffffff", padding: "32px" }} className="space-y-6">
+      <div ref={exportRef} className="space-y-6">
 
       {/* KPI Pills */}
       <div style={{ display: "flex", flexDirection: "row", flexWrap: "nowrap", gap: "12px" }}>
