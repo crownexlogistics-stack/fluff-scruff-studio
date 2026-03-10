@@ -304,6 +304,63 @@ ${g.lovablePrompt || `Fix the error "${g.description}" on ${g.pageName}.`}
           <p className="text-sm text-muted-foreground">AI-powered error analysis for your website</p>
         </div>
 
+        {/* Main tabs */}
+        <div className="flex gap-2 border-b pb-2">
+          <Button variant={activeMainTab === "errors" ? "default" : "ghost"} size="sm" onClick={() => setActiveMainTab("errors")}>
+            🐛 Errors ({summaryCount.total})
+          </Button>
+          <Button variant={activeMainTab === "login" ? "default" : "ghost"} size="sm" onClick={() => setActiveMainTab("login")}>
+            🔐 Login Issues ({loginReports.length})
+          </Button>
+        </div>
+
+        {activeMainTab === "login" ? (
+          <div className="space-y-4">
+            {loginGrouped.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">No login issues recorded yet.</div>
+            ) : (
+              loginGrouped.map(group => (
+                <Card key={group.email} className={`overflow-hidden ${group.failCount24h >= 3 ? "border-amber-300 dark:border-amber-700" : ""}`}>
+                  <CardContent className="p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-sm font-medium">{group.email}</span>
+                        {group.failCount24h >= 3 && (
+                          <Badge className="bg-amber-500 text-white">⚠️ Struggling</Badge>
+                        )}
+                      </div>
+                      <span className="text-xs text-muted-foreground">{group.events.length} event{group.events.length > 1 ? "s" : ""}</span>
+                    </div>
+                    {group.failCount24h >= 3 && (
+                      <div className="p-2 rounded-lg bg-amber-50 dark:bg-amber-950 text-sm text-amber-700 dark:text-amber-300">
+                        This customer may be struggling — consider sending them a fresh login link.
+                      </div>
+                    )}
+                    <div className="space-y-1">
+                      {group.events.slice(0, 10).map(e => (
+                        <div key={e.id} className="flex items-center justify-between text-xs">
+                          <span>{getLoginEventLabel(e.error_description)}</span>
+                          <span className="text-muted-foreground">{format(new Date(e.created_at), "dd MMM HH:mm")}</span>
+                        </div>
+                      ))}
+                      {group.events.length > 10 && (
+                        <p className="text-xs text-muted-foreground">...and {group.events.length - 10} more</p>
+                      )}
+                    </div>
+                    {group.failCount24h >= 3 && (
+                      <Button size="sm" variant="outline" onClick={() => sendFreshLoginLink(group.email)}>
+                        📧 Send fresh login link
+                      </Button>
+                    )}
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
+        ) : (
+          <>
+
+
         {/* Summary cards */}
         <div className="grid grid-cols-3 gap-3">
           {(["high", "medium", "low"] as const).map(sev => {
