@@ -151,36 +151,32 @@ export default function ImportDataTab() {
     if (allParsed.length === 0) return;
     setImporting(true);
     setProgress(0);
-
-    // Fetch ALL existing wix_order_numbers in one query
-    const { data: existing } = await supabase
-      .from("wix_historical_bookings")
-      .select("wix_order_number");
-    const existingSet = new Set((existing || []).map((d: any) => d.wix_order_number).filter(Boolean));
-
-    const toInsert = allParsed.filter(r => !r.wix_order_number || !existingSet.has(r.wix_order_number));
-    const skipped = allParsed.length - toInsert.length;
-
-    console.log("Starting import:", allParsed.length, "rows,", toInsert.length, "to insert after dedup");
-
-    // Batch insert in chunks of 100
     const BATCH = 100;
     let imported = 0;
-    for (let i = 0; i < toInsert.length; i += BATCH) {
-      const batch = toInsert.slice(i, i + BATCH);
-      const { error } = await supabase.from("wix_historical_bookings").insert(batch as any);
+
+    for (let i = 0; i < allParsed.length; i += BATCH) {
+      const batch = allParsed.slice(i, i + BATCH);
+
+      const { error } = await supabase
+        .from("wix_historical_bookings")
+        .upsert(batch as any, {
+          onConflict: "wix_order_number",
+          ignoreDuplicates: true,
+        });
+
       if (error) {
-        console.error("Batch error:", error, "batch index:", i);
-        // continue to next batch, do not break
+        console.error("Batch error at index", i, error);
+        // Do NOT break — always continue to next batch
       } else {
         imported += batch.length;
       }
-      setProgress(Math.round(((i + batch.length) / toInsert.length) * 100));
+
+      setProgress(Math.round(Math.min(((i + BATCH) / allParsed.length) * 100, 100)));
     }
 
-    setResult({ imported, skipped });
     setImporting(false);
-    toast({ title: `✅ ${imported} records imported, ${skipped} duplicates skipped` });
+    setResult({ imported, skipped: allParsed.length - imported });
+    toast({ title: `✅ Import complete — ${imported} records processed` });
   };
 
   return (
