@@ -574,7 +574,7 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
         open={checkoutOpen}
         onOpenChange={setCheckoutOpen}
         booking={checkoutBooking}
-        onComplete={(id, charge) => completeMutation.mutate({ bookingId: id, finalCharge: charge })}
+        onComplete={(id, charge) => completeMutation.mutate({ bookingId: id, finalCharge: charge, isMigrated: checkoutBooking?.is_migrated })}
         onNoShow={(id) => noShowMutation.mutate(id)}
       />
       <ViewOrderDialog open={viewOrderOpen} onOpenChange={setViewOrderOpen} booking={viewOrderBooking} />
