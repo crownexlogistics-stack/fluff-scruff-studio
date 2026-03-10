@@ -18,7 +18,7 @@ export default function BookingRecordsTab() {
   const [paymentFilter, setPaymentFilter] = useState("All");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
-  const [selectedBooking, setSelectedBooking] = useState<typeof WIX_RAW_BOOKINGS[0] | null>(null);
+  const [selectedBooking, setSelectedBooking] = useState<WixRawBooking | null>(null);
 
   const filtered = useMemo(() => {
     let data = WIX_RAW_BOOKINGS;
