@@ -715,6 +715,9 @@ const Index = () => {
           </Card>
         </div>
 
+        {/* ── 1b. Month Forecast ───────────────────── */}
+        <MonthForecastCard />
+
         {/* ── 2. Revenue Trend Chart ───────────────── */}
         <Card className="rounded-xl">
           <CardHeader className="p-4 pb-2">
