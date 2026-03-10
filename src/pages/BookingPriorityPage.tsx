@@ -65,8 +65,15 @@ const BookingPriorityPage = () => {
   });
 
   const handlePriorityChange = (staffId: string, value: string) => {
-    const priority = value === "none" ? null : parseInt(value);
-    updateMutation.mutate({ id: staffId, field: "booking_priority", value: priority });
+    if (value === "block") {
+      // Set block_new_bookings = true, clear priority
+      updateMutation.mutate({ id: staffId, field: "block_new_bookings", value: true });
+      updateMutation.mutate({ id: staffId, field: "booking_priority", value: null });
+    } else {
+      const priority = value === "none" ? null : parseInt(value);
+      updateMutation.mutate({ id: staffId, field: "block_new_bookings", value: false });
+      updateMutation.mutate({ id: staffId, field: "booking_priority", value: priority });
+    }
   };
 
   const handleAcceptingChange = (staffId: string, checked: boolean) => {
