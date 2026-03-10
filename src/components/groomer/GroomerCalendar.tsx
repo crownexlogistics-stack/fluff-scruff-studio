@@ -318,7 +318,7 @@ export function GroomerCalendar({ currentDate, daysToShow, staff, bookings, curr
   return (
     <div className="border rounded-lg bg-card overflow-hidden">
       {/* Mobile team button */}
-      {isMobile && otherStaff.length > 0 && (
+      {(isMobile || !showNarrowCols) && otherStaff.length > 0 && (
         <Sheet>
           <SheetTrigger asChild>
             <Button variant="outline" size="sm" className="m-2 gap-1.5 text-xs">
