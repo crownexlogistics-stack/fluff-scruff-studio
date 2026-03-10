@@ -322,8 +322,7 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
           )}
         </div>
       </PopoverTrigger>
-      <PopoverContent className="w-[calc(100vw-2rem)] sm:w-80 max-w-sm p-0" side="bottom" align="center" sideOffset={4}>
-        <ScrollArea className="max-h-[70vh]">
+      <PopoverContent className="w-[calc(100vw-2rem)] sm:w-80 max-w-sm p-0 max-h-[75vh] overflow-y-auto" side="bottom" align="center" sideOffset={4} avoidCollisions collisionPadding={16}>
         <div className="p-4 space-y-3">
           {/* Top: Customer info */}
           <div className="flex items-center gap-3">
