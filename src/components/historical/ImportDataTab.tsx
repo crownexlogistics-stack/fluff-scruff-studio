@@ -152,40 +152,30 @@ export default function ImportDataTab() {
     setImporting(true);
     setProgress(0);
 
-    // Get existing order numbers to skip duplicates
-    const orderNumbers = allParsed.map(r => r.wix_order_number).filter(Boolean) as string[];
+    // Fetch ALL existing wix_order_numbers in one query
     const { data: existing } = await supabase
       .from("wix_historical_bookings")
-      .select("wix_order_number")
-      .in("wix_order_number", orderNumbers.slice(0, 1000));
-
-    const existingSet = new Set((existing || []).map((d: any) => d.wix_order_number));
-    
-    // If more than 1000 order numbers, fetch remaining
-    if (orderNumbers.length > 1000) {
-      const { data: more } = await supabase
-        .from("wix_historical_bookings")
-        .select("wix_order_number")
-        .in("wix_order_number", orderNumbers.slice(1000));
-      (more || []).forEach((d: any) => existingSet.add(d.wix_order_number));
-    }
+      .select("wix_order_number");
+    const existingSet = new Set((existing || []).map((d: any) => d.wix_order_number).filter(Boolean));
 
     const toInsert = allParsed.filter(r => !r.wix_order_number || !existingSet.has(r.wix_order_number));
     const skipped = allParsed.length - toInsert.length;
 
-    // Batch insert in chunks of 50
-    const BATCH = 50;
+    console.log("Starting import:", allParsed.length, "rows,", toInsert.length, "to insert after dedup");
+
+    // Batch insert in chunks of 100
+    const BATCH = 100;
     let imported = 0;
     for (let i = 0; i < toInsert.length; i += BATCH) {
       const batch = toInsert.slice(i, i + BATCH);
       const { error } = await supabase.from("wix_historical_bookings").insert(batch as any);
       if (error) {
-        console.error("Import batch error:", error);
-        toast({ title: "Import error", description: error.message, variant: "destructive" });
-        break;
+        console.error("Batch error:", error, "batch index:", i);
+        // continue to next batch, do not break
+      } else {
+        imported += batch.length;
       }
-      imported += batch.length;
-      setProgress(Math.round((imported / toInsert.length) * 100));
+      setProgress(Math.round(((i + batch.length) / toInsert.length) * 100));
     }
 
     setResult({ imported, skipped });
