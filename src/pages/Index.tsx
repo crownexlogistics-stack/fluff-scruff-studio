@@ -79,6 +79,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { WebsiteAnalyticsSection } from "@/components/dashboard/WebsiteAnalyticsSection";
+import { UnavailableBookingsWarning } from "@/components/dashboard/UnavailableBookingsWarning";
 import MonthForecastCard from "@/components/dashboard/MonthForecastCard";
 
 // ── Types ───────────────────────────────────────────────────
