@@ -79,10 +79,10 @@ export default function YearOnYearTab() {
         </Button>
       </div>
 
-      <div ref={exportRef} className="space-y-6" style={{ backgroundColor: "#ffffff", padding: "8px" }}>
+      <div ref={exportRef} style={{ width: "1200px", backgroundColor: "#ffffff", padding: "32px" }} className="space-y-6">
 
       {/* KPI Pills */}
-      <div className="flex flex-wrap gap-3">
+      <div style={{ display: "flex", flexDirection: "row", flexWrap: "nowrap", gap: "12px" }}>
         <KpiPill label="Total Bookings" value={kpi.totalBookings.toLocaleString()} />
         <KpiPill label="Total Revenue" value={`£${kpi.totalRevenue.toLocaleString()}`} />
         <KpiPill label="Total Customers" value={kpi.totalCustomers.toLocaleString()} subtitle="all time unique" />
@@ -98,15 +98,15 @@ export default function YearOnYearTab() {
 
       {/* Annual Revenue Cards */}
       {annualSummary.length > 0 && (
-        <div className="flex flex-wrap gap-4">
+        <div style={{ display: "flex", flexDirection: "row", flexWrap: "nowrap", gap: "16px" }}>
           {annualSummary.map(yr => {
             const yearColors: Record<number, string> = { 2024: "#FFB800", 2025: "#FF6B35", 2026: "#2D1B0E" };
             const borderColor = yearColors[yr.year] || "#FF6B35";
             return (
               <div
                 key={yr.year}
-                className="rounded-[20px] bg-white shadow-sm px-5 py-4 min-w-[180px] flex-1"
-                style={{ borderLeft: `4px solid ${borderColor}` }}
+                className="rounded-[20px] bg-white shadow-sm px-5 py-4"
+                style={{ borderLeft: `4px solid ${borderColor}`, flex: "1", minWidth: 0 }}
               >
                 <div className="flex items-center gap-2 mb-1">
                   <span className="font-heading text-xl font-bold" style={{ color: "#2D1B0E" }}>{yr.year}</span>
@@ -131,9 +131,9 @@ export default function YearOnYearTab() {
       )}
 
       {/* Main layout — charts only (no sidebar in export) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
           {/* Panel 1: Revenue Over Time */}
-          <Card className="rounded-[20px] border-none shadow-sm md:col-span-2">
+          <Card className="rounded-[20px] border-none shadow-sm" style={{ gridColumn: "1 / -1" }}>
             <CardContent className="p-5">
               <h3 className="font-heading text-base font-bold mb-3" style={{ color: "#2D1B0E" }}>💰 Revenue Over Time</h3>
               <ResponsiveContainer width="100%" height={260}>
@@ -315,7 +315,7 @@ export default function YearOnYearTab() {
 
 function KpiPill({ label, value, subtitle, amber, badge }: { label: string; value: string; subtitle?: string; amber?: boolean; badge?: string }) {
   return (
-    <div className="rounded-[16px] px-4 py-3 shadow-sm" style={{ backgroundColor: amber ? "#fff8e7" : "#FFF8F0", border: "1px solid #f0e6da" }}>
+    <div className="rounded-[16px] px-4 py-3 shadow-sm" style={{ backgroundColor: amber ? "#fff8e7" : "#FFF8F0", border: "1px solid #f0e6da", flex: "1", minWidth: 0 }}>
       <p className="text-[10px] uppercase tracking-widest font-semibold" style={{ color: "#8B6F5C" }}>{label}</p>
       <div className="flex items-center gap-2">
         <p className="text-lg font-bold" style={{ color: "#2D1B0E" }}>{value}</p>
