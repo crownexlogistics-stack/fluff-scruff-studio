@@ -184,16 +184,35 @@ const MonthForecastCard = () => {
   const confirmedCount = completedBookings.length + upcomingBookings.length
     + migratedCompleted.length + migratedUpcoming.length;
 
-  // Groomer pay
+  // Groomer pay from commission records (already checked out)
+  const commissionBookingIds = useMemo(() => new Set(commissions.map((c: any) => c.booking_id).filter(Boolean)), [commissions]);
   const groomerPayPaid = commissions.reduce((s: number, c: any) => s + Number(c.groomer_pay || 0), 0);
 
-  // Estimate groomer pay on upcoming bookings
+  // Estimate groomer pay for completed bookings that have NO commission record yet
+  const groomerPayCompletedEstimate = useMemo(() => {
+    return completedBookings
+      .filter((b: any) => !commissionBookingIds.has(b.id))
+      .reduce((s: number, b: any) => {
+        if (b.status === "No Show") {
+          return s + Number(b.deposit_paid || 0) * 0.5;
+        }
+        const rate = b.is_groomers_own_customer ? 0.5 : 0.4;
+        return s + Number(b.total_price || 0) * rate;
+      }, 0);
+  }, [completedBookings, commissionBookingIds]);
+
+  // Estimate groomer pay on upcoming bookings (both main + migrated)
   const groomerPayUpcoming = useMemo(() => {
-    return upcomingBookings.reduce((s: number, b: any) => {
+    const mainPay = upcomingBookings.reduce((s: number, b: any) => {
       const rate = b.is_groomers_own_customer ? 0.5 : 0.4;
       return s + Number(b.total_price || 0) * rate;
     }, 0);
-  }, [upcomingBookings]);
+    // Migrated bookings don't have is_groomers_own_customer, default to 40%
+    const migratedPay = migratedUpcoming.reduce((s: number, b: any) => {
+      return s + Number(b.total_price || 0) * 0.4;
+    }, 0);
+    return mainPay + migratedPay;
+  }, [upcomingBookings, migratedUpcoming]);
 
   // Expenses
   const dateAware = calcDateAwareExpenses(recurringExpenses, forecastMonth, today);
@@ -202,7 +221,8 @@ const MonthForecastCard = () => {
   const billsUpcoming = (isPastMonth ? 0 : dateAware.upcomingTotal)
     + oneOffUpcoming.reduce((s: number, e: any) => s + Number(e.amount || 0), 0);
 
-  const totalProjectedCosts = groomerPayPaid + groomerPayUpcoming + billsPaid + billsUpcoming;
+  const totalGroomerPay = groomerPayPaid + groomerPayCompletedEstimate + groomerPayUpcoming;
+  const totalProjectedCosts = totalGroomerPay + billsPaid + billsUpcoming;
   const projectedProfit = totalProjectedIncome - totalProjectedCosts;
   const isProfitable = projectedProfit >= 0;
 
@@ -289,7 +309,7 @@ const MonthForecastCard = () => {
           <div className="space-y-1.5">
             <div className="flex items-center justify-between text-sm">
               <span className="flex items-center gap-2"><CheckCircle2 className="h-3.5 w-3.5 text-green-600" /> Groomer pay paid</span>
-              <span className="font-semibold">£{Math.round(groomerPayPaid).toLocaleString()}</span>
+              <span className="font-semibold">£{Math.round(groomerPayPaid + groomerPayCompletedEstimate).toLocaleString()}</span>
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="flex items-center gap-2"><CalendarDays className="h-3.5 w-3.5 text-blue-500" /> Groomer pay upcoming</span>
