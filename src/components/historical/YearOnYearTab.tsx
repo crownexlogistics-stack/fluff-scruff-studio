@@ -66,7 +66,14 @@ export default function YearOnYearTab() {
       <div className="flex flex-wrap gap-3">
         <KpiPill label="Total Bookings" value={kpi.totalBookings.toLocaleString()} />
         <KpiPill label="Total Revenue" value={`£${kpi.totalRevenue.toLocaleString()}`} />
-        <KpiPill label="Total Customers" value={kpi.totalCustomers.toLocaleString()} />
+        <KpiPill label="Total Customers" value={kpi.totalCustomers.toLocaleString()} subtitle="all time unique" />
+        <KpiPill
+          label="Returning Customers"
+          value={kpi.returningCustomers.toLocaleString()}
+          subtitle="booked more than once"
+          amber
+          badge={kpi.totalCustomers > 0 ? `${Math.round((kpi.returningCustomers / kpi.totalCustomers) * 100)}% of customers` : undefined}
+        />
         <KpiPill label="Avg Monthly Revenue" value={`£${kpi.avgMonthlyRevenue.toLocaleString()}`} />
       </div>
 
