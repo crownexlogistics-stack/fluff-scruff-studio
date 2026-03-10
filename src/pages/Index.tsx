@@ -317,7 +317,7 @@ const Index = () => {
 
   // Expenses — one-off in current month (only past or today's date)
   const monthStart = format(startOfMonth(new Date()), "yyyy-MM-dd");
-  const todayStr = format(new Date(), "yyyy-MM-dd");
+  const expenseTodayStr = format(new Date(), "yyyy-MM-dd");
   const monthEnd = format(endOfMonth(new Date()), "yyyy-MM-dd");
   const { data: oneOffExpenses = [] } = useQuery({
     queryKey: ["dash-oneoff-expenses", monthStart, todayStr],
