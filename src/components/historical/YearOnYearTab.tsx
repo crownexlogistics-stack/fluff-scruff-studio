@@ -66,7 +66,7 @@ export default function YearOnYearTab() {
       entry.bookings += 1;
       const isCanceled = (row.booking_status || "").toLowerCase().includes("cancel");
       if (isCanceled) entry.cancelled += 1;
-      if (!isCanceled && row.price_charged) entry.revenue += Number(row.price_charged) || 0;
+      if (row.booking_status === "Confirmed" && row.price_charged) entry.revenue += Number(row.price_charged) || 0;
     });
 
     // Count unique customers per month
