@@ -234,11 +234,27 @@ const BookingsPage = () => {
         // Find staff for commission
         const migratedBooking = migratedBookings?.find((b: any) => b.id === bookingId);
         const totalPrice = Number(checkoutBooking?.total_price || 0);
+        const eventStaffId = migratedBooking?.staff_id || checkoutBooking?.staff_id;
         const rate = isOwnCustomer ? 0.5 : 0.4;
         const groomerPay = Math.round(totalPrice * rate * 100) / 100;
         const studioShare = Math.round((totalPrice - groomerPay) * 100) / 100;
 
-        logAudit({ action: "MIGRATED_BOOKING_COMPLETED", details: `Completed migrated booking for ${checkoutBooking?.customer_name}. Total: £${totalPrice.toFixed(2)}. Final charge: £${finalCharge.toFixed(2)}. Commission: ${isOwnCustomer ? "Own 50%" : "Standard 40%"} = £${groomerPay.toFixed(2)} groomer / £${studioShare.toFixed(2)} studio.` });
+        if (eventStaffId) {
+          await supabase.from("commission_records").insert({
+            booking_id: null,
+            migrated_booking_id: bookingId,
+            staff_id: eventStaffId,
+            total_price: totalPrice,
+            deposit_paid: Number(migratedBooking?.deposit_paid || checkoutBooking?.deposit_paid || 0),
+            final_charge: finalCharge,
+            commission_type: isOwnCustomer ? "own_customer" : "normal",
+            commission_rate: rate,
+            groomer_pay: groomerPay,
+            studio_share: studioShare,
+          } as any);
+        }
+
+        logAudit({ staffId: eventStaffId, action: "MIGRATED_BOOKING_COMPLETED", details: `Completed migrated booking for ${checkoutBooking?.customer_name}. Total: £${totalPrice.toFixed(2)}. Final charge: £${finalCharge.toFixed(2)}. Commission: ${isOwnCustomer ? "Own 50%" : "Standard 40%"} = £${groomerPay.toFixed(2)} groomer / £${studioShare.toFixed(2)} studio.` });
       } else {
         const { error } = await (supabase.from("bookings") as any).update({ status: "Completed", final_charge: finalCharge, is_groomers_own_customer: isOwnCustomer }).eq("id", bookingId);
         if (error) throw error;
