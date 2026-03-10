@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { Search, UserPlus, X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,6 +14,7 @@ export interface CustomerResult {
   dog_name: string;
   breed_id: string | null;
   dogs: { name: string; breed_id: string | null }[];
+  source?: "booking" | "migrated" | "profile";
 }
 
 interface Props {
@@ -28,28 +30,26 @@ export function CustomerSearchInput({ onSelect, onAddNew, disabled, initialSelec
   const [selectedName, setSelectedName] = useState<string | null>(initialSelectedName || null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
-  // Sync with parent
   useEffect(() => {
     setSelectedName(initialSelectedName || null);
   }, [initialSelectedName]);
 
-  // Fetch distinct customers from bookings
+  // Fetch all customers from bookings + migrated_customers
   const { data: customers } = useQuery({
     queryKey: ["customer-search-list"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const map = new Map<string, CustomerResult>();
+
+      // Source 1: bookings
+      const { data: bookingsData } = await supabase
         .from("bookings")
         .select("customer_name, customer_email, customer_phone, dog_name, breed_id")
         .order("created_at", { ascending: false });
-      if (error) throw error;
 
-      // Deduplicate by email (primary) or name
-      const map = new Map<string, CustomerResult>();
-      for (const b of data || []) {
-        const key = (b.customer_email || b.customer_name).toLowerCase().trim();
+      for (const b of bookingsData || []) {
+        const key = (b.customer_email || b.customer_phone || b.customer_name).toLowerCase().trim();
         if (map.has(key)) {
           const existing = map.get(key)!;
-          // Add dog if not already listed
           if (b.dog_name && !existing.dogs.some(d => d.name.toLowerCase() === b.dog_name.toLowerCase())) {
             existing.dogs.push({ name: b.dog_name, breed_id: b.breed_id });
           }
@@ -61,43 +61,48 @@ export function CustomerSearchInput({ onSelect, onAddNew, disabled, initialSelec
             dog_name: b.dog_name,
             breed_id: b.breed_id,
             dogs: b.dog_name ? [{ name: b.dog_name, breed_id: b.breed_id }] : [],
+            source: "booking",
           });
         }
       }
 
-      // Also include migrated customers not already in bookings
+      // Source 2: migrated_customers
       const { data: migrated } = await supabase
         .from("migrated_customers")
-        .select("id, full_name, email, phone")
-        .not("email", "is", null);
+        .select("id, full_name, email, phone");
 
       for (const mc of migrated || []) {
-        if (!mc.email) continue;
-        const key = mc.email.toLowerCase().trim();
-        if (!map.has(key)) {
-          // Get dog name from their migrated bookings
-          const { data: mbData } = await supabase
-            .from("migrated_bookings")
-            .select("dog_name, dog_breed")
-            .eq("migrated_customer_id", mc.id)
-            .limit(5);
-          const dogs = (mbData || [])
-            .filter((b: any) => b.dog_name)
-            .reduce((acc: { name: string; breed_id: string | null }[], b: any) => {
-              if (!acc.some(d => d.name.toLowerCase() === b.dog_name.toLowerCase())) {
-                acc.push({ name: b.dog_name, breed_id: null });
-              }
-              return acc;
-            }, []);
-          map.set(key, {
-            customer_name: mc.full_name || "Unknown",
-            customer_email: mc.email,
-            customer_phone: mc.phone || "",
-            dog_name: dogs[0]?.name || "",
-            breed_id: null,
-            dogs,
-          });
-        }
+        const key = (mc.email || mc.phone || mc.full_name || "").toLowerCase().trim();
+        if (!key || map.has(key)) continue;
+
+        // Also check by phone dedup
+        const phoneKey = mc.phone?.toLowerCase().trim();
+        if (phoneKey && Array.from(map.values()).some(v => v.customer_phone && v.customer_phone.replace(/\s/g, '') === phoneKey.replace(/\s/g, ''))) continue;
+
+        const { data: mbData } = await supabase
+          .from("migrated_bookings")
+          .select("dog_name, dog_breed")
+          .eq("migrated_customer_id", mc.id)
+          .limit(5);
+
+        const dogs = (mbData || [])
+          .filter((b: any) => b.dog_name)
+          .reduce((acc: { name: string; breed_id: string | null }[], b: any) => {
+            if (!acc.some(d => d.name.toLowerCase() === b.dog_name.toLowerCase())) {
+              acc.push({ name: b.dog_name, breed_id: null });
+            }
+            return acc;
+          }, []);
+
+        map.set(key, {
+          customer_name: mc.full_name || "Unknown",
+          customer_email: mc.email || "",
+          customer_phone: mc.phone || "",
+          dog_name: dogs[0]?.name || "",
+          breed_id: null,
+          dogs,
+          source: "migrated",
+        });
       }
 
       return Array.from(map.values());
@@ -110,13 +115,12 @@ export function CustomerSearchInput({ onSelect, onAddNew, disabled, initialSelec
         return (
           c.customer_name.toLowerCase().includes(q) ||
           c.customer_email.toLowerCase().includes(q) ||
-          c.customer_phone.includes(q) ||
+          c.customer_phone.replace(/\s/g, '').includes(q.replace(/\s/g, '')) ||
           c.dogs.some(d => d.name.toLowerCase().includes(q))
         );
-      }).slice(0, 8)
+      }).slice(0, 10)
     : [];
 
-  // Close on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
@@ -182,7 +186,12 @@ export function CustomerSearchInput({ onSelect, onAddNew, disabled, initialSelec
                 className="w-full text-left px-3 py-2 hover:bg-accent transition-colors border-b last:border-b-0"
                 onClick={() => handleSelect(c)}
               >
-                <p className="text-sm font-medium">{c.customer_name}</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium flex-1">{c.customer_name}</p>
+                  {c.source === "migrated" && (
+                    <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-amber-400 text-amber-600 bg-amber-50">W</Badge>
+                  )}
+                </div>
                 <p className="text-xs text-muted-foreground">
                   {[c.customer_email, c.customer_phone].filter(Boolean).join(" · ")}
                   {c.dogs.length > 0 && ` · 🐕 ${c.dogs.map(d => d.name).join(", ")}`}

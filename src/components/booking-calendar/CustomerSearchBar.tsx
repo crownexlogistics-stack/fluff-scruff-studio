@@ -16,6 +16,7 @@ interface SearchResult {
   last_staff_id: string | null;
   last_booking_date: string | null;
   is_own_customer: boolean;
+  source: "booking" | "migrated";
 }
 
 interface CustomerSearchBarProps {
@@ -39,7 +40,9 @@ export function CustomerSearchBar({ currentStaffId, className }: CustomerSearchB
     }
     setLoading(true);
     try {
-      // Search bookings by customer_name, customer_email, customer_phone, dog_name
+      const customerMap = new Map<string, SearchResult>();
+
+      // Source 1: bookings
       const { data, error } = await supabase
         .from("bookings")
         .select("customer_name, customer_email, customer_phone, dog_name, staff_id, booking_date, staff(name)")
@@ -49,10 +52,8 @@ export function CustomerSearchBar({ currentStaffId, className }: CustomerSearchB
 
       if (error) throw error;
 
-      // Group by customer email to get unique customers with their last groomer
-      const customerMap = new Map<string, SearchResult>();
       (data || []).forEach((b: any) => {
-        const key = b.customer_email || b.customer_name;
+        const key = (b.customer_email || b.customer_phone || b.customer_name).toLowerCase();
         if (!customerMap.has(key)) {
           customerMap.set(key, {
             customer_name: b.customer_name,
@@ -63,11 +64,12 @@ export function CustomerSearchBar({ currentStaffId, className }: CustomerSearchB
             last_staff_id: b.staff_id,
             last_booking_date: b.booking_date,
             is_own_customer: currentStaffId ? b.staff_id === currentStaffId : true,
+            source: "booking",
           });
         }
       });
 
-      // Also search migrated_customers for those not already in bookings
+      // Source 2: migrated_customers
       const { data: migrated } = await supabase
         .from("migrated_customers")
         .select("id, full_name, email, phone")
@@ -75,29 +77,31 @@ export function CustomerSearchBar({ currentStaffId, className }: CustomerSearchB
         .limit(20);
 
       for (const mc of migrated || []) {
-        if (!mc.email) continue;
-        const key = mc.email.toLowerCase();
-        if (!customerMap.has(key)) {
-          // Get their latest migrated booking for dog name
-          const { data: mbData } = await supabase
-            .from("migrated_bookings")
-            .select("dog_name, staff_name, booking_date")
-            .eq("migrated_customer_id", mc.id)
-            .order("booking_date", { ascending: false })
-            .limit(1);
-          const mb = mbData?.[0];
-          customerMap.set(key, {
-            customer_name: mc.full_name || "Unknown",
-            customer_email: mc.email,
-            customer_phone: mc.phone,
-            dog_name: mb?.dog_name || "Unknown",
-            last_staff_name: mb?.staff_name || null,
-            last_staff_id: null,
-            last_booking_date: mb?.booking_date || null,
-            is_own_customer: false,
-            _source: "wix",
-          } as any);
-        }
+        const key = (mc.email || mc.phone || mc.full_name || "").toLowerCase();
+        if (!key || customerMap.has(key)) continue;
+
+        // Phone dedup
+        const phoneNorm = mc.phone?.replace(/\s/g, '');
+        if (phoneNorm && Array.from(customerMap.values()).some(v => v.customer_phone?.replace(/\s/g, '') === phoneNorm)) continue;
+
+        const { data: mbData } = await supabase
+          .from("migrated_bookings")
+          .select("dog_name, staff_name, booking_date")
+          .eq("migrated_customer_id", mc.id)
+          .order("booking_date", { ascending: false })
+          .limit(1);
+        const mb = mbData?.[0];
+        customerMap.set(key, {
+          customer_name: mc.full_name || "Unknown",
+          customer_email: mc.email,
+          customer_phone: mc.phone,
+          dog_name: mb?.dog_name || "Unknown",
+          last_staff_name: mb?.staff_name || null,
+          last_staff_id: null,
+          last_booking_date: mb?.booking_date || null,
+          is_own_customer: false,
+          source: "migrated",
+        });
       }
 
       setResults(Array.from(customerMap.values()));
@@ -157,8 +161,8 @@ export function CustomerSearchBar({ currentStaffId, className }: CustomerSearchB
                   <div className="flex items-center gap-2">
                     <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                     <span className="font-medium text-sm truncate">{r.customer_name}</span>
-                    {(r as any)._source === "wix" && (
-                      <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-muted-foreground/40 text-muted-foreground">Wix</Badge>
+                    {r.source === "migrated" && (
+                      <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-amber-400 text-amber-600 bg-amber-50">W</Badge>
                     )}
                   </div>
                   <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
@@ -177,9 +181,11 @@ export function CustomerSearchBar({ currentStaffId, className }: CustomerSearchB
                     <Badge variant="default" className="text-[10px]">Your customer</Badge>
                   ) : (
                     <div className="space-y-1">
-                      <Badge variant="outline" className="text-[10px]">
-                        Last with {r.last_staff_name || "Unknown"}
-                      </Badge>
+                      {r.last_staff_name && (
+                        <Badge variant="outline" className="text-[10px]">
+                          Last with {r.last_staff_name}
+                        </Badge>
+                      )}
                       <div className="flex justify-end">
                         <Button
                           variant="ghost"
