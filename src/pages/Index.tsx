@@ -320,14 +320,14 @@ const Index = () => {
   const expenseTodayStr = format(new Date(), "yyyy-MM-dd");
   const monthEnd = format(endOfMonth(new Date()), "yyyy-MM-dd");
   const { data: oneOffExpenses = [] } = useQuery({
-    queryKey: ["dash-oneoff-expenses", monthStart, todayStr],
+    queryKey: ["dash-oneoff-expenses", monthStart, expenseTodayStr],
     queryFn: async () => {
       const { data } = await supabase
         .from("expenses")
         .select("amount")
         .eq("expense_type", "one_off")
         .gte("expense_date", monthStart)
-        .lte("expense_date", todayStr);
+        .lte("expense_date", expenseTodayStr);
       return (data ?? []) as any[];
     },
   });
