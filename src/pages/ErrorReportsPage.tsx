@@ -100,11 +100,68 @@ export default function ErrorReportsPage() {
 
   useEffect(() => { fetchReports(); }, []);
 
+  const loginEventTypes = ["LOGIN_FAILED", "ACCOUNT_LOCKED", "SESSION_EXPIRED", "PASSWORD_RESET_REQUESTED", "INVITE_LINK_EXPIRED"];
+
+  const loginReports = useMemo(() => {
+    return reports.filter(r => loginEventTypes.some(t => r.error_description.startsWith(`[${t}]`)));
+  }, [reports]);
+
+  const nonLoginReports = useMemo(() => {
+    return reports.filter(r => !loginEventTypes.some(t => r.error_description.startsWith(`[${t}]`)));
+  }, [reports]);
+
+  // Group login issues by email
+  const loginGrouped = useMemo(() => {
+    const map = new Map<string, { email: string; events: ErrorReport[]; failCount24h: number }>();
+    const now = Date.now();
+    for (const r of loginReports) {
+      const email = r.customer_email || r.steps_to_reproduce?.replace("Email: ", "") || "unknown";
+      if (!map.has(email)) map.set(email, { email, events: [], failCount24h: 0 });
+      const g = map.get(email)!;
+      g.events.push(r);
+      if (r.error_description.includes("LOGIN_FAILED") && (now - new Date(r.created_at).getTime()) < 24 * 60 * 60 * 1000) {
+        g.failCount24h++;
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => {
+      const aLatest = new Date(a.events[0].created_at).getTime();
+      const bLatest = new Date(b.events[0].created_at).getTime();
+      return bLatest - aLatest;
+    });
+  }, [loginReports]);
+
+  const sendFreshLoginLink = async (email: string) => {
+    try {
+      // Extract actual email from masked version - we can't, so use the steps_to_reproduce
+      toast.info("Sending fresh login link...");
+      await supabase.functions.invoke("send-customer-email", {
+        body: {
+          customer_email: "info@fluffandscruff.co.uk",
+          subject: "🔐 Customer Login Assistance Needed",
+          body: `A customer with masked email ${email} has been struggling to log in (3+ failed attempts in 24 hours).\n\nPlease check their account and send them a fresh login link manually from the admin panel.`,
+        },
+      });
+      toast.success("Admin notified — check email to assist this customer");
+    } catch {
+      toast.error("Failed to send notification");
+    }
+  };
+
+  const getLoginEventLabel = (desc: string) => {
+    if (desc.includes("LOGIN_FAILED")) return "❌ Wrong password";
+    if (desc.includes("ACCOUNT_LOCKED")) return "🔒 Account locked";
+    if (desc.includes("SESSION_EXPIRED")) return "⏱️ Session expired";
+    if (desc.includes("PASSWORD_RESET_REQUESTED")) return "🔑 Password reset requested";
+    if (desc.includes("INVITE_LINK_EXPIRED")) return "📨 Expired invite link";
+    return "🔐 Login event";
+  };
+
   const grouped = useMemo(() => {
     const map = new Map<string, GroupedError>();
+    const sourceReports = nonLoginReports;
     const filtered = filter === "resolved"
-      ? reports.filter(r => r.status === "resolved")
-      : reports.filter(r => r.status !== "resolved");
+      ? sourceReports.filter(r => r.status === "resolved")
+      : sourceReports.filter(r => r.status !== "resolved");
 
     for (const r of filtered) {
       const shortDesc = r.error_description.slice(0, 120);
@@ -148,7 +205,7 @@ export default function ErrorReportsPage() {
       if (sa !== sb) return sa - sb;
       return new Date(b.lastSeen).getTime() - new Date(a.lastSeen).getTime();
     });
-  }, [reports, filter]);
+  }, [nonLoginReports, filter]);
 
   const summaryCount = useMemo(() => {
     const active = reports.filter(r => r.status !== "resolved");
