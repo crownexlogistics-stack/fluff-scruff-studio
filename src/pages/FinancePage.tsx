@@ -382,6 +382,13 @@ const FinancePage = () => {
               </Tabs>
             </div>
 
+            <div className="flex items-center gap-3">
+              <Switch checked={includeWixHistory} onCheckedChange={setIncludeWixHistory} id="wix-toggle" />
+              <Label htmlFor="wix-toggle" className="text-sm flex items-center gap-1.5 cursor-pointer">
+                <History className="h-3.5 w-3.5" /> Include Historical Wix Data
+              </Label>
+            </div>
+
             <div className="flex items-center justify-between">
               <Button variant="outline" size="sm" onClick={() => setOffset(o => o - 1)}>← Previous</Button>
               <p className="text-sm font-medium">{format(periodStart, "dd MMM yyyy")} — {format(periodEnd, "dd MMM yyyy")}</p>
