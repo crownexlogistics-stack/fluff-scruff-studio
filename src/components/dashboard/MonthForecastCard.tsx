@@ -383,7 +383,20 @@ const MonthForecastCard = () => {
             <Button variant="ghost" size="sm" className="text-xs gap-1.5 h-7" onClick={handleRefresh}>
               <RefreshCw className="h-3 w-3" /> Refresh
             </Button>
-            <FinanceExplainerButton />
+            <FinanceExplainerButton forecastData={{
+              month: format(forecastMonth, "MMMM yyyy"),
+              total_appointments: confirmedCount,
+              earned_so_far: Math.round(earnedRevenue),
+              confirmed_upcoming: Math.round(upcomingRevenue),
+              total_projected_income: Math.round(totalProjectedIncome),
+              groomer_pay_paid: Math.round(groomerPayPaid + groomerPayCompletedEstimate),
+              groomer_pay_upcoming: Math.round(groomerPayUpcoming),
+              bills_paid: Math.round(billsPaid),
+              bills_still_to_pay: Math.round(billsUpcoming),
+              total_projected_costs: Math.round(totalProjectedCosts),
+              projected_result: Math.round(projectedProfit),
+              breakeven_gap: isProfitable ? 0 : Math.abs(Math.round(projectedProfit)),
+            }} />
           </div>
           <span className="text-[10px] text-muted-foreground">
             Last updated: {format(lastRefresh, "HH:mm")}
