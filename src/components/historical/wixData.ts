@@ -151,7 +151,10 @@ export const WIX_CUSTOMERS: WixCustomer[] = [
 ];
 
 // Raw booking records for Tab 3
-export const WIX_RAW_BOOKINGS: WixAppointment & { customerName: string; customerEmail: string; customerPhone: string; dogName: string; dogBreed: string; dogAge: string; message?: string }[] = (() => {
+export type WixRawBooking = WixAppointment & { customerName: string; customerEmail: string; customerPhone: string; dogName: string; dogBreed: string; dogAge: string; message?: string };
+
+export const WIX_RAW_BOOKINGS: WixRawBooking[] = (() => {
+  const records: WixRawBooking[] = [];
   const records: any[] = [];
   WIX_CUSTOMERS.forEach(c => {
     c.appointments.forEach(a => {
