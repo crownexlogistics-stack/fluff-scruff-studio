@@ -313,9 +313,15 @@ const MonthForecastCard = () => {
               <span className="flex items-center gap-2"><CalendarDays className="h-3.5 w-3.5 text-blue-500" /> Confirmed upcoming</span>
               <span className="font-semibold">£{Math.round(upcomingRevenue).toLocaleString()}</span>
             </div>
+            {isPastMonth && wixHistoricalRevenue > 0 && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="flex items-center gap-2"><Clock className="h-3.5 w-3.5 text-purple-500" /> Wix historical revenue</span>
+                <span className="font-semibold">£{Math.round(wixHistoricalRevenue).toLocaleString()}</span>
+              </div>
+            )}
             <div className="border-t pt-1.5 flex items-center justify-between text-sm font-semibold">
               <span className="flex items-center gap-2">💰 Total projected</span>
-              <span className="text-green-600">£{Math.round(totalProjectedIncome).toLocaleString()}</span>
+              <span className="text-green-600">£{Math.round(totalProjectedIncome + (isPastMonth ? wixHistoricalRevenue : 0)).toLocaleString()}</span>
             </div>
           </div>
         </div>
