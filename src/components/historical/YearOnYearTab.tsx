@@ -28,6 +28,18 @@ const gridProps = {
 
 export default function YearOnYearTab() {
   const { isLoading, isEmpty, timeline, kpi, bestMonthIdx, services, groomers, highlights, annualSummary } = useTimelineAnalytics();
+  const exportRef = useRef<HTMLDivElement>(null);
+
+  const handleDownload = useCallback(async () => {
+    if (!exportRef.current) return;
+    const html2canvas = (await import("html2canvas")).default;
+    const jsPDF = (await import("jspdf")).default;
+    const canvas = await html2canvas(exportRef.current, { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
+    const imgData = canvas.toDataURL("image/png");
+    const pdf = new jsPDF({ orientation: "landscape", unit: "px", format: [canvas.width, canvas.height] });
+    pdf.addImage(imgData, "PNG", 0, 0, canvas.width, canvas.height);
+    pdf.save("year-on-year-analytics.pdf");
+  }, []);
 
   if (isLoading) {
     return (
@@ -36,11 +48,8 @@ export default function YearOnYearTab() {
         <div className="flex gap-3">
           {[1,2,3,4].map(i => <Skeleton key={i} className="h-16 w-40 rounded-[16px]" />)}
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {[1,2,3,4,5,6].map(i => <Skeleton key={i} className="h-[320px] rounded-[20px]" />)}
-          </div>
-          <Skeleton className="h-[600px] rounded-[20px]" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {[1,2,3,4,5,6].map(i => <Skeleton key={i} className="h-[320px] rounded-[20px]" />)}
         </div>
       </div>
     );
@@ -57,19 +66,6 @@ export default function YearOnYearTab() {
       </Card>
     );
   }
-
-  const exportRef = useRef<HTMLDivElement>(null);
-
-  const handleDownload = useCallback(async () => {
-    if (!exportRef.current) return;
-    const html2canvas = (await import("html2canvas")).default;
-    const jsPDF = (await import("jspdf")).default;
-    const canvas = await html2canvas(exportRef.current, { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
-    const imgData = canvas.toDataURL("image/png");
-    const pdf = new jsPDF({ orientation: "landscape", unit: "px", format: [canvas.width, canvas.height] });
-    pdf.addImage(imgData, "PNG", 0, 0, canvas.width, canvas.height);
-    pdf.save("year-on-year-analytics.pdf");
-  }, []);
 
   return (
     <div className="space-y-6">
