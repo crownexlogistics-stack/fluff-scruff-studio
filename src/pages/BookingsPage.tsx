@@ -145,26 +145,30 @@ const BookingsPage = () => {
         .gte("override_date", format(weekStart, "yyyy-MM-dd"))
         .lte("override_date", format(weekEnd, "yyyy-MM-dd"));
       if (error) throw error;
-      return (data || []).map((o: any) => ({
-        id: o.id,
-        customer_name: o.is_working ? (o.note || "Overtime") : (o.note || "Blocked"),
-        dog_name: "",
-        booking_date: o.override_date,
-        booking_time: o.start_time || "09:00",
-        end_time: o.end_time || undefined,
-        total_price: 0,
-        deposit_paid: 0,
-        status: o.is_working ? "Overtime" : "Blocked",
-        notes: o.note,
-        customer_email: null,
-        customer_phone: null,
-        staff_name: o.staff?.name ?? "Unknown",
-        staff_id: o.staff?.id ?? o.staff_id,
-        breed_name: "",
-        service_name: "",
-        is_block: !o.is_working,
-        is_overtime: o.is_working,
-      })) as BookingData[];
+      return (data || []).map((o: any) => {
+        // Full-day off: is_working=false with null times — show as full day block
+        const isFullDayOff = !o.is_working && !o.start_time && !o.end_time;
+        return {
+          id: o.id,
+          customer_name: o.is_working ? (o.note || "Overtime") : isFullDayOff ? `${o.staff?.name || "Unknown"} — Not working today` : (o.note || "Blocked"),
+          dog_name: "",
+          booking_date: o.override_date,
+          booking_time: o.start_time || "08:00",
+          end_time: o.end_time || (isFullDayOff ? "18:00" : undefined),
+          total_price: 0,
+          deposit_paid: 0,
+          status: o.is_working ? "Overtime" : "Blocked",
+          notes: isFullDayOff ? "Not working today" : o.note,
+          customer_email: null,
+          customer_phone: null,
+          staff_name: o.staff?.name ?? "Unknown",
+          staff_id: o.staff?.id ?? o.staff_id,
+          breed_name: "",
+          service_name: "",
+          is_block: !o.is_working,
+          is_overtime: o.is_working,
+        } as BookingData;
+      });
     },
   });
 
