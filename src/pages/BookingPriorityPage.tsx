@@ -204,6 +204,7 @@ const BookingPriorityPage = () => {
                         </div>
                       ))}
                     </div>
+                  )}
                   {notAccepting.length > 0 && (
                     <div className="border-t border-border pt-2 mt-2">
                       <p className="text-xs text-muted-foreground mb-1">Not Accepting Bookings</p>
