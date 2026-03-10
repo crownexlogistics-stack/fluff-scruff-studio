@@ -56,6 +56,14 @@ export interface Highlights {
   vsLastYear: { revenueChange: number; bookingsChange: number } | null;
 }
 
+export interface AnnualSummary {
+  year: number;
+  revenue: number;
+  bookings: number;
+  growthPct: number | null;
+  isCurrentYear: boolean;
+}
+
 export interface KpiSummary {
   totalBookings: number;
   totalRevenue: number;
