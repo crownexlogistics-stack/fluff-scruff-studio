@@ -134,7 +134,7 @@ const BookingPriorityPage = () => {
                           )}
                         </div>
                         <div className="flex items-center gap-2 mt-0.5">
-                          {getPriorityBadge(groomer.booking_priority)}
+                          {getPriorityBadge(groomer.booking_priority, groomer.block_new_bookings)}
                         </div>
                       </div>
 
