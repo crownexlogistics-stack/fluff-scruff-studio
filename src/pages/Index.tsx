@@ -79,6 +79,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { WebsiteAnalyticsSection } from "@/components/dashboard/WebsiteAnalyticsSection";
+import MonthForecastCard from "@/components/dashboard/MonthForecastCard";
 
 // ── Types ───────────────────────────────────────────────────
 type RangeKey = "week" | "month" | "year" | "custom";
@@ -714,6 +715,9 @@ const Index = () => {
           </Card>
         </div>
 
+        {/* ── 1b. Month Forecast ───────────────────── */}
+        <MonthForecastCard />
+
         {/* ── 2. Revenue Trend Chart ───────────────── */}
         <Card className="rounded-xl">
           <CardHeader className="p-4 pb-2">
@@ -1009,4 +1013,3 @@ const Index = () => {
 };
 
 export default Index;
-
