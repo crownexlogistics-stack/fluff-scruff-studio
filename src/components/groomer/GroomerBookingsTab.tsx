@@ -505,6 +505,7 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
       {viewMode !== "list" ? (
         <WeeklyCalendar
           weekStart={currentDate}
+          daysToShow={daysToShow}
           staff={allStaff}
           bookings={calendarBookings}
           staffIndexMap={staffIndexMap}
