@@ -15,6 +15,7 @@ interface WeeklyCalendarProps {
   staff: StaffMember[];
   bookings: BookingData[];
   staffIndexMap: Map<string, number>;
+  currentStaffId?: string;
   onBook: (date: Date, hour: number, staffId: string) => void;
   onBlock: (date: Date, hour: number, staffId: string) => void;
   onOvertime?: (date: Date, hour: number, staffId: string) => void;
