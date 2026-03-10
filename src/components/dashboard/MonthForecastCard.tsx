@@ -48,32 +48,33 @@ const MonthForecastCard = () => {
   // ── Queries ──────────────────────────────────
   const queryOpts = { refetchInterval: 60000 };
 
-  // Completed bookings this month (earned revenue)
+  // Past bookings this month (earned revenue) — includes all statuses except cancelled/refunded
   const { data: completedBookings = [], refetch: r1 } = useQuery({
-    queryKey: ["forecast-completed", startStr, endStr],
+    queryKey: ["forecast-completed", startStr, endStr, todayStr],
     queryFn: async () => {
+      const cutoff = isPastMonth ? endStr : todayStr;
       const { data } = await supabase
         .from("bookings")
         .select("id, total_price, deposit_paid, staff_id, is_groomers_own_customer, status")
         .gte("booking_date", startStr)
-        .lte("booking_date", endStr)
-        .in("status", ["Completed", "No Show"]);
+        .lte("booking_date", cutoff)
+        .not("status", "in", '("Cancelled","No Show","Refunded")');
       return (data ?? []) as any[];
     },
     ...queryOpts,
   });
 
-  // Upcoming confirmed bookings this month
+  // Upcoming confirmed bookings this month (future dates only)
   const { data: upcomingBookings = [], refetch: r2 } = useQuery({
     queryKey: ["forecast-upcoming", startStr, endStr, todayStr],
     queryFn: async () => {
-      const upcomingStart = isPastMonth ? endStr : isCurrentMonth ? todayStr : startStr;
+      if (isPastMonth) return [];
       const { data } = await supabase
         .from("bookings")
         .select("id, total_price, deposit_paid, staff_id, is_groomers_own_customer, status, booking_date")
-        .gte("booking_date", upcomingStart)
+        .gt("booking_date", isCurrentMonth ? todayStr : startStr)
         .lte("booking_date", endStr)
-        .not("status", "in", '("Cancelled","Completed","No Show","Refunded")');
+        .not("status", "in", '("Cancelled","No Show","Refunded")');
       return (data ?? []) as any[];
     },
     ...queryOpts,
@@ -189,14 +190,11 @@ const MonthForecastCard = () => {
   const commissionBookingIds = useMemo(() => new Set(commissions.map((c: any) => c.booking_id).filter(Boolean)), [commissions]);
   const groomerPayPaid = commissions.reduce((s: number, c: any) => s + Number(c.groomer_pay || 0), 0);
 
-  // Estimate groomer pay for completed bookings that have NO commission record yet
+  // Estimate groomer pay for past bookings that have NO commission record yet
   const groomerPayCompletedEstimate = useMemo(() => {
     return completedBookings
       .filter((b: any) => !commissionBookingIds.has(b.id))
       .reduce((s: number, b: any) => {
-        if (b.status === "No Show") {
-          return s + Number(b.deposit_paid || 0) * 0.5;
-        }
         const rate = b.is_groomers_own_customer ? 0.5 : 0.4;
         return s + Number(b.total_price || 0) * rate;
       }, 0);
@@ -382,7 +380,20 @@ const MonthForecastCard = () => {
             <Button variant="ghost" size="sm" className="text-xs gap-1.5 h-7" onClick={handleRefresh}>
               <RefreshCw className="h-3 w-3" /> Refresh
             </Button>
-            <FinanceExplainerButton />
+            <FinanceExplainerButton forecastData={{
+              month: format(forecastMonth, "MMMM yyyy"),
+              total_appointments: confirmedCount,
+              earned_so_far: Math.round(earnedRevenue),
+              confirmed_upcoming: Math.round(upcomingRevenue),
+              total_projected_income: Math.round(totalProjectedIncome),
+              groomer_pay_paid: Math.round(groomerPayPaid + groomerPayCompletedEstimate),
+              groomer_pay_upcoming: Math.round(groomerPayUpcoming),
+              bills_paid: Math.round(billsPaid),
+              bills_still_to_pay: Math.round(billsUpcoming),
+              total_projected_costs: Math.round(totalProjectedCosts),
+              projected_result: Math.round(projectedProfit),
+              breakeven_gap: isProfitable ? 0 : Math.abs(Math.round(projectedProfit)),
+            }} />
           </div>
           <span className="text-[10px] text-muted-foreground">
             Last updated: {format(lastRefresh, "HH:mm")}
