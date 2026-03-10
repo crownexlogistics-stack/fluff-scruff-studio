@@ -1,0 +1,1 @@
+ALTER TABLE wix_historical_bookings ADD CONSTRAINT wix_historical_bookings_order_number_unique UNIQUE (wix_order_number);
