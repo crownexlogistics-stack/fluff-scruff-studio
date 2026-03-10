@@ -302,29 +302,44 @@ const Index = () => {
     },
   });
 
-  // Expenses — recurring
+  // Expenses — recurring (with full details for date-aware calc)
   const { data: recurringExpenses = [] } = useQuery({
     queryKey: ["dash-recurring-expenses"],
     queryFn: async () => {
       const { data } = await supabase
         .from("expenses")
-        .select("amount, frequency")
+        .select("id, name, category, amount, frequency, recurring_start_date, recurring_end_date")
         .eq("expense_type", "recurring");
       return (data ?? []) as any[];
     },
   });
 
-  // Expenses — one-off in current period
+  // Expenses — one-off in current month (only past or today's date)
   const monthStart = format(startOfMonth(new Date()), "yyyy-MM-dd");
+  const todayStr = format(new Date(), "yyyy-MM-dd");
   const monthEnd = format(endOfMonth(new Date()), "yyyy-MM-dd");
   const { data: oneOffExpenses = [] } = useQuery({
-    queryKey: ["dash-oneoff-expenses", monthStart, monthEnd],
+    queryKey: ["dash-oneoff-expenses", monthStart, todayStr],
     queryFn: async () => {
       const { data } = await supabase
         .from("expenses")
         .select("amount")
         .eq("expense_type", "one_off")
         .gte("expense_date", monthStart)
+        .lte("expense_date", todayStr);
+      return (data ?? []) as any[];
+    },
+  });
+
+  // One-off expenses upcoming (after today in current month)
+  const { data: upcomingOneOffExpenses = [] } = useQuery({
+    queryKey: ["dash-upcoming-oneoff-expenses", todayStr, monthEnd],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("expenses")
+        .select("amount")
+        .eq("expense_type", "one_off")
+        .gt("expense_date", todayStr)
         .lte("expense_date", monthEnd);
       return (data ?? []) as any[];
     },
