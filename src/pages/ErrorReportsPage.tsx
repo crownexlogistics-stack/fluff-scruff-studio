@@ -136,7 +136,7 @@ export default function ErrorReportsPage() {
 
     // Calculate unique users
     for (const g of map.values()) {
-      const emails = new Set(g.reports.map(r => r.customer_email || r.user_id).filter(Boolean));
+      const emails = new Set(g.reports.map(r => r.customer_email).filter(Boolean));
       g.uniqueUsers = Math.max(emails.size, 1);
     }
 
