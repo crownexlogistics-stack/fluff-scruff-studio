@@ -35,11 +35,11 @@ const BookingPriorityPage = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("staff")
-        .select("id, name, role, booking_priority, is_accepting_bookings")
+        .select("id, name, role, booking_priority, is_accepting_bookings, block_new_bookings")
         .ilike("role", "%groomer%")
         .order("name");
       if (error) throw error;
-      return data as { id: string; name: string; role: string; booking_priority: number | null; is_accepting_bookings: boolean }[];
+      return data as { id: string; name: string; role: string; booking_priority: number | null; is_accepting_bookings: boolean; block_new_bookings: boolean }[];
     },
   });
 
