@@ -10,7 +10,9 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarDays, List, ChevronLeft, ChevronRight, Dog } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { GroomerCalendar, type GroomerCalendarBooking } from "./GroomerCalendar";
+import { type GroomerCalendarBooking } from "./GroomerCalendar";
+import { WeeklyCalendar } from "@/components/booking-calendar/WeeklyCalendar";
+import { getStaffColor } from "@/components/booking-calendar/staffColors";
 import { Card, CardContent } from "@/components/ui/card";
 import { BookingPopoverCard } from "@/components/booking-calendar/BookingPopoverCard";
 import { NewBookingDialog } from "@/components/booking-calendar/NewBookingDialog";
@@ -248,6 +250,43 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
 
   const allEvents = useMemo(() => [...bookings, ...migratedBookings, ...overrides, ...offDayBlocks], [bookings, migratedBookings, overrides, offDayBlocks]);
 
+  // Convert to BookingData[] for WeeklyCalendar
+  const calendarBookings = useMemo<BookingData[]>(() =>
+    allEvents.map(b => ({
+      id: b.id,
+      customer_name: b.customer_name,
+      dog_name: b.dog_name,
+      booking_date: b.booking_date,
+      booking_time: b.booking_time,
+      total_price: b.total_price || 0,
+      deposit_paid: b.deposit_paid || 0,
+      status: b.status,
+      notes: b.notes,
+      customer_email: b.customer_email || null,
+      customer_phone: b.customer_phone || null,
+      staff_name: b.staff_name,
+      staff_id: b.staff_id,
+      breed_name: b.breed_name,
+      service_name: b.service_name,
+      is_block: b.is_block,
+      is_overtime: b.is_overtime,
+      end_time: b.end_time,
+      service_id: b.service_id,
+      breed_id: b.breed_id,
+      final_charge: b.final_charge,
+      stripe_payment_id: b.stripe_payment_id ?? null,
+      duration_minutes: b.duration_minutes,
+      is_migrated: b.is_migrated,
+    })),
+    [allEvents]
+  );
+
+  const staffIndexMap = useMemo(() => {
+    const map = new Map<string, number>();
+    allStaff.forEach((s, i) => map.set(s.name, i));
+    return map;
+  }, [allStaff]);
+
   const ownBookings = useMemo(() =>
     bookings
       .filter(b => b.is_own && !b.is_block)
@@ -451,12 +490,11 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
         <div className="flex flex-wrap gap-2">
           {allStaff.map((s, i) => {
             const isMe = s.id === staffId;
+            const colors = getStaffColor(i);
             return (
-              <div key={s.id} className="flex items-center gap-1 text-xs">
-                <div className={`h-2.5 w-2.5 rounded-sm ${isMe ? "ring-2 ring-primary ring-offset-1" : ""}`}
-                  style={{ backgroundColor: ["#9333ea","#b91c1c","#f59e0b","#059669","#2563eb","#db2777","#0d9488","#ea580c"][i % 8] }}
-                />
-                <span className={isMe ? "font-bold" : ""}>{s.name.split(" ")[0]}{isMe ? " (You)" : ""}</span>
+              <div key={s.id} className="flex items-center gap-1.5 text-xs">
+                <div className={cn("h-3 w-3 rounded-sm", colors.bg, isMe && "ring-2 ring-primary ring-offset-1")} />
+                <span className={isMe ? "font-bold" : ""}>{s.name}{isMe ? " (You)" : ""}</span>
               </div>
             );
           })}
@@ -465,25 +503,25 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
 
       {/* Calendar or List */}
       {viewMode !== "list" ? (
-        <GroomerCalendar
-          currentDate={currentDate}
+        <WeeklyCalendar
+          weekStart={currentDate}
           daysToShow={daysToShow}
           staff={allStaff}
-          bookings={allEvents}
+          bookings={calendarBookings}
+          staffIndexMap={staffIndexMap}
           currentStaffId={staffId}
-          userRole={userRole}
           onBook={handleBook}
           onBlock={handleBlock}
           onOvertime={handleOvertime}
-          onEditBlock={handleEditBlock}
-          onCancelBlock={handleCancelBlock}
-          onEditOvertime={handleEditOvertime}
-          onCancelOvertime={handleCancelOvertime}
-          onViewOrder={handleViewOrder}
-          onEditAppointment={handleEditAppointment}
-          onCancelBooking={handleCancelBooking}
-          onBookAgain={handleBookAgain}
-          onCheckout={handleCheckout}
+          onEditBlock={(b) => { const gb = allEvents.find(e => e.id === b.id); if (gb) handleEditBlock(gb); }}
+          onCancelBlock={(b) => { const gb = allEvents.find(e => e.id === b.id); if (gb) handleCancelBlock(gb); }}
+          onEditOvertime={(b) => { const gb = allEvents.find(e => e.id === b.id); if (gb) handleEditOvertime(gb); }}
+          onCancelOvertime={(b) => { const gb = allEvents.find(e => e.id === b.id); if (gb) handleCancelOvertime(gb); }}
+          onViewOrder={(b) => { const gb = allEvents.find(e => e.id === b.id); if (gb) handleViewOrder(gb); }}
+          onEditAppointment={(b) => { const gb = allEvents.find(e => e.id === b.id); if (gb) handleEditAppointment(gb); }}
+          onCancelBooking={(b) => { const gb = allEvents.find(e => e.id === b.id); if (gb) handleCancelBooking(gb); }}
+          onBookAgain={(b) => { const gb = allEvents.find(e => e.id === b.id); if (gb) handleBookAgain(gb); }}
+          onCheckout={(b) => { const gb = allEvents.find(e => e.id === b.id); if (gb) handleCheckout(gb); }}
         />
       ) : (
         <div className="space-y-2">

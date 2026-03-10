@@ -54,6 +54,7 @@ interface BookingEventProps {
   durationHours?: number;
   overlapColumn?: number;
   overlapTotalColumns?: number;
+  privacyMasked?: boolean;
   onEditBlock?: (booking: BookingData) => void;
   onCancelBlock?: (booking: BookingData) => void;
   onEditOvertime?: (booking: BookingData) => void;
@@ -65,7 +66,7 @@ interface BookingEventProps {
   onCheckout?: (booking: BookingData) => void;
 }
 
-export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1, overlapColumn = 0, overlapTotalColumns = 1, onEditBlock, onCancelBlock, onEditOvertime, onCancelOvertime, onViewOrder, onEditAppointment, onCancelBooking, onBookAgain, onCheckout }: BookingEventProps) {
+export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1, overlapColumn = 0, overlapTotalColumns = 1, privacyMasked, onEditBlock, onCancelBlock, onEditOvertime, onCancelOvertime, onViewOrder, onEditAppointment, onCancelBooking, onBookAgain, onCheckout }: BookingEventProps) {
   const navigate = useNavigate();
   const [requestingDeposit, setRequestingDeposit] = useState(false);
   const [paymentLinkOpen, setPaymentLinkOpen] = useState(false);
@@ -229,6 +230,53 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
           </div>
         </PopoverContent>
       </Popover>
+    );
+  }
+
+  // Privacy-masked mode: show coloured block with "Booked" only, tooltip instead of popover
+  if (privacyMasked && !booking.is_block && !booking.is_overtime) {
+    const endTimeStr = booking.end_time?.slice(0, 5) || (() => {
+      const dur = booking.duration_minutes || calculatedDuration * 60;
+      const endM = hour * 60 + minutes + dur;
+      return `${Math.floor(endM / 60).toString().padStart(2, '0')}:${(endM % 60).toString().padStart(2, '0')}`;
+    })();
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div
+              className={cn(
+                "absolute rounded-md px-2 py-1 text-xs z-10 overflow-hidden opacity-70",
+                color.bg, color.text,
+                isGhost && "line-through opacity-30"
+              )}
+              style={{ ...overlapStyle, height: `${height}px`, minHeight: isGhost ? "16px" : "48px" }}
+            >
+              {isGhost ? (
+                <p className="font-medium truncate text-[10px]">
+                  {isRefunded ? "Refunded" : isCancelled ? "Cancelled" : "No Show"}
+                </p>
+              ) : height < 50 ? (
+                <p className="text-[10px] font-bold truncate">{booking.booking_time.slice(0, 5)}</p>
+              ) : height < 80 ? (
+                <>
+                  <p className="text-[10px] opacity-70">{booking.booking_time.slice(0, 5)}</p>
+                  <p className="font-bold truncate">Booked</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-[10px] opacity-70">{booking.booking_time.slice(0, 5)}</p>
+                  <p className="font-bold truncate">Booked</p>
+                  <p className="opacity-80 truncate text-[10px]">With: {booking.staff_name}</p>
+                </>
+              )}
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="top">
+            <p className="text-xs font-medium">Booked {booking.booking_time.slice(0, 5)}–{endTimeStr}</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     );
   }
 

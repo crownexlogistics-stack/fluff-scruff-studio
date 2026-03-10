@@ -12,9 +12,11 @@ interface StaffMember {
 
 interface WeeklyCalendarProps {
   weekStart: Date;
+  daysToShow?: number;
   staff: StaffMember[];
   bookings: BookingData[];
   staffIndexMap: Map<string, number>;
+  currentStaffId?: string;
   onBook: (date: Date, hour: number, staffId: string) => void;
   onBlock: (date: Date, hour: number, staffId: string) => void;
   onOvertime?: (date: Date, hour: number, staffId: string) => void;
@@ -112,8 +114,8 @@ function computeOverlapLayout(dayBookings: BookingData[]): Map<string, LayoutInf
   return result;
 }
 
-export function WeeklyCalendar({ weekStart, staff, bookings, staffIndexMap, onBook, onBlock, onOvertime, onEditBlock, onCancelBlock, onEditOvertime, onCancelOvertime, onViewOrder, onEditAppointment, onCancelBooking, onBookAgain, onCheckout }: WeeklyCalendarProps) {
-  const days = useMemo(() => DAYS.map(i => addDays(weekStart, i)), [weekStart]);
+export function WeeklyCalendar({ weekStart, daysToShow = 7, staff, bookings, staffIndexMap, currentStaffId, onBook, onBlock, onOvertime, onEditBlock, onCancelBlock, onEditOvertime, onCancelOvertime, onViewOrder, onEditAppointment, onCancelBooking, onBookAgain, onCheckout }: WeeklyCalendarProps) {
+  const days = useMemo(() => Array.from({ length: daysToShow }, (_, i) => addDays(weekStart, i)), [weekStart, daysToShow]);
 
   const bookingsByDate = useMemo(() => {
     const map = new Map<string, BookingData[]>();
@@ -180,26 +182,28 @@ export function WeeklyCalendar({ weekStart, staff, bookings, staffIndexMap, onBo
                 {dayBookings.map(booking => {
                   const sIdx = staffIndexMap.get(booking.staff_name || "") ?? 0;
                   const layout = dayLayout.get(booking.id);
-                  return (
-                    <BookingEvent
-                      key={booking.id}
-                      booking={booking}
-                      staffIndex={sIdx}
-                      startHour={START_HOUR}
-                      durationHours={DEFAULT_DURATION}
-                      overlapColumn={layout?.column ?? 0}
-                      overlapTotalColumns={layout?.totalColumns ?? 1}
-                      onEditBlock={onEditBlock}
-                      onCancelBlock={onCancelBlock}
-                      onEditOvertime={onEditOvertime}
-                      onCancelOvertime={onCancelOvertime}
-                      onViewOrder={onViewOrder}
-                      onEditAppointment={onEditAppointment}
-                      onCancelBooking={onCancelBooking}
-                      onBookAgain={onBookAgain}
-                      onCheckout={onCheckout}
-                    />
-                  );
+                  const isPrivacyMasked = !!currentStaffId && booking.staff_id !== currentStaffId && !booking.is_block && !booking.is_overtime;
+                    return (
+                      <BookingEvent
+                        key={booking.id}
+                        booking={booking}
+                        staffIndex={sIdx}
+                        startHour={START_HOUR}
+                        durationHours={DEFAULT_DURATION}
+                        overlapColumn={layout?.column ?? 0}
+                        overlapTotalColumns={layout?.totalColumns ?? 1}
+                        privacyMasked={isPrivacyMasked}
+                        onEditBlock={isPrivacyMasked ? undefined : onEditBlock}
+                        onCancelBlock={isPrivacyMasked ? undefined : onCancelBlock}
+                        onEditOvertime={isPrivacyMasked ? undefined : onEditOvertime}
+                        onCancelOvertime={isPrivacyMasked ? undefined : onCancelOvertime}
+                        onViewOrder={isPrivacyMasked ? undefined : onViewOrder}
+                        onEditAppointment={isPrivacyMasked ? undefined : onEditAppointment}
+                        onCancelBooking={isPrivacyMasked ? undefined : onCancelBooking}
+                        onBookAgain={isPrivacyMasked ? undefined : onBookAgain}
+                        onCheckout={isPrivacyMasked ? undefined : onCheckout}
+                      />
+                    );
                 })}
               </div>
             );
