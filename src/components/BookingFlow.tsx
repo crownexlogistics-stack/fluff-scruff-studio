@@ -60,9 +60,10 @@ function PawProgressBar({ steps, currentStep }: { steps: Step[]; currentStep: St
             </span>
             {isCurrent && (
               <motion.div
-                layoutId="paw-highlight"
                 className="absolute -bottom-1 w-6 h-0.5 bg-accent rounded-full"
-                transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                initial={{ opacity: 0, scaleX: 0 }}
+                animate={{ opacity: 1, scaleX: 1 }}
+                transition={{ duration: 0.3 }}
               />
             )}
           </div>
