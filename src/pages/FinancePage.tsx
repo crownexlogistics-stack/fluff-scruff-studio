@@ -14,6 +14,7 @@ import { NumericInput } from "@/components/ui/numeric-input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, PoundSterling, Dog, TrendingUp, Banknote, CreditCard, Users } from "lucide-react";
+import { FinanceExplainerButton } from "@/components/dashboard/FinanceExplainerDialog";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addWeeks, addMonths } from "date-fns";
 import { toast } from "sonner";
 import { logAudit } from "@/lib/auditLog";
