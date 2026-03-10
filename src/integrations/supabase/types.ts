@@ -473,7 +473,7 @@ export type Database = {
       }
       commission_records: {
         Row: {
-          booking_id: string
+          booking_id: string | null
           commission_rate: number
           commission_type: string
           created_at: string
@@ -481,12 +481,13 @@ export type Database = {
           final_charge: number | null
           groomer_pay: number
           id: string
+          migrated_booking_id: string | null
           staff_id: string
           studio_share: number
           total_price: number
         }
         Insert: {
-          booking_id: string
+          booking_id?: string | null
           commission_rate?: number
           commission_type?: string
           created_at?: string
@@ -494,12 +495,13 @@ export type Database = {
           final_charge?: number | null
           groomer_pay?: number
           id?: string
+          migrated_booking_id?: string | null
           staff_id: string
           studio_share?: number
           total_price?: number
         }
         Update: {
-          booking_id?: string
+          booking_id?: string | null
           commission_rate?: number
           commission_type?: string
           created_at?: string
@@ -507,6 +509,7 @@ export type Database = {
           final_charge?: number | null
           groomer_pay?: number
           id?: string
+          migrated_booking_id?: string | null
           staff_id?: string
           studio_share?: number
           total_price?: number
@@ -517,6 +520,13 @@ export type Database = {
             columns: ["booking_id"]
             isOneToOne: false
             referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commission_records_migrated_booking_id_fkey"
+            columns: ["migrated_booking_id"]
+            isOneToOne: false
+            referencedRelation: "migrated_bookings"
             referencedColumns: ["id"]
           },
           {
