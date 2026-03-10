@@ -1253,7 +1253,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
                           );
                         })}
                         {availableTimeSlots.length === 0 && (
-                          <p className="col-span-2 text-center text-sm text-muted-foreground py-4">No available slots on this date. Please try another day.</p>
+                          <p className="col-span-2 text-center text-sm text-muted-foreground py-4">We're fully booked on this date — please choose another day</p>
                         )}
                       </div>
                     </div>

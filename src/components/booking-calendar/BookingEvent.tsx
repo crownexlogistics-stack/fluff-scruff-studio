@@ -117,8 +117,11 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
   };
 
   if (booking.is_block) {
+    const isFullDayOff = booking.notes === "Not working today" || (!booking.end_time && !booking.booking_time);
     const blockHeight = Math.max(calculatedDuration * 64, 30);
-    const blockTimeLabel = `${booking.booking_time.slice(0, 5)} — ${booking.end_time?.slice(0, 5) || "Unknown"}`;
+    const blockTimeLabel = isFullDayOff
+      ? `${booking.staff_name} — Not working today`
+      : `${booking.booking_time.slice(0, 5)} — ${booking.end_time?.slice(0, 5) || "Unknown"}`;
     return (
       <Popover>
         <PopoverTrigger asChild>
@@ -128,18 +131,19 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
           >
             {blockHeight >= 80 ? (
               <>
-                <p className="font-bold">⛔ Unavailable</p>
+                <p className="font-bold">⛔ {isFullDayOff ? "Not Working" : "Unavailable"}</p>
                 <p className="opacity-80">{booking.staff_name}</p>
-                <p className="opacity-70 text-[10px]">{blockTimeLabel}</p>
-                {booking.notes && <p className="opacity-70 truncate text-[10px]">{booking.notes}</p>}
+                {!isFullDayOff && <p className="opacity-70 text-[10px]">{blockTimeLabel}</p>}
+                {isFullDayOff && <p className="opacity-70 text-[10px]">Not working today</p>}
+                {booking.notes && !isFullDayOff && <p className="opacity-70 truncate text-[10px]">{booking.notes}</p>}
               </>
             ) : blockHeight >= 50 ? (
               <>
-                <p className="font-bold">⛔ Unavailable</p>
-                <p className="opacity-80 text-[10px]">{blockTimeLabel}</p>
+                <p className="font-bold">⛔ {isFullDayOff ? "Not Working" : "Unavailable"}</p>
+                <p className="opacity-80 text-[10px]">{isFullDayOff ? booking.staff_name : blockTimeLabel}</p>
               </>
             ) : (
-              <p className="font-bold truncate">⛔ {blockTimeLabel}</p>
+              <p className="font-bold truncate">⛔ {isFullDayOff ? `${booking.staff_name} — Off` : blockTimeLabel}</p>
             )}
           </div>
         </PopoverTrigger>
