@@ -257,14 +257,24 @@ export default function ImportDataTab() {
             </div>
 
             {!result && (
-              <Button
-                className="rounded-[30px] font-bold w-full"
-                style={{ backgroundColor: "#FF6B35" }}
-                disabled={importing}
-                onClick={handleImport}
-              >
-                {importing ? "Importing…" : `Import ${allParsed.length} records`}
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  className="rounded-[30px] font-bold flex-1"
+                  style={{ backgroundColor: "#FF6B35" }}
+                  disabled={importing}
+                  onClick={handleImport}
+                >
+                  {importing ? "Importing…" : `Import ${allParsed.length} records`}
+                </Button>
+                <Button
+                  className="rounded-[30px] font-bold"
+                  variant="outline"
+                  disabled={importing}
+                  onClick={handleClearAndReimport}
+                >
+                  Clear &amp; Re-import
+                </Button>
+              </div>
             )}
 
             {importing && <Progress value={progress} className="h-2 rounded-full" />}
