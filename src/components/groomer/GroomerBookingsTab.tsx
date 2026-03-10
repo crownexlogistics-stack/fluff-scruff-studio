@@ -490,12 +490,11 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
         <div className="flex flex-wrap gap-2">
           {allStaff.map((s, i) => {
             const isMe = s.id === staffId;
+            const colors = getStaffColor(i);
             return (
-              <div key={s.id} className="flex items-center gap-1 text-xs">
-                <div className={`h-2.5 w-2.5 rounded-sm ${isMe ? "ring-2 ring-primary ring-offset-1" : ""}`}
-                  style={{ backgroundColor: ["#9333ea","#b91c1c","#f59e0b","#059669","#2563eb","#db2777","#0d9488","#ea580c"][i % 8] }}
-                />
-                <span className={isMe ? "font-bold" : ""}>{s.name.split(" ")[0]}{isMe ? " (You)" : ""}</span>
+              <div key={s.id} className="flex items-center gap-1.5 text-xs">
+                <div className={cn("h-3 w-3 rounded-sm", colors.bg, isMe && "ring-2 ring-primary ring-offset-1")} />
+                <span className={isMe ? "font-bold" : ""}>{s.name}{isMe ? " (You)" : ""}</span>
               </div>
             );
           })}
