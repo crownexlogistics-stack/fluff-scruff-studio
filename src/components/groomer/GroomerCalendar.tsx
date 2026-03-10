@@ -561,7 +561,7 @@ export function GroomerCalendar({ currentDate, daysToShow, staff, bookings, curr
                 </div>
 
                 {/* OTHER GROOMERS — narrow columns (hidden on mobile) */}
-                {!isMobile && otherStaff.map((s) => {
+                {showNarrowCols && otherStaff.map((s) => {
                   const key = `${dateStr}_${s.id}`;
                   const staffBookings = bookingsByDateAndStaff.get(key) || [];
                   const sIdx = staff.findIndex(st => st.id === s.id);
