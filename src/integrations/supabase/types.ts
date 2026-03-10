@@ -2072,7 +2072,10 @@ export type Database = {
           appointment_date: string
           appointment_end: string | null
           booking_status: string
+          created_month: number | null
+          created_year: number | null
           customer_email: string | null
+          customer_message: string | null
           customer_name: string
           customer_phone: string | null
           dog_age: string | null
@@ -2086,17 +2089,23 @@ export type Database = {
           migrated_to_main: boolean
           payment_status: string
           price_charged: number
+          price_option: string | null
           referral_source: string | null
+          registration_date: string | null
           revenue_recognised: boolean
           service_name: string
           service_type: string | null
+          source: string | null
           wix_order_number: string | null
         }
         Insert: {
           appointment_date: string
           appointment_end?: string | null
           booking_status?: string
+          created_month?: number | null
+          created_year?: number | null
           customer_email?: string | null
+          customer_message?: string | null
           customer_name: string
           customer_phone?: string | null
           dog_age?: string | null
@@ -2110,17 +2119,23 @@ export type Database = {
           migrated_to_main?: boolean
           payment_status?: string
           price_charged?: number
+          price_option?: string | null
           referral_source?: string | null
+          registration_date?: string | null
           revenue_recognised?: boolean
           service_name: string
           service_type?: string | null
+          source?: string | null
           wix_order_number?: string | null
         }
         Update: {
           appointment_date?: string
           appointment_end?: string | null
           booking_status?: string
+          created_month?: number | null
+          created_year?: number | null
           customer_email?: string | null
+          customer_message?: string | null
           customer_name?: string
           customer_phone?: string | null
           dog_age?: string | null
@@ -2134,10 +2149,13 @@ export type Database = {
           migrated_to_main?: boolean
           payment_status?: string
           price_charged?: number
+          price_option?: string | null
           referral_source?: string | null
+          registration_date?: string | null
           revenue_recognised?: boolean
           service_name?: string
           service_type?: string | null
+          source?: string | null
           wix_order_number?: string | null
         }
         Relationships: []
