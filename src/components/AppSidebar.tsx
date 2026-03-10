@@ -75,7 +75,7 @@ const directorOnlyItems = [
   { title: "System Health", url: "/admin/health", icon: Activity },
   { title: "Tests", url: "/admin/tests", icon: Activity },
   { title: "Wix Migration", url: "/admin/migration", icon: ArrowRightLeft },
-  { title: "📚 Historical Data", url: "/admin/historical", icon: ArrowRightLeft },
+  { title: "Historical Data", url: "/admin/historical", icon: HistoryBook },
 ];
 
 export function AppSidebar() {
