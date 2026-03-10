@@ -78,7 +78,6 @@ const END_HOUR = 19;
 const HOURS = Array.from({ length: END_HOUR - START_HOUR }, (_, i) => START_HOUR + i);
 const FOCUS_HOUR = 9;
 const SLOT_HEIGHT = 64;
-const NARROW_COL_WIDTH = 60;
 
 function SlotAction({ date, hour, staffId, staffName, canBlock, onBook, onBlock, onOvertime }: {
   date: Date; hour: number; staffId: string; staffName: string; canBlock: boolean;
