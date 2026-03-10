@@ -1,0 +1,1 @@
+ALTER TABLE public.staff ADD COLUMN IF NOT EXISTS block_new_bookings boolean NOT NULL DEFAULT false;
