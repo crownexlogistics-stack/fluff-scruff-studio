@@ -14,9 +14,11 @@ const PRIORITY_OPTIONS = [
   { value: "3", label: "3rd Priority", emoji: "🥉" },
   { value: "4", label: "4th Priority", emoji: "4️⃣" },
   { value: "none", label: "No Priority", emoji: "" },
+  { value: "block", label: "No New Bookings", emoji: "🚫" },
 ];
 
-function getPriorityBadge(priority: number | null) {
+function getPriorityBadge(priority: number | null, blocked?: boolean) {
+  if (blocked) return <Badge className="bg-destructive/10 text-destructive hover:bg-destructive/10 text-xs">🚫 No New Bookings</Badge>;
   if (priority === 1) return <Badge className="bg-amber-400 text-amber-900 hover:bg-amber-400 text-xs">🥇 1st</Badge>;
   if (priority === 2) return <Badge className="bg-gray-300 text-gray-800 hover:bg-gray-300 text-xs">🥈 2nd</Badge>;
   if (priority === 3) return <Badge className="bg-amber-600 text-white hover:bg-amber-600 text-xs">🥉 3rd</Badge>;
@@ -33,11 +35,11 @@ const BookingPriorityPage = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("staff")
-        .select("id, name, role, booking_priority, is_accepting_bookings")
+        .select("id, name, role, booking_priority, is_accepting_bookings, block_new_bookings")
         .ilike("role", "%groomer%")
         .order("name");
       if (error) throw error;
-      return data as { id: string; name: string; role: string; booking_priority: number | null; is_accepting_bookings: boolean }[];
+      return data as { id: string; name: string; role: string; booking_priority: number | null; is_accepting_bookings: boolean; block_new_bookings: boolean }[];
     },
   });
 
@@ -63,8 +65,15 @@ const BookingPriorityPage = () => {
   });
 
   const handlePriorityChange = (staffId: string, value: string) => {
-    const priority = value === "none" ? null : parseInt(value);
-    updateMutation.mutate({ id: staffId, field: "booking_priority", value: priority });
+    if (value === "block") {
+      // Set block_new_bookings = true, clear priority
+      updateMutation.mutate({ id: staffId, field: "block_new_bookings", value: true });
+      updateMutation.mutate({ id: staffId, field: "booking_priority", value: null });
+    } else {
+      const priority = value === "none" ? null : parseInt(value);
+      updateMutation.mutate({ id: staffId, field: "block_new_bookings", value: false });
+      updateMutation.mutate({ id: staffId, field: "booking_priority", value: priority });
+    }
   };
 
   const handleAcceptingChange = (staffId: string, checked: boolean) => {
@@ -73,7 +82,7 @@ const BookingPriorityPage = () => {
 
   // Build priority order preview
   const sortedByPriority = [...groomers]
-    .filter(g => g.is_accepting_bookings)
+    .filter(g => g.is_accepting_bookings && !g.block_new_bookings)
     .sort((a, b) => {
       const pa = a.booking_priority ?? 999;
       const pb = b.booking_priority ?? 999;
@@ -82,6 +91,7 @@ const BookingPriorityPage = () => {
 
   const prioritised = sortedByPriority.filter(g => g.booking_priority != null);
   const noPriority = sortedByPriority.filter(g => g.booking_priority == null);
+  const blocked = groomers.filter(g => g.block_new_bookings && g.is_accepting_bookings);
   const notAccepting = groomers.filter(g => !g.is_accepting_bookings);
 
   return (
@@ -125,13 +135,13 @@ const BookingPriorityPage = () => {
                           )}
                         </div>
                         <div className="flex items-center gap-2 mt-0.5">
-                          {getPriorityBadge(groomer.booking_priority)}
+                          {getPriorityBadge(groomer.booking_priority, groomer.block_new_bookings)}
                         </div>
                       </div>
 
                       {/* Priority dropdown */}
                       <Select
-                        value={groomer.booking_priority != null ? String(groomer.booking_priority) : "none"}
+                        value={groomer.block_new_bookings ? "block" : groomer.booking_priority != null ? String(groomer.booking_priority) : "none"}
                         onValueChange={(v) => handlePriorityChange(groomer.id, v)}
                       >
                         <SelectTrigger className="w-[140px] h-9">
@@ -181,6 +191,16 @@ const BookingPriorityPage = () => {
                       {noPriority.map(g => (
                         <div key={g.id} className="flex items-center gap-2 text-sm pl-8">
                           <span className="text-muted-foreground">{g.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {blocked.length > 0 && (
+                    <div className="border-t border-border pt-2 mt-2">
+                      <p className="text-xs text-destructive mb-1">🚫 No New Bookings (hidden from customers)</p>
+                      {blocked.map(g => (
+                        <div key={g.id} className="flex items-center gap-2 text-sm pl-8">
+                          <span className="text-destructive/70">{g.name}</span>
                         </div>
                       ))}
                     </div>

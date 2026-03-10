@@ -1825,6 +1825,7 @@ export type Database = {
         Row: {
           account_blocked: boolean | null
           auth_user_id: string | null
+          block_new_bookings: boolean
           booking_priority: number | null
           contact_number: string | null
           contract_signature_data: string | null
@@ -1850,6 +1851,7 @@ export type Database = {
         Insert: {
           account_blocked?: boolean | null
           auth_user_id?: string | null
+          block_new_bookings?: boolean
           booking_priority?: number | null
           contact_number?: string | null
           contract_signature_data?: string | null
@@ -1875,6 +1877,7 @@ export type Database = {
         Update: {
           account_blocked?: boolean | null
           auth_user_id?: string | null
+          block_new_bookings?: boolean
           booking_priority?: number | null
           contact_number?: string | null
           contract_signature_data?: string | null
