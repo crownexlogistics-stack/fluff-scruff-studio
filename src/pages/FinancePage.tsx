@@ -35,6 +35,7 @@ const FinancePage = () => {
   const [payoutMethod, setPayoutMethod] = useState("bank_transfer");
   const [payoutNotes, setPayoutNotes] = useState("");
   const [activeTab, setActiveTab] = useState("payouts");
+  const [includeWixHistory, setIncludeWixHistory] = useState(false);
 
   const now = new Date();
   const periodStart = useMemo(() => {
