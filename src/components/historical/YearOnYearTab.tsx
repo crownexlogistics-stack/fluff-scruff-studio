@@ -183,7 +183,7 @@ export default function YearOnYearTab() {
         </Select>
 
         <div className="flex gap-2">
-          {(availableYears.length > 0 ? availableYears : [2024, 2025, 2026]).map(y => (
+          {[2024, 2025, 2026].map(y => (
             <Button
               key={y}
               variant={activeYears.has(y) ? "default" : "outline"}
