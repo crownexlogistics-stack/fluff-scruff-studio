@@ -309,7 +309,7 @@ const MonthForecastCard = () => {
           <div className="space-y-1.5">
             <div className="flex items-center justify-between text-sm">
               <span className="flex items-center gap-2"><CheckCircle2 className="h-3.5 w-3.5 text-green-600" /> Groomer pay paid</span>
-              <span className="font-semibold">£{Math.round(groomerPayPaid).toLocaleString()}</span>
+              <span className="font-semibold">£{Math.round(groomerPayPaid + groomerPayCompletedEstimate).toLocaleString()}</span>
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="flex items-center gap-2"><CalendarDays className="h-3.5 w-3.5 text-blue-500" /> Groomer pay upcoming</span>
