@@ -111,7 +111,7 @@ export default function YearOnYearTab() {
             return (
               <div
                 key={yr.year}
-                className="rounded-[20px] bg-white shadow-sm px-5 py-4"
+                className="rounded-[20px] bg-white shadow-sm px-5 py-4 min-w-[180px] flex-1"
                 style={{ borderLeft: `4px solid ${borderColor}` }}
               >
                 <div className="flex items-center gap-2 mb-1">
