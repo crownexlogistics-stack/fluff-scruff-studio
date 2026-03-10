@@ -137,9 +137,9 @@ export default function YearOnYearTab() {
       )}
 
       {/* Main layout — charts only (no sidebar in export) */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Panel 1: Revenue Over Time */}
-          <Card className="rounded-[20px] border-none shadow-sm" style={{ gridColumn: "1 / -1" }}>
+          <Card className="rounded-[20px] border-none shadow-sm md:col-span-2">
             <CardContent className="p-5">
               <h3 className="font-heading text-base font-bold mb-3" style={{ color: "#2D1B0E" }}>💰 Revenue Over Time</h3>
               <ResponsiveContainer width="100%" height={260}>
