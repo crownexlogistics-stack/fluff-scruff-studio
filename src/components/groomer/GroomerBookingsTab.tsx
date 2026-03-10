@@ -194,63 +194,7 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
     },
   });
 
-  // Fetch staff availability (off-days)
-  const { data: staffAvailability = [] } = useQuery({
-    queryKey: ["staff-availability-calendar"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("staff_availability")
-        .select("*")
-        .eq("is_available", false);
-      if (error) throw error;
-      return data || [];
-    },
-  });
-
-  // Create off-day blocks from staff_availability
-  const offDayBlocks = useMemo(() => {
-    const blocks: GroomerCalendarBooking[] = [];
-    for (let i = 0; i < daysToShow; i++) {
-      const day = addDays(currentDate, i);
-      // Convert JS getDay() (0=Sun,1=Mon,...,6=Sat) to DB format (0=Mon,1=Tue,...,6=Sun)
-      const dayOfWeek = (day.getDay() + 6) % 7;
-      const dateStr = format(day, "yyyy-MM-dd");
-
-      for (const avail of staffAvailability) {
-        if (avail.day_of_week === dayOfWeek) {
-          const staffMember = allStaff.find(s => s.id === avail.staff_id);
-          // Skip if there's an override for this staff on this date (override takes precedence)
-          const hasOverride = overrides.some(o => o.booking_date === dateStr && o.staff_id === avail.staff_id);
-          if (staffMember && !hasOverride) {
-            blocks.push({
-              id: `offday-${avail.staff_id}-${dateStr}`,
-              customer_name: "Off",
-              dog_name: "",
-              booking_date: dateStr,
-              booking_time: "08:00",
-              end_time: "18:00",
-              status: "Blocked",
-              notes: null,
-              staff_id: avail.staff_id,
-              staff_name: staffMember.name,
-              service_name: "",
-              breed_name: "",
-              is_block: true,
-              is_off_day: true,
-              is_own: avail.staff_id === staffId,
-              total_price: 0,
-              deposit_paid: 0,
-              customer_email: null,
-              customer_phone: null,
-            });
-          }
-        }
-      }
-    }
-    return blocks;
-  }, [staffAvailability, allStaff, currentDate, daysToShow, staffId, overrides]);
-
-  const allEvents = useMemo(() => [...bookings, ...migratedBookings, ...overrides, ...offDayBlocks], [bookings, migratedBookings, overrides, offDayBlocks]);
+  const allEvents = useMemo(() => [...bookings, ...migratedBookings, ...overrides], [bookings, migratedBookings, overrides]);
 
   // Convert to BookingData[] for WeeklyCalendar
   const calendarBookings = useMemo<BookingData[]>(() =>
