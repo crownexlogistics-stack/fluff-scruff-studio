@@ -3,6 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import YearOnYearTab from "@/components/historical/YearOnYearTab";
 import CustomerLookupTab from "@/components/historical/CustomerLookupTab";
 import BookingRecordsTab from "@/components/historical/BookingRecordsTab";
+import ImportDataTab from "@/components/historical/ImportDataTab";
 
 const HistoricalDataPage = () => (
   <AppLayout>
@@ -27,6 +28,9 @@ const HistoricalDataPage = () => (
           <TabsTrigger value="records" className="rounded-[30px] text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm">
             📋 Booking Records
           </TabsTrigger>
+          <TabsTrigger value="import" className="rounded-[30px] text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm">
+            ⬆️ Import Data
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="performance">
@@ -37,6 +41,9 @@ const HistoricalDataPage = () => (
         </TabsContent>
         <TabsContent value="records">
           <BookingRecordsTab />
+        </TabsContent>
+        <TabsContent value="import">
+          <ImportDataTab />
         </TabsContent>
       </Tabs>
     </div>
