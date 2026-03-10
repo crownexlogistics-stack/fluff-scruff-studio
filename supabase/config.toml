@@ -107,3 +107,6 @@ verify_jwt = false
 
 [functions.system-health-check]
 verify_jwt = false
+
+[functions.analyse-error]
+verify_jwt = false

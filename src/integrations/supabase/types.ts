@@ -936,45 +936,66 @@ export type Database = {
       error_reports: {
         Row: {
           admin_notes: string | null
+          analysed_at: string | null
           browser_info: string | null
           created_at: string
           customer_email: string | null
           customer_name: string | null
           device_info: string | null
           error_description: string
+          fix_instruction: string | null
           id: string
+          impact: string | null
+          lovable_prompt: string | null
           page_url: string
+          plain_english: string | null
+          resolution_method: string | null
           screenshot_url: string | null
+          severity: string | null
           status: string
           steps_to_reproduce: string
           user_id: string | null
         }
         Insert: {
           admin_notes?: string | null
+          analysed_at?: string | null
           browser_info?: string | null
           created_at?: string
           customer_email?: string | null
           customer_name?: string | null
           device_info?: string | null
           error_description: string
+          fix_instruction?: string | null
           id?: string
+          impact?: string | null
+          lovable_prompt?: string | null
           page_url: string
+          plain_english?: string | null
+          resolution_method?: string | null
           screenshot_url?: string | null
+          severity?: string | null
           status?: string
           steps_to_reproduce: string
           user_id?: string | null
         }
         Update: {
           admin_notes?: string | null
+          analysed_at?: string | null
           browser_info?: string | null
           created_at?: string
           customer_email?: string | null
           customer_name?: string | null
           device_info?: string | null
           error_description?: string
+          fix_instruction?: string | null
           id?: string
+          impact?: string | null
+          lovable_prompt?: string | null
           page_url?: string
+          plain_english?: string | null
+          resolution_method?: string | null
           screenshot_url?: string | null
+          severity?: string | null
           status?: string
           steps_to_reproduce?: string
           user_id?: string | null
