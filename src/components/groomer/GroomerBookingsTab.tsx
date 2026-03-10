@@ -504,25 +504,24 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
 
       {/* Calendar or List */}
       {viewMode !== "list" ? (
-        <GroomerCalendar
-          currentDate={currentDate}
-          daysToShow={daysToShow}
+        <WeeklyCalendar
+          weekStart={currentDate}
           staff={allStaff}
-          bookings={allEvents}
+          bookings={calendarBookings}
+          staffIndexMap={staffIndexMap}
           currentStaffId={staffId}
-          userRole={userRole}
           onBook={handleBook}
           onBlock={handleBlock}
           onOvertime={handleOvertime}
-          onEditBlock={handleEditBlock}
-          onCancelBlock={handleCancelBlock}
-          onEditOvertime={handleEditOvertime}
-          onCancelOvertime={handleCancelOvertime}
-          onViewOrder={handleViewOrder}
-          onEditAppointment={handleEditAppointment}
-          onCancelBooking={handleCancelBooking}
-          onBookAgain={handleBookAgain}
-          onCheckout={handleCheckout}
+          onEditBlock={(b) => { const gb = allEvents.find(e => e.id === b.id); if (gb) handleEditBlock(gb); }}
+          onCancelBlock={(b) => { const gb = allEvents.find(e => e.id === b.id); if (gb) handleCancelBlock(gb); }}
+          onEditOvertime={(b) => { const gb = allEvents.find(e => e.id === b.id); if (gb) handleEditOvertime(gb); }}
+          onCancelOvertime={(b) => { const gb = allEvents.find(e => e.id === b.id); if (gb) handleCancelOvertime(gb); }}
+          onViewOrder={(b) => { const gb = allEvents.find(e => e.id === b.id); if (gb) handleViewOrder(gb); }}
+          onEditAppointment={(b) => { const gb = allEvents.find(e => e.id === b.id); if (gb) handleEditAppointment(gb); }}
+          onCancelBooking={(b) => { const gb = allEvents.find(e => e.id === b.id); if (gb) handleCancelBooking(gb); }}
+          onBookAgain={(b) => { const gb = allEvents.find(e => e.id === b.id); if (gb) handleBookAgain(gb); }}
+          onCheckout={(b) => { const gb = allEvents.find(e => e.id === b.id); if (gb) handleCheckout(gb); }}
         />
       ) : (
         <div className="space-y-2">
