@@ -65,6 +65,7 @@ import ScruffConversationsPage from "./pages/ScruffConversationsPage";
 import ScruffHandoffsPage from "./pages/ScruffHandoffsPage";
 import ScruffSettingsPage from "./pages/ScruffSettingsPage";
 import WixMigrationPage from "./pages/WixMigrationPage";
+import HistoricalDataPage from "./pages/HistoricalDataPage";
 
 const queryClient = new QueryClient();
 
