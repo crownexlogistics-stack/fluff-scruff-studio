@@ -2067,6 +2067,81 @@ export type Database = {
         }
         Relationships: []
       }
+      wix_historical_bookings: {
+        Row: {
+          appointment_date: string
+          appointment_end: string | null
+          booking_status: string
+          customer_email: string | null
+          customer_name: string
+          customer_phone: string | null
+          dog_age: string | null
+          dog_breed: string | null
+          dog_name: string | null
+          duration_text: string | null
+          excluded_from_revenue: boolean
+          groomer_name: string | null
+          id: string
+          imported_at: string
+          migrated_to_main: boolean
+          payment_status: string
+          price_charged: number
+          referral_source: string | null
+          revenue_recognised: boolean
+          service_name: string
+          service_type: string | null
+          wix_order_number: string | null
+        }
+        Insert: {
+          appointment_date: string
+          appointment_end?: string | null
+          booking_status?: string
+          customer_email?: string | null
+          customer_name: string
+          customer_phone?: string | null
+          dog_age?: string | null
+          dog_breed?: string | null
+          dog_name?: string | null
+          duration_text?: string | null
+          excluded_from_revenue?: boolean
+          groomer_name?: string | null
+          id?: string
+          imported_at?: string
+          migrated_to_main?: boolean
+          payment_status?: string
+          price_charged?: number
+          referral_source?: string | null
+          revenue_recognised?: boolean
+          service_name: string
+          service_type?: string | null
+          wix_order_number?: string | null
+        }
+        Update: {
+          appointment_date?: string
+          appointment_end?: string | null
+          booking_status?: string
+          customer_email?: string | null
+          customer_name?: string
+          customer_phone?: string | null
+          dog_age?: string | null
+          dog_breed?: string | null
+          dog_name?: string | null
+          duration_text?: string | null
+          excluded_from_revenue?: boolean
+          groomer_name?: string | null
+          id?: string
+          imported_at?: string
+          migrated_to_main?: boolean
+          payment_status?: string
+          price_charged?: number
+          referral_source?: string | null
+          revenue_recognised?: boolean
+          service_name?: string
+          service_type?: string | null
+          wix_order_number?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
