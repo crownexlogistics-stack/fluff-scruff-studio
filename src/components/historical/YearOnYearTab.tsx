@@ -307,12 +307,12 @@ export default function YearOnYearTab() {
                 <p className="text-sm" style={{ color: "#8B6F5C" }}>No groomer data</p>
               )}
             </CardContent>
-          </Card>
-        </div>
-
-        {/* Sidebar */}
-        <TimelineHighlightsSidebar highlights={highlights} />
+        </Card>
       </div>
+      </div>{/* end exportRef */}
+
+      {/* Sidebar — outside export area */}
+      <TimelineHighlightsSidebar highlights={highlights} />
     </div>
   );
 }
