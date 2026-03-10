@@ -133,55 +133,72 @@ export function EditAppointmentDialog({ open, onOpenChange, booking }: EditAppoi
   const updateBooking = useMutation({
     mutationFn: async () => {
       if (!booking) return;
-      const { error } = await supabase.from("bookings").update({
-        booking_date: form.booking_date,
-        booking_time: form.booking_time,
-        duration_minutes: form.duration_minutes,
-        service_id: form.service_id || null,
-        breed_id: form.breed_id || null,
-        staff_id: form.staff_id || null,
-        total_price: form.total_price,
-        deposit_paid: form.deposit_paid,
-        notes: form.notes || null,
-      } as any).eq("id", booking.id);
-      if (error) throw error;
 
-      // Sync booking_addons: delete removed, insert added
-      const toRemove = initialAddonIds.filter(id => !selectedAddonIds.includes(id));
-      const toAdd = selectedAddonIds.filter(id => !initialAddonIds.includes(id));
+      if (booking.is_migrated) {
+        // Update migrated_bookings table
+        const { error } = await supabase.from("migrated_bookings").update({
+          booking_date: form.booking_date,
+          booking_time: form.booking_time,
+          duration_minutes: form.duration_minutes,
+          total_price: form.total_price,
+          deposit_paid: form.deposit_paid,
+          notes: form.notes || null,
+          staff_name: staff?.find(s => s.id === form.staff_id)?.name || null,
+        }).eq("id", booking.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("bookings").update({
+          booking_date: form.booking_date,
+          booking_time: form.booking_time,
+          duration_minutes: form.duration_minutes,
+          service_id: form.service_id || null,
+          breed_id: form.breed_id || null,
+          staff_id: form.staff_id || null,
+          total_price: form.total_price,
+          deposit_paid: form.deposit_paid,
+          notes: form.notes || null,
+        } as any).eq("id", booking.id);
+        if (error) throw error;
 
-      if (toRemove.length > 0) {
-        await supabase
-          .from("booking_addons" as any)
-          .delete()
-          .eq("booking_id", booking.id)
-          .in("addon_id", toRemove);
-      }
-      if (toAdd.length > 0) {
-        await supabase
-          .from("booking_addons" as any)
-          .insert(toAdd.map(addon_id => ({
-            booking_id: booking.id,
-            addon_id,
-            added_by_staff: true,
-          })));
+        // Sync booking_addons: delete removed, insert added
+        const toRemove = initialAddonIds.filter(id => !selectedAddonIds.includes(id));
+        const toAdd = selectedAddonIds.filter(id => !initialAddonIds.includes(id));
+
+        if (toRemove.length > 0) {
+          await supabase
+            .from("booking_addons" as any)
+            .delete()
+            .eq("booking_id", booking.id)
+            .in("addon_id", toRemove);
+        }
+        if (toAdd.length > 0) {
+          await supabase
+            .from("booking_addons" as any)
+            .insert(toAdd.map(addon_id => ({
+              booking_id: booking.id,
+              addon_id,
+              added_by_staff: true,
+            })));
+        }
+
+        if (form.staff_id) {
+          supabase.functions.invoke("notify-groomer", {
+            body: { booking_id: booking.id, notification_type: "booking_edited" },
+          }).catch(() => {});
+        }
       }
 
       logAudit({
         staffId: form.staff_id || undefined,
         action: "BOOKING_EDITED",
-        details: `Edited booking for ${booking.customer_name} on ${form.booking_date} at ${form.booking_time}`,
+        details: `Edited ${booking.is_migrated ? "migrated " : ""}booking for ${booking.customer_name} on ${form.booking_date} at ${form.booking_time}`,
       });
-      if (form.staff_id) {
-        supabase.functions.invoke("notify-groomer", {
-          body: { booking_id: booking.id, notification_type: "booking_edited" },
-        }).catch(() => {});
-      }
     },
     onSuccess: () => {
       toast.success("Appointment updated");
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
       queryClient.invalidateQueries({ queryKey: ["groomer-bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["groomer-migrated-bookings"] });
       queryClient.invalidateQueries({ queryKey: ["audit-logs"] });
       queryClient.invalidateQueries({ queryKey: ["booking-addons"] });
       onOpenChange(false);
