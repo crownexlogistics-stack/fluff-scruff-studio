@@ -88,7 +88,7 @@ export default function YearOnYearTab() {
       <div ref={exportRef} className="space-y-6">
 
       {/* KPI Pills */}
-      <div style={{ display: "flex", flexDirection: "row", flexWrap: "nowrap", gap: "12px" }}>
+      <div className="flex flex-wrap gap-3">
         <KpiPill label="Total Bookings" value={kpi.totalBookings.toLocaleString()} />
         <KpiPill label="Total Revenue" value={`£${kpi.totalRevenue.toLocaleString()}`} />
         <KpiPill label="Total Customers" value={kpi.totalCustomers.toLocaleString()} subtitle="all time unique" />
