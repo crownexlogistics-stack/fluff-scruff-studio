@@ -62,7 +62,7 @@ const FinancePage = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("commission_records")
-        .select("*, bookings(customer_name, dog_name, booking_date, service_id, services:service_id(name))")
+        .select("*, bookings(customer_name, dog_name, booking_date, service_id, services:service_id(name)), migrated_bookings(service_name, dog_name, booking_date, migrated_customers(full_name))")
         .gte("created_at", `${periodStartStr}T00:00:00`)
         .lte("created_at", `${periodEndStr}T23:59:59`)
         .order("created_at", { ascending: false });
