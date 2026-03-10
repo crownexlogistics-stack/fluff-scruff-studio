@@ -119,3 +119,6 @@ verify_jwt = false
 
 [functions.finance-explainer]
 verify_jwt = false
+
+[functions.archive-completed-month]
+verify_jwt = false
