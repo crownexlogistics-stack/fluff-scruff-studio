@@ -60,6 +60,7 @@ export interface KpiSummary {
   totalBookings: number;
   totalRevenue: number;
   totalCustomers: number;
+  returningCustomers: number;
   avgMonthlyRevenue: number;
 }
 
@@ -149,17 +150,27 @@ export function useTimelineAnalytics() {
 
   // KPI summary
   const kpi = useMemo((): KpiSummary => {
-    if (!timeline.length) return { totalBookings: 0, totalRevenue: 0, totalCustomers: 0, avgMonthlyRevenue: 0 };
+    if (!timeline.length) return { totalBookings: 0, totalRevenue: 0, totalCustomers: 0, returningCustomers: 0, avgMonthlyRevenue: 0 };
     const totalBookings = timeline.reduce((s, e) => s + e.totalBookings, 0);
     const totalRevenue = Math.round(timeline.reduce((s, e) => s + e.confirmedRevenue, 0));
     const allEmails = new Set<string>();
+    // Track which months each email appears in
+    const emailMonths = new Map<string, Set<string>>();
     dbData?.forEach(r => {
-      if (r.booking_status === "Confirmed" && r.customer_email)
-        allEmails.add(r.customer_email.toLowerCase());
+      if (r.booking_status === "Confirmed" && r.customer_email) {
+        const email = r.customer_email.toLowerCase();
+        allEmails.add(email);
+        if (r.created_year && r.created_month) {
+          if (!emailMonths.has(email)) emailMonths.set(email, new Set());
+          emailMonths.get(email)!.add(`${r.created_year}-${r.created_month}`);
+        }
+      }
     });
     const totalCustomers = allEmails.size;
+    let returningCustomers = 0;
+    emailMonths.forEach(months => { if (months.size > 1) returningCustomers++; });
     const avgMonthlyRevenue = Math.round(totalRevenue / timeline.length);
-    return { totalBookings, totalRevenue, totalCustomers, avgMonthlyRevenue };
+    return { totalBookings, totalRevenue, totalCustomers, returningCustomers, avgMonthlyRevenue };
   }, [timeline, dbData]);
 
   // Best revenue month index

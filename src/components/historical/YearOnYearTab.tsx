@@ -66,7 +66,14 @@ export default function YearOnYearTab() {
       <div className="flex flex-wrap gap-3">
         <KpiPill label="Total Bookings" value={kpi.totalBookings.toLocaleString()} />
         <KpiPill label="Total Revenue" value={`£${kpi.totalRevenue.toLocaleString()}`} />
-        <KpiPill label="Total Customers" value={kpi.totalCustomers.toLocaleString()} />
+        <KpiPill label="Total Customers" value={kpi.totalCustomers.toLocaleString()} subtitle="all time unique" />
+        <KpiPill
+          label="Returning Customers"
+          value={kpi.returningCustomers.toLocaleString()}
+          subtitle="booked more than once"
+          amber
+          badge={kpi.totalCustomers > 0 ? `${Math.round((kpi.returningCustomers / kpi.totalCustomers) * 100)}% of customers` : undefined}
+        />
         <KpiPill label="Avg Monthly Revenue" value={`£${kpi.avgMonthlyRevenue.toLocaleString()}`} />
       </div>
 
@@ -254,11 +261,19 @@ export default function YearOnYearTab() {
   );
 }
 
-function KpiPill({ label, value }: { label: string; value: string }) {
+function KpiPill({ label, value, subtitle, amber, badge }: { label: string; value: string; subtitle?: string; amber?: boolean; badge?: string }) {
   return (
-    <div className="rounded-[16px] px-4 py-3 shadow-sm" style={{ backgroundColor: "#FFF8F0", border: "1px solid #f0e6da" }}>
+    <div className="rounded-[16px] px-4 py-3 shadow-sm" style={{ backgroundColor: amber ? "#fff8e7" : "#FFF8F0", border: "1px solid #f0e6da" }}>
       <p className="text-[10px] uppercase tracking-widest font-semibold" style={{ color: "#8B6F5C" }}>{label}</p>
-      <p className="text-lg font-bold" style={{ color: "#2D1B0E" }}>{value}</p>
+      <div className="flex items-center gap-2">
+        <p className="text-lg font-bold" style={{ color: "#2D1B0E" }}>{value}</p>
+        {badge && (
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full text-white" style={{ backgroundColor: "#FF6B35" }}>
+            {badge}
+          </span>
+        )}
+      </div>
+      {subtitle && <p className="text-[10px]" style={{ color: "#8B6F5C" }}>{subtitle}</p>}
     </div>
   );
 }
