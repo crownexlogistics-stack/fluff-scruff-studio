@@ -78,7 +78,6 @@ const END_HOUR = 19;
 const HOURS = Array.from({ length: END_HOUR - START_HOUR }, (_, i) => START_HOUR + i);
 const FOCUS_HOUR = 9;
 const SLOT_HEIGHT = 64;
-const NARROW_COL_WIDTH = 60;
 
 function SlotAction({ date, hour, staffId, staffName, canBlock, onBook, onBlock, onOvertime }: {
   date: Date; hour: number; staffId: string; staffName: string; canBlock: boolean;
@@ -263,6 +262,9 @@ export function GroomerCalendar({ currentDate, daysToShow, staff, bookings, curr
   const scrollRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
   const canInteract = !!onBook && !!onBlock && (userRole === "groomer" || userRole === "manager" || userRole === "director");
+  // Only show narrow other-groomer columns in 1-day or 3-day view
+  const showNarrowCols = !isMobile && daysToShow <= 3;
+  const NARROW_COL_WIDTH = daysToShow === 1 ? 60 : 40;
 
   const days = useMemo(() => Array.from({ length: daysToShow }, (_, i) => addDays(currentDate, i)), [currentDate, daysToShow]);
 
@@ -316,7 +318,7 @@ export function GroomerCalendar({ currentDate, daysToShow, staff, bookings, curr
   return (
     <div className="border rounded-lg bg-card overflow-hidden">
       {/* Mobile team button */}
-      {isMobile && otherStaff.length > 0 && (
+      {(isMobile || !showNarrowCols) && otherStaff.length > 0 && (
         <Sheet>
           <SheetTrigger asChild>
             <Button variant="outline" size="sm" className="m-2 gap-1.5 text-xs">
@@ -358,7 +360,7 @@ export function GroomerCalendar({ currentDate, daysToShow, staff, bookings, curr
                 <div className={cn("flex-1 text-center py-1 text-xs font-bold text-primary truncate px-1")}>
                   {sortedStaff[0]?.name.split(" ")[0] || "You"}
                 </div>
-                {!isMobile && otherStaff.map((s) => (
+                {showNarrowCols && otherStaff.map((s) => (
                   <div key={s.id} className="text-center py-1 text-[9px] font-medium text-muted-foreground truncate border-l" style={{ width: `${NARROW_COL_WIDTH}px`, minWidth: `${NARROW_COL_WIDTH}px`, maxWidth: `${NARROW_COL_WIDTH}px` }}>
                     {s.name.split(" ")[0].slice(0, 4)}
                   </div>
@@ -559,7 +561,7 @@ export function GroomerCalendar({ currentDate, daysToShow, staff, bookings, curr
                 </div>
 
                 {/* OTHER GROOMERS — narrow columns (hidden on mobile) */}
-                {!isMobile && otherStaff.map((s) => {
+                {showNarrowCols && otherStaff.map((s) => {
                   const key = `${dateStr}_${s.id}`;
                   const staffBookings = bookingsByDateAndStaff.get(key) || [];
                   const sIdx = staff.findIndex(st => st.id === s.id);
