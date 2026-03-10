@@ -365,16 +365,18 @@ const Index = () => {
 
   const projectedGross = upcomingAll.reduce((s: number, b: any) => s + Number(b.total_price || 0), 0);
 
-  // Expenses totals
-  const toMonthly = (amount: number, freq: string) => {
-    if (freq === "weekly") return amount * 4.33;
-    if (freq === "annual") return amount / 12;
-    return amount;
-  };
-  const monthlyRecurringExpenses = recurringExpenses.reduce((s: number, e: any) => s + toMonthly(Number(e.amount), e.frequency || "monthly"), 0);
+  // Date-aware expenses
+  const dateAwareExpenses = calcDateAwareExpenses(recurringExpenses, new Date());
+  const paidRecurring = dateAwareExpenses.paidTotal;
+  const upcomingRecurring = dateAwareExpenses.upcomingTotal;
   const monthlyOneOffExpenses = oneOffExpenses.reduce((s: number, e: any) => s + Number(e.amount), 0);
-  const totalMonthlyExpenses = monthlyRecurringExpenses + monthlyOneOffExpenses;
-  const netProfit = totalStudioShare - totalMonthlyExpenses;
+  const upcomingOneOffTotal = upcomingOneOffExpenses.reduce((s: number, e: any) => s + Number(e.amount), 0);
+
+  const expensesPaidToDate = paidRecurring + monthlyOneOffExpenses;
+  const expensesStillToPay = upcomingRecurring + upcomingOneOffTotal;
+  const totalMonthlyExpenses = expensesPaidToDate + expensesStillToPay;
+  const netProfit = totalStudioShare - expensesPaidToDate;
+  const projectedProfit = totalStudioShare - totalMonthlyExpenses;
 
   const calcDelta = (curr: number, prev: number) => prev > 0 ? Math.round(((curr - prev) / prev) * 100) : 0;
 
