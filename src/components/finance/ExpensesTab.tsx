@@ -401,17 +401,20 @@ export default function ExpensesTab({ periodStart, periodEnd, totalRevenue, tota
   const totalMonthlyRecurring = recurring.reduce((s, e) => s + toMonthly(Number(e.amount), e.frequency || "monthly"), 0);
   const totalOneOffs = oneOffs.reduce((s, e) => s + Number(e.amount), 0);
 
-  const calcPL = useCallback((bookings: any[], commissions: any[], oneOffs: any[]) => {
+  const calcPL = useCallback((bookings: any[], commissions: any[], oneOffs: any[], monthRef: Date) => {
     const revenue = bookings.reduce((s: number, b: any) => s + Number(b.total_price), 0);
     const groomerPay = commissions.reduce((s: number, c: any) => s + Number(c.groomer_pay), 0);
     const oneOffCosts = oneOffs.reduce((s: number, e: any) => s + Number(e.amount), 0);
-    const recurringCosts = totalMonthlyRecurring;
-    const netProfit = revenue - groomerPay - recurringCosts - oneOffCosts;
-    return { revenue, groomerPay, recurringCosts, oneOffCosts, netProfit };
-  }, [totalMonthlyRecurring]);
+    const isCurrentMonth = isSameMonth(monthRef, new Date());
+    const dateAware = calcDateAwareExpenses(recurring, monthRef);
+    const recurringCostsPaid = isCurrentMonth ? dateAware.paidTotal : dateAware.fullMonthTotal;
+    const recurringCostsUpcoming = isCurrentMonth ? dateAware.upcomingTotal : 0;
+    const netProfit = revenue - groomerPay - recurringCostsPaid - oneOffCosts;
+    return { revenue, groomerPay, recurringCostsPaid, recurringCostsUpcoming, oneOffCosts, netProfit, isCurrentMonth };
+  }, [recurring]);
 
-  const pl = calcPL(plBookings, plCommissions, plOneOffs);
-  const cmpPl = compareMonth ? calcPL(cmpBookings, cmpCommissions, cmpOneOffs) : null;
+  const pl = calcPL(plBookings, plCommissions, plOneOffs, plMonth);
+  const cmpPl = compareMonth ? calcPL(cmpBookings, cmpCommissions, cmpOneOffs, compareMonth) : null;
 
   const handleNameChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setForm((prev) => ({ ...prev, name: e.target.value }));
