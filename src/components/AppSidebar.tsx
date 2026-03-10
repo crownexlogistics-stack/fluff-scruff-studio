@@ -291,7 +291,7 @@ export function AppSidebar() {
 
       <SidebarFooter className="p-3 border-t border-sidebar-border">
         <SidebarMenu>
-          {hasCustomerBookings && (
+          {hasCustomerBookings && role !== "director" && role !== "manager" && (
             <SidebarMenuItem>
               <SidebarMenuButton asChild>
                 <NavLink

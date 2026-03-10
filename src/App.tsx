@@ -95,7 +95,7 @@ const App = () => (
           <Route path="/contact" element={<Navigate to="/" replace />} />
 
           {/* Customer only */}
-          <Route path="/my-pets" element={<ProtectedRoute allowedRoles={["customer", "manager", "director"]}><MyPetsPage /></ProtectedRoute>} />
+          <Route path="/my-pets" element={<ProtectedRoute allowedRoles={["customer", "groomer"]}><MyPetsPage /></ProtectedRoute>} />
 
           {/* Groomer only */}
           <Route path="/portal" element={<ProtectedRoute allowedRoles={["groomer"]}><GroomerPortalPage /></ProtectedRoute>} />

@@ -212,6 +212,7 @@ const AuthPage = () => {
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } else {
+      logLoginEvent("PASSWORD_RESET_REQUESTED", "Customer requested password reset");
       toast({ title: "Email sent", description: "Check your inbox for a password reset link." });
     }
   };
