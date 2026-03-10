@@ -181,26 +181,28 @@ export function WeeklyCalendar({ weekStart, staff, bookings, staffIndexMap, curr
                 {dayBookings.map(booking => {
                   const sIdx = staffIndexMap.get(booking.staff_name || "") ?? 0;
                   const layout = dayLayout.get(booking.id);
-                  return (
-                    <BookingEvent
-                      key={booking.id}
-                      booking={booking}
-                      staffIndex={sIdx}
-                      startHour={START_HOUR}
-                      durationHours={DEFAULT_DURATION}
-                      overlapColumn={layout?.column ?? 0}
-                      overlapTotalColumns={layout?.totalColumns ?? 1}
-                      onEditBlock={onEditBlock}
-                      onCancelBlock={onCancelBlock}
-                      onEditOvertime={onEditOvertime}
-                      onCancelOvertime={onCancelOvertime}
-                      onViewOrder={onViewOrder}
-                      onEditAppointment={onEditAppointment}
-                      onCancelBooking={onCancelBooking}
-                      onBookAgain={onBookAgain}
-                      onCheckout={onCheckout}
-                    />
-                  );
+                  const isPrivacyMasked = !!currentStaffId && booking.staff_id !== currentStaffId && !booking.is_block && !booking.is_overtime;
+                    return (
+                      <BookingEvent
+                        key={booking.id}
+                        booking={booking}
+                        staffIndex={sIdx}
+                        startHour={START_HOUR}
+                        durationHours={DEFAULT_DURATION}
+                        overlapColumn={layout?.column ?? 0}
+                        overlapTotalColumns={layout?.totalColumns ?? 1}
+                        privacyMasked={isPrivacyMasked}
+                        onEditBlock={isPrivacyMasked ? undefined : onEditBlock}
+                        onCancelBlock={isPrivacyMasked ? undefined : onCancelBlock}
+                        onEditOvertime={isPrivacyMasked ? undefined : onEditOvertime}
+                        onCancelOvertime={isPrivacyMasked ? undefined : onCancelOvertime}
+                        onViewOrder={isPrivacyMasked ? undefined : onViewOrder}
+                        onEditAppointment={isPrivacyMasked ? undefined : onEditAppointment}
+                        onCancelBooking={isPrivacyMasked ? undefined : onCancelBooking}
+                        onBookAgain={isPrivacyMasked ? undefined : onBookAgain}
+                        onCheckout={isPrivacyMasked ? undefined : onCheckout}
+                      />
+                    );
                 })}
               </div>
             );
