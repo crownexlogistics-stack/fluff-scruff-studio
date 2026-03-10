@@ -211,7 +211,8 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
     const blocks: GroomerCalendarBooking[] = [];
     for (let i = 0; i < daysToShow; i++) {
       const day = addDays(currentDate, i);
-      const dayOfWeek = day.getDay(); // 0=Sunday
+      // Convert JS getDay() (0=Sun,1=Mon,...,6=Sat) to DB format (0=Mon,1=Tue,...,6=Sun)
+      const dayOfWeek = (day.getDay() + 6) % 7;
       const dateStr = format(day, "yyyy-MM-dd");
 
       for (const avail of staffAvailability) {
