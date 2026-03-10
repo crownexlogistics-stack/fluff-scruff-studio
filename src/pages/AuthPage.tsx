@@ -139,6 +139,27 @@ const AuthPage = () => {
     }
   };
 
+  const maskEmail = (e: string) => {
+    const [local, domain] = e.split("@");
+    if (!domain) return "***";
+    return `${local[0]}${"*".repeat(Math.max(local.length - 2, 1))}${local.length > 1 ? local[local.length - 1] : ""}@${domain}`;
+  };
+
+  const logLoginEvent = async (errorType: string, message: string, severity: string = "low") => {
+    try {
+      await supabase.from("error_reports" as any).insert({
+        error_description: `[${errorType}] ${message}`,
+        steps_to_reproduce: `Email: ${maskEmail(email)}`,
+        page_url: window.location.href,
+        browser_info: `${navigator.userAgent.includes("Chrome") ? "Chrome" : navigator.userAgent.includes("Safari") ? "Safari" : navigator.userAgent.includes("Firefox") ? "Firefox" : "Other"} — ${navigator.userAgent}`,
+        device_info: `${window.innerWidth < 768 ? "Mobile" : window.innerWidth < 1024 ? "Tablet" : "Desktop"} — ${window.innerWidth}x${window.innerHeight}`,
+        status: "new",
+        severity,
+        customer_email: maskEmail(email),
+      } as any);
+    } catch {}
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
@@ -146,6 +167,11 @@ const AuthPage = () => {
     setSubmitting(false);
     if (error) {
       toast({ title: "Login failed", description: error.message, variant: "destructive" });
+      if (error.message?.includes("Invalid login credentials")) {
+        logLoginEvent("LOGIN_FAILED", "Customer entered incorrect password");
+      } else if (error.message?.includes("too many requests") || error.message?.includes("rate limit")) {
+        logLoginEvent("ACCOUNT_LOCKED", "Customer account locked after multiple failed attempts", "medium");
+      }
     } else {
       logAudit({ action: "LOGIN", details: `Logged in via email: ${email}` });
     }
