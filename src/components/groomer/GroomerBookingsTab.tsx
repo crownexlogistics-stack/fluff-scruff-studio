@@ -396,6 +396,7 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
       queryClient.invalidateQueries({ queryKey: ["groomer-bookings"] });
       queryClient.invalidateQueries({ queryKey: ["groomer-migrated-bookings"] });
       queryClient.invalidateQueries({ queryKey: ["commission-records"] });
+      queryClient.invalidateQueries({ queryKey: ["groomer-commissions"] });
     },
     onError: (e: any) => toast.error(e.message),
   });
