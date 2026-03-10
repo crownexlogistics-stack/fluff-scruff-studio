@@ -334,13 +334,13 @@ const Index = () => {
 
   // One-off expenses upcoming (after today in current month)
   const { data: upcomingOneOffExpenses = [] } = useQuery({
-    queryKey: ["dash-upcoming-oneoff-expenses", todayStr, monthEnd],
+    queryKey: ["dash-upcoming-oneoff-expenses", expenseTodayStr, monthEnd],
     queryFn: async () => {
       const { data } = await supabase
         .from("expenses")
         .select("amount")
         .eq("expense_type", "one_off")
-        .gt("expense_date", todayStr)
+        .gt("expense_date", expenseTodayStr)
         .lte("expense_date", monthEnd);
       return (data ?? []) as any[];
     },
