@@ -48,32 +48,33 @@ const MonthForecastCard = () => {
   // ── Queries ──────────────────────────────────
   const queryOpts = { refetchInterval: 60000 };
 
-  // Completed bookings this month (earned revenue)
+  // Past bookings this month (earned revenue) — includes all statuses except cancelled/refunded
   const { data: completedBookings = [], refetch: r1 } = useQuery({
-    queryKey: ["forecast-completed", startStr, endStr],
+    queryKey: ["forecast-completed", startStr, endStr, todayStr],
     queryFn: async () => {
+      const cutoff = isPastMonth ? endStr : todayStr;
       const { data } = await supabase
         .from("bookings")
         .select("id, total_price, deposit_paid, staff_id, is_groomers_own_customer, status")
         .gte("booking_date", startStr)
-        .lte("booking_date", endStr)
-        .in("status", ["Completed", "No Show"]);
+        .lte("booking_date", cutoff)
+        .not("status", "in", '("Cancelled","No Show","Refunded")');
       return (data ?? []) as any[];
     },
     ...queryOpts,
   });
 
-  // Upcoming confirmed bookings this month
+  // Upcoming confirmed bookings this month (future dates only)
   const { data: upcomingBookings = [], refetch: r2 } = useQuery({
     queryKey: ["forecast-upcoming", startStr, endStr, todayStr],
     queryFn: async () => {
-      const upcomingStart = isPastMonth ? endStr : isCurrentMonth ? todayStr : startStr;
+      if (isPastMonth) return [];
       const { data } = await supabase
         .from("bookings")
         .select("id, total_price, deposit_paid, staff_id, is_groomers_own_customer, status, booking_date")
-        .gte("booking_date", upcomingStart)
+        .gt("booking_date", isCurrentMonth ? todayStr : startStr)
         .lte("booking_date", endStr)
-        .not("status", "in", '("Cancelled","Completed","No Show","Refunded")');
+        .not("status", "in", '("Cancelled","No Show","Refunded")');
       return (data ?? []) as any[];
     },
     ...queryOpts,
