@@ -134,9 +134,8 @@ export default function YearOnYearTab() {
         </div>
       )}
 
-      {/* Main layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Main layout — charts only (no sidebar in export) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Panel 1: Revenue Over Time */}
           <Card className="rounded-[20px] border-none shadow-sm md:col-span-2">
             <CardContent className="p-5">
