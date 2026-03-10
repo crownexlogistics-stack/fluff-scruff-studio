@@ -114,8 +114,8 @@ function computeOverlapLayout(dayBookings: BookingData[]): Map<string, LayoutInf
   return result;
 }
 
-export function WeeklyCalendar({ weekStart, staff, bookings, staffIndexMap, currentStaffId, onBook, onBlock, onOvertime, onEditBlock, onCancelBlock, onEditOvertime, onCancelOvertime, onViewOrder, onEditAppointment, onCancelBooking, onBookAgain, onCheckout }: WeeklyCalendarProps) {
-  const days = useMemo(() => DAYS.map(i => addDays(weekStart, i)), [weekStart]);
+export function WeeklyCalendar({ weekStart, daysToShow = 7, staff, bookings, staffIndexMap, currentStaffId, onBook, onBlock, onOvertime, onEditBlock, onCancelBlock, onEditOvertime, onCancelOvertime, onViewOrder, onEditAppointment, onCancelBooking, onBookAgain, onCheckout }: WeeklyCalendarProps) {
+  const days = useMemo(() => Array.from({ length: daysToShow }, (_, i) => addDays(weekStart, i)), [weekStart, daysToShow]);
 
   const bookingsByDate = useMemo(() => {
     const map = new Map<string, BookingData[]>();
