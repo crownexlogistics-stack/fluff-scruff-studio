@@ -12,6 +12,7 @@ interface StaffMember {
 
 interface WeeklyCalendarProps {
   weekStart: Date;
+  daysToShow?: number;
   staff: StaffMember[];
   bookings: BookingData[];
   staffIndexMap: Map<string, number>;
