@@ -196,6 +196,38 @@ export default function ImportDataTab() {
     toast({ title: `✅ Re-import complete — ${imported} records imported` });
   };
 
+  // Archive month state
+  const now = new Date();
+  const defaultArchiveMonth = now.getMonth() === 0 ? 12 : now.getMonth();
+  const defaultArchiveYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+  const [archiveMonth, setArchiveMonth] = useState(defaultArchiveMonth);
+  const [archiveYear, setArchiveYear] = useState(defaultArchiveYear);
+  const [archiving, setArchiving] = useState(false);
+
+  const handleArchiveMonth = async () => {
+    setArchiving(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("archive-completed-month", {
+        body: { month: archiveMonth, year: archiveYear },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      const monthNames = ["", "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+      toast({ title: `✅ ${data.archived} bookings archived from ${monthNames[archiveMonth]} ${archiveYear}` });
+    } catch (err: any) {
+      toast({ title: `❌ Archive failed — ${err.message || "Unknown error"}`, variant: "destructive" });
+    } finally {
+      setArchiving(false);
+    }
+  };
+
+  const monthOptions = [
+    { value: 1, label: "January" }, { value: 2, label: "February" }, { value: 3, label: "March" },
+    { value: 4, label: "April" }, { value: 5, label: "May" }, { value: 6, label: "June" },
+    { value: 7, label: "July" }, { value: 8, label: "August" }, { value: 9, label: "September" },
+    { value: 10, label: "October" }, { value: 11, label: "November" }, { value: 12, label: "December" },
+  ];
+
   return (
     <div className="space-y-6">
       <div>
@@ -290,6 +322,50 @@ export default function ImportDataTab() {
           </CardContent>
         </Card>
       )}
+
+      {/* Archive Completed Month */}
+      <div className="border-t pt-6" style={{ borderColor: "#f0e6da" }}>
+        <h2 className="font-heading text-xl font-bold" style={{ color: "#2D1B0E" }}>Archive a Completed Month</h2>
+        <p className="text-sm mt-1 mb-4" style={{ color: "#8B6F5C" }}>
+          Manually archive all bookings from a completed month into the historical record. This runs automatically on the 1st of each month but can be triggered manually here.
+        </p>
+        <div className="flex flex-wrap items-end gap-3">
+          <div>
+            <label className="text-xs font-medium mb-1 block" style={{ color: "#8B6F5C" }}>Month</label>
+            <select
+              value={archiveMonth}
+              onChange={e => setArchiveMonth(Number(e.target.value))}
+              className="h-10 px-3 rounded-[30px] border-2 text-sm"
+              style={{ borderColor: "#f0e6da" }}
+            >
+              {monthOptions.map(m => (
+                <option key={m.value} value={m.value}>{m.label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs font-medium mb-1 block" style={{ color: "#8B6F5C" }}>Year</label>
+            <select
+              value={archiveYear}
+              onChange={e => setArchiveYear(Number(e.target.value))}
+              className="h-10 px-3 rounded-[30px] border-2 text-sm"
+              style={{ borderColor: "#f0e6da" }}
+            >
+              {[2024, 2025, 2026, 2027].map(y => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+          </div>
+          <Button
+            className="rounded-[30px] font-bold text-white"
+            style={{ backgroundColor: "#2D1B0E" }}
+            disabled={archiving}
+            onClick={handleArchiveMonth}
+          >
+            {archiving ? "Archiving…" : "Archive Month"}
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }

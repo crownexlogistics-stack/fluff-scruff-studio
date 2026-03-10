@@ -1,7 +1,6 @@
 import { AppLayout } from "@/components/AppLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import YearOnYearTab from "@/components/historical/YearOnYearTab";
-import CustomerLookupTab from "@/components/historical/CustomerLookupTab";
 import BookingRecordsTab from "@/components/historical/BookingRecordsTab";
 import ImportDataTab from "@/components/historical/ImportDataTab";
 
@@ -13,7 +12,7 @@ const HistoricalDataPage = () => (
           Historical Data Hub
         </h1>
         <p className="text-sm mt-1" style={{ color: "#8B6F5C" }}>
-          Archive, customer lookup &amp; year-on-year performance
+          Archive &amp; year-on-year performance
         </p>
       </div>
 
@@ -21,9 +20,6 @@ const HistoricalDataPage = () => (
         <TabsList className="rounded-[30px] p-1 h-auto flex-wrap" style={{ backgroundColor: "#f0e6da" }}>
           <TabsTrigger value="performance" className="rounded-[30px] text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm">
             📊 Year-on-Year
-          </TabsTrigger>
-          <TabsTrigger value="customers" className="rounded-[30px] text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm">
-            🔍 Customer Lookup
           </TabsTrigger>
           <TabsTrigger value="records" className="rounded-[30px] text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm">
             📋 Booking Records
@@ -35,9 +31,6 @@ const HistoricalDataPage = () => (
 
         <TabsContent value="performance">
           <YearOnYearTab />
-        </TabsContent>
-        <TabsContent value="customers">
-          <CustomerLookupTab />
         </TabsContent>
         <TabsContent value="records">
           <BookingRecordsTab />
