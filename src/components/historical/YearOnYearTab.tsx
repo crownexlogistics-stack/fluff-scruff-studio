@@ -24,7 +24,7 @@ const gridProps = {
 };
 
 export default function YearOnYearTab() {
-  const { isLoading, isEmpty, timeline, kpi, bestMonthIdx, services, groomers, highlights } = useTimelineAnalytics();
+  const { isLoading, isEmpty, timeline, kpi, bestMonthIdx, services, groomers, highlights, annualSummary } = useTimelineAnalytics();
 
   if (isLoading) {
     return (
