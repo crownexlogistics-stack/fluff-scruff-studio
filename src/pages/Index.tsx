@@ -683,10 +683,15 @@ const Index = () => {
               <p className={cn("text-2xl font-bold font-heading", netProfit >= 0 ? "text-green-600" : "text-destructive")}>
                 £{netProfit.toLocaleString()}
               </p>
-              <p className="text-xs text-muted-foreground">After groomer pay & expenses</p>
+              <p className="text-xs text-muted-foreground">After groomer pay & paid expenses</p>
+              {expensesStillToPay > 0 && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  📅 £{Math.round(expensesStillToPay).toLocaleString()} still due this month
+                </p>
+              )}
               {totalMonthlyExpenses > 0 && (
-                <p className="text-xs text-muted-foreground">
-                  Expenses: £{Math.round(monthlyRecurringExpenses)} recurring + £{Math.round(monthlyOneOffExpenses)} one-off
+                <p className="text-xs text-amber-600 mt-0.5">
+                  📊 £{Math.round(projectedProfit).toLocaleString()} projected end of month
                 </p>
               )}
               <DeltaBadge current={netProfit} previous={prevStudioShare} />
