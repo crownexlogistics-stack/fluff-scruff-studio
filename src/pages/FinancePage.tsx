@@ -13,7 +13,8 @@ import { Label } from "@/components/ui/label";
 import { NumericInput } from "@/components/ui/numeric-input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, PoundSterling, Dog, TrendingUp, Banknote, CreditCard, Users } from "lucide-react";
+import { ArrowLeft, PoundSterling, Dog, TrendingUp, Banknote, CreditCard, Users, History } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { FinanceExplainerButton } from "@/components/dashboard/FinanceExplainerDialog";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addWeeks, addMonths } from "date-fns";
 import { toast } from "sonner";
@@ -34,6 +35,7 @@ const FinancePage = () => {
   const [payoutMethod, setPayoutMethod] = useState("bank_transfer");
   const [payoutNotes, setPayoutNotes] = useState("");
   const [activeTab, setActiveTab] = useState("payouts");
+  const [includeWixHistory, setIncludeWixHistory] = useState(false);
 
   const now = new Date();
   const periodStart = useMemo(() => {
@@ -114,6 +116,27 @@ const FinancePage = () => {
       return data as any[];
     },
   });
+
+  // Wix historical bookings for the period
+  const { data: wixHistorical = [] } = useQuery({
+    queryKey: ["wix-historical-finance", periodStartStr, periodEndStr],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("wix_historical_bookings")
+        .select("price_charged, revenue_recognised, appointment_date")
+        .gte("appointment_date", `${periodStartStr}T00:00:00`)
+        .lte("appointment_date", `${periodEndStr}T23:59:59`)
+        .eq("revenue_recognised", true);
+      if (error) throw error;
+      return data as any[];
+    },
+    enabled: includeWixHistory,
+  });
+
+  const wixRevenue = useMemo(() => {
+    if (!includeWixHistory) return 0;
+    return wixHistorical.reduce((s: number, b: any) => s + Number(b.price_charged || 0), 0);
+  }, [wixHistorical, includeWixHistory]);
 
   const payLinksRevenue = useMemo(() => {
     return paidPayLinks.reduce((s, pl: any) => s + Number(pl.amount || 0), 0);
@@ -326,7 +349,7 @@ const FinancePage = () => {
   }
 
   // Main view with tabs
-  const totalRevenue = staffSummaries.reduce((sum, s) => sum + s.totalRevenue, 0) + migratedRevenue + payLinksRevenue;
+  const totalRevenue = staffSummaries.reduce((sum, s) => sum + s.totalRevenue, 0) + migratedRevenue + payLinksRevenue + wixRevenue;
   const totalGroomerPay = staffSummaries.reduce((sum, s) => sum + s.totalGroomerPay, 0);
   const totalStudioShare = staffSummaries.reduce((sum, s) => sum + s.totalStudioShare, 0);
   const totalDogs = staffSummaries.reduce((sum, s) => sum + s.totalDogs, 0) + migratedBookings.length;
@@ -359,6 +382,13 @@ const FinancePage = () => {
               </Tabs>
             </div>
 
+            <div className="flex items-center gap-3">
+              <Switch checked={includeWixHistory} onCheckedChange={setIncludeWixHistory} id="wix-toggle" />
+              <Label htmlFor="wix-toggle" className="text-sm flex items-center gap-1.5 cursor-pointer">
+                <History className="h-3.5 w-3.5" /> Include Historical Wix Data
+              </Label>
+            </div>
+
             <div className="flex items-center justify-between">
               <Button variant="outline" size="sm" onClick={() => setOffset(o => o - 1)}>← Previous</Button>
               <p className="text-sm font-medium">{format(periodStart, "dd MMM yyyy")} — {format(periodEnd, "dd MMM yyyy")}</p>
@@ -367,7 +397,7 @@ const FinancePage = () => {
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <Card><CardContent className="p-4 text-center"><Dog className="h-5 w-5 mx-auto text-muted-foreground mb-1" /><p className="text-xs text-muted-foreground">Dogs Groomed</p><p className="text-2xl font-bold">{totalDogs}</p></CardContent></Card>
-              <Card><CardContent className="p-4 text-center"><TrendingUp className="h-5 w-5 mx-auto text-muted-foreground mb-1" /><p className="text-xs text-muted-foreground">Total Revenue</p><p className="text-2xl font-bold">£{totalRevenue.toFixed(2)}</p>{migratedRevenue > 0 && <p className="text-xs text-amber-600">incl. £{migratedRevenue.toFixed(2)} Wix</p>}{payLinksRevenue > 0 && <p className="text-xs text-emerald-600">incl. £{payLinksRevenue.toFixed(2)} Pay Links</p>}</CardContent></Card>
+              <Card><CardContent className="p-4 text-center"><TrendingUp className="h-5 w-5 mx-auto text-muted-foreground mb-1" /><p className="text-xs text-muted-foreground">Total Revenue</p><p className="text-2xl font-bold">£{totalRevenue.toFixed(2)}</p>{migratedRevenue > 0 && <p className="text-xs text-amber-600">incl. £{migratedRevenue.toFixed(2)} Wix migrated</p>}{wixRevenue > 0 && <p className="text-xs text-purple-600">incl. £{wixRevenue.toFixed(2)} Wix historical</p>}{payLinksRevenue > 0 && <p className="text-xs text-emerald-600">incl. £{payLinksRevenue.toFixed(2)} Pay Links</p>}</CardContent></Card>
               <Card><CardContent className="p-4 text-center"><Users className="h-5 w-5 mx-auto text-muted-foreground mb-1" /><p className="text-xs text-muted-foreground">Groomer Pay</p><p className="text-2xl font-bold text-primary">£{totalGroomerPay.toFixed(2)}</p></CardContent></Card>
               <Card><CardContent className="p-4 text-center"><CreditCard className="h-5 w-5 mx-auto text-muted-foreground mb-1" /><p className="text-xs text-muted-foreground">Studio Share</p><p className="text-2xl font-bold">£{totalStudioShare.toFixed(2)}</p></CardContent></Card>
             </div>

@@ -48,6 +48,22 @@ const MonthForecastCard = () => {
   // ── Queries ──────────────────────────────────
   const queryOpts = { refetchInterval: 60000 };
 
+  // Wix historical bookings for past months (pre-platform launch)
+  const { data: wixHistorical = [], refetch: r9 } = useQuery({
+    queryKey: ["forecast-wix-historical", startStr, endStr],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("wix_historical_bookings")
+        .select("price_charged, revenue_recognised, appointment_date")
+        .gte("appointment_date", `${startStr}T00:00:00`)
+        .lte("appointment_date", `${endStr}T23:59:59`)
+        .eq("revenue_recognised", true);
+      return (data ?? []) as any[];
+    },
+    enabled: isPastMonth,
+    ...queryOpts,
+  });
+
   // Past bookings this month (earned revenue) — includes all statuses except cancelled/refunded
   const { data: completedBookings = [], refetch: r1 } = useQuery({
     queryKey: ["forecast-completed", startStr, endStr, todayStr],
@@ -170,11 +186,13 @@ const MonthForecastCard = () => {
   });
 
   const handleRefresh = useCallback(() => {
-    r1(); r2(); r3(); r4(); r5(); r6(); r7(); r8();
+    r1(); r2(); r3(); r4(); r5(); r6(); r7(); r8(); if (isPastMonth) r9();
     setLastRefresh(new Date());
-  }, [r1, r2, r3, r4, r5, r6, r7, r8]);
+  }, [r1, r2, r3, r4, r5, r6, r7, r8, r9, isPastMonth]);
 
   // ── Calculations ─────────────────────────────
+  const wixHistoricalRevenue = wixHistorical.reduce((s: number, b: any) => s + Number(b.price_charged || 0), 0);
+
   const earnedRevenue = completedBookings.reduce((s: number, b: any) => s + Number(b.total_price || 0), 0)
     + migratedCompleted.reduce((s: number, b: any) => s + Number(b.total_price || 0), 0);
 
@@ -295,9 +313,15 @@ const MonthForecastCard = () => {
               <span className="flex items-center gap-2"><CalendarDays className="h-3.5 w-3.5 text-blue-500" /> Confirmed upcoming</span>
               <span className="font-semibold">£{Math.round(upcomingRevenue).toLocaleString()}</span>
             </div>
+            {isPastMonth && wixHistoricalRevenue > 0 && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="flex items-center gap-2"><Clock className="h-3.5 w-3.5 text-purple-500" /> Wix historical revenue</span>
+                <span className="font-semibold">£{Math.round(wixHistoricalRevenue).toLocaleString()}</span>
+              </div>
+            )}
             <div className="border-t pt-1.5 flex items-center justify-between text-sm font-semibold">
               <span className="flex items-center gap-2">💰 Total projected</span>
-              <span className="text-green-600">£{Math.round(totalProjectedIncome).toLocaleString()}</span>
+              <span className="text-green-600">£{Math.round(totalProjectedIncome + (isPastMonth ? wixHistoricalRevenue : 0)).toLocaleString()}</span>
             </div>
           </div>
         </div>
