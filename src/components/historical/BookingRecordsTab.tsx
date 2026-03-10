@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Download, ChevronLeft, ChevronRight } from "lucide-react";
-import { WIX_RAW_BOOKINGS, MONTH_NAMES } from "./wixData";
+import { WIX_RAW_BOOKINGS, MONTH_NAMES, type WixRawBooking } from "./wixData";
 import { format } from "date-fns";
 
 const PAGE_SIZE = 20;
