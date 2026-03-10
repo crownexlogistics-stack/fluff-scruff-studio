@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { BarChart3, TrendingUp } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -66,7 +66,7 @@ export default function YearOnYearTab() {
       entry.bookings += 1;
       const isCanceled = (row.booking_status || "").toLowerCase().includes("cancel");
       if (isCanceled) entry.cancelled += 1;
-      if (!isCanceled && row.price_charged) entry.revenue += Number(row.price_charged) || 0;
+      if (row.booking_status === "Confirmed" && row.price_charged) entry.revenue += Number(row.price_charged) || 0;
     });
 
     // Count unique customers per month
@@ -183,7 +183,7 @@ export default function YearOnYearTab() {
         </Select>
 
         <div className="flex gap-2">
-          {(availableYears.length > 0 ? availableYears : [2024, 2025, 2026]).map(y => (
+          {[2024, 2025, 2026].map(y => (
             <Button
               key={y}
               variant={activeYears.has(y) ? "default" : "outline"}
@@ -246,9 +246,9 @@ export default function YearOnYearTab() {
               <XAxis dataKey="year" />
               <YAxis />
               <Tooltip formatter={(v: number) => chartMetric === "revenue" ? `£${v.toLocaleString()}` : v} />
-              <Bar dataKey={chartMetric} radius={[8, 8, 0, 0]} fill="#FF6B35">
+              <Bar dataKey={chartMetric} radius={[8, 8, 0, 0]}>
                 {chartData.map((entry, i) => (
-                  <rect key={i} fill={YEAR_COLORS[parseInt(entry.year)] || "#FF6B35"} />
+                  <Cell key={i} fill={YEAR_COLORS[parseInt(entry.year)] || "#FF6B35"} />
                 ))}
               </Bar>
             </BarChart>
