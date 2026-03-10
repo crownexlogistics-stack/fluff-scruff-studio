@@ -563,6 +563,7 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
             )}
           </div>
         </div>
+        </ScrollArea>
       </PopoverContent>
     </Popover>
   );
