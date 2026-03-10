@@ -1011,3 +1011,6 @@ const Index = () => {
 
 export default Index;
 
+        {/* ── 1b. Month Forecast ───────────────────── */}
+        <MonthForecastCard />
+
