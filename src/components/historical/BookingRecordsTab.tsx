@@ -1,15 +1,18 @@
 import { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Download, ChevronLeft, ChevronRight } from "lucide-react";
-import { WIX_RAW_BOOKINGS, MONTH_NAMES, type WixRawBooking } from "./wixData";
 import { format } from "date-fns";
 
 const PAGE_SIZE = 20;
+const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 
 export default function BookingRecordsTab() {
   const [yearFilter, setYearFilter] = useState("All");
@@ -18,27 +21,49 @@ export default function BookingRecordsTab() {
   const [paymentFilter, setPaymentFilter] = useState("All");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
-  const [selectedBooking, setSelectedBooking] = useState<WixRawBooking | null>(null);
+  const [selectedBooking, setSelectedBooking] = useState<any | null>(null);
+
+  const { data: allRecords, isLoading } = useQuery({
+    queryKey: ["wix-booking-records"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("wix_historical_bookings")
+        .select("*")
+        .order("appointment_date", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+  });
 
   const filtered = useMemo(() => {
-    let data = WIX_RAW_BOOKINGS;
-    if (yearFilter !== "All") data = data.filter(d => new Date(d.date).getFullYear().toString() === yearFilter);
-    if (monthFilter !== "All") data = data.filter(d => (new Date(d.date).getMonth() + 1).toString() === monthFilter);
-    if (statusFilter !== "All") data = data.filter(d => d.status === statusFilter);
-    if (paymentFilter !== "All") data = data.filter(d => d.payment === paymentFilter);
+    if (!allRecords) return [];
+    let data = allRecords;
+    if (yearFilter !== "All") data = data.filter((d: any) => d.created_year?.toString() === yearFilter);
+    if (monthFilter !== "All") data = data.filter((d: any) => d.created_month?.toString() === monthFilter);
+    if (statusFilter !== "All") data = data.filter((d: any) => d.booking_status === statusFilter);
+    if (paymentFilter !== "All") data = data.filter((d: any) => d.payment_status === paymentFilter);
     if (search.trim()) {
       const q = search.toLowerCase();
-      data = data.filter(d => d.customerName.toLowerCase().includes(q) || d.customerEmail.toLowerCase().includes(q));
+      data = data.filter((d: any) => (d.customer_name || "").toLowerCase().includes(q) || (d.customer_email || "").toLowerCase().includes(q));
     }
     return data;
-  }, [yearFilter, monthFilter, statusFilter, paymentFilter, search]);
+  }, [allRecords, yearFilter, monthFilter, statusFilter, paymentFilter, search]);
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const pageData = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
+  const availableYears = useMemo(() => {
+    if (!allRecords) return [];
+    return [...new Set(allRecords.map((r: any) => r.created_year).filter(Boolean))].sort();
+  }, [allRecords]);
+
   const exportCSV = () => {
     const headers = ["Date", "Customer", "Email", "Service", "Groomer", "Status", "Payment", "Amount"];
-    const rows = filtered.map(r => [r.date, r.customerName, r.customerEmail, r.service, r.groomer, r.status, r.payment, r.amount]);
+    const rows = filtered.map((r: any) => [
+      r.appointment_date ? format(new Date(r.appointment_date), "yyyy-MM-dd") : "",
+      r.customer_name, r.customer_email, r.service_name, r.groomer_name,
+      r.booking_status, r.payment_status, r.price_charged,
+    ]);
     const csv = [headers, ...rows].map(r => r.join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
@@ -49,6 +74,18 @@ export default function BookingRecordsTab() {
     URL.revokeObjectURL(url);
   };
 
+  if (isLoading) {
+    return <div className="space-y-4"><Skeleton className="h-10 rounded-[30px]" /><Skeleton className="h-64 rounded-[20px]" /></div>;
+  }
+
+  if (!allRecords || allRecords.length === 0) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-sm" style={{ color: "#8B6F5C" }}>No booking records yet. Import a Wix CSV from the "Import Data" tab.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       {/* Filters */}
@@ -57,9 +94,7 @@ export default function BookingRecordsTab() {
           <SelectTrigger className="w-[100px] rounded-[30px] text-xs"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="All">All Years</SelectItem>
-            <SelectItem value="2024">2024</SelectItem>
-            <SelectItem value="2025">2025</SelectItem>
-            <SelectItem value="2026">2026</SelectItem>
+            {availableYears.map(y => <SelectItem key={y} value={y!.toString()}>{y}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={monthFilter} onValueChange={v => { setMonthFilter(v); setPage(0); }}>
@@ -116,33 +151,23 @@ export default function BookingRecordsTab() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {pageData.map((r, i) => (
-              <TableRow
-                key={i}
-                className="cursor-pointer hover:bg-accent/30 transition-colors"
-                onClick={() => setSelectedBooking(r)}
-              >
+            {pageData.map((r: any) => (
+              <TableRow key={r.id} className="cursor-pointer hover:bg-accent/30 transition-colors" onClick={() => setSelectedBooking(r)}>
                 <TableCell className="text-xs whitespace-nowrap">
-                  {format(new Date(r.date), "dd MMM yy")}
+                  {r.appointment_date ? format(new Date(r.appointment_date), "dd MMM yy") : "N/A"}
                   <Badge variant="secondary" className="ml-1 text-[9px] px-1 py-0 bg-gray-100 text-gray-500">WIX</Badge>
                 </TableCell>
-                <TableCell className="text-xs font-medium">{r.customerName}</TableCell>
-                <TableCell className="text-xs hidden sm:table-cell">{r.service}</TableCell>
-                <TableCell className="text-xs hidden md:table-cell">{r.groomer}</TableCell>
+                <TableCell className="text-xs font-medium">{r.customer_name}</TableCell>
+                <TableCell className="text-xs hidden sm:table-cell">{r.service_name}</TableCell>
+                <TableCell className="text-xs hidden md:table-cell">{r.groomer_name}</TableCell>
                 <TableCell className="text-xs">
-                  <Badge
-                    variant="outline"
-                    className="text-[10px] rounded-full"
-                    style={{
-                      borderColor: r.status === "Canceled" ? "#ef4444" : "#22c55e",
-                      color: r.status === "Canceled" ? "#ef4444" : "#16a34a",
-                    }}
-                  >
-                    {r.status}
-                  </Badge>
+                  <Badge variant="outline" className="text-[10px] rounded-full" style={{
+                    borderColor: (r.booking_status || "").toLowerCase().includes("cancel") ? "#ef4444" : "#22c55e",
+                    color: (r.booking_status || "").toLowerCase().includes("cancel") ? "#ef4444" : "#16a34a",
+                  }}>{r.booking_status}</Badge>
                 </TableCell>
-                <TableCell className="text-xs hidden sm:table-cell">{r.payment}</TableCell>
-                <TableCell className="text-xs text-right font-medium">£{r.amount}</TableCell>
+                <TableCell className="text-xs hidden sm:table-cell">{r.payment_status}</TableCell>
+                <TableCell className="text-xs text-right font-medium">£{Number(r.price_charged || 0).toFixed(2)}</TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -174,18 +199,20 @@ export default function BookingRecordsTab() {
                 <Badge variant="secondary" className="bg-gray-100 text-gray-500 text-xs">WIX Historical Record</Badge>
                 <div className="space-y-3 text-sm">
                   {[
-                    ["Date", format(new Date(selectedBooking.date), "dd MMMM yyyy")],
-                    ["Customer", selectedBooking.customerName],
-                    ["Email", selectedBooking.customerEmail],
-                    ["Phone", selectedBooking.customerPhone],
-                    ["Service", selectedBooking.service],
-                    ["Groomer", selectedBooking.groomer],
-                    ["Status", selectedBooking.status],
-                    ["Payment", selectedBooking.payment],
-                    ["Amount", `£${selectedBooking.amount}`],
-                    ["Dog Name", selectedBooking.dogName],
-                    ["Dog Breed", selectedBooking.dogBreed],
-                    ["Dog Age", selectedBooking.dogAge],
+                    ["Date", selectedBooking.appointment_date ? format(new Date(selectedBooking.appointment_date), "dd MMMM yyyy") : "N/A"],
+                    ["Customer", selectedBooking.customer_name],
+                    ["Email", selectedBooking.customer_email],
+                    ["Phone", selectedBooking.customer_phone],
+                    ["Service", selectedBooking.service_name],
+                    ["Groomer", selectedBooking.groomer_name],
+                    ["Status", selectedBooking.booking_status],
+                    ["Payment", selectedBooking.payment_status],
+                    ["Amount", `£${Number(selectedBooking.price_charged || 0).toFixed(2)}`],
+                    ["Dog Name", selectedBooking.dog_name],
+                    ["Dog Breed", selectedBooking.dog_breed],
+                    ["Dog Age", selectedBooking.dog_age],
+                    ["Message", selectedBooking.customer_message],
+                    ["Order Number", selectedBooking.wix_order_number],
                   ]
                     .filter(([, v]) => v)
                     .map(([label, value]) => (

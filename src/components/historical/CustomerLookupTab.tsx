@@ -4,8 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Search, AlertTriangle } from "lucide-react";
-import { WIX_CUSTOMERS, type WixCustomer } from "./wixData";
 import { format, differenceInMonths } from "date-fns";
 
 interface MergedCustomer {
@@ -23,12 +23,25 @@ interface MergedCustomer {
 export default function CustomerLookupTab() {
   const [search, setSearch] = useState("");
 
+  // Fetch Wix historical data from DB
+  const { data: wixBookings, isLoading: wixLoading } = useQuery({
+    queryKey: ["wix-historical-customers"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("wix_historical_bookings")
+        .select("customer_name, customer_email, customer_phone, dog_name, dog_breed, appointment_date, service_name, groomer_name, booking_status, price_charged");
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Fetch live bookings
   const { data: liveBookings } = useQuery({
-    queryKey: ["historical-customer-lookup"],
+    queryKey: ["historical-customer-lookup-live"],
     queryFn: async () => {
       const { data } = await supabase
         .from("bookings")
-        .select("customer_name, customer_email, customer_phone, dog_name, booking_date, booking_time, total_price, status, staff_id")
+        .select("customer_name, customer_email, customer_phone, dog_name, booking_date, total_price, status")
         .order("booking_date", { ascending: false })
         .limit(1000);
       return data || [];
@@ -39,33 +52,57 @@ export default function CustomerLookupTab() {
     const q = search.toLowerCase().trim();
     if (q.length < 2) return [];
 
-    const merged: Map<string, MergedCustomer> = new Map();
+    const merged = new Map<string, MergedCustomer>();
 
-    // Wix customers
-    WIX_CUSTOMERS.forEach(c => {
-      const fullName = `${c.firstName} ${c.lastName}`;
-      const key = c.email.toLowerCase();
-      const matches = fullName.toLowerCase().includes(q) || c.email.toLowerCase().includes(q) || c.phone.includes(q);
-      if (!matches) return;
-
-      const confirmedAppts = c.appointments.filter(a => a.status !== "Canceled");
-      merged.set(key, {
-        name: fullName,
-        email: c.email,
-        phone: c.phone,
-        source: "Historical (Wix)",
-        dogs: c.appointments
-          .filter(a => a.dogName)
-          .reduce((acc, a) => {
-            if (!acc.find(d => d.name === a.dogName)) acc.push({ name: a.dogName!, breed: a.dogBreed || "" });
-            return acc;
-          }, [] as { name: string; breed: string }[]),
-        totalBookings: c.appointments.length,
-        totalSpend: confirmedAppts.reduce((s, a) => s + a.amount, 0),
-        lastAppointment: c.appointments[0]?.date || null,
-        appointments: c.appointments.map(a => ({ ...a, source: "WIX" })),
+    // Wix historical from DB
+    if (wixBookings) {
+      const byEmail = new Map<string, typeof wixBookings>();
+      wixBookings.forEach((b: any) => {
+        if (!b.customer_email) return;
+        const key = b.customer_email.toLowerCase();
+        if (!byEmail.has(key)) byEmail.set(key, []);
+        byEmail.get(key)!.push(b);
       });
-    });
+
+      byEmail.forEach((bookings, email) => {
+        const first = bookings[0] as any;
+        const name = first.customer_name || "";
+        const phone = first.customer_phone || "";
+        const matches = name.toLowerCase().includes(q) || email.includes(q) || phone.includes(q);
+        if (!matches) return;
+
+        const appts = bookings.map((b: any) => ({
+          date: b.appointment_date ? new Date(b.appointment_date).toISOString().slice(0, 10) : "",
+          service: b.service_name || "",
+          groomer: b.groomer_name || "",
+          status: b.booking_status || "",
+          amount: Number(b.price_charged) || 0,
+          source: "WIX",
+        }));
+
+        const confirmedAppts = appts.filter(a => !a.status.toLowerCase().includes("cancel"));
+        const dogs: { name: string; breed: string }[] = [];
+        bookings.forEach((b: any) => {
+          if (b.dog_name && !dogs.find(d => d.name === b.dog_name)) {
+            dogs.push({ name: b.dog_name, breed: b.dog_breed || "" });
+          }
+        });
+
+        const dates = appts.map(a => a.date).filter(Boolean).sort().reverse();
+
+        merged.set(email, {
+          name,
+          email: first.customer_email || email,
+          phone,
+          source: "Historical (Wix)",
+          dogs,
+          totalBookings: bookings.length,
+          totalSpend: confirmedAppts.reduce((s, a) => s + a.amount, 0),
+          lastAppointment: dates[0] || null,
+          appointments: appts,
+        });
+      });
+    }
 
     // Live customers
     if (liveBookings) {
@@ -107,12 +144,10 @@ export default function CustomerLookupTab() {
             email: first.customer_email || email,
             phone: first.customer_phone || "",
             source: "Live",
-            dogs: bookings
-              .filter(b => b.dog_name)
-              .reduce((acc, b) => {
-                if (!acc.find(d => d.name === b.dog_name)) acc.push({ name: b.dog_name, breed: "" });
-                return acc;
-              }, [] as { name: string; breed: string }[]),
+            dogs: bookings.filter(b => b.dog_name).reduce((acc, b) => {
+              if (!acc.find(d => d.name === b.dog_name)) acc.push({ name: b.dog_name, breed: "" });
+              return acc;
+            }, [] as { name: string; breed: string }[]),
             totalBookings: bookings.length,
             totalSpend: liveAppts.filter(a => a.status !== "Canceled").reduce((s, a) => s + a.amount, 0),
             lastAppointment: bookings[0]?.booking_date || null,
@@ -123,7 +158,7 @@ export default function CustomerLookupTab() {
     }
 
     return Array.from(merged.values()).slice(0, 20);
-  }, [search, liveBookings]);
+  }, [search, wixBookings, liveBookings]);
 
   const sourceColor = (s: string) => {
     if (s === "Live") return { bg: "#FF6B35", color: "#fff" };
@@ -135,6 +170,10 @@ export default function CustomerLookupTab() {
     if (!date) return true;
     return differenceInMonths(new Date(), new Date(date)) > 6;
   };
+
+  if (wixLoading) {
+    return <div className="space-y-4"><Skeleton className="h-12 rounded-[30px]" /><Skeleton className="h-48 rounded-[20px]" /></div>;
+  }
 
   return (
     <div className="space-y-4">
@@ -205,7 +244,7 @@ export default function CustomerLookupTab() {
                       .map((a, i) => (
                         <tr key={i} className="border-t" style={{ borderColor: "#f0e6da" }}>
                           <td className="p-2 whitespace-nowrap">
-                            {format(new Date(a.date), "dd MMM yy")}
+                            {a.date ? format(new Date(a.date), "dd MMM yy") : "N/A"}
                             {a.source === "WIX" && (
                               <Badge variant="secondary" className="ml-1 text-[9px] px-1 py-0 bg-gray-100 text-gray-500">WIX</Badge>
                             )}
