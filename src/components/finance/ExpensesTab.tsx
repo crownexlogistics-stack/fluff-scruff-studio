@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
+import { calcDateAwareExpenses, toMonthly } from "@/lib/expenseCalc";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -24,7 +25,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon, Plus, Pencil, Trash2, ChevronLeft, ChevronRight, ArrowLeftRight } from "lucide-react";
-import { format, startOfMonth, endOfMonth, addMonths, subMonths, parseISO } from "date-fns";
+import { format, startOfMonth, endOfMonth, addMonths, subMonths, parseISO, isSameMonth } from "date-fns";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -45,13 +46,7 @@ const CATEGORIES = [
 
 const getCategoryDisplay = (val: string) => CATEGORIES.find(c => c.value === val) || { value: val, label: val, icon: "🎁" };
 
-const toMonthly = (amount: number, frequency: string) => {
-  switch (frequency) {
-    case "weekly": return amount * 4.33;
-    case "annual": return amount / 12;
-    default: return amount;
-  }
-};
+// toMonthly is now imported from @/lib/expenseCalc
 
 type ExpenseRow = {
   id: string;
@@ -95,12 +90,16 @@ const emptyForm: FormState = {
 type PLData = {
   revenue: number;
   groomerPay: number;
-  recurringCosts: number;
+  recurringCostsPaid: number;
+  recurringCostsUpcoming: number;
   oneOffCosts: number;
   netProfit: number;
+  isCurrentMonth: boolean;
 };
 
 function PLCard({ title, data }: { title: string; data: PLData }) {
+  const totalRecurring = data.recurringCostsPaid + data.recurringCostsUpcoming;
+  const projectedProfit = data.revenue - data.groomerPay - totalRecurring - data.oneOffCosts;
   return (
     <Card className={cn("rounded-xl border-2", data.netProfit >= 0 ? "border-green-200 bg-green-50/50" : "border-red-200 bg-red-50/50")}>
       <CardHeader className="p-4 pb-2">
@@ -109,15 +108,30 @@ function PLCard({ title, data }: { title: string; data: PLData }) {
       <CardContent className="p-4 pt-0 space-y-1.5">
         <div className="flex justify-between text-sm"><span>Revenue</span><span className="font-medium">£{data.revenue.toFixed(2)}</span></div>
         <div className="flex justify-between text-sm text-muted-foreground"><span>Groomer Pay</span><span>- £{data.groomerPay.toFixed(2)}</span></div>
-        <div className="flex justify-between text-sm text-muted-foreground"><span>Recurring Costs</span><span>- £{data.recurringCosts.toFixed(2)}</span></div>
+        <div className="flex justify-between text-sm text-muted-foreground">
+          <span>{data.isCurrentMonth ? "Recurring (paid)" : "Recurring Costs"}</span>
+          <span>- £{data.recurringCostsPaid.toFixed(2)}</span>
+        </div>
+        {data.isCurrentMonth && data.recurringCostsUpcoming > 0 && (
+          <div className="flex justify-between text-sm text-muted-foreground/60">
+            <span>Recurring (upcoming)</span>
+            <span>- £{data.recurringCostsUpcoming.toFixed(2)}</span>
+          </div>
+        )}
         <div className="flex justify-between text-sm text-muted-foreground"><span>One-off Costs</span><span>- £{data.oneOffCosts.toFixed(2)}</span></div>
         <hr className="my-1" />
         <div className="flex justify-between font-bold text-lg">
-          <span>NET PROFIT</span>
+          <span>{data.isCurrentMonth ? "ACTUAL PROFIT" : "NET PROFIT"}</span>
           <span className={data.netProfit >= 0 ? "text-green-700" : "text-destructive"}>
             £{data.netProfit.toFixed(2)}
           </span>
         </div>
+        {data.isCurrentMonth && data.recurringCostsUpcoming > 0 && (
+          <div className="flex justify-between text-xs text-amber-600 pt-1">
+            <span>📊 Projected (after all expenses)</span>
+            <span>£{projectedProfit.toFixed(2)}</span>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -387,17 +401,20 @@ export default function ExpensesTab({ periodStart, periodEnd, totalRevenue, tota
   const totalMonthlyRecurring = recurring.reduce((s, e) => s + toMonthly(Number(e.amount), e.frequency || "monthly"), 0);
   const totalOneOffs = oneOffs.reduce((s, e) => s + Number(e.amount), 0);
 
-  const calcPL = useCallback((bookings: any[], commissions: any[], oneOffs: any[]) => {
+  const calcPL = useCallback((bookings: any[], commissions: any[], oneOffs: any[], monthRef: Date) => {
     const revenue = bookings.reduce((s: number, b: any) => s + Number(b.total_price), 0);
     const groomerPay = commissions.reduce((s: number, c: any) => s + Number(c.groomer_pay), 0);
     const oneOffCosts = oneOffs.reduce((s: number, e: any) => s + Number(e.amount), 0);
-    const recurringCosts = totalMonthlyRecurring;
-    const netProfit = revenue - groomerPay - recurringCosts - oneOffCosts;
-    return { revenue, groomerPay, recurringCosts, oneOffCosts, netProfit };
-  }, [totalMonthlyRecurring]);
+    const isCurrentMonth = isSameMonth(monthRef, new Date());
+    const dateAware = calcDateAwareExpenses(recurring, monthRef);
+    const recurringCostsPaid = isCurrentMonth ? dateAware.paidTotal : dateAware.fullMonthTotal;
+    const recurringCostsUpcoming = isCurrentMonth ? dateAware.upcomingTotal : 0;
+    const netProfit = revenue - groomerPay - recurringCostsPaid - oneOffCosts;
+    return { revenue, groomerPay, recurringCostsPaid, recurringCostsUpcoming, oneOffCosts, netProfit, isCurrentMonth };
+  }, [recurring]);
 
-  const pl = calcPL(plBookings, plCommissions, plOneOffs);
-  const cmpPl = compareMonth ? calcPL(cmpBookings, cmpCommissions, cmpOneOffs) : null;
+  const pl = calcPL(plBookings, plCommissions, plOneOffs, plMonth);
+  const cmpPl = compareMonth ? calcPL(cmpBookings, cmpCommissions, cmpOneOffs, compareMonth) : null;
 
   const handleNameChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setForm((prev) => ({ ...prev, name: e.target.value }));

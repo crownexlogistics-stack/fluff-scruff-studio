@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { calcDateAwareExpenses } from "@/lib/expenseCalc";
 import { useAuth } from "@/hooks/useAuth";
 import {
   format,
@@ -302,29 +303,44 @@ const Index = () => {
     },
   });
 
-  // Expenses — recurring
+  // Expenses — recurring (with full details for date-aware calc)
   const { data: recurringExpenses = [] } = useQuery({
     queryKey: ["dash-recurring-expenses"],
     queryFn: async () => {
       const { data } = await supabase
         .from("expenses")
-        .select("amount, frequency")
+        .select("id, name, category, amount, frequency, recurring_start_date, recurring_end_date")
         .eq("expense_type", "recurring");
       return (data ?? []) as any[];
     },
   });
 
-  // Expenses — one-off in current period
+  // Expenses — one-off in current month (only past or today's date)
   const monthStart = format(startOfMonth(new Date()), "yyyy-MM-dd");
+  const expenseTodayStr = format(new Date(), "yyyy-MM-dd");
   const monthEnd = format(endOfMonth(new Date()), "yyyy-MM-dd");
   const { data: oneOffExpenses = [] } = useQuery({
-    queryKey: ["dash-oneoff-expenses", monthStart, monthEnd],
+    queryKey: ["dash-oneoff-expenses", monthStart, expenseTodayStr],
     queryFn: async () => {
       const { data } = await supabase
         .from("expenses")
         .select("amount")
         .eq("expense_type", "one_off")
         .gte("expense_date", monthStart)
+        .lte("expense_date", expenseTodayStr);
+      return (data ?? []) as any[];
+    },
+  });
+
+  // One-off expenses upcoming (after today in current month)
+  const { data: upcomingOneOffExpenses = [] } = useQuery({
+    queryKey: ["dash-upcoming-oneoff-expenses", expenseTodayStr, monthEnd],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("expenses")
+        .select("amount")
+        .eq("expense_type", "one_off")
+        .gt("expense_date", expenseTodayStr)
         .lte("expense_date", monthEnd);
       return (data ?? []) as any[];
     },
@@ -350,16 +366,18 @@ const Index = () => {
 
   const projectedGross = upcomingAll.reduce((s: number, b: any) => s + Number(b.total_price || 0), 0);
 
-  // Expenses totals
-  const toMonthly = (amount: number, freq: string) => {
-    if (freq === "weekly") return amount * 4.33;
-    if (freq === "annual") return amount / 12;
-    return amount;
-  };
-  const monthlyRecurringExpenses = recurringExpenses.reduce((s: number, e: any) => s + toMonthly(Number(e.amount), e.frequency || "monthly"), 0);
+  // Date-aware expenses
+  const dateAwareExpenses = calcDateAwareExpenses(recurringExpenses, new Date());
+  const paidRecurring = dateAwareExpenses.paidTotal;
+  const upcomingRecurring = dateAwareExpenses.upcomingTotal;
   const monthlyOneOffExpenses = oneOffExpenses.reduce((s: number, e: any) => s + Number(e.amount), 0);
-  const totalMonthlyExpenses = monthlyRecurringExpenses + monthlyOneOffExpenses;
-  const netProfit = totalStudioShare - totalMonthlyExpenses;
+  const upcomingOneOffTotal = upcomingOneOffExpenses.reduce((s: number, e: any) => s + Number(e.amount), 0);
+
+  const expensesPaidToDate = paidRecurring + monthlyOneOffExpenses;
+  const expensesStillToPay = upcomingRecurring + upcomingOneOffTotal;
+  const totalMonthlyExpenses = expensesPaidToDate + expensesStillToPay;
+  const netProfit = totalStudioShare - expensesPaidToDate;
+  const projectedProfit = totalStudioShare - totalMonthlyExpenses;
 
   const calcDelta = (curr: number, prev: number) => prev > 0 ? Math.round(((curr - prev) / prev) * 100) : 0;
 
@@ -665,10 +683,15 @@ const Index = () => {
               <p className={cn("text-2xl font-bold font-heading", netProfit >= 0 ? "text-green-600" : "text-destructive")}>
                 £{netProfit.toLocaleString()}
               </p>
-              <p className="text-xs text-muted-foreground">After groomer pay & expenses</p>
+              <p className="text-xs text-muted-foreground">After groomer pay & paid expenses</p>
+              {expensesStillToPay > 0 && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  📅 £{Math.round(expensesStillToPay).toLocaleString()} still due this month
+                </p>
+              )}
               {totalMonthlyExpenses > 0 && (
-                <p className="text-xs text-muted-foreground">
-                  Expenses: £{Math.round(monthlyRecurringExpenses)} recurring + £{Math.round(monthlyOneOffExpenses)} one-off
+                <p className="text-xs text-amber-600 mt-0.5">
+                  📊 £{Math.round(projectedProfit).toLocaleString()} projected end of month
                 </p>
               )}
               <DeltaBadge current={netProfit} previous={prevStudioShare} />
