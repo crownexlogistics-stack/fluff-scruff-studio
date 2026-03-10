@@ -58,12 +58,32 @@ export default function YearOnYearTab() {
     );
   }
 
+  const exportRef = useRef<HTMLDivElement>(null);
+
+  const handleDownload = useCallback(async () => {
+    if (!exportRef.current) return;
+    const html2canvas = (await import("html2canvas")).default;
+    const jsPDF = (await import("jspdf")).default;
+    const canvas = await html2canvas(exportRef.current, { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
+    const imgData = canvas.toDataURL("image/png");
+    const pdf = new jsPDF({ orientation: "landscape", unit: "px", format: [canvas.width, canvas.height] });
+    pdf.addImage(imgData, "PNG", 0, 0, canvas.width, canvas.height);
+    pdf.save("year-on-year-analytics.pdf");
+  }, []);
+
   return (
     <div className="space-y-6">
-      {/* Subtitle */}
-      <p className="text-xs" style={{ color: "#8B6F5C" }}>
-        Showing all data from first booking to present
-      </p>
+      {/* Header row */}
+      <div className="flex items-center justify-between">
+        <p className="text-xs" style={{ color: "#8B6F5C" }}>
+          Showing all data from first booking to present
+        </p>
+        <Button onClick={handleDownload} variant="outline" size="sm" className="rounded-[30px] gap-2">
+          <Download className="h-4 w-4" /> Download PDF
+        </Button>
+      </div>
+
+      <div ref={exportRef} className="space-y-6" style={{ backgroundColor: "#ffffff", padding: "8px" }}>
 
       {/* KPI Pills */}
       <div className="flex flex-wrap gap-3">
