@@ -588,6 +588,8 @@ const Index = () => {
   return (
     <AppLayout>
       <div className="space-y-6 max-w-[1600px] mx-auto">
+        {/* Warning banner for bookings with unavailable groomers */}
+        <UnavailableBookingsWarning />
         {/* Header + Period Selector */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
           <div>
