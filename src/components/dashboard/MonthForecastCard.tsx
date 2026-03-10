@@ -48,6 +48,22 @@ const MonthForecastCard = () => {
   // ── Queries ──────────────────────────────────
   const queryOpts = { refetchInterval: 60000 };
 
+  // Wix historical bookings for past months (pre-platform launch)
+  const { data: wixHistorical = [], refetch: r9 } = useQuery({
+    queryKey: ["forecast-wix-historical", startStr, endStr],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("wix_historical_bookings")
+        .select("price_charged, revenue_recognised, appointment_date")
+        .gte("appointment_date", `${startStr}T00:00:00`)
+        .lte("appointment_date", `${endStr}T23:59:59`)
+        .eq("revenue_recognised", true);
+      return (data ?? []) as any[];
+    },
+    enabled: isPastMonth,
+    ...queryOpts,
+  });
+
   // Past bookings this month (earned revenue) — includes all statuses except cancelled/refunded
   const { data: completedBookings = [], refetch: r1 } = useQuery({
     queryKey: ["forecast-completed", startStr, endStr, todayStr],
