@@ -65,6 +65,7 @@ import ScruffConversationsPage from "./pages/ScruffConversationsPage";
 import ScruffHandoffsPage from "./pages/ScruffHandoffsPage";
 import ScruffSettingsPage from "./pages/ScruffSettingsPage";
 import WixMigrationPage from "./pages/WixMigrationPage";
+import HistoricalDataPage from "./pages/HistoricalDataPage";
 
 const queryClient = new QueryClient();
 
@@ -129,6 +130,7 @@ const App = () => (
           <Route path="/admin/scruff/settings" element={<ProtectedRoute allowedRoles={["director"]}><ScruffSettingsPage /></ProtectedRoute>} />
           <Route path="/admin/migration" element={<ProtectedRoute allowedRoles={["manager", "director"]}><MigrationPage /></ProtectedRoute>} />
           <Route path="/admin/wix-migration" element={<ProtectedRoute allowedRoles={["manager", "director"]}><WixMigrationPage /></ProtectedRoute>} />
+          <Route path="/admin/historical" element={<ProtectedRoute allowedRoles={["manager", "director"]}><HistoricalDataPage /></ProtectedRoute>} />
 
           <Route path="*" element={<NotFound />} />
         </Routes>

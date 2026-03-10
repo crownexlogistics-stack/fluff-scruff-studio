@@ -5,6 +5,7 @@ import {
   LogOut, Sparkles, AlertTriangle, ShieldCheck, BookOpen,
   Inbox, FileText, Ticket, PoundSterling, Bug, Activity, ArrowRightLeft,
   PawPrint, Bot, MessageSquare, PhoneForwarded, Settings,
+  BookOpen as HistoryBook,
 } from "lucide-react";
 import logo from "@/assets/logo-transparent.png";
 import { useNewErrorReportsCount } from "@/hooks/useNewErrorReportsCount";
@@ -74,6 +75,7 @@ const directorOnlyItems = [
   { title: "System Health", url: "/admin/health", icon: Activity },
   { title: "Tests", url: "/admin/tests", icon: Activity },
   { title: "Wix Migration", url: "/admin/migration", icon: ArrowRightLeft },
+  { title: "Historical Data", url: "/admin/historical", icon: HistoryBook },
 ];
 
 export function AppSidebar() {
