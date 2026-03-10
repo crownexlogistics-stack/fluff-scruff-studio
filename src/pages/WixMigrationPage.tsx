@@ -9,8 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload, FileSpreadsheet, CheckCircle2, AlertTriangle, XCircle, TrendingUp } from "lucide-react";
+import { Upload, FileSpreadsheet, CheckCircle2, AlertTriangle, XCircle, TrendingUp, ShieldCheck, FolderOpen, Calendar, Users } from "lucide-react";
 import { toast } from "sonner";
 import Papa from "papaparse";
 import { format } from "date-fns";
@@ -19,7 +18,6 @@ import { format } from "date-fns";
 
 function parseWixDate(raw: string): Date | null {
   if (!raw) return null;
-  // Format: "10/30/2024, 10:00 AM" or "10/30/2024, 2:00 PM"
   const match = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4}),?\s*(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
   if (match) {
     const [, month, day, year, hourStr, min, ampm] = match;
@@ -28,7 +26,6 @@ function parseWixDate(raw: string): Date | null {
     if (ampm.toUpperCase() === "AM" && hour === 12) hour = 0;
     return new Date(parseInt(year), parseInt(month) - 1, parseInt(day), hour, parseInt(min));
   }
-  // Fallback
   const d = new Date(raw);
   return isNaN(d.getTime()) ? null : d;
 }
@@ -39,9 +36,8 @@ function parsePrice(raw: string): number {
   return parseFloat(cleaned) || 0;
 }
 
-function extractFormFields(row: any): { dog_name: string | null; dog_breed: string | null; dog_age: string | null; referral_source: string | null } {
+function extractFormFields(row: any) {
   const result = { dog_name: null as string | null, dog_breed: null as string | null, dog_age: null as string | null, referral_source: null as string | null };
-  // Scan all keys for Form Field / Response pairs
   const keys = Object.keys(row);
   for (let i = 0; i < keys.length; i++) {
     const key = keys[i].toLowerCase();
@@ -63,7 +59,7 @@ interface ParsedWixRow {
   payment_status: string;
   service_name: string;
   service_type: string | null;
-  appointment_date: string | null; // ISO string
+  appointment_date: string | null;
   appointment_end: string | null;
   booking_status: string;
   groomer_name: string | null;
@@ -85,7 +81,6 @@ function parseRow(row: any): ParsedWixRow {
   const paymentStatus = (row["Payment Status"] || "Not Paid").trim();
   const isCanceled = bookingStatus.toLowerCase().includes("cancel");
   const isPaid = paymentStatus.toLowerCase() === "paid" || paymentStatus.toLowerCase().includes("partial");
-  
   const startDate = parseWixDate(row["Booking Start Time"] || "");
   const endDate = parseWixDate(row["Booking End Time"] || "");
   const formFields = extractFormFields(row);
@@ -110,7 +105,7 @@ function parseRow(row: any): ParsedWixRow {
   };
 }
 
-// ─── Components ───
+// ─── Import Section ───
 
 function ImportSection() {
   const queryClient = useQueryClient();
@@ -147,7 +142,6 @@ function ImportSection() {
     if (!parsed.length) return;
     setImporting(true);
     try {
-      // Check for existing order numbers to skip duplicates
       const orderNumbers = parsed.map(r => r.wix_order_number).filter(Boolean) as string[];
       let existingOrders = new Set<string>();
       if (orderNumbers.length > 0) {
@@ -161,7 +155,6 @@ function ImportSection() {
       const toInsert = parsed.filter(r => !r.wix_order_number || !existingOrders.has(r.wix_order_number));
       const skipped = parsed.length - toInsert.length;
 
-      // Insert in batches
       let imported = 0;
       for (let i = 0; i < toInsert.length; i += 500) {
         const batch = toInsert.slice(i, i + 500);
@@ -174,6 +167,7 @@ function ImportSection() {
       setResult({ imported, skipped, cancelled });
       setParsed([]);
       queryClient.invalidateQueries({ queryKey: ["wix-historical"] });
+      queryClient.invalidateQueries({ queryKey: ["wix-archive-stats"] });
       toast.success(`Imported ${imported} bookings, ${skipped} duplicates skipped`);
     } catch (err: any) {
       toast.error(err.message || "Import failed");
@@ -190,6 +184,9 @@ function ImportSection() {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        <p className="text-sm text-muted-foreground">
+          Upload a CSV exported from Wix Bookings. Duplicate order numbers are automatically skipped — existing records are never overwritten.
+        </p>
         <div>
           <Label>Select CSV file</Label>
           <Input ref={fileRef} type="file" accept=".csv" onChange={handleFile} className="mt-1" />
@@ -256,13 +253,56 @@ function ImportSection() {
   );
 }
 
-function BrowseSection() {
+// ─── Archive Section ───
+
+function ArchiveSection() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [groomerFilter, setGroomerFilter] = useState("all");
   const [paymentFilter, setPaymentFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
 
+  // Fetch archive stats (all records)
+  const { data: archiveStats } = useQuery({
+    queryKey: ["wix-archive-stats"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("wix_historical_bookings")
+        .select("appointment_date, price_charged, revenue_recognised, groomer_name");
+      if (error) throw error;
+      if (!data || data.length === 0) return null;
+
+      const totalRecords = data.length;
+      const totalRevenue = data.filter((d: any) => d.revenue_recognised).reduce((s: number, d: any) => s + Number(d.price_charged || 0), 0);
+
+      const dates = data.map((d: any) => d.appointment_date).filter(Boolean).sort();
+      const earliest = dates[0];
+      const latest = dates[dates.length - 1];
+
+      // Year breakdown
+      const yearMap: Record<string, { count: number; revenue: number }> = {};
+      data.forEach((d: any) => {
+        if (!d.appointment_date) return;
+        const year = new Date(d.appointment_date).getFullYear().toString();
+        if (!yearMap[year]) yearMap[year] = { count: 0, revenue: 0 };
+        yearMap[year].count++;
+        if (d.revenue_recognised) yearMap[year].revenue += Number(d.price_charged || 0);
+      });
+
+      // Groomer breakdown
+      const groomerMap: Record<string, { count: number; revenue: number }> = {};
+      data.forEach((d: any) => {
+        const name = d.groomer_name || "Unassigned";
+        if (!groomerMap[name]) groomerMap[name] = { count: 0, revenue: 0 };
+        groomerMap[name].count++;
+        if (d.revenue_recognised) groomerMap[name].revenue += Number(d.price_charged || 0);
+      });
+
+      return { totalRecords, totalRevenue, earliest, latest, yearMap, groomerMap };
+    },
+  });
+
+  // Filtered browse query
   const { data: bookings = [], isLoading } = useQuery({
     queryKey: ["wix-historical", dateFrom, dateTo, groomerFilter, paymentFilter, statusFilter],
     queryFn: async () => {
@@ -296,126 +336,235 @@ function BrowseSection() {
     },
   });
 
-  const totalRevenue = useMemo(() => {
+  const filteredRevenue = useMemo(() => {
     return bookings.filter((b: any) => b.revenue_recognised).reduce((s: number, b: any) => s + Number(b.price_charged || 0), 0);
   }, [bookings]);
 
+  const hasData = archiveStats && archiveStats.totalRecords > 0;
+
   return (
     <div className="space-y-4">
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex items-center gap-3 flex-wrap">
-            <TrendingUp className="h-5 w-5 text-green-600" />
+      {/* Status Banner */}
+      {hasData ? (
+        <div className="p-4 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-300 dark:border-emerald-700 flex items-center gap-3">
+          <ShieldCheck className="h-5 w-5 text-emerald-600 shrink-0" />
+          <div>
+            <p className="font-medium text-emerald-700 dark:text-emerald-400">🟢 Archive intact — {archiveStats.totalRecords.toLocaleString()} records protected</p>
+            <p className="text-xs text-emerald-600 dark:text-emerald-500">Historical data — for records, analysis and comparison only. This data does not affect live bookings.</p>
+          </div>
+        </div>
+      ) : (
+        <div className="p-4 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-700 flex items-center gap-3">
+          <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0" />
+          <div>
+            <p className="font-medium text-amber-700 dark:text-amber-400">🟡 No historical data yet — upload your Wix CSV to begin</p>
+            <p className="text-xs text-amber-600 dark:text-amber-500">Use the Import tab to upload your Wix Bookings CSV export.</p>
+          </div>
+        </div>
+      )}
+
+      {/* Archive Stats */}
+      {hasData && (
+        <div className="space-y-4">
+          {/* Summary cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <Card className="bg-muted/40">
+              <CardContent className="p-4 text-center">
+                <FolderOpen className="h-4 w-4 mx-auto mb-1 text-muted-foreground" />
+                <p className="text-xs text-muted-foreground">Total Records</p>
+                <p className="text-2xl font-bold">{archiveStats.totalRecords.toLocaleString()}</p>
+              </CardContent>
+            </Card>
+            <Card className="bg-muted/40">
+              <CardContent className="p-4 text-center">
+                <Calendar className="h-4 w-4 mx-auto mb-1 text-muted-foreground" />
+                <p className="text-xs text-muted-foreground">Date Range</p>
+                <p className="text-sm font-bold">
+                  {archiveStats.earliest ? format(new Date(archiveStats.earliest), "MMM yyyy") : "—"}
+                  {" → "}
+                  {archiveStats.latest ? format(new Date(archiveStats.latest), "MMM yyyy") : "—"}
+                </p>
+              </CardContent>
+            </Card>
+            <Card className="bg-muted/40">
+              <CardContent className="p-4 text-center">
+                <TrendingUp className="h-4 w-4 mx-auto mb-1 text-green-600" />
+                <p className="text-xs text-muted-foreground">Revenue Recognised</p>
+                <p className="text-2xl font-bold text-green-600">£{archiveStats.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+              </CardContent>
+            </Card>
+            <Card className="bg-muted/40">
+              <CardContent className="p-4 text-center">
+                <Users className="h-4 w-4 mx-auto mb-1 text-muted-foreground" />
+                <p className="text-xs text-muted-foreground">Groomers</p>
+                <p className="text-2xl font-bold">{Object.keys(archiveStats.groomerMap).length}</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Year breakdown */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Card className="bg-muted/40">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">📅 Breakdown by Year</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {Object.entries(archiveStats.yearMap).sort(([a], [b]) => a.localeCompare(b)).map(([year, stats]) => (
+                  <div key={year} className="flex justify-between items-center text-sm">
+                    <span className="font-medium">{year}</span>
+                    <span className="text-muted-foreground">
+                      {stats.count} bookings · <span className="text-green-600 font-medium">£{stats.revenue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                    </span>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+
+            <Card className="bg-muted/40">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">✂️ Breakdown by Groomer</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {Object.entries(archiveStats.groomerMap).sort(([, a], [, b]) => b.revenue - a.revenue).map(([name, stats]) => (
+                  <div key={name} className="flex justify-between items-center text-sm">
+                    <span className="font-medium">{name}</span>
+                    <span className="text-muted-foreground">
+                      {stats.count} bookings · <span className="text-green-600 font-medium">£{stats.revenue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                    </span>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
+
+      {/* Browse table */}
+      <Card className="bg-muted/40">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            📋 Browse Records <Badge variant="outline" className="text-xs">Read-only</Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Card className="border-none shadow-none bg-transparent">
+            <CardContent className="p-0">
+              <div className="flex items-center gap-3 flex-wrap">
+                <TrendingUp className="h-5 w-5 text-green-600" />
+                <div>
+                  <p className="text-xs text-muted-foreground">Revenue Recognised (filtered)</p>
+                  <p className="text-2xl font-bold text-green-600">£{filteredRevenue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
             <div>
-              <p className="text-xs text-muted-foreground">Total Revenue Recognised (filtered)</p>
-              <p className="text-2xl font-bold text-green-600">£{totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+              <Label className="text-xs">From</Label>
+              <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+            </div>
+            <div>
+              <Label className="text-xs">To</Label>
+              <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} />
+            </div>
+            <div>
+              <Label className="text-xs">Groomer</Label>
+              <Select value={groomerFilter} onValueChange={setGroomerFilter}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  {groomers.map((g: string) => <SelectItem key={g} value={g}>{g}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">Payment</Label>
+              <Select value={paymentFilter} onValueChange={setPaymentFilter}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="Paid">Paid</SelectItem>
+                  <SelectItem value="Not Paid">Not Paid</SelectItem>
+                  <SelectItem value="Partially Paid">Partially Paid</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">Status</Label>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="Confirmed">Confirmed</SelectItem>
+                  <SelectItem value="Canceled">Canceled</SelectItem>
+                  <SelectItem value="Checked-In">Checked-In</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
+
+          <div className="overflow-auto border rounded-lg">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Customer</TableHead>
+                  <TableHead>Dog</TableHead>
+                  <TableHead>Service</TableHead>
+                  <TableHead>Groomer</TableHead>
+                  <TableHead>Price</TableHead>
+                  <TableHead>Payment</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Revenue</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>
+                ) : bookings.length === 0 ? (
+                  <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">No records found</TableCell></TableRow>
+                ) : (
+                  bookings.map((b: any) => (
+                    <TableRow key={b.id}>
+                      <TableCell className="text-sm whitespace-nowrap">{b.appointment_date ? format(new Date(b.appointment_date), "dd MMM yyyy HH:mm") : "—"}</TableCell>
+                      <TableCell className="text-sm">{b.customer_name}</TableCell>
+                      <TableCell className="text-sm">{b.dog_name || "—"}</TableCell>
+                      <TableCell className="text-sm">{b.service_name}</TableCell>
+                      <TableCell className="text-sm">{b.groomer_name || "—"}</TableCell>
+                      <TableCell className="text-sm">£{Number(b.price_charged).toFixed(2)}</TableCell>
+                      <TableCell>
+                        <Badge variant={b.payment_status === "Paid" ? "default" : "secondary"} className="text-xs">{b.payment_status}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={b.excluded_from_revenue ? "destructive" : "outline"} className="text-xs">{b.booking_status}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        {b.revenue_recognised ? (
+                          <CheckCircle2 className="h-4 w-4 text-green-600" />
+                        ) : b.excluded_from_revenue ? (
+                          <XCircle className="h-4 w-4 text-destructive" />
+                        ) : (
+                          <AlertTriangle className="h-4 w-4 text-amber-500" />
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+          <p className="text-xs text-muted-foreground">Showing up to 500 records. Use filters to narrow results.</p>
         </CardContent>
       </Card>
-
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-        <div>
-          <Label className="text-xs">From</Label>
-          <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
-        </div>
-        <div>
-          <Label className="text-xs">To</Label>
-          <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} />
-        </div>
-        <div>
-          <Label className="text-xs">Groomer</Label>
-          <Select value={groomerFilter} onValueChange={setGroomerFilter}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All</SelectItem>
-              {groomers.map((g: string) => <SelectItem key={g} value={g}>{g}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <Label className="text-xs">Payment</Label>
-          <Select value={paymentFilter} onValueChange={setPaymentFilter}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All</SelectItem>
-              <SelectItem value="Paid">Paid</SelectItem>
-              <SelectItem value="Not Paid">Not Paid</SelectItem>
-              <SelectItem value="Partially Paid">Partially Paid</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <Label className="text-xs">Status</Label>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All</SelectItem>
-              <SelectItem value="Confirmed">Confirmed</SelectItem>
-              <SelectItem value="Canceled">Canceled</SelectItem>
-              <SelectItem value="Checked-In">Checked-In</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      <div className="overflow-auto border rounded-lg">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Date</TableHead>
-              <TableHead>Customer</TableHead>
-              <TableHead>Dog</TableHead>
-              <TableHead>Service</TableHead>
-              <TableHead>Groomer</TableHead>
-              <TableHead>Price</TableHead>
-              <TableHead>Payment</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Revenue</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>
-            ) : bookings.length === 0 ? (
-              <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">No records found</TableCell></TableRow>
-            ) : (
-              bookings.map((b: any) => (
-                <TableRow key={b.id}>
-                  <TableCell className="text-sm whitespace-nowrap">{b.appointment_date ? format(new Date(b.appointment_date), "dd MMM yyyy HH:mm") : "—"}</TableCell>
-                  <TableCell className="text-sm">{b.customer_name}</TableCell>
-                  <TableCell className="text-sm">{b.dog_name || "—"}</TableCell>
-                  <TableCell className="text-sm">{b.service_name}</TableCell>
-                  <TableCell className="text-sm">{b.groomer_name || "—"}</TableCell>
-                  <TableCell className="text-sm">£{Number(b.price_charged).toFixed(2)}</TableCell>
-                  <TableCell>
-                    <Badge variant={b.payment_status === "Paid" ? "default" : "secondary"} className="text-xs">{b.payment_status}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={b.excluded_from_revenue ? "destructive" : "outline"} className="text-xs">{b.booking_status}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    {b.revenue_recognised ? (
-                      <CheckCircle2 className="h-4 w-4 text-green-600" />
-                    ) : b.excluded_from_revenue ? (
-                      <XCircle className="h-4 w-4 text-destructive" />
-                    ) : (
-                      <AlertTriangle className="h-4 w-4 text-amber-500" />
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
-      <p className="text-xs text-muted-foreground">Showing up to 500 records. Use filters to narrow results.</p>
     </div>
   );
 }
 
+// ─── Page ───
+
 const WixMigrationPage = () => {
-  const [activeTab, setActiveTab] = useState("import");
+  const [activeTab, setActiveTab] = useState("archive");
 
   return (
     <AppLayout>
@@ -427,16 +576,16 @@ const WixMigrationPage = () => {
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList>
+            <TabsTrigger value="archive">📂 Wix Historical Archive</TabsTrigger>
             <TabsTrigger value="import">Import CSV</TabsTrigger>
-            <TabsTrigger value="browse">Browse Records</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="archive" className="mt-4">
+            <ArchiveSection />
+          </TabsContent>
 
           <TabsContent value="import" className="mt-4">
             <ImportSection />
-          </TabsContent>
-
-          <TabsContent value="browse" className="mt-4">
-            <BrowseSection />
           </TabsContent>
         </Tabs>
       </div>
