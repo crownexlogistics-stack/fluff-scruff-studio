@@ -13,13 +13,28 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { Copy } from "lucide-react";
 
-export function FinanceExplainerButton({ variant = "outline", size = "sm" }: { variant?: any; size?: any }) {
+export interface ForecastData {
+  month: string;
+  total_appointments: number;
+  earned_so_far: number;
+  confirmed_upcoming: number;
+  total_projected_income: number;
+  groomer_pay_paid: number;
+  groomer_pay_upcoming: number;
+  bills_paid: number;
+  bills_still_to_pay: number;
+  total_projected_costs: number;
+  projected_result: number;
+  breakeven_gap: number;
+}
+
+export function FinanceExplainerButton({ variant = "outline", size = "sm", forecastData }: { variant?: any; size?: any; forecastData?: ForecastData }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ text: string; generatedAt: string } | null>(null);
   const [error, setError] = useState(false);
 
-  const monthName = format(new Date(), "MMMM");
+  const monthName = forecastData?.month || format(new Date(), "MMMM");
 
   const handleOpen = async () => {
     setOpen(true);
@@ -29,7 +44,7 @@ export function FinanceExplainerButton({ variant = "outline", size = "sm" }: { v
 
     try {
       const { data, error: fnError } = await supabase.functions.invoke("finance-explainer", {
-        body: {},
+        body: { forecastData },
       });
       if (fnError) throw fnError;
       if (data?.error) throw new Error(data.error);

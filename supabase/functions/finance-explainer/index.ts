@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -13,135 +12,29 @@ serve(async (req) => {
     const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
     if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY not configured");
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const { forecastData } = await req.json();
 
-    const today = new Date();
-    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split("T")[0];
-    const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split("T")[0];
-    const todayStr = today.toISOString().split("T")[0];
-    const monthName = today.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+    if (!forecastData) {
+      throw new Error("No forecast data provided");
+    }
 
-    // Last month
-    const lastMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, 1).toISOString().split("T")[0];
-    const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0).toISOString().split("T")[0];
-
-    // Last year same month
-    const lastYearStart = new Date(today.getFullYear() - 1, today.getMonth(), 1).toISOString().split("T")[0];
-    const lastYearEnd = new Date(today.getFullYear() - 1, today.getMonth() + 1, 0).toISOString().split("T")[0];
-
-    // This month bookings
-    const { data: thisMonthBookings } = await supabase
-      .from("bookings")
-      .select("total_price, status, booking_date, staff_id, is_groomers_own_customer, deposit_paid")
-      .gte("booking_date", monthStart)
-      .lte("booking_date", monthEnd);
-
-    const completed = (thisMonthBookings || []).filter(b => b.status === "Completed" || (b.booking_date <= todayStr && b.status !== "Cancelled"));
-    const upcoming = (thisMonthBookings || []).filter(b => b.booking_date > todayStr && b.status !== "Cancelled");
-    const cancelled = (thisMonthBookings || []).filter(b => b.status === "Cancelled");
-
-    const totalRevenue = (thisMonthBookings || []).filter(b => b.status !== "Cancelled").reduce((s, b) => s + Number(b.total_price || 0), 0);
-    const completedRevenue = completed.reduce((s, b) => s + Number(b.total_price || 0), 0);
-    const upcomingRevenue = upcoming.reduce((s, b) => s + Number(b.total_price || 0), 0);
-
-    // Last month revenue
-    const { data: lastMonthData } = await supabase
-      .from("bookings")
-      .select("total_price")
-      .gte("booking_date", lastMonthStart)
-      .lte("booking_date", lastMonthEnd)
-      .not("status", "eq", "Cancelled");
-    const lastMonthRevenue = (lastMonthData || []).reduce((s, b) => s + Number(b.total_price || 0), 0);
-
-    // Last year same month revenue
-    const { data: lastYearData } = await supabase
-      .from("bookings")
-      .select("total_price")
-      .gte("booking_date", lastYearStart)
-      .lte("booking_date", lastYearEnd)
-      .not("status", "eq", "Cancelled");
-    const lastYearRevenue = (lastYearData || []).reduce((s, b) => s + Number(b.total_price || 0), 0);
-
-    // Commission records this month
-    const { data: commissions } = await supabase
-      .from("commission_records")
-      .select("groomer_pay")
-      .gte("created_at", `${monthStart}T00:00:00`)
-      .lte("created_at", `${monthEnd}T23:59:59`);
-    const groomerPayPaid = (commissions || []).reduce((s, c) => s + Number(c.groomer_pay || 0), 0);
-
-    // Estimate upcoming groomer pay
-    const groomerPayUpcoming = upcoming.reduce((s, b) => {
-      const rate = b.is_groomers_own_customer ? 0.5 : 0.4;
-      return s + Number(b.total_price || 0) * rate;
-    }, 0);
-
-    // Expenses this month
-    const { data: recurringExpenses } = await supabase
-      .from("expenses")
-      .select("amount, frequency, recurring_start_date, recurring_end_date")
-      .eq("expense_type", "recurring");
-
-    const { data: oneOffExpenses } = await supabase
-      .from("expenses")
-      .select("amount")
-      .eq("expense_type", "one_off")
-      .gte("expense_date", monthStart)
-      .lte("expense_date", monthEnd);
-
-    // Simple monthly expense calculation
-    let totalExpenses = (oneOffExpenses || []).reduce((s, e) => s + Number(e.amount || 0), 0);
-    (recurringExpenses || []).forEach(e => {
-      const freq = e.frequency || "monthly";
-      if (freq === "weekly") totalExpenses += Number(e.amount) * 4.33;
-      else if (freq === "annual") totalExpenses += Number(e.amount) / 12;
-      else totalExpenses += Number(e.amount);
-    });
-
-    const totalGroomerPay = groomerPayPaid + groomerPayUpcoming;
-    const netProfit = totalRevenue - totalGroomerPay - totalExpenses;
-    const projectedProfit = totalRevenue - totalGroomerPay - totalExpenses;
-
-    // Busiest day
-    const dayCounts: Record<string, number> = {};
-    (thisMonthBookings || []).filter(b => b.status !== "Cancelled").forEach(b => {
-      dayCounts[b.booking_date] = (dayCounts[b.booking_date] || 0) + 1;
-    });
-    const busiestDay = Object.entries(dayCounts).sort((a, b) => b[1] - a[1])[0];
-
-    // Best groomer
-    const { data: staff } = await supabase.from("staff").select("id, name").ilike("role", "%groomer%");
-    const staffMap = new Map((staff || []).map(s => [s.id, s.name]));
-    const groomerRevenue: Record<string, number> = {};
-    (thisMonthBookings || []).filter(b => b.status !== "Cancelled" && b.staff_id).forEach(b => {
-      const name = staffMap.get(b.staff_id!) || "Unknown";
-      groomerRevenue[name] = (groomerRevenue[name] || 0) + Number(b.total_price || 0);
-    });
-    const bestGroomer = Object.entries(groomerRevenue).sort((a, b) => b[1] - a[1])[0];
-
-    const avgBookingValue = (thisMonthBookings || []).filter(b => b.status !== "Cancelled").length > 0
-      ? totalRevenue / (thisMonthBookings || []).filter(b => b.status !== "Cancelled").length
-      : 0;
-
-    const financeData = {
-      month: monthName,
-      totalRevenue: `£${totalRevenue.toFixed(0)}`,
-      lastMonthRevenue: `£${lastMonthRevenue.toFixed(0)}`,
-      lastYearSameMonthRevenue: lastYearRevenue > 0 ? `£${lastYearRevenue.toFixed(0)}` : "No data",
-      totalGroomerPay: `£${totalGroomerPay.toFixed(0)}`,
-      groomerPayBreakdown: `£${groomerPayPaid.toFixed(0)} paid + £${groomerPayUpcoming.toFixed(0)} estimated upcoming`,
-      totalExpenses: `£${totalExpenses.toFixed(0)}`,
-      netProfit: `£${netProfit.toFixed(0)}`,
-      projectedEndOfMonthProfit: `£${projectedProfit.toFixed(0)}`,
-      breakeven: netProfit >= 0 ? "Reached" : `£${Math.abs(netProfit).toFixed(0)} short`,
-      completedAppointments: completed.length,
-      upcomingAppointments: upcoming.length,
-      cancellations: cancelled.length,
-      averageBookingValue: `£${avgBookingValue.toFixed(0)}`,
-      busiestDay: busiestDay ? `${busiestDay[0]} (${busiestDay[1]} bookings)` : "None yet",
-      bestPerformingGroomer: bestGroomer ? `${bestGroomer[0]} (£${bestGroomer[1].toFixed(0)})` : "None yet",
+    const financeContext = {
+      month: forecastData.month,
+      total_appointments: forecastData.total_appointments,
+      earned_so_far: `£${forecastData.earned_so_far.toLocaleString()}`,
+      confirmed_upcoming: `£${forecastData.confirmed_upcoming.toLocaleString()}`,
+      total_projected_income: `£${forecastData.total_projected_income.toLocaleString()}`,
+      groomer_pay_paid: `£${forecastData.groomer_pay_paid.toLocaleString()}`,
+      groomer_pay_upcoming: `£${forecastData.groomer_pay_upcoming.toLocaleString()}`,
+      bills_paid: `£${forecastData.bills_paid.toLocaleString()}`,
+      bills_still_to_pay: `£${forecastData.bills_still_to_pay.toLocaleString()}`,
+      total_projected_costs: `£${forecastData.total_projected_costs.toLocaleString()}`,
+      projected_result: forecastData.projected_result >= 0
+        ? `£${forecastData.projected_result.toLocaleString()} profit`
+        : `-£${Math.abs(forecastData.projected_result).toLocaleString()} loss`,
+      breakeven_gap: forecastData.breakeven_gap > 0
+        ? `£${forecastData.breakeven_gap.toLocaleString()} needed to break even`
+        : "Break even reached",
     };
 
     const anthropicRes = await fetch("https://api.anthropic.com/v1/messages", {
@@ -154,11 +47,29 @@ serve(async (req) => {
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514",
         max_tokens: 1000,
-        system: `You are a friendly financial advisor for a small dog grooming salon. Explain the business finances in plain simple English that a non-financial person can understand. Be honest — if numbers look concerning say so kindly. If things look good say so enthusiastically. Maximum 5-6 sentences. No jargon. No bullet points. Sound like a trusted advisor having a honest conversation. End with ONE specific actionable suggestion for improving the financial position.`,
+        system: `You are a calm, reassuring financial advisor for a small dog grooming salon.
+
+IMPORTANT CONTEXT YOU MUST UNDERSTAND:
+This salon is mid-month. The 'earned so far' figure only reflects the first part of the month. The 'confirmed upcoming' figure shows real booked appointments still to come. Always explain the numbers in this context.
+
+Do not compare earned-so-far against total costs — that is like comparing half a month's income against a full month's costs and will always look terrible and misleading.
+
+ALWAYS explain:
+- Total projected income for the month
+- Total projected costs for the month
+- Whether the FULL MONTH projection is profitable or not
+- What the gap is if making a loss
+- One practical suggestion
+
+Be honest but calm. Never use dramatic language like 'concerning' or 'not sustainable' unless the numbers are genuinely catastrophic. A small projected loss on decent revenue mid-month with bookings still to come is not a crisis — explain it proportionately.
+
+Maximum 4-5 sentences.
+No bullet points.
+End with ONE specific actionable tip.`,
         messages: [
           {
             role: "user",
-            content: `Please explain this month's finances for my salon:\n${JSON.stringify(financeData, null, 2)}`,
+            content: `Please explain this month's finances for my salon:\n${JSON.stringify(financeContext, null, 2)}`,
           },
         ],
       }),
@@ -174,7 +85,7 @@ serve(async (req) => {
     const explanation = anthropicData.content?.[0]?.text || "Unable to generate explanation.";
 
     return new Response(
-      JSON.stringify({ text: explanation, data: financeData, generatedAt: new Date().toISOString() }),
+      JSON.stringify({ text: explanation, generatedAt: new Date().toISOString() }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
