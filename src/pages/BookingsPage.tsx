@@ -110,6 +110,7 @@ const BookingsPage = () => {
         // Match staff by first word of staff_name
         const staffFirstName = mb.staff_name?.split(" ")[0]?.trim() || "";
         const matchedStaff = staff.find(s => s.name.split(" ")[0].toLowerCase() === staffFirstName.toLowerCase());
+        const isCompleted = mb.payment_status === "Completed";
         return {
           id: mb.id,
           customer_name: mb.migrated_customers?.full_name || "Unknown",
@@ -118,7 +119,7 @@ const BookingsPage = () => {
           booking_time: mb.booking_time || "09:00",
           total_price: Number(mb.total_price || 0),
           deposit_paid: Number(mb.deposit_paid || 0),
-          status: "Confirmed",
+          status: isCompleted ? "Completed" : "Confirmed",
           notes: mb.notes,
           customer_email: mb.migrated_customers?.email || null,
           customer_phone: mb.migrated_customers?.phone || null,
@@ -251,6 +252,7 @@ const BookingsPage = () => {
             commission_rate: rate,
             groomer_pay: groomerPay,
             studio_share: studioShare,
+            booking_source: "migrated",
           } as any);
         }
 
@@ -299,6 +301,7 @@ const BookingsPage = () => {
       toast.success("Appointment completed");
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
       queryClient.invalidateQueries({ queryKey: ["migrated-bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["migrated-calendar-bookings"] });
       queryClient.invalidateQueries({ queryKey: ["audit-logs"] });
       queryClient.invalidateQueries({ queryKey: ["commission-records"] });
     },

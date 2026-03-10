@@ -62,7 +62,7 @@ const FinancePage = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("commission_records")
-        .select("*, bookings(customer_name, dog_name, booking_date, service_id, services:service_id(name))")
+        .select("*, bookings(customer_name, dog_name, booking_date, service_id, services:service_id(name)), migrated_bookings(service_name, dog_name, booking_date, migrated_customers(full_name))")
         .gte("created_at", `${periodStartStr}T00:00:00`)
         .lte("created_at", `${periodEndStr}T23:59:59`)
         .order("created_at", { ascending: false });
@@ -236,11 +236,25 @@ const FinancePage = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {selectedSummary.commissions.map((c: any) => (
+                  {selectedSummary.commissions.map((c: any) => {
+                    const isMigrated = c.booking_source === "migrated" || c.migrated_booking_id;
+                    const customerName = isMigrated
+                      ? c.migrated_bookings?.migrated_customers?.full_name || "Wix Customer"
+                      : c.bookings?.customer_name || "—";
+                    const dogName = isMigrated
+                      ? c.migrated_bookings?.dog_name || "—"
+                      : c.bookings?.dog_name || "—";
+                    const serviceName = isMigrated
+                      ? c.migrated_bookings?.service_name || "—"
+                      : c.bookings?.services?.name || "—";
+                    return (
                     <TableRow key={c.id}>
-                      <TableCell className="text-sm">{c.bookings?.customer_name || "—"}</TableCell>
-                      <TableCell className="text-sm">{c.bookings?.dog_name || "—"}</TableCell>
-                      <TableCell className="text-sm">{c.bookings?.services?.name || "—"}</TableCell>
+                      <TableCell className="text-sm">
+                        {customerName}
+                        {isMigrated && <Badge className="ml-1 bg-amber-500 text-white hover:bg-amber-500 text-[8px] px-1 py-0">W</Badge>}
+                      </TableCell>
+                      <TableCell className="text-sm">{dogName}</TableCell>
+                      <TableCell className="text-sm">{serviceName}</TableCell>
                       <TableCell className="text-sm">£{Number(c.total_price).toFixed(2)}</TableCell>
                       <TableCell>
                         <Badge variant={c.commission_type === "no_show" ? "destructive" : c.commission_type === "own_customer" ? "default" : "secondary"} className="text-xs">
@@ -249,7 +263,8 @@ const FinancePage = () => {
                       </TableCell>
                       <TableCell className="text-right font-medium">£{Number(c.groomer_pay).toFixed(2)}</TableCell>
                     </TableRow>
-                  ))}
+                    );
+                  })}
                   {selectedSummary.commissions.length === 0 && (
                     <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No completed appointments this period</TableCell></TableRow>
                   )}
