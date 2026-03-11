@@ -685,9 +685,9 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
     }
 
     let assignedStaffId: string | null = null;
-    if (isExistingCustomer && selectedStaffId) {
-      assignedStaffId = selectedStaffId;
-    } else if (groomers && groomers.length > 0 && baseSchedules) {
+
+    // ALWAYS re-fetch fresh data at submission time to prevent double-bookings
+    if (groomers && groomers.length > 0 && baseSchedules) {
       const [freshBookingsRes, freshOverridesRes, freshMigratedRes] = await Promise.all([
         supabase
           .from("bookings")
@@ -723,23 +723,48 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
       const freshOverrides = (freshOverridesRes.data || []) as ScheduleOverride[];
       const bookingDate = new Date(selectedDate! + "T00:00:00");
 
-      const freeGroomer = findFreeGroomer(
-        selectedTime!,
-        serviceDuration,
-        bookingDate,
-        groomers,
-        baseSchedules,
-        freshOverrides,
-        freshBookings
-      );
+      if (isExistingCustomer && selectedStaffId) {
+        // Customer selected a specific groomer — verify THAT groomer is still free
+        const slotStart = parseTimeToMinutes(selectedTime!);
+        const slotEnd = slotStart + serviceDuration;
 
-      if (!freeGroomer) {
-        setAlertMessage("This slot is no longer available. The groomer's schedule changed while you were booking. Please choose another time.");
-        setIsSubmitting(false);
-        return;
+        // Check the selected groomer has no booking conflict at this time
+
+        const hasBookingConflict = freshBookings.some((b) => {
+          if (b.staff_id !== selectedStaffId) return false;
+          const bStart = parseTimeToMinutes(b.booking_time);
+          const bDuration = Number(b.services?.duration_minutes ?? b.breeds?.duration_minutes ?? 90);
+          const bEnd = bStart + bDuration;
+          return slotStart < bEnd && slotEnd > bStart;
+        });
+
+        if (hasBookingConflict) {
+          setAlertMessage("This slot is no longer available — your selected groomer already has a booking at this time. Please choose another time.");
+          setIsSubmitting(false);
+          return;
+        }
+
+        assignedStaffId = selectedStaffId;
+      } else {
+        // No preference — find any free groomer by priority
+        const freeGroomer = findFreeGroomer(
+          selectedTime!,
+          serviceDuration,
+          bookingDate,
+          groomers,
+          baseSchedules,
+          freshOverrides,
+          freshBookings
+        );
+
+        if (!freeGroomer) {
+          setAlertMessage("This slot is no longer available. The groomer's schedule changed while you were booking. Please choose another time.");
+          setIsSubmitting(false);
+          return;
+        }
+
+        assignedStaffId = freeGroomer.id;
       }
-
-      assignedStaffId = freeGroomer.id;
     }
 
     const { data: insertedBooking, error } = await supabase.from("bookings").insert({
@@ -886,16 +911,21 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
   const availableTimeSlots = useMemo(() => {
     if (!selectedDate || !groomers?.length || !baseSchedules) return [];
     const date = new Date(selectedDate + "T00:00:00");
+    // If customer selected a specific groomer, only show THAT groomer's available slots
+    const groomersForSlots = (isExistingCustomer && selectedStaffId)
+      ? groomers.filter(g => g.id === selectedStaffId)
+      : groomers;
+    if (!groomersForSlots.length) return [];
     return generateAvailableSlots(
       date,
       serviceDuration,
-      groomers,
+      groomersForSlots,
       baseSchedules,
       allOverridesForDate || [],
       existingBookingsForDate || [],
       30
     );
-  }, [selectedDate, groomers, baseSchedules, allOverridesForDate, existingBookingsForDate, serviceDuration]);
+  }, [selectedDate, groomers, baseSchedules, allOverridesForDate, existingBookingsForDate, serviceDuration, isExistingCustomer, selectedStaffId]);
 
   const isDateSelectableDate = (d: Date) => {
     const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
