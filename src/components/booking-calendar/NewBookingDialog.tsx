@@ -442,7 +442,14 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
                     initialSelectedName={customerSelected ? form.customer_name : null}
                   />
                   {!customerSelected && (
-                    <Button type="button" variant="outline" size="sm" className="w-full" onClick={handleAddNew}>
+                    <Button type="button" variant="outline" size="sm" className="w-full" onClick={() => {
+                      console.log("[NewBookingDialog] + Add New Customer button clicked");
+                      setIsNewCustomer(true);
+                      setCustomerSelected(false);
+                      setNewCustomerError("");
+                      setSelectedDogs([]);
+                      setForm(prev => ({ ...prev, customer_name: "", customer_email: "", customer_phone: "", dog_name: "", breed_id: "" }));
+                    }}>
                       + Add New Customer
                     </Button>
                   )}
