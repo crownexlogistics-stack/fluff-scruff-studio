@@ -450,7 +450,6 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
                   />
                   {!customerSelected && (
                     <Button type="button" variant="outline" size="sm" className="w-full" onClick={() => {
-                      console.log("[NewBookingDialog] + Add New Customer button clicked");
                       setIsNewCustomer(true);
                       setCustomerSelected(false);
                       setNewCustomerError("");
