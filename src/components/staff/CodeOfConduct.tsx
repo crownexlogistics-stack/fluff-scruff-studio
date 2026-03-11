@@ -5,7 +5,7 @@ const conductItems = [
   {
     title: "Cleanliness & Shared Responsibility",
     description:
-      "The salon is a shared workspace. All staff members are expected to clean up after each session and leave the area fully prepared for the next groomer. A clean and organised environment is essential for safety, professionalism, and the well-being of both staff and animals.",
+      "The salon is a shared workspace. All contractors are expected to clean up after each session and leave the area fully prepared for the next groomer. A clean and organised environment is essential for safety, professionalism, and the well-being of both contractors and animals.",
   },
   {
     title: "Client Retention & Rebooking",
@@ -15,7 +15,7 @@ const conductItems = [
   {
     title: "Escalation & Decision-Making",
     description:
-      "Any matters relating to discounts, timekeeping, cleaning duties, time-off requests, or pay must be directed to the salon directors, Sevak and Andriy. As self-employed contractors, all staff are expected to take personal responsibility for their own work, scheduling, and client management.",
+      "Any matters relating to discounts, timekeeping, cleaning duties, time-off requests, or pay must be directed to the salon directors, Sevak and Andriy. As self-employed contractors, all contractors are expected to take personal responsibility for their own work, scheduling, and client management.",
   },
   {
     title: "Reporting Concerns & Incidents",
@@ -25,7 +25,7 @@ const conductItems = [
   {
     title: "Mutual Respect & Professionalism",
     description:
-      "All staff members are expected to treat one another with courtesy, respect, and professionalism at all times. We are committed to maintaining a positive and supportive workplace where everyone feels valued and safe.",
+      "All contractors are expected to treat one another with courtesy, respect, and professionalism at all times. We are committed to maintaining a positive and supportive working environment where everyone feels valued and safe.",
   },
   {
     title: "Client Loyalty & Business Integrity",
@@ -52,7 +52,7 @@ const CodeOfConduct = ({ compact = false }: CodeOfConductProps) => {
         </CardTitle>
         {!compact && (
           <p className="text-sm text-muted-foreground mt-1">
-            All staff members are required to read, understand, and adhere to the following professional standards.
+            All contractors are required to read, understand, and adhere to the following professional standards.
           </p>
         )}
       </CardHeader>
