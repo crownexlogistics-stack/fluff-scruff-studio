@@ -266,7 +266,7 @@ export default function AcademyPage() {
         "Lunch included",
         "Certificate of attendance",
       ],
-      popular: true,
+      popular: false,
     },
     {
       emoji: "🏅",
