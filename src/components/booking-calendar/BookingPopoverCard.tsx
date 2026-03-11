@@ -10,6 +10,7 @@ import { Pencil, Trash2, MoreHorizontal, Eye, PenLine, XCircle, Send, CheckCircl
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { logAudit } from "@/lib/auditLog";
+import { useQuery } from "@tanstack/react-query";
 import type { BookingData } from "./BookingEvent";
 import { DogBriefButton } from "./DogBriefButton";
 
