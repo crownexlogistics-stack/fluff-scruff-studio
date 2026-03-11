@@ -122,6 +122,7 @@ function InterestForm({ formData, setFormData, onSubmit, submitting, showCourseD
               <SelectItem value="Pet Owner Session — £300">Groom Your Own Dog — £300</SelectItem>
               <SelectItem value="Full Day Masterclass — £250">Full Day Masterclass — £250</SelectItem>
               <SelectItem value="Pro Skills Workshop — £180">Pro Skills Workshop — £180</SelectItem>
+              <SelectItem value="Month-Long Grooming Programme — £2,800">Month-Long Grooming Programme — £2,800</SelectItem>
               <SelectItem value="Not sure yet">Not sure yet</SelectItem>
             </SelectContent>
           </Select>
