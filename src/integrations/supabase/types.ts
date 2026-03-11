@@ -1099,6 +1099,27 @@ export type Database = {
           },
         ]
       }
+      groomer_visibility_settings: {
+        Row: {
+          groomer_name: string
+          hidden: boolean | null
+          hidden_at: string | null
+          id: string
+        }
+        Insert: {
+          groomer_name: string
+          hidden?: boolean | null
+          hidden_at?: string | null
+          id?: string
+        }
+        Update: {
+          groomer_name?: string
+          hidden?: boolean | null
+          hidden_at?: string | null
+          id?: string
+        }
+        Relationships: []
+      }
       incident_report_recipients: {
         Row: {
           created_at: string
