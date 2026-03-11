@@ -124,11 +124,19 @@ serve(async (req) => {
 
     // Send via SMS
     if ((send_via === "sms" || send_via === "both") && booking.customer_phone && TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN && TWILIO_PHONE_NUMBER) {
+      // Format UK phone numbers to E.164
+      let formattedPhone = booking.customer_phone.replace(/\s+/g, "");
+      if (formattedPhone.startsWith("0")) {
+        formattedPhone = "+44" + formattedPhone.slice(1);
+      } else if (!formattedPhone.startsWith("+")) {
+        formattedPhone = "+44" + formattedPhone;
+      }
+
       const smsBody = `Hi ${firstName}, here is your payment link for your appointment at Fluff & Scruff: ${linkUrl}`;
       
       const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`;
       const formData = new URLSearchParams();
-      formData.append("To", booking.customer_phone);
+      formData.append("To", formattedPhone);
       formData.append("From", TWILIO_PHONE_NUMBER);
       formData.append("Body", smsBody);
       formData.append("MessagingServiceSid", "MG3c95c22cb05574f545cc1b32d9db4600");
