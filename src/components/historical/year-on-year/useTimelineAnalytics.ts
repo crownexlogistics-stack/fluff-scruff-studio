@@ -72,9 +72,41 @@ export interface KpiSummary {
   avgMonthlyRevenue: number;
 }
 
+export interface GroomerMonthEntry {
+  label: string;
+  year: number;
+  month: number;
+  totalRevenue: number;
+  commission: number;
+  netProfit: number;
+  appointments: number;
+  returningCustomers: number;
+}
+
+export interface GroomerPerformanceData {
+  name: string;
+  commissionRate: number;
+  months: GroomerMonthEntry[];
+  allTimeNetProfit: number;
+  allTimeAppointments: number;
+}
+
+const EXCLUDED_GROOMERS = ["Kirsty Nails", "Lauren Nails"];
+
 export function useTimelineAnalytics() {
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
+
+  const { data: staffData } = useQuery({
+    queryKey: ["staff-commission-rates"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("staff")
+        .select("id, name, commission_rate");
+      if (error) throw error;
+      return data || [];
+    },
+  });
 
   const { data: dbData, isLoading } = useQuery({
     queryKey: ["wix-timeline-full"],
