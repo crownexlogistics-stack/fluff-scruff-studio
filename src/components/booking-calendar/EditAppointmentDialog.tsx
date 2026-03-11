@@ -134,6 +134,9 @@ export function EditAppointmentDialog({ open, onOpenChange, booking }: EditAppoi
     mutationFn: async () => {
       if (!booking) return;
 
+      const dateChanged = form.booking_date !== booking.booking_date;
+      const timeChanged = form.booking_time !== booking.booking_time.slice(0, 5);
+
       if (booking.is_migrated) {
         // Update migrated_bookings table
         const { error } = await supabase.from("migrated_bookings").update({
@@ -186,6 +189,22 @@ export function EditAppointmentDialog({ open, onOpenChange, booking }: EditAppoi
             body: { booking_id: booking.id, notification_type: "booking_edited" },
           }).catch(() => {});
         }
+      }
+
+      const performedBy = staff?.find(s => s.id === form.staff_id)?.name || "Staff";
+
+      // Audit trail for reschedule
+      if ((dateChanged || timeChanged) && !booking.is_migrated) {
+        supabase.from("booking_audit_log" as any).insert({
+          booking_id: booking.id,
+          event_type: "rescheduled",
+          performed_by: performedBy,
+          old_date: booking.booking_date,
+          old_time: booking.booking_time.slice(0, 5),
+          new_date: form.booking_date,
+          new_time: form.booking_time,
+          note: `Rescheduled from ${booking.booking_date} ${booking.booking_time.slice(0, 5)} to ${form.booking_date} ${form.booking_time}`,
+        } as any).then(() => {});
       }
 
       logAudit({

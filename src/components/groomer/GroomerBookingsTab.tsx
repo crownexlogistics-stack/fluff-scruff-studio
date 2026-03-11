@@ -423,6 +423,13 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
       if (booking.staff_id) {
         supabase.functions.invoke("notify-groomer", { body: { booking_id: booking.id, notification_type: "booking_cancelled" } }).catch(() => {});
       }
+      // Audit trail entry for cancellation
+      supabase.from("booking_audit_log" as any).insert({
+        booking_id: booking.id,
+        event_type: "cancelled",
+        performed_by: booking.staff_name || "Groomer",
+        note: "Booking cancelled",
+      } as any).then(() => {});
     },
     onSuccess: () => {
       toast.success("Booking cancelled");

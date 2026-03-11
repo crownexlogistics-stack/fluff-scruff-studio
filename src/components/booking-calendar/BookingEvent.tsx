@@ -47,6 +47,8 @@ export interface BookingData {
   is_migrated?: boolean;
   migrated_payment_status?: string | null;
   migrated_amount_due?: number | null;
+  booking_source?: string | null;
+  created_by_staff?: string | null;
 }
 
 interface BookingEventProps {

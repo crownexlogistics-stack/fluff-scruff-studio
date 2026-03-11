@@ -10,6 +10,7 @@ import { Pencil, Trash2, MoreHorizontal, Eye, PenLine, XCircle, Send, CheckCircl
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { logAudit } from "@/lib/auditLog";
+import { useQuery } from "@tanstack/react-query";
 import type { BookingData } from "./BookingEvent";
 import { DogBriefButton } from "./DogBriefButton";
 
@@ -52,6 +53,21 @@ export function BookingPopoverCard({
   const isDepositPaid = deposit > 0 && deposit < total;
   const remaining = total - deposit;
   const isDirector = userRole === "director";
+
+  // Fetch audit log for this booking
+  const { data: auditLog } = useQuery({
+    queryKey: ["booking-audit-log", booking.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("booking_audit_log" as any)
+        .select("event_type, performed_by, performed_at, old_date, old_time, new_date, new_time, note")
+        .eq("booking_id", booking.id)
+        .order("performed_at", { ascending: true });
+      if (error) throw error;
+      return data as any[];
+    },
+    enabled: !booking.is_block,
+  });
 
   const handleRefund = async () => {
     if (!confirm(`Are you sure you want to refund this booking for ${booking.customer_name}? This will process a refund through Stripe.`)) return;
@@ -127,10 +143,18 @@ export function BookingPopoverCard({
         </div>
       </div>
 
-      {/* Status + Payment badges */}
+      {/* Status + Payment + Source badges */}
       <div className="flex flex-wrap gap-2">
         {booking.is_migrated && (
           <Badge className="bg-amber-500 text-white hover:bg-amber-500 text-[10px]">W — Wix Booking</Badge>
+        )}
+        {(booking as any).booking_source === "online" && (
+          <Badge className="text-[10px]" style={{ backgroundColor: "#FFB800", color: "#2D1B0E" }}>🌐 Booked Online</Badge>
+        )}
+        {(booking as any).booking_source === "staff" && (
+          <Badge className="text-[10px]" style={{ backgroundColor: "#f0f0f0", color: "#2D1B0E" }}>
+            👤 Booked by Staff{(booking as any).created_by_staff ? ` — ${(booking as any).created_by_staff}` : ""}
+          </Badge>
         )}
         <Badge variant={
           booking.status === "Confirmed" ? "default" :
@@ -298,6 +322,52 @@ export function BookingPopoverCard({
           <DogBriefButton booking={booking} />
         </div>
       )}
+
+      {/* 📋 Booking History */}
+      <div className="border-t pt-3">
+        <p className="font-bold text-[13px] mb-2" style={{ color: "#2D1B0E", fontFamily: "Nunito, sans-serif" }}>📋 Booking History</p>
+        {(!auditLog || auditLog.length === 0) ? (
+          <p className="text-xs italic" style={{ color: "#999", fontFamily: "Nunito, sans-serif" }}>
+            No history recorded — audit trail starts from today
+          </p>
+        ) : (
+          <div className="space-y-1.5">
+            {auditLog.map((entry: any, i: number) => {
+              const dotColors: Record<string, string> = {
+                created_online: "#FFB800",
+                created_by_staff: "#FF6B35",
+                rescheduled: "#2D1B0E",
+                cancelled: "#e53935",
+                status_changed: "#9e9e9e",
+                checked_in: "#43a047",
+              };
+              const dotColor = dotColors[entry.event_type] || "#9e9e9e";
+
+              let text = entry.note || entry.event_type;
+              if (entry.event_type === "created_online") text = "Booked online by customer";
+              else if (entry.event_type === "created_by_staff") text = `Created by ${entry.performed_by || "staff"}`;
+              else if (entry.event_type === "rescheduled") text = `Rescheduled by ${entry.performed_by || "staff"}: ${entry.old_date} ${entry.old_time?.slice(0, 5) || ""} → ${entry.new_date} ${entry.new_time?.slice(0, 5) || ""}`;
+              else if (entry.event_type === "cancelled") text = `Cancelled by ${entry.performed_by || "staff"}`;
+              else if (entry.event_type === "checked_in") text = `Checked in by ${entry.performed_by || "staff"}`;
+              else if (entry.event_type === "status_changed") text = entry.note || "Status changed";
+
+              return (
+                <div key={i} className="flex items-start gap-2">
+                  <div className="mt-1 shrink-0 h-2.5 w-2.5 rounded-full" style={{ backgroundColor: dotColor }} />
+                  <p className="flex-1 text-xs" style={{ color: "#2D1B0E", fontFamily: "Nunito, sans-serif", fontSize: "12px" }}>
+                    {text}
+                  </p>
+                  {entry.performed_at && (
+                    <span className="shrink-0 text-[11px]" style={{ color: "#999", fontFamily: "Nunito, sans-serif" }}>
+                      {format(new Date(entry.performed_at), "dd MMM yyyy, HH:mm")}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
       {/* Action bar */}
       <div className="border-t pt-3 flex flex-wrap items-center gap-2">

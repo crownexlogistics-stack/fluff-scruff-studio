@@ -91,6 +91,8 @@ const BookingsPage = () => {
         service_name: b.services?.name ?? "",
         stripe_payment_id: b.stripe_payment_id ?? null,
         is_groomers_own_customer: b.is_groomers_own_customer ?? false,
+        booking_source: b.booking_source ?? null,
+        created_by_staff: b.created_by_staff ?? null,
       })) as BookingData[];
     },
   });
@@ -358,12 +360,22 @@ const BookingsPage = () => {
       if (data?.error) throw new Error(data.error);
       return { booking, result: data };
     },
-    onSuccess: ({ booking, result }) => {
+    onSuccess: async ({ booking, result }) => {
       if (result?.refunded) {
         toast.success(`Booking cancelled. Refund of £${result.refund_amount?.toFixed(2)} processed automatically (48h+ policy). Please advise the customer: "Your appointment has been cancelled and your deposit has been refunded. It should appear in your account within 5-10 business days."`);
       } else {
         toast.success(`Booking cancelled. Deposit of £${Number(booking.deposit_paid).toFixed(2)} retained (within 48h). Please advise the customer: "Your appointment has been cancelled. As per our policy, the deposit is non-refundable for cancellations within 48 hours."`);
       }
+
+      // Audit trail entry for cancellation
+      const staffName = staff.find(s => s.id === booking.staff_id)?.name || "Staff";
+      supabase.from("booking_audit_log" as any).insert({
+        booking_id: booking.id,
+        event_type: "cancelled",
+        performed_by: staffName,
+        note: "Booking cancelled",
+      } as any).then(() => {});
+
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
       queryClient.invalidateQueries({ queryKey: ["audit-logs"] });
       setCancelConfirmOpen(false);

@@ -757,12 +757,23 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
       notes: guestForm.notes.trim() || null,
       status: "Pending",
       campaign_id: utmCampaignId,
-    }).select("id").single();
+      booking_source: "online",
+    } as any).select("id").single();
 
     if (error) {
       setAlertMessage("Failed to book — please try again");
       setIsSubmitting(false);
       return;
+    }
+
+    // Audit trail entry for online booking
+    if (insertedBooking?.id) {
+      supabase.from("booking_audit_log" as any).insert({
+        booking_id: insertedBooking.id,
+        event_type: "created_online",
+        performed_by: "Customer (online)",
+        note: "Booking created online by customer",
+      } as any).then(() => {});
     }
 
     if (appliedCoupon && insertedBooking?.id) {
