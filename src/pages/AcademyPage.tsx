@@ -219,7 +219,6 @@ export default function AcademyPage() {
                 variants={fadeUp}
                 className={`relative bg-card rounded-2xl p-6 shadow-sm border border-border flex flex-col ${c.popular ? "md:-my-4 md:py-8 md:shadow-lg ring-2 ring-[hsl(43,100%,50%)]" : ""}`}
               >
-              >
                 {c.popular && (
                   <span className="absolute -top-3 right-4 px-3 py-1 rounded-full text-xs font-bold text-foreground" style={{ background: "hsl(43, 100%, 50%)" }}>
                     Most Popular
