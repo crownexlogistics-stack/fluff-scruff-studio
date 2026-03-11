@@ -333,11 +333,8 @@ export function useTimelineAnalytics() {
   const groomerPerformance = useMemo((): GroomerPerformanceData[] => {
     if (!dbData || dbData.length === 0) return [];
 
-    // Build commission rate map from staff table
-    const commissionMap = new Map<string, number>();
-    (staffData || []).forEach(s => {
-      if (s.name) commissionMap.set(s.name, Number(s.commission_rate) || 0.4);
-    });
+    // Default commission rate for historical Wix groomers: 40% (standard rate)
+    const DEFAULT_COMMISSION_RATE = 0.4;
 
     // Group confirmed rows by groomer -> year-month
     const groomerMap = new Map<string, Map<string, RawRow[]>>();
