@@ -598,6 +598,14 @@ const FinancePage = () => {
               totalGroomerPay={totalGroomerPay}
             />
           </TabsContent>
+
+          <TabsContent value="anomalies" className="mt-4">
+            <AnomaliesTab />
+          </TabsContent>
+
+          <TabsContent value="payout-history" className="mt-4">
+            <PayoutHistoryTab />
+          </TabsContent>
         </Tabs>
       </div>
     </AppLayout>
