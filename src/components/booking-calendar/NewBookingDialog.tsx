@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -53,25 +53,33 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
     notes: "",
   });
 
+  // Only reset form when the dialog opens — NOT on prop reference changes while open
+  const prevOpenRef = useRef(false);
   useEffect(() => {
-    if (open) {
+    if (open && !prevOpenRef.current) {
       setIsNewCustomer(false);
       setCustomerSelected(false);
+      setNewCustomerError("");
       setSelectedDogs([]);
       setSelectedAddOns([]);
-      setForm(prev => ({
-        ...prev,
-        staff_id: defaultStaffId || prev.staff_id,
-        booking_date: dateStr || prev.booking_date,
+      setForm({
+        customer_name: "",
+        dog_name: "",
+        customer_email: "",
+        customer_phone: "",
+        breed_id: "",
+        service_id: "",
+        staff_id: defaultStaffId || "",
+        booking_date: dateStr,
         booking_time: timeStr,
         end_time: endTimeStr,
-        ...(mode === "block" ? { notes: "" } : {
-          customer_name: "", dog_name: "", customer_email: "", customer_phone: "",
-          breed_id: "", service_id: "", total_price: 0, deposit_paid: 0, notes: "",
-        }),
-      }));
+        total_price: 0,
+        deposit_paid: 0,
+        notes: mode === "block" ? "" : "",
+      });
     }
-  }, [open, defaultDate, defaultHour, defaultStaffId, mode]);
+    prevOpenRef.current = open;
+  }, [open]);
 
   const { data: staff } = useQuery({
     queryKey: ["staff-list"],
@@ -187,7 +195,6 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
   };
 
   const handleAddNew = () => {
-    console.log("[NewBookingDialog] handleAddNew called, setting isNewCustomer=true");
     setIsNewCustomer(true);
     setCustomerSelected(false);
     setNewCustomerError("");
@@ -442,7 +449,13 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
                     initialSelectedName={customerSelected ? form.customer_name : null}
                   />
                   {!customerSelected && (
-                    <Button type="button" variant="outline" size="sm" className="w-full" onClick={handleAddNew}>
+                    <Button type="button" variant="outline" size="sm" className="w-full" onClick={() => {
+                      setIsNewCustomer(true);
+                      setCustomerSelected(false);
+                      setNewCustomerError("");
+                      setSelectedDogs([]);
+                      setForm(prev => ({ ...prev, customer_name: "", customer_email: "", customer_phone: "", dog_name: "", breed_id: "" }));
+                    }}>
                       + Add New Customer
                     </Button>
                   )}
