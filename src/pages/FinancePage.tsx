@@ -182,6 +182,7 @@ const FinancePage = () => {
   const processPayoutMutation = useMutation({
     mutationFn: async () => {
       if (!selectedStaffId || !user) throw new Error("Missing data");
+      const groomerName = selectedSummary?.name || "";
       const { error } = await supabase.from("payout_records").insert({
         staff_id: selectedStaffId,
         amount: payoutAmount,
@@ -192,6 +193,26 @@ const FinancePage = () => {
         processed_by: user.id,
       });
       if (error) throw error;
+
+      // Save to groomer_payout_history
+      const anomalyCount = anomalyWarningData?.count || 0;
+      const anomalyShortfall = anomalyWarningData?.shortfall || 0;
+      const avgRate = selectedSummary ? (selectedSummary.totalGroomerPay / (selectedSummary.totalRevenue || 1)) : 0.4;
+      await supabase.from("groomer_payout_history").insert({
+        groomer_name: groomerName,
+        groomer_id: selectedStaffId,
+        period_start: periodStartStr,
+        period_end: periodEndStr,
+        total_revenue: selectedSummary?.totalRevenue || 0,
+        commission_rate: avgRate,
+        payout_amount: payoutAmount,
+        paid_by: user.email || user.id,
+        payment_method: payoutMethod,
+        notes: payoutNotes || null,
+        anomaly_count: anomalyCount,
+        anomaly_shortfall: anomalyShortfall,
+      } as any);
+
       logAudit({
         staffId: selectedStaffId,
         action: "PAYOUT_PROCESSED",
@@ -203,11 +224,39 @@ const FinancePage = () => {
       setPayoutOpen(false);
       setPayoutAmount(0);
       setPayoutNotes("");
+      setAnomalyWarningData(null);
       queryClient.invalidateQueries({ queryKey: ["payout-records"] });
       queryClient.invalidateQueries({ queryKey: ["audit-logs"] });
+      queryClient.invalidateQueries({ queryKey: ["groomer-payout-history"] });
     },
     onError: (e: any) => toast.error(e.message),
   });
+
+  const handleProcessPayoutClick = async () => {
+    if (!selectedStaffId || !selectedSummary) return;
+    // Check for unreviewed anomalies
+    const { data: unreviewed } = await supabase
+      .from("bookings")
+      .select("id, total_price, deposit_paid, final_charge")
+      .eq("payment_anomaly", true)
+      .eq("anomaly_reviewed", false)
+      .eq("staff_id", selectedStaffId)
+      .gte("booking_date", periodStartStr)
+      .lte("booking_date", periodEndStr);
+    
+    if (unreviewed && unreviewed.length > 0) {
+      const shortfall = unreviewed.reduce((s, a) => {
+        const diff = Number(a.final_charge || 0) - (Number(a.total_price) - Number(a.deposit_paid));
+        return diff < 0 ? s + Math.abs(diff) : s;
+      }, 0);
+      setAnomalyWarningData({ count: unreviewed.length, shortfall });
+      setAnomalyWarningOpen(true);
+    } else {
+      setAnomalyWarningData({ count: 0, shortfall: 0 });
+      setPayoutAmount(selectedSummary.totalGroomerPay - totalPaidOut);
+      setPayoutOpen(true);
+    }
+  };
 
   const offset = period === "weekly" ? weekOffset : monthOffset;
   const setOffset = period === "weekly" ? setWeekOffset : setMonthOffset;
