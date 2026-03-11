@@ -244,6 +244,8 @@ const AuthPage = () => {
                     <Label htmlFor="password">Password</Label>
                     <Input
                       id="password"
+                      name="password"
+                      autoComplete="current-password"
                       type="password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
