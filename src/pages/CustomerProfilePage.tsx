@@ -687,7 +687,7 @@ export default function CustomerProfilePage() {
               </div>
               <div>
                 <p className="text-xs font-medium text-muted-foreground mb-1">Total spend</p>
-                <p className="text-sm font-medium">£{bookings?.reduce((sum, b) => sum + Number(b.total_price), 0).toFixed(2) || "0.00"}</p>
+                <p className="text-sm font-medium">£{((bookings?.reduce((sum, b) => sum + Number(b.total_price), 0) || 0) + (migratedBookings?.reduce((sum, b: any) => sum + Number(b.total_price || 0), 0) || 0)).toFixed(2)}</p>
               </div>
             </div>
           </CardContent>
