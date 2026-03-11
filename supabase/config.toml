@@ -122,3 +122,6 @@ verify_jwt = false
 
 [functions.archive-completed-month]
 verify_jwt = false
+
+[functions.check-payment-anomaly]
+verify_jwt = false

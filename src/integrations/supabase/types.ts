@@ -306,6 +306,9 @@ export type Database = {
       }
       bookings: {
         Row: {
+          anomaly_review_note: string | null
+          anomaly_reviewed: boolean | null
+          anomaly_type: string | null
           booking_date: string
           booking_source: string | null
           booking_time: string
@@ -323,6 +326,7 @@ export type Database = {
           id: string
           is_groomers_own_customer: boolean
           notes: string | null
+          payment_anomaly: boolean | null
           referral_source: string | null
           service_id: string | null
           sms_24h_sent: boolean
@@ -333,6 +337,9 @@ export type Database = {
           total_price: number
         }
         Insert: {
+          anomaly_review_note?: string | null
+          anomaly_reviewed?: boolean | null
+          anomaly_type?: string | null
           booking_date: string
           booking_source?: string | null
           booking_time: string
@@ -350,6 +357,7 @@ export type Database = {
           id?: string
           is_groomers_own_customer?: boolean
           notes?: string | null
+          payment_anomaly?: boolean | null
           referral_source?: string | null
           service_id?: string | null
           sms_24h_sent?: boolean
@@ -360,6 +368,9 @@ export type Database = {
           total_price?: number
         }
         Update: {
+          anomaly_review_note?: string | null
+          anomaly_reviewed?: boolean | null
+          anomaly_type?: string | null
           booking_date?: string
           booking_source?: string | null
           booking_time?: string
@@ -377,6 +388,7 @@ export type Database = {
           id?: string
           is_groomers_own_customer?: boolean
           notes?: string | null
+          payment_anomaly?: boolean | null
           referral_source?: string | null
           service_id?: string | null
           sms_24h_sent?: boolean
@@ -1112,6 +1124,65 @@ export type Database = {
           recurring_start_date?: string | null
         }
         Relationships: []
+      }
+      groomer_payout_history: {
+        Row: {
+          anomaly_count: number | null
+          anomaly_shortfall: number | null
+          commission_rate: number
+          groomer_id: string | null
+          groomer_name: string
+          id: string
+          notes: string | null
+          paid_at: string | null
+          paid_by: string
+          payment_method: string | null
+          payout_amount: number
+          period_end: string
+          period_start: string
+          total_revenue: number
+        }
+        Insert: {
+          anomaly_count?: number | null
+          anomaly_shortfall?: number | null
+          commission_rate: number
+          groomer_id?: string | null
+          groomer_name: string
+          id?: string
+          notes?: string | null
+          paid_at?: string | null
+          paid_by: string
+          payment_method?: string | null
+          payout_amount: number
+          period_end: string
+          period_start: string
+          total_revenue: number
+        }
+        Update: {
+          anomaly_count?: number | null
+          anomaly_shortfall?: number | null
+          commission_rate?: number
+          groomer_id?: string | null
+          groomer_name?: string
+          id?: string
+          notes?: string | null
+          paid_at?: string | null
+          paid_by?: string
+          payment_method?: string | null
+          payout_amount?: number
+          period_end?: string
+          period_start?: string
+          total_revenue?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "groomer_payout_history_groomer_id_fkey"
+            columns: ["groomer_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       groomer_recommendations: {
         Row: {

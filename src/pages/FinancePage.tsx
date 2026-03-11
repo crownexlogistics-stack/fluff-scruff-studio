@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { NumericInput } from "@/components/ui/numeric-input";
 import { Textarea } from "@/components/ui/textarea";
@@ -20,6 +21,8 @@ import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addWeeks, add
 import { toast } from "sonner";
 import { logAudit } from "@/lib/auditLog";
 import ExpensesTab from "@/components/finance/ExpensesTab";
+import AnomaliesTab from "@/components/finance/AnomaliesTab";
+import PayoutHistoryTab from "@/components/finance/PayoutHistoryTab";
 
 type Period = "weekly" | "monthly";
 
@@ -36,6 +39,8 @@ const FinancePage = () => {
   const [payoutNotes, setPayoutNotes] = useState("");
   const [activeTab, setActiveTab] = useState("payouts");
   const [includeWixHistory, setIncludeWixHistory] = useState(false);
+  const [anomalyWarningOpen, setAnomalyWarningOpen] = useState(false);
+  const [anomalyWarningData, setAnomalyWarningData] = useState<{ count: number; shortfall: number } | null>(null);
 
   const now = new Date();
   const periodStart = useMemo(() => {
@@ -177,6 +182,7 @@ const FinancePage = () => {
   const processPayoutMutation = useMutation({
     mutationFn: async () => {
       if (!selectedStaffId || !user) throw new Error("Missing data");
+      const groomerName = selectedSummary?.name || "";
       const { error } = await supabase.from("payout_records").insert({
         staff_id: selectedStaffId,
         amount: payoutAmount,
@@ -187,6 +193,26 @@ const FinancePage = () => {
         processed_by: user.id,
       });
       if (error) throw error;
+
+      // Save to groomer_payout_history
+      const anomalyCount = anomalyWarningData?.count || 0;
+      const anomalyShortfall = anomalyWarningData?.shortfall || 0;
+      const avgRate = selectedSummary ? (selectedSummary.totalGroomerPay / (selectedSummary.totalRevenue || 1)) : 0.4;
+      await supabase.from("groomer_payout_history").insert({
+        groomer_name: groomerName,
+        groomer_id: selectedStaffId,
+        period_start: periodStartStr,
+        period_end: periodEndStr,
+        total_revenue: selectedSummary?.totalRevenue || 0,
+        commission_rate: avgRate,
+        payout_amount: payoutAmount,
+        paid_by: user.email || user.id,
+        payment_method: payoutMethod,
+        notes: payoutNotes || null,
+        anomaly_count: anomalyCount,
+        anomaly_shortfall: anomalyShortfall,
+      } as any);
+
       logAudit({
         staffId: selectedStaffId,
         action: "PAYOUT_PROCESSED",
@@ -198,11 +224,39 @@ const FinancePage = () => {
       setPayoutOpen(false);
       setPayoutAmount(0);
       setPayoutNotes("");
+      setAnomalyWarningData(null);
       queryClient.invalidateQueries({ queryKey: ["payout-records"] });
       queryClient.invalidateQueries({ queryKey: ["audit-logs"] });
+      queryClient.invalidateQueries({ queryKey: ["groomer-payout-history"] });
     },
     onError: (e: any) => toast.error(e.message),
   });
+
+  const handleProcessPayoutClick = async () => {
+    if (!selectedStaffId || !selectedSummary) return;
+    // Check for unreviewed anomalies
+    const { data: unreviewed } = await supabase
+      .from("bookings")
+      .select("id, total_price, deposit_paid, final_charge")
+      .eq("payment_anomaly", true)
+      .eq("anomaly_reviewed", false)
+      .eq("staff_id", selectedStaffId)
+      .gte("booking_date", periodStartStr)
+      .lte("booking_date", periodEndStr);
+    
+    if (unreviewed && unreviewed.length > 0) {
+      const shortfall = unreviewed.reduce((s, a) => {
+        const diff = Number(a.final_charge || 0) - (Number(a.total_price) - Number(a.deposit_paid));
+        return diff < 0 ? s + Math.abs(diff) : s;
+      }, 0);
+      setAnomalyWarningData({ count: unreviewed.length, shortfall });
+      setAnomalyWarningOpen(true);
+    } else {
+      setAnomalyWarningData({ count: 0, shortfall: 0 });
+      setPayoutAmount(selectedSummary.totalGroomerPay - totalPaidOut);
+      setPayoutOpen(true);
+    }
+  };
 
   const offset = period === "weekly" ? weekOffset : monthOffset;
   const setOffset = period === "weekly" ? setWeekOffset : setMonthOffset;
@@ -241,13 +295,41 @@ const FinancePage = () => {
                   {owedRemaining <= 0 && selectedSummary.totalGroomerPay > 0 && <Badge className="bg-emerald-600 text-white mt-1">Fully Paid</Badge>}
                 </div>
                 {owedRemaining > 0 && (
-                  <Button onClick={() => { setPayoutAmount(owedRemaining); setPayoutOpen(true); }}>
+                  <Button onClick={handleProcessPayoutClick}>
                     <Banknote className="h-4 w-4 mr-1" /> Process Payout
                   </Button>
                 )}
               </div>
             </CardContent>
           </Card>
+
+          {/* Anomaly summary box */}
+          {(() => {
+            const anomalyItems = selectedSummary.commissions.filter((c: any) => {
+              if (c.booking_source === "migrated" || c.migrated_booking_id) return false;
+              const balanceDue = Number(c.total_price) - Number(c.deposit_paid);
+              const charged = c.final_charge != null ? Number(c.final_charge) : null;
+              if (charged === null) return false;
+              const diff = charged - balanceDue;
+              return Math.abs(diff) > 2;
+            });
+            const totalShortfall = anomalyItems.reduce((s: number, c: any) => {
+              const diff = Number(c.final_charge) - (Number(c.total_price) - Number(c.deposit_paid));
+              return diff < 0 ? s + Math.abs(diff) : s;
+            }, 0);
+            if (anomalyItems.length > 0) {
+              return (
+                <div style={{ background: "#fff3cd", borderLeft: "4px solid #FF6B35", borderRadius: 12, padding: 16, marginBottom: 16 }}>
+                  <p className="text-sm font-medium">⚠️ {anomalyItems.length} anomalies detected this period. Total potential shortfall: £{totalShortfall.toFixed(2)}</p>
+                </div>
+              );
+            }
+            return (
+              <div style={{ background: "#f0fdf4", borderLeft: "4px solid #43a047", borderRadius: 12, padding: 16, marginBottom: 16 }}>
+                <p className="text-sm font-medium">✅ All charges verified for this period</p>
+              </div>
+            );
+          })()}
 
           <Card>
             <CardHeader className="pb-3"><CardTitle className="text-base">Revenue Breakdown</CardTitle></CardHeader>
@@ -257,6 +339,7 @@ const FinancePage = () => {
                   <TableRow>
                     <TableHead>Customer</TableHead><TableHead>Dog</TableHead><TableHead>Service</TableHead>
                     <TableHead>Price</TableHead><TableHead>Type</TableHead><TableHead className="text-right">Groomer Pay</TableHead>
+                    <TableHead>Balance Due</TableHead><TableHead>Charged</TableHead><TableHead>Difference</TableHead><TableHead>Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -274,12 +357,12 @@ const FinancePage = () => {
                     const sortedDays = Array.from(grouped.entries()).sort((a, b) => b[0].localeCompare(a[0]));
                     
                     if (sortedDays.length === 0) {
-                      return <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No completed appointments this period</TableCell></TableRow>;
+                      return <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-8">No completed appointments this period</TableCell></TableRow>;
                     }
                     
                     return sortedDays.flatMap(([dateKey, items]) => [
                       <TableRow key={`header-${dateKey}`} className="bg-muted/60 hover:bg-muted/60">
-                        <TableCell colSpan={6} className="py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                        <TableCell colSpan={10} className="py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                           {dateKey !== "Unknown" ? format(new Date(dateKey + "T00:00:00"), "EEEE, d MMMM yyyy") : "Unknown Date"}
                         </TableCell>
                       </TableRow>,
@@ -294,6 +377,19 @@ const FinancePage = () => {
                         const serviceName = isMigrated
                           ? c.migrated_bookings?.service_name || "—"
                           : c.bookings?.services?.name || "—";
+                        const balanceDue = Number(c.total_price) - Number(c.deposit_paid);
+                        const charged = c.final_charge != null ? Number(c.final_charge) : null;
+                        const diff = charged != null ? charged - balanceDue : null;
+                        const diffColor = diff === null ? "" : Math.abs(diff) <= 2 ? "text-emerald-600" : diff < 0 ? "text-destructive" : "text-amber-600";
+                        const statusBadge = charged === null
+                          ? <Badge variant="secondary" className="text-xs">⚫ Pending</Badge>
+                          : Math.abs(diff!) <= 2
+                            ? <Badge className="bg-emerald-600 text-white text-xs">✅ Correct</Badge>
+                            : diff! < 0
+                              ? (balanceDue > 0 && charged === 0
+                                ? <Badge variant="destructive" className="text-xs">🚨 Zero — Balance Due</Badge>
+                                : <Badge variant="destructive" className="text-xs">🔴 Under</Badge>)
+                              : <Badge className="bg-amber-500 text-white text-xs">🟡 Over</Badge>;
                         return (
                         <TableRow key={c.id}>
                           <TableCell className="text-sm">
@@ -309,6 +405,10 @@ const FinancePage = () => {
                             </Badge>
                           </TableCell>
                           <TableCell className="text-right font-medium">£{Number(c.groomer_pay).toFixed(2)}</TableCell>
+                          <TableCell className="text-sm">£{balanceDue.toFixed(2)}</TableCell>
+                          <TableCell className="text-sm">{charged != null ? `£${charged.toFixed(2)}` : <span className="text-muted-foreground italic">Not entered</span>}</TableCell>
+                          <TableCell className={`text-sm font-medium ${diffColor}`}>{diff != null ? `£${diff.toFixed(2)}` : "—"}</TableCell>
+                          <TableCell>{statusBadge}</TableCell>
                         </TableRow>
                         );
                       }),
@@ -366,6 +466,28 @@ const FinancePage = () => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        <AlertDialog open={anomalyWarningOpen} onOpenChange={setAnomalyWarningOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>⚠️ Unreviewed Anomalies</AlertDialogTitle>
+              <AlertDialogDescription>
+                There are {anomalyWarningData?.count || 0} unreviewed payment anomalies for {selectedSummary.name} this period with a potential shortfall of £{(anomalyWarningData?.shortfall || 0).toFixed(2)}. We recommend reviewing these before processing payout.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => { setAnomalyWarningOpen(false); setSelectedStaffId(null); setActiveTab("anomalies"); }}>
+                Review First
+              </AlertDialogCancel>
+              <AlertDialogAction
+                style={{ backgroundColor: "#FF6B35" }}
+                onClick={() => { setAnomalyWarningOpen(false); setPayoutAmount(owedRemaining); setPayoutOpen(true); }}
+              >
+                Process Anyway
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </AppLayout>
     );
   }
@@ -391,6 +513,8 @@ const FinancePage = () => {
           <TabsList>
             <TabsTrigger value="payouts">Groomer Payouts</TabsTrigger>
             <TabsTrigger value="expenses">Expenses</TabsTrigger>
+            <TabsTrigger value="anomalies">🚨 Anomalies</TabsTrigger>
+            <TabsTrigger value="payout-history">💳 Payout History</TabsTrigger>
           </TabsList>
 
           <TabsContent value="payouts" className="space-y-4 mt-4">
@@ -473,6 +597,14 @@ const FinancePage = () => {
               totalRevenue={totalRevenue}
               totalGroomerPay={totalGroomerPay}
             />
+          </TabsContent>
+
+          <TabsContent value="anomalies" className="mt-4">
+            <AnomaliesTab />
+          </TabsContent>
+
+          <TabsContent value="payout-history" className="mt-4">
+            <PayoutHistoryTab />
           </TabsContent>
         </Tabs>
       </div>
