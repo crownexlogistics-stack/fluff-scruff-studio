@@ -391,7 +391,7 @@ const CashHealthSection = ({ upcomingRevenue }: CashHealthSectionProps) => {
 
           <div className="flex flex-wrap gap-4">
             <div>
-              <p className="text-xs text-muted-foreground">Projected balance on 1st</p>
+              <p className="text-xs text-muted-foreground">Projected balance on 1st (after groomer pay)</p>
               <p className={`text-lg font-bold ${isCovered ? "text-green-600" : "text-destructive"}`}>
                 £{Math.round(projectedEndBalance).toLocaleString()}
               </p>
