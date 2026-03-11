@@ -147,15 +147,32 @@ const CashHealthSection = ({ upcomingRevenue }: CashHealthSectionProps) => {
     },
   });
 
-  // Fetch ALL bookings Mon–Sat this week with staff info and booking_date
-  const { data: weekGroomerBookings = [] } = useQuery({
-    queryKey: ["cash-health-week-groomer", weekMondayStr, nextSatStr],
+  // Fetch COMPLETED groomer pay this week from commission_records
+  const { data: completedThisWeek = [] } = useQuery({
+    queryKey: ["cash-health-completed-groomer", weekMondayStr, nextSatStr],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("commission_records")
+        .select("staff_id, groomer_pay, staff(name), booking_id, bookings:booking_id(booking_date)")
+        .not("booking_id", "is", null);
+      // Filter client-side for this week's bookings
+      return ((data ?? []) as any[]).filter((r: any) => {
+        const bd = r.bookings?.booking_date;
+        return bd && bd >= weekMondayStr && bd <= nextSatStr;
+      });
+    },
+  });
+
+  // Fetch UPCOMING bookings this week (confirmed/pending, today onwards)
+  const { data: upcomingThisWeek = [] } = useQuery({
+    queryKey: ["cash-health-upcoming-groomer", todayStr, nextSatStr],
     queryFn: async () => {
       const { data } = await supabase
         .from("bookings")
-        .select("id, total_price, is_groomers_own_customer, staff_id, deposit_paid, status, booking_date, staff(name)")
-        .gte("booking_date", weekMondayStr)
+        .select("staff_id, total_price, staff(name), booking_date")
+        .gte("booking_date", todayStr)
         .lte("booking_date", nextSatStr)
+        .in("status", ["Confirmed", "Pending"])
         .not("staff_id", "is", null);
       return (data ?? []) as any[];
     },
@@ -249,23 +266,25 @@ const CashHealthSection = ({ upcomingRevenue }: CashHealthSectionProps) => {
     const paidGroomerIds = new Set(weekPaidPayouts.map((p: any) => p.groomer_id));
     const byGroomer: Record<string, { name: string; completedPay: number; projectedPay: number; remainingCount: number }> = {};
 
-    for (const b of weekGroomerBookings) {
+    // Step 1: Sum completed groomer_pay from commission_records
+    for (const r of completedThisWeek) {
+      if (!r.staff_id || paidGroomerIds.has(r.staff_id)) continue;
+      const staffName = (r.staff as any)?.name || "Unknown";
+      if (!byGroomer[r.staff_id]) {
+        byGroomer[r.staff_id] = { name: staffName, completedPay: 0, projectedPay: 0, remainingCount: 0 };
+      }
+      byGroomer[r.staff_id].completedPay += Number(r.groomer_pay || 0);
+    }
+
+    // Step 2: Sum projected groomer pay from upcoming bookings (40% estimate)
+    for (const b of upcomingThisWeek) {
       if (!b.staff_id || paidGroomerIds.has(b.staff_id)) continue;
       const staffName = (b.staff as any)?.name || "Unknown";
       if (!byGroomer[b.staff_id]) {
         byGroomer[b.staff_id] = { name: staffName, completedPay: 0, projectedPay: 0, remainingCount: 0 };
       }
-
-      const rate = b.is_groomers_own_customer ? 0.5 : 0.4;
-
-      if (b.status === "Completed") {
-        byGroomer[b.staff_id].completedPay += Number(b.total_price || 0) * rate;
-      } else if (b.status === "No Show") {
-        byGroomer[b.staff_id].completedPay += Number(b.deposit_paid || 0) * 0.5;
-      } else if (["Confirmed", "Pending"].includes(b.status) && b.booking_date >= todayStr) {
-        byGroomer[b.staff_id].projectedPay += Number(b.total_price || 0) * rate;
-        byGroomer[b.staff_id].remainingCount += 1;
-      }
+      byGroomer[b.staff_id].projectedPay += Number(b.total_price || 0) * 0.40;
+      byGroomer[b.staff_id].remainingCount += 1;
     }
 
     return Object.entries(byGroomer)
@@ -279,7 +298,7 @@ const CashHealthSection = ({ upcomingRevenue }: CashHealthSectionProps) => {
       }))
       .filter(g => g.totalPay > 0)
       .sort((a, b) => b.totalPay - a.totalPay);
-  }, [weekGroomerBookings, weekPaidPayouts, todayStr]);
+  }, [completedThisWeek, upcomingThisWeek, weekPaidPayouts]);
 
   const totalCompletedGroomerPay = groomerProjections.reduce((s, g) => s + g.completedPay, 0);
   const totalProjectedAdditionalGroomerPay = groomerProjections.reduce((s, g) => s + g.projectedPay, 0);
