@@ -104,26 +104,35 @@ export default function CustomerProfilePage() {
     enabled: !!decodedEmail,
   });
 
+  // Fetch migrated customer record (for name/phone fallback)
+  const { data: migratedCustomer } = useQuery({
+    queryKey: ["migrated-customer-record", decodedEmail],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("migrated_customers")
+        .select("id, full_name, phone, email")
+        .ilike("email", decodedEmail)
+        .limit(1);
+      return data?.[0] || null;
+    },
+    enabled: !!decodedEmail,
+  });
+
   // Fetch migrated bookings for this customer
   const { data: migratedBookings } = useQuery({
     queryKey: ["customer-migrated-bookings", decodedEmail],
     queryFn: async () => {
-      // Find migrated customer by email
-      const { data: mc } = await supabase
-        .from("migrated_customers")
-        .select("id")
-        .ilike("email", decodedEmail)
-        .limit(1);
-      if (!mc || mc.length === 0) return [];
+      const mcId = migratedCustomer?.id;
+      if (!mcId) return [];
       const { data, error } = await supabase
         .from("migrated_bookings")
         .select("*")
-        .eq("migrated_customer_id", mc[0].id)
+        .eq("migrated_customer_id", mcId)
         .order("booking_date", { ascending: false });
       if (error) throw error;
       return (data || []).map((b: any) => ({ ...b, _source: "wix" }));
     },
-    enabled: !!decodedEmail,
+    enabled: !!decodedEmail && migratedCustomer !== undefined,
   });
 
   // Check if this customer is "owned" by the groomer
@@ -416,8 +425,8 @@ export default function CustomerProfilePage() {
 
   // ── Derived data ──────────────────────────────────────────────────
 
-  const customerName = bookings?.[0]?.customer_name || "Customer";
-  const customerPhone = bookings?.find((b) => b.customer_phone)?.customer_phone || "";
+  const customerName = bookings?.[0]?.customer_name || migratedCustomer?.full_name || "Customer";
+  const customerPhone = bookings?.find((b) => b.customer_phone)?.customer_phone || migratedCustomer?.phone || "";
   const initials = customerName.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
 
   // Merge migrated bookings into past bookings display
@@ -678,7 +687,7 @@ export default function CustomerProfilePage() {
               </div>
               <div>
                 <p className="text-xs font-medium text-muted-foreground mb-1">Total spend</p>
-                <p className="text-sm font-medium">£{bookings?.reduce((sum, b) => sum + Number(b.total_price), 0).toFixed(2) || "0.00"}</p>
+                <p className="text-sm font-medium">£{((bookings?.reduce((sum, b) => sum + Number(b.total_price), 0) || 0) + (migratedBookings?.reduce((sum, b: any) => sum + Number(b.total_price || 0), 0) || 0)).toFixed(2)}</p>
               </div>
             </div>
           </CardContent>
