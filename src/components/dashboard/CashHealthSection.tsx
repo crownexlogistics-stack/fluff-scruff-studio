@@ -150,8 +150,9 @@ const CashHealthSection = ({ upcomingRevenue }: CashHealthSectionProps) => {
 
   // Fetch one-off expenses due in next 35 days
   const today = new Date();
-  const horizonStr = format(addDays(today, 35), "yyyy-MM-dd");
   const todayStr = format(today, "yyyy-MM-dd");
+  const horizonStr = format(addDays(today, 35), "yyyy-MM-dd");
+  const sevenDayStr = format(addDays(today, 7), "yyyy-MM-dd");
 
   const { data: oneOffExpenses = [] } = useQuery({
     queryKey: ["cash-health-oneoff-expenses", todayStr, horizonStr],
@@ -175,6 +176,20 @@ const CashHealthSection = ({ upcomingRevenue }: CashHealthSectionProps) => {
         .from("groomer_payout_history")
         .select("payout_amount, paid_at")
         .gte("paid_at", `${fourWeeksAgo}T00:00:00`);
+      return (data ?? []) as any[];
+    },
+  });
+
+  // Fetch confirmed bookings in next 7 days for 7-day projection
+  const { data: next7DayBookings = [] } = useQuery({
+    queryKey: ["cash-health-7day-bookings", todayStr, sevenDayStr],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("bookings")
+        .select("total_price")
+        .gte("booking_date", todayStr)
+        .lte("booking_date", sevenDayStr)
+        .eq("status", "Confirmed");
       return (data ?? []) as any[];
     },
   });
@@ -209,8 +224,8 @@ const CashHealthSection = ({ upcomingRevenue }: CashHealthSectionProps) => {
     },
   });
 
-  // Calculate upcoming bills from expenses
-  const upcomingBills = useMemo(() => {
+  // All bills within 35 days (for "show all" toggle)
+  const allBills35 = useMemo(() => {
     const recurringBills = getUpcomingBills(recurringExpenses, today);
     const oneOffBills: UpcomingBill[] = oneOffExpenses.map((e: any) => ({
       name: e.name,
@@ -222,53 +237,54 @@ const CashHealthSection = ({ upcomingRevenue }: CashHealthSectionProps) => {
     return [...recurringBills, ...oneOffBills].sort((a, b) => a.daysUntilDue - b.daysUntilDue);
   }, [recurringExpenses, oneOffExpenses, todayStr]);
 
-  const totalBills = upcomingBills.reduce((s, b) => s + b.amount, 0);
+  // Bills due within 7 days only
+  const bills7Day = allBills35.filter(b => b.daysUntilDue <= 7);
+  const billsBeyond7Day = allBills35.filter(b => b.daysUntilDue > 7);
+  const totalBills7Day = bills7Day.reduce((s, b) => s + b.amount, 0);
 
-  // Groomer payouts calculation
+  // 7-day projected income
+  const projected7DayIncome = next7DayBookings.reduce((s: number, b: any) => s + Number(b.total_price || 0), 0);
+  const groomerCut7Day = projected7DayIncome * 0.40;
+  const ownerNet7Day = projected7DayIncome - groomerCut7Day;
+
+  // Groomer payouts calculation (for commitments section display)
   const saturdaysRemaining = countSaturdaysRemaining(today);
   const avgWeeklyPayout = useMemo(() => {
     if (recentPayouts.length === 0) return 0;
     const totalPaid = recentPayouts.reduce((s: number, p: any) => s + Number(p.payout_amount || 0), 0);
     return totalPaid / 4;
   }, [recentPayouts]);
-
   const groomerPayoutsThisMonth = avgWeeklyPayout * saturdaysRemaining;
 
-  // Health check totals
+  // Health check totals — 7-day focused
   const hasBalance = !!latestBalance;
   const currentBalance = hasBalance ? Number(latestBalance.balance) : 0;
-  const totalCommitments = totalBills + groomerPayoutsThisMonth;
+  const projected7DayBalance = currentBalance + ownerNet7Day;
+  const showHealthCheck = hasBalance;
 
-  // FIX: Deduct 40% groomer commission from projected income
-  const groomerCostOfRemainingIncome = upcomingRevenue * 0.40;
-  const ownerNetRemaining = upcomingRevenue - groomerCostOfRemainingIncome;
-  const projectedEndBalance = currentBalance + ownerNetRemaining;
-  const showHealthCheck = hasBalance && totalCommitments > 0;
+  const shortfall7Day = totalBills7Day - projected7DayBalance;
+  const isCovered7Day = projected7DayBalance >= totalBills7Day;
+  const surplus7Day = Math.abs(shortfall7Day);
 
-  const nextFirst = today.getDate() === 1
-    ? startOfMonth(addMonths(today, 2))
-    : startOfMonth(addMonths(today, 1));
-  const daysUntil1st = differenceInDays(nextFirst, today);
+  // Can the 7-day income fill the gap from bank balance alone?
+  const bankAloneCovers = currentBalance >= totalBills7Day;
+  const incomeClosesGap = projected7DayBalance >= totalBills7Day && !bankAloneCovers;
 
-  const shortfall = totalCommitments - projectedEndBalance;
-  const isCovered = projectedEndBalance >= totalCommitments;
-  const surplus = Math.abs(shortfall);
+  // Next bill date (for "nothing due" message)
+  const nextBillDaysAway = billsBeyond7Day.length > 0 ? billsBeyond7Day[0].daysUntilDue : null;
 
-  // Determine at-risk bills
-  const comfortMargin = projectedEndBalance - totalCommitments;
-  const allCoveredComfortably = comfortMargin > 50;
-
-  const billsWithRisk = useMemo(() => {
-    let running = projectedEndBalance;
-    return upcomingBills.map(b => {
-      const atRisk = currentBalance < b.amount || running < b.amount;
+  // Tag bills with risk status using 7-day balance
+  const bills7DayWithRisk = useMemo(() => {
+    let running = projected7DayBalance;
+    return bills7Day.map(b => {
+      const atRisk = running < b.amount;
       running -= b.amount;
       return { ...b, atRisk };
     });
-  }, [upcomingBills, projectedEndBalance, currentBalance]);
+  }, [bills7Day, projected7DayBalance]);
 
-  const atRiskBills = billsWithRisk.filter(b => b.atRisk);
-  const coveredBills = billsWithRisk.filter(b => !b.atRisk);
+  const atRiskBills = bills7DayWithRisk.filter(b => b.atRisk);
+  const coveredBills = bills7DayWithRisk.filter(b => !b.atRisk);
 
   return (
     <>
@@ -321,67 +337,77 @@ const CashHealthSection = ({ upcomingRevenue }: CashHealthSectionProps) => {
           <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">📅 Upcoming Commitments</h3>
           <p className="text-[10px] text-muted-foreground mt-0.5">Pulled automatically from your Expenses section</p>
         </div>
-        {upcomingBills.length === 0 && avgWeeklyPayout === 0 ? (
-          <p className="text-xs text-muted-foreground">No upcoming expenses found</p>
-        ) : (
-          <div className="space-y-1 text-sm">
-            {allCoveredComfortably && !showAllBills ? (
-              <p className="text-sm text-green-700 font-medium">✅ All £{Math.round(totalBills).toLocaleString()} in upcoming bills are covered</p>
-            ) : (
-              <>
-                {/* Show at-risk bills (always) */}
-                {atRiskBills.map((b, i) => (
-                  <div key={`risk-${i}`} className="flex items-center justify-between">
-                    <span className="flex items-center gap-2">
-                      🔴 {b.name}
-                      <span className="text-muted-foreground text-xs">
-                        {b.daysUntilDue === 0 ? "Today" : `in ${b.daysUntilDue}d`}
-                      </span>
+        <div className="space-y-1 text-sm">
+          {bills7Day.length === 0 ? (
+            <p className="text-sm text-green-700 font-medium">
+              ✅ No bills due in the next 7 days
+              {nextBillDaysAway !== null && <span className="text-muted-foreground font-normal text-xs ml-1">(next in {nextBillDaysAway} days)</span>}
+            </p>
+          ) : (
+            <>
+              {/* At-risk bills */}
+              {atRiskBills.map((b, i) => (
+                <div key={`risk-${i}`} className="flex items-center justify-between">
+                  <span className="flex items-center gap-2">
+                    🔴 {b.name}
+                    <span className="text-muted-foreground text-xs">
+                      {b.daysUntilDue === 0 ? "Today" : `in ${b.daysUntilDue}d`}
                     </span>
-                    <span className="flex items-center gap-2">
-                      <span className="font-semibold">£{Math.round(b.amount).toLocaleString()}</span>
-                      <span className="text-destructive text-xs font-medium">⚠️ AT RISK</span>
-                    </span>
-                  </div>
-                ))}
-                {/* Show covered bills only when toggled */}
-                {showAllBills && coveredBills.map((b, i) => (
-                  <div key={`cov-${i}`} className="flex items-center justify-between text-muted-foreground">
-                    <span className="flex items-center gap-2">
-                      ✅ {b.name}
-                      <span className="text-xs">
-                        {b.daysUntilDue === 0 ? "Today" : `in ${b.daysUntilDue}d`}
-                      </span>
-                    </span>
+                  </span>
+                  <span className="flex items-center gap-2">
                     <span className="font-semibold">£{Math.round(b.amount).toLocaleString()}</span>
-                  </div>
-                ))}
-              </>
-            )}
-            {/* Toggle link */}
-            {coveredBills.length > 0 && (
-              <button
-                className="text-xs font-medium text-muted-foreground hover:text-foreground"
-                onClick={() => setShowAllBills(v => !v)}
-              >
-                {showAllBills ? "Hide covered bills" : `Show all bills (${coveredBills.length} covered)`}
-              </button>
-            )}
-            {avgWeeklyPayout > 0 && (
-              <div className="flex items-center justify-between">
-                <span className="flex items-center gap-2">
-                  Groomer Payouts
-                  <span className="text-muted-foreground text-xs">{saturdaysRemaining} Sat{saturdaysRemaining !== 1 ? "s" : ""} left</span>
-                </span>
-                <span className="font-semibold">£{Math.round(groomerPayoutsThisMonth).toLocaleString()}</span>
-              </div>
-            )}
-            <div className="border-t pt-1 flex items-center justify-between font-semibold">
-              <span>Total commitments</span>
-              <span>£{Math.round(totalCommitments).toLocaleString()}</span>
+                    <span className="text-destructive text-xs font-medium">⚠️ AT RISK</span>
+                  </span>
+                </div>
+              ))}
+              {/* Covered bills */}
+              {coveredBills.map((b, i) => (
+                <div key={`cov-${i}`} className="flex items-center justify-between text-muted-foreground">
+                  <span className="flex items-center gap-2">
+                    ✅ {b.name}
+                    <span className="text-xs">
+                      {b.daysUntilDue === 0 ? "Today" : `in ${b.daysUntilDue}d`}
+                    </span>
+                  </span>
+                  <span className="font-semibold">£{Math.round(b.amount).toLocaleString()}</span>
+                </div>
+              ))}
+            </>
+          )}
+          {/* Show all toggle for 35-day view */}
+          {billsBeyond7Day.length > 0 && (
+            <button
+              className="text-xs font-medium text-muted-foreground hover:text-foreground"
+              onClick={() => setShowAllBills(v => !v)}
+            >
+              {showAllBills ? "Hide future bills" : `Show all bills (${billsBeyond7Day.length} in next 35 days)`}
+            </button>
+          )}
+          {showAllBills && billsBeyond7Day.map((b, i) => (
+            <div key={`future-${i}`} className="flex items-center justify-between text-muted-foreground">
+              <span className="flex items-center gap-2">
+                {b.name}
+                <span className="text-xs">in {b.daysUntilDue}d</span>
+              </span>
+              <span className="font-semibold">£{Math.round(b.amount).toLocaleString()}</span>
             </div>
-          </div>
-        )}
+          ))}
+          {avgWeeklyPayout > 0 && (
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-2">
+                Groomer Payouts
+                <span className="text-muted-foreground text-xs">{saturdaysRemaining} Sat{saturdaysRemaining !== 1 ? "s" : ""} left this month</span>
+              </span>
+              <span className="font-semibold">£{Math.round(groomerPayoutsThisMonth).toLocaleString()}</span>
+            </div>
+          )}
+          {(bills7Day.length > 0 || avgWeeklyPayout > 0) && (
+            <div className="border-t pt-1 flex items-center justify-between font-semibold">
+              <span>Bills this week</span>
+              <span>£{Math.round(totalBills7Day).toLocaleString()}</span>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* SECTION C: CASH HEALTH CHECK */}
@@ -391,41 +417,49 @@ const CashHealthSection = ({ upcomingRevenue }: CashHealthSectionProps) => {
 
           <div className="flex flex-wrap gap-4">
             <div>
-              <p className="text-xs text-muted-foreground">Projected balance on 1st (after groomer pay)</p>
-              <p className={`text-lg font-bold ${isCovered ? "text-green-600" : "text-destructive"}`}>
-                £{Math.round(projectedEndBalance).toLocaleString()}
+              <p className="text-xs text-muted-foreground">Balance in 7 days (after groomer pay)</p>
+              <p className={`text-lg font-bold ${isCovered7Day ? "text-green-600" : "text-destructive"}`}>
+                £{Math.round(projected7DayBalance).toLocaleString()}
               </p>
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">Total commitments due</p>
-              <p className="text-lg font-bold" style={{ color: "#2D1B0E" }}>
-                £{Math.round(totalCommitments).toLocaleString()}
+              <p className="text-xs text-muted-foreground">Bills due this week</p>
+              <p className={`text-lg font-bold ${totalBills7Day === 0 ? "text-green-600" : ""}`} style={totalBills7Day > 0 ? { color: "#2D1B0E" } : undefined}>
+                £{Math.round(totalBills7Day).toLocaleString()}
               </p>
             </div>
           </div>
 
-          {isCovered ? (
+          {/* Banner logic */}
+          {bills7Day.length === 0 ? (
             <div className="rounded-xl p-3 border" style={{ backgroundColor: "#f0fdf4", borderColor: "#43a047" }}>
               <p className="text-sm font-medium text-green-700">
-                ✅ You're covered — £{Math.round(surplus).toLocaleString()} to spare after commitments
+                ✅ Nothing due this week{nextBillDaysAway !== null ? ` — next bill in ${nextBillDaysAway} days` : ""}
               </p>
             </div>
-          ) : daysUntil1st > 14 ? (
+          ) : isCovered7Day ? (
+            <div className="rounded-xl p-3 border" style={{ backgroundColor: "#f0fdf4", borderColor: "#43a047" }}>
+              <p className="text-sm font-medium text-green-700">
+                ✅ This week's bills are covered — £{Math.round(surplus7Day).toLocaleString()} to spare
+              </p>
+            </div>
+          ) : projected7DayBalance >= totalBills7Day ? (
+            // This case won't hit given logic above, but kept for safety
             <div className="rounded-xl p-3 border" style={{ backgroundColor: "#fff8e7", borderColor: "#f59e0b" }}>
               <p className="text-sm font-medium text-amber-700">
-                ⚠️ Currently £{Math.round(surplus).toLocaleString()} short — but {daysUntil1st} days to go, keep taking bookings
+                ⚠️ £{Math.round(surplus7Day).toLocaleString()} short for this week's bills — but covered if all {next7DayBookings.length} upcoming appointments take place
               </p>
             </div>
-          ) : daysUntil1st > 7 ? (
-            <div className="rounded-xl p-3" style={{ backgroundColor: "#FF6B35", color: "white" }}>
-              <p className="text-sm font-medium">
-                🔶 {daysUntil1st} days until commitments — £{Math.round(surplus).toLocaleString()} short. You need {Math.ceil(surplus / 52)} more bookings to cover this.
+          ) : (currentBalance + ownerNet7Day) < totalBills7Day && ownerNet7Day > 0 ? (
+            <div className="rounded-xl p-3 border" style={{ backgroundColor: "#fff8e7", borderColor: "#f59e0b" }}>
+              <p className="text-sm font-medium text-amber-700">
+                ⚠️ £{Math.round(shortfall7Day).toLocaleString()} short for this week's bills — but covered if all {next7DayBookings.length} upcoming appointments take place
               </p>
             </div>
           ) : (
             <div className="rounded-xl p-3 border" style={{ backgroundColor: "#fee2e2", borderColor: "#ef4444" }}>
               <p className="text-sm font-bold text-red-700">
-                🚨 {daysUntil1st} days left — £{Math.round(surplus).toLocaleString()} short of covering commitments. Consider whether you need a buffer.
+                🚨 £{Math.round(shortfall7Day).toLocaleString()} short for this week's bills even with all upcoming appointments. Action needed.
               </p>
             </div>
           )}
@@ -436,32 +470,26 @@ const CashHealthSection = ({ upcomingRevenue }: CashHealthSectionProps) => {
               Show breakdown <ChevronDown className="h-3 w-3" />
             </CollapsibleTrigger>
             <CollapsibleContent className="mt-2 space-y-3">
-              {/* Group 1: Upcoming Bills */}
-              {upcomingBills.length > 0 && (
+              {bills7Day.length > 0 && (
                 <div className="space-y-1">
-                  <p className="text-xs font-semibold text-muted-foreground">📋 Upcoming Bills (from Expenses)</p>
-                  {upcomingBills.map((b, i) => {
-                    const covered = projectedEndBalance >= b.amount;
-                    return (
-                      <div key={i} className="flex items-center justify-between text-xs border-b pb-1">
-                        <span className="flex-1">{b.name}</span>
-                        <span className="text-muted-foreground w-20 text-center">{format(b.dueDate, "dd MMM")}</span>
-                        <span className="text-muted-foreground w-16 text-center">{b.daysUntilDue === 0 ? "Today" : `${b.daysUntilDue}d`}</span>
-                        <span className="font-medium w-16 text-right">£{Math.round(b.amount).toLocaleString()}</span>
-                        <span className="w-20 text-right">{covered ? "✅ Covered" : "🔴 At risk"}</span>
-                      </div>
-                    );
-                  })}
+                  <p className="text-xs font-semibold text-muted-foreground">📋 Bills due this week</p>
+                  {bills7DayWithRisk.map((b, i) => (
+                    <div key={i} className="flex items-center justify-between text-xs border-b pb-1">
+                      <span className="flex-1">{b.name}</span>
+                      <span className="text-muted-foreground w-20 text-center">{format(b.dueDate, "dd MMM")}</span>
+                      <span className="text-muted-foreground w-16 text-center">{b.daysUntilDue === 0 ? "Today" : `${b.daysUntilDue}d`}</span>
+                      <span className="font-medium w-16 text-right">£{Math.round(b.amount).toLocaleString()}</span>
+                      <span className="w-20 text-right">{b.atRisk ? "🔴 At risk" : "✅ Covered"}</span>
+                    </div>
+                  ))}
                 </div>
               )}
 
-              {/* Group 2: Groomer Payouts */}
               {avgWeeklyPayout > 0 && (
                 <div className="space-y-1">
                   <p className="text-xs font-semibold text-muted-foreground">👥 Groomer Payouts</p>
                   <div className="flex items-center justify-between text-xs border-b pb-1">
-                    <span>Groomer Payouts — ~£{Math.round(avgWeeklyPayout).toLocaleString()} × {saturdaysRemaining} Saturday{saturdaysRemaining !== 1 ? "s" : ""} = £{Math.round(groomerPayoutsThisMonth).toLocaleString()}</span>
-                    <span>{projectedEndBalance >= groomerPayoutsThisMonth ? "✅ Covered" : "🔴 At risk"}</span>
+                    <span>~£{Math.round(avgWeeklyPayout).toLocaleString()} × {saturdaysRemaining} Saturday{saturdaysRemaining !== 1 ? "s" : ""} = £{Math.round(groomerPayoutsThisMonth).toLocaleString()}</span>
                   </div>
                   <p className="text-[10px] text-muted-foreground italic">(based on recent 4-week average)</p>
                 </div>
@@ -470,7 +498,7 @@ const CashHealthSection = ({ upcomingRevenue }: CashHealthSectionProps) => {
           </Collapsible>
 
           <p className="text-[10px] text-muted-foreground">
-            Based on £{Math.round(currentBalance).toLocaleString()} in bank + £{Math.round(upcomingRevenue).toLocaleString()} projected income (after ~40% groomer pay = £{Math.round(ownerNetRemaining).toLocaleString()} owner net)
+            Showing bills due within 7 days. Projected balance = £{Math.round(currentBalance).toLocaleString()} in bank + £{Math.round(projected7DayIncome).toLocaleString()} from next 7 days bookings (after ~40% groomer pay = £{Math.round(ownerNet7Day).toLocaleString()} owner net)
           </p>
         </div>
       )}
