@@ -325,17 +325,48 @@ const CashHealthSection = ({ upcomingRevenue }: CashHealthSectionProps) => {
           <p className="text-xs text-muted-foreground">No upcoming expenses found</p>
         ) : (
           <div className="space-y-1 text-sm">
-            {upcomingBills.slice(0, 8).map((b, i) => (
-              <div key={i} className="flex items-center justify-between">
-                <span className="flex items-center gap-2">
-                  {b.name}
-                  <span className="text-muted-foreground text-xs">
-                    {b.daysUntilDue === 0 ? "Today" : `in ${b.daysUntilDue}d`}
-                  </span>
-                </span>
-                <span className="font-semibold">£{Math.round(b.amount).toLocaleString()}</span>
-              </div>
-            ))}
+            {allCoveredComfortably && !showAllBills ? (
+              <p className="text-sm text-green-700 font-medium">✅ All £{Math.round(totalBills).toLocaleString()} in upcoming bills are covered</p>
+            ) : (
+              <>
+                {/* Show at-risk bills (always) */}
+                {atRiskBills.map((b, i) => (
+                  <div key={`risk-${i}`} className="flex items-center justify-between">
+                    <span className="flex items-center gap-2">
+                      🔴 {b.name}
+                      <span className="text-muted-foreground text-xs">
+                        {b.daysUntilDue === 0 ? "Today" : `in ${b.daysUntilDue}d`}
+                      </span>
+                    </span>
+                    <span className="flex items-center gap-2">
+                      <span className="font-semibold">£{Math.round(b.amount).toLocaleString()}</span>
+                      <span className="text-destructive text-xs font-medium">⚠️ AT RISK</span>
+                    </span>
+                  </div>
+                ))}
+                {/* Show covered bills only when toggled */}
+                {showAllBills && coveredBills.map((b, i) => (
+                  <div key={`cov-${i}`} className="flex items-center justify-between text-muted-foreground">
+                    <span className="flex items-center gap-2">
+                      ✅ {b.name}
+                      <span className="text-xs">
+                        {b.daysUntilDue === 0 ? "Today" : `in ${b.daysUntilDue}d`}
+                      </span>
+                    </span>
+                    <span className="font-semibold">£{Math.round(b.amount).toLocaleString()}</span>
+                  </div>
+                ))}
+              </>
+            )}
+            {/* Toggle link */}
+            {coveredBills.length > 0 && (
+              <button
+                className="text-xs font-medium text-muted-foreground hover:text-foreground"
+                onClick={() => setShowAllBills(v => !v)}
+              >
+                {showAllBills ? "Hide covered bills" : `Show all bills (${coveredBills.length} covered)`}
+              </button>
+            )}
             {avgWeeklyPayout > 0 && (
               <div className="flex items-center justify-between">
                 <span className="flex items-center gap-2">
