@@ -124,7 +124,8 @@ export function CustomerSearchInput({ onSelect, onAddNew, disabled, initialSelec
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
-        setShowResults(false);
+        // Small delay to let button onMouseDown fire first
+        setTimeout(() => setShowResults(false), 50);
       }
     };
     document.addEventListener("mousedown", handler);
@@ -206,9 +207,11 @@ export function CustomerSearchInput({ onSelect, onAddNew, disabled, initialSelec
           <button
             type="button"
             className="w-full text-left px-3 py-2 hover:bg-accent transition-colors flex items-center gap-2 text-sm font-medium text-primary border-t"
-            onClick={() => {
+            onMouseDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
               setShowResults(false);
-              onAddNew();
+              setTimeout(() => onAddNew(), 0);
             }}
           >
             <UserPlus className="h-4 w-4" />
