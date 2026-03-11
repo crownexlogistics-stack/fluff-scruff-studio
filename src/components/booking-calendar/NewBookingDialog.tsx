@@ -392,7 +392,7 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
               {/* Customer Search / Selected display */}
               <CustomerSearchInput
                 onSelect={handleCustomerSelect}
-                onAddNew={handleClearCustomer}
+                onAddNew={handleAddNew}
                 initialSelectedName={customerSelected ? form.customer_name : null}
               />
 
