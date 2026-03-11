@@ -30,6 +30,7 @@ import {
   getDate,
 } from "date-fns";
 import { cn } from "@/lib/utils";
+import CashHealthSection from "./CashHealthSection";
 
 const MonthForecastCard = () => {
   const [forecastMonth, setForecastMonth] = useState(new Date());
