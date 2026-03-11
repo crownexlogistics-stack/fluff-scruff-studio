@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -23,6 +24,133 @@ const staggerContainer = {
   visible: { transition: { staggerChildren: 0.12 } },
 };
 
+const TIMING_OPTIONS = [
+  "As soon as possible",
+  "Within the next month",
+  "Within the next 3 months",
+  "Within the next 6 months",
+  "Just exploring for now",
+];
+
+const COURSE_VALUES: Record<string, string> = {
+  "Groom Your Own Dog": "Pet Owner Session — £300",
+  "Full Day Grooming Masterclass": "Full Day Masterclass — £250",
+  "Pro Skills Workshop": "Pro Skills Workshop — £180",
+};
+
+interface InterestFormData {
+  first_name: string;
+  last_name: string;
+  email: string;
+  contact_number: string;
+  timing_preference: string;
+  about_me: string;
+  course_interest: string;
+}
+
+const emptyForm = (course?: string): InterestFormData => ({
+  first_name: "",
+  last_name: "",
+  email: "",
+  contact_number: "",
+  timing_preference: "",
+  about_me: "",
+  course_interest: course || "",
+});
+
+function ThankYouMessage({ firstName, courseName, email, onClose }: { firstName: string; courseName: string; email: string; onClose?: () => void }) {
+  return (
+    <div className="text-center py-4 space-y-4">
+      <p className="text-5xl" style={{ color: "hsl(18, 100%, 60%)" }}>✅</p>
+      <h3 className="font-heading text-2xl" style={{ color: "hsl(20, 60%, 12%)" }}>
+        Thank You, {firstName}! 🐾
+      </h3>
+      <div className="text-muted-foreground text-sm leading-relaxed space-y-3 text-left">
+        <p>
+          We've received your interest in our <strong>{courseName}</strong> and we're really excited to hear from you!
+        </p>
+        <p>
+          We'll be in touch as soon as we have an opening. We might not always be able to offer exactly the timing you had in mind, but we will always do our best to find something that works for you.
+        </p>
+        <p>
+          Keep an eye on your inbox — we'll reach out to <strong>{email}</strong> soon.
+        </p>
+      </div>
+      {onClose && (
+        <Button variant="outline" className="rounded-xl font-bold border-2 mt-4" style={{ borderColor: "hsl(18, 100%, 60%)", color: "hsl(18, 100%, 60%)" }} onClick={onClose}>
+          Close
+        </Button>
+      )}
+    </div>
+  );
+}
+
+function InterestForm({ formData, setFormData, onSubmit, submitting, showCourseDropdown }: {
+  formData: InterestFormData;
+  setFormData: React.Dispatch<React.SetStateAction<InterestFormData>>;
+  onSubmit: (e: React.FormEvent) => void;
+  submitting: boolean;
+  showCourseDropdown?: boolean;
+}) {
+  return (
+    <form onSubmit={onSubmit} className="space-y-4">
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <Label htmlFor="first_name">First Name *</Label>
+          <Input id="first_name" required maxLength={50} value={formData.first_name} onChange={(e) => setFormData((d) => ({ ...d, first_name: e.target.value }))} />
+        </div>
+        <div>
+          <Label htmlFor="last_name">Last Name *</Label>
+          <Input id="last_name" required maxLength={50} value={formData.last_name} onChange={(e) => setFormData((d) => ({ ...d, last_name: e.target.value }))} />
+        </div>
+      </div>
+      <div>
+        <Label htmlFor="email">Email Address *</Label>
+        <Input id="email" type="email" required maxLength={255} value={formData.email} onChange={(e) => setFormData((d) => ({ ...d, email: e.target.value }))} />
+      </div>
+      <div>
+        <Label htmlFor="contact_number">Contact Number *</Label>
+        <Input id="contact_number" type="tel" required maxLength={20} value={formData.contact_number} onChange={(e) => setFormData((d) => ({ ...d, contact_number: e.target.value }))} />
+      </div>
+      {showCourseDropdown && (
+        <div>
+          <Label>Which course are you interested in?</Label>
+          <Select value={formData.course_interest} onValueChange={(v) => setFormData((d) => ({ ...d, course_interest: v }))}>
+            <SelectTrigger><SelectValue placeholder="Select a course..." /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Pet Owner Session — £300">Groom Your Own Dog — £300</SelectItem>
+              <SelectItem value="Full Day Masterclass — £250">Full Day Masterclass — £250</SelectItem>
+              <SelectItem value="Pro Skills Workshop — £180">Pro Skills Workshop — £180</SelectItem>
+              <SelectItem value="Not sure yet">Not sure yet</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+      <div>
+        <Label>When are you interested in attending? *</Label>
+        <Select value={formData.timing_preference} onValueChange={(v) => setFormData((d) => ({ ...d, timing_preference: v }))}>
+          <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
+          <SelectContent>
+            {TIMING_OPTIONS.map((t) => (
+              <SelectItem key={t} value={t}>{t}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div>
+        <Label htmlFor="about_me">Tell us why you're interested and anything else we should know</Label>
+        <Textarea id="about_me" rows={4} maxLength={1000} value={formData.about_me} onChange={(e) => setFormData((d) => ({ ...d, about_me: e.target.value }))} />
+      </div>
+      <Button type="submit" disabled={submitting} className="w-full py-6 text-base rounded-xl font-bold" style={{ background: "hsl(18, 100%, 60%)" }}>
+        {submitting ? "Sending..." : "Send My Interest 🐾"}
+      </Button>
+      <p className="text-xs text-muted-foreground text-center">
+        No commitment needed — this is just to register your interest so we can get in touch when a spot opens up.
+      </p>
+    </form>
+  );
+}
+
 export default function AcademyPage() {
   const { user } = useAuth();
   const { role } = useUserRole(user?.id);
@@ -30,16 +158,17 @@ export default function AcademyPage() {
   const coursesRef = useRef<HTMLDivElement>(null);
   const formRef = useRef<HTMLDivElement>(null);
 
-  const [formData, setFormData] = useState({
-    full_name: "",
-    email: "",
-    phone: "",
-    course_interest: "",
-    about_me: "",
-    referral_source: "",
-  });
-  const [submitting, setSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
+  // Modal state
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalCourse, setModalCourse] = useState("");
+  const [modalForm, setModalForm] = useState<InterestFormData>(emptyForm());
+  const [modalSubmitting, setModalSubmitting] = useState(false);
+  const [modalSubmitted, setModalSubmitted] = useState(false);
+
+  // Bottom form state
+  const [bottomForm, setBottomForm] = useState<InterestFormData>(emptyForm());
+  const [bottomSubmitting, setBottomSubmitting] = useState(false);
+  const [bottomSubmitted, setBottomSubmitted] = useState(false);
 
   useEffect(() => {
     document.title = "Grooming Academy — Fluff & Scruff Studio";
@@ -49,28 +178,56 @@ export default function AcademyPage() {
     ref.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.full_name.trim() || !formData.email.trim()) {
-      toast.error("Please fill in your name and email.");
-      return;
+  const openModal = (courseTitle: string) => {
+    const courseValue = COURSE_VALUES[courseTitle] || courseTitle;
+    setModalCourse(courseValue);
+    setModalForm(emptyForm(courseValue));
+    setModalSubmitted(false);
+    setModalOpen(true);
+  };
+
+  const submitForm = async (data: InterestFormData): Promise<boolean> => {
+    if (!data.first_name.trim() || !data.last_name.trim() || !data.email.trim() || !data.contact_number.trim()) {
+      toast.error("Please fill in all required fields.");
+      return false;
     }
-    setSubmitting(true);
+    if (!data.timing_preference) {
+      toast.error("Please select when you're interested in attending.");
+      return false;
+    }
     const { error } = await supabase.from("academy_applications" as any).insert({
-      full_name: formData.full_name.trim(),
-      email: formData.email.trim(),
-      phone: formData.phone.trim() || null,
-      course_interest: formData.course_interest || null,
-      about_me: formData.about_me.trim() || null,
-      referral_source: formData.referral_source || null,
+      first_name: data.first_name.trim(),
+      last_name: data.last_name.trim(),
+      full_name: `${data.first_name.trim()} ${data.last_name.trim()}`,
+      email: data.email.trim(),
+      phone: data.contact_number.trim(),
+      contact_number: data.contact_number.trim(),
+      course_interest: data.course_interest || null,
+      timing_preference: data.timing_preference || null,
+      about_me: data.about_me.trim() || null,
     } as any);
-    setSubmitting(false);
     if (error) {
       toast.error("Something went wrong. Please try again.");
       console.error(error);
-    } else {
-      setSubmitted(true);
+      return false;
     }
+    return true;
+  };
+
+  const handleModalSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setModalSubmitting(true);
+    const ok = await submitForm(modalForm);
+    setModalSubmitting(false);
+    if (ok) setModalSubmitted(true);
+  };
+
+  const handleBottomSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBottomSubmitting(true);
+    const ok = await submitForm(bottomForm);
+    setBottomSubmitting(false);
+    if (ok) setBottomSubmitted(true);
   };
 
   const courses = [
@@ -149,9 +306,35 @@ export default function AcademyPage() {
         </div>
       )}
 
+      {/* ── MODAL ── */}
+      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+        <DialogContent className="max-w-md rounded-2xl">
+          {modalSubmitted ? (
+            <ThankYouMessage
+              firstName={modalForm.first_name}
+              courseName={modalCourse}
+              email={modalForm.email}
+              onClose={() => setModalOpen(false)}
+            />
+          ) : (
+            <>
+              <div className="mb-4">
+                <h2 className="font-heading text-xl" style={{ color: "hsl(20, 60%, 12%)" }}>Register Your Interest</h2>
+                <p className="text-sm text-muted-foreground">{modalCourse}</p>
+              </div>
+              <InterestForm
+                formData={modalForm}
+                setFormData={setModalForm}
+                onSubmit={handleModalSubmit}
+                submitting={modalSubmitting}
+              />
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* ── HERO ── */}
       <section className="relative overflow-hidden py-20 md:py-32">
-        {/* Paw print background pattern */}
         <div className="absolute inset-0 opacity-[0.06]" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 80 80'%3E%3Ctext x='20' y='50' font-size='40'%3E🐾%3C/text%3E%3C/svg%3E")`, backgroundSize: "80px 80px" }} />
         <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, hsl(30, 100%, 98%) 0%, hsl(30, 80%, 92%) 100%)" }} />
         <motion.div className="relative max-w-3xl mx-auto px-4 text-center" initial="hidden" animate="visible" variants={staggerContainer}>
@@ -213,7 +396,7 @@ export default function AcademyPage() {
             Every course is hands-on. Every session is in our working salon. Every student leaves having groomed real dogs.
           </motion.p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
-            {courses.map((c, i) => (
+            {courses.map((c) => (
               <motion.div
                 key={c.title}
                 variants={fadeUp}
@@ -247,8 +430,8 @@ export default function AcademyPage() {
                     ))}
                   </div>
                 )}
-                <Button className={`w-full rounded-xl font-bold ${c.popular ? "py-6 text-base" : ""}`} style={{ background: "hsl(18, 100%, 60%)" }} onClick={() => scrollTo(formRef)}>
-                  Apply for This Course
+                <Button className={`w-full rounded-xl font-bold ${c.popular ? "py-6 text-base" : ""}`} style={{ background: "hsl(18, 100%, 60%)" }} onClick={() => openModal(c.title)}>
+                  Register Your Interest 🐾
                 </Button>
               </motion.div>
             ))}
@@ -316,59 +499,24 @@ export default function AcademyPage() {
             Tell us a little about yourself and which course you're interested in. We'll be in touch within 48 hours.
           </motion.p>
 
-          {submitted ? (
-            <motion.div variants={fadeUp} className="bg-card rounded-2xl p-8 text-center shadow-sm border border-border">
-              <p className="text-2xl mb-2">🎉</p>
-              <p className="font-heading text-xl mb-2" style={{ color: "hsl(20, 60%, 12%)" }}>Application received!</p>
-              <p className="text-muted-foreground">We'll be in touch within 48 hours. Can't wait to meet you (and your dog)!</p>
+          {bottomSubmitted ? (
+            <motion.div variants={fadeUp} className="bg-card rounded-2xl p-8 shadow-sm border border-border">
+              <ThankYouMessage
+                firstName={bottomForm.first_name}
+                courseName={bottomForm.course_interest || "grooming courses"}
+                email={bottomForm.email}
+              />
             </motion.div>
           ) : (
-            <motion.form variants={fadeUp} onSubmit={handleSubmit} className="bg-card rounded-2xl p-6 md:p-8 shadow-sm border border-border space-y-5">
-              <div>
-                <Label htmlFor="full_name">Full Name *</Label>
-                <Input id="full_name" required maxLength={100} value={formData.full_name} onChange={(e) => setFormData((d) => ({ ...d, full_name: e.target.value }))} />
-              </div>
-              <div>
-                <Label htmlFor="email">Email Address *</Label>
-                <Input id="email" type="email" required maxLength={255} value={formData.email} onChange={(e) => setFormData((d) => ({ ...d, email: e.target.value }))} />
-              </div>
-              <div>
-                <Label htmlFor="phone">Phone Number</Label>
-                <Input id="phone" type="tel" maxLength={20} value={formData.phone} onChange={(e) => setFormData((d) => ({ ...d, phone: e.target.value }))} />
-              </div>
-              <div>
-                <Label>Which course are you interested in?</Label>
-                <Select value={formData.course_interest} onValueChange={(v) => setFormData((d) => ({ ...d, course_interest: v }))}>
-                  <SelectTrigger><SelectValue placeholder="Select a course..." /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Groom Your Own Dog £300">Groom Your Own Dog £300</SelectItem>
-                    <SelectItem value="Full Day Masterclass £250">Full Day Masterclass £250</SelectItem>
-                    <SelectItem value="Pro Skills Workshop £180">Pro Skills Workshop £180</SelectItem>
-                    <SelectItem value="Not sure yet">Not sure yet</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="about_me">Tell us about yourself and your experience with dogs</Label>
-                <Textarea id="about_me" rows={4} maxLength={1000} value={formData.about_me} onChange={(e) => setFormData((d) => ({ ...d, about_me: e.target.value }))} />
-              </div>
-              <div>
-                <Label>How did you hear about us?</Label>
-                <Select value={formData.referral_source} onValueChange={(v) => setFormData((d) => ({ ...d, referral_source: v }))}>
-                  <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Google">Google</SelectItem>
-                    <SelectItem value="Instagram">Instagram</SelectItem>
-                    <SelectItem value="Facebook">Facebook</SelectItem>
-                    <SelectItem value="Word of mouth">Word of mouth</SelectItem>
-                    <SelectItem value="Other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button type="submit" disabled={submitting} className="w-full py-6 text-base rounded-xl font-bold" style={{ background: "hsl(18, 100%, 60%)" }}>
-                {submitting ? "Sending..." : "Send My Application 🐾"}
-              </Button>
-            </motion.form>
+            <motion.div variants={fadeUp} className="bg-card rounded-2xl p-6 md:p-8 shadow-sm border border-border">
+              <InterestForm
+                formData={bottomForm}
+                setFormData={setBottomForm}
+                onSubmit={handleBottomSubmit}
+                submitting={bottomSubmitting}
+                showCourseDropdown
+              />
+            </motion.div>
           )}
         </motion.div>
       </section>
