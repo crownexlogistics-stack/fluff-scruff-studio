@@ -405,13 +405,8 @@ export default function AcademyPage() {
               <motion.div
                 key={c.title}
                 variants={fadeUp}
-                className={`relative bg-card rounded-2xl p-6 shadow-sm border border-border flex flex-col ${c.popular ? "md:-my-4 md:py-8 md:shadow-lg ring-2 ring-[hsl(43,100%,50%)]" : ""}`}
+                className="relative bg-card rounded-2xl p-6 shadow-sm border border-border flex flex-col"
               >
-                {c.popular && (
-                  <span className="absolute -top-3 right-4 px-3 py-1 rounded-full text-xs font-bold text-foreground" style={{ background: "hsl(43, 100%, 50%)" }}>
-                    Most Popular
-                  </span>
-                )}
                 <span className="text-3xl mb-2">{c.emoji}</span>
                 <h3 className="font-heading text-xl mb-1" style={{ color: "hsl(20, 60%, 12%)" }}>{c.title}</h3>
                 <p className="text-xs text-muted-foreground mb-3">{c.duration}</p>
@@ -435,12 +430,62 @@ export default function AcademyPage() {
                     ))}
                   </div>
                 )}
-                <Button className={`w-full rounded-xl font-bold ${c.popular ? "py-6 text-base" : ""}`} style={{ background: "hsl(18, 100%, 60%)" }} onClick={() => openModal(c.title)}>
+                <Button className="w-full rounded-xl font-bold" style={{ background: "hsl(18, 100%, 60%)" }} onClick={() => openModal(c.title)}>
                   Register Your Interest 🐾
                 </Button>
               </motion.div>
             ))}
           </div>
+
+          {/* ── FOURTH CARD — Month-Long Programme ── */}
+          <motion.div variants={fadeUp} className="relative rounded-2xl p-8 md:p-10 mt-8 flex flex-col" style={{ background: "#2D1B0E" }}>
+            <span className="absolute -top-3 left-4 px-3 py-1 rounded-full text-xs font-bold" style={{ background: "#FFB800", color: "#2D1B0E" }}>
+              ⭐ Most Comprehensive
+            </span>
+            <span className="text-4xl mb-3">🎓</span>
+            <h3 className="font-heading text-2xl md:text-3xl mb-1" style={{ color: "white" }}>Month-Long Grooming Programme</h3>
+            <p className="text-sm mb-4" style={{ color: "rgba(255,255,255,0.6)" }}>4 Weeks • Monday to Saturday • Full Immersion</p>
+            <p className="font-heading text-4xl mb-0" style={{ color: "#FFB800" }}>£2,800</p>
+            <p className="text-xs mb-5" style={{ color: "rgba(255,255,255,0.5)" }}>per student • payment plan available</p>
+            <p className="text-sm leading-relaxed mb-6" style={{ color: "rgba(255,255,255,0.85)" }}>
+              Our most comprehensive offering. Spend a full month working inside our professional salon, grooming real client dogs every single day. By the end you will have the confidence, the technique, and the experience to groom professionally — without ever sitting in a classroom.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-1.5 mb-6">
+              {[
+                "4 full weeks in a working salon",
+                "Asian Fusion styling",
+                "20+ days of hands-on grooming",
+                "Customer handling & communication",
+                "50+ real client dogs",
+                "Tools & equipment guidance",
+                "All coat types & breeds covered",
+                "Business basics (optional module)",
+                "Bath, dry, clip & scissor techniques",
+                "Certificate of completion",
+                "Hand stripping introduction",
+                "WhatsApp support for 3 months after",
+              ].map((item) => (
+                <div key={item} className="flex items-start gap-2 text-sm" style={{ color: "rgba(255,255,255,0.85)" }}>
+                  <Check className="w-4 h-4 mt-0.5 shrink-0" style={{ color: "#FFB800" }} />
+                  <span>{item}</span>
+                </div>
+              ))}
+            </div>
+            <div className="flex flex-wrap gap-2 mb-5">
+              {["Career changers", "Pet owners wanting professional skills", "Groomers wanting a full reset", "Anyone serious about grooming"].map((tag) => (
+                <span key={tag} className="px-3 py-1 rounded-full text-xs font-medium text-white" style={{ background: "hsl(18, 100%, 60%)" }}>{tag}</span>
+              ))}
+            </div>
+            <p className="text-sm italic mb-2" style={{ color: "rgba(255,255,255,0.55)" }}>
+              💳 A £500 deposit secures your place. Remaining £2,300 split across the month.
+            </p>
+            <p className="text-sm mb-6" style={{ color: "rgba(255,255,255,0.45)" }}>
+              Comparable programmes in London charge £4,350–£5,450. We keep our groups tiny and our prices fair.
+            </p>
+            <Button className="w-full py-6 text-base rounded-xl font-bold" style={{ background: "hsl(18, 100%, 60%)" }} onClick={() => openModal("Month-Long Grooming Programme")}>
+              Register Your Interest 🐾
+            </Button>
+          </motion.div>
         </motion.div>
       </section>
 
