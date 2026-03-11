@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Upload, FileSpreadsheet, CheckCircle2, AlertTriangle, XCircle, TrendingUp, ShieldCheck, FolderOpen, Calendar, Users } from "lucide-react";
+import GapFillSection from "@/components/wix-migration/GapFillSection";
 import { toast } from "sonner";
 import Papa from "papaparse";
 import { format } from "date-fns";
