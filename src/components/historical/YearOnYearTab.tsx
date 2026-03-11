@@ -10,6 +10,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTimelineAnalytics } from "./year-on-year/useTimelineAnalytics";
 import TimelineHighlightsSidebar from "./year-on-year/TimelineHighlightsSidebar";
+import GroomerPerformanceSection from "./year-on-year/GroomerPerformanceSection";
 
 const xAxisProps = {
   dataKey: "label" as const,
@@ -27,7 +28,7 @@ const gridProps = {
 };
 
 export default function YearOnYearTab() {
-  const { isLoading, isEmpty, timeline, kpi, bestMonthIdx, services, groomers, highlights, annualSummary } = useTimelineAnalytics();
+  const { isLoading, isEmpty, timeline, kpi, bestMonthIdx, services, groomers, highlights, annualSummary, groomerPerformance } = useTimelineAnalytics();
   const exportRef = useRef<HTMLDivElement>(null);
 
   const handleDownload = useCallback(async () => {
@@ -315,6 +316,9 @@ export default function YearOnYearTab() {
 
       {/* Sidebar — outside export area */}
       <TimelineHighlightsSidebar highlights={highlights} />
+
+      {/* Groomer Performance — below everything */}
+      <GroomerPerformanceSection data={groomerPerformance} isLoading={isLoading} />
     </div>
   );
 }

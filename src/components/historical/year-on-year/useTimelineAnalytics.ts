@@ -72,6 +72,27 @@ export interface KpiSummary {
   avgMonthlyRevenue: number;
 }
 
+export interface GroomerMonthEntry {
+  label: string;
+  year: number;
+  month: number;
+  totalRevenue: number;
+  commission: number;
+  netProfit: number;
+  appointments: number;
+  returningCustomers: number;
+}
+
+export interface GroomerPerformanceData {
+  name: string;
+  commissionRate: number;
+  months: GroomerMonthEntry[];
+  allTimeNetProfit: number;
+  allTimeAppointments: number;
+}
+
+const EXCLUDED_GROOMERS = ["Kirsty Nails", "Lauren Nails"];
+
 export function useTimelineAnalytics() {
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
@@ -308,5 +329,71 @@ export function useTimelineAnalytics() {
     });
   }, [dbData, currentYear]);
 
-  return { isLoading, isEmpty: !dbData?.length, timeline, kpi, bestMonthIdx, services, groomers, highlights, annualSummary };
+  // Groomer performance over time
+  const groomerPerformance = useMemo((): GroomerPerformanceData[] => {
+    if (!dbData || dbData.length === 0) return [];
+
+    // Default commission rate for historical Wix groomers: 40% (standard rate)
+    const DEFAULT_COMMISSION_RATE = 0.4;
+
+    // Group confirmed rows by groomer -> year-month
+    const groomerMap = new Map<string, Map<string, RawRow[]>>();
+    dbData.forEach(row => {
+      if (row.booking_status !== "Confirmed" || !row.groomer_name || !row.created_year || !row.created_month) return;
+      if (EXCLUDED_GROOMERS.includes(row.groomer_name)) return;
+      if (!groomerMap.has(row.groomer_name)) groomerMap.set(row.groomer_name, new Map());
+      const monthKey = `${row.created_year}-${String(row.created_month).padStart(2, "0")}`;
+      const gMonths = groomerMap.get(row.groomer_name)!;
+      if (!gMonths.has(monthKey)) gMonths.set(monthKey, []);
+      gMonths.get(monthKey)!.push(row);
+    });
+
+    const results: GroomerPerformanceData[] = [];
+
+    groomerMap.forEach((monthsMap, groomerName) => {
+      // Only include groomers with at least 3 months of data
+      if (monthsMap.size < 3) return;
+
+      const rate = DEFAULT_COMMISSION_RATE;
+      const sortedKeys = [...monthsMap.keys()].sort();
+      const seenEmails = new Set<string>();
+      const months: GroomerMonthEntry[] = [];
+
+      for (const key of sortedKeys) {
+        const rows = monthsMap.get(key)!;
+        const [yearStr, monthStr] = key.split("-");
+        const year = parseInt(yearStr);
+        const month = parseInt(monthStr);
+        const totalRevenue = rows.reduce((s, r) => s + (Number(r.price_charged) || 0), 0);
+        const commission = totalRevenue * rate;
+        const netProfit = totalRevenue - commission;
+        const appointments = rows.length;
+
+        const monthEmails = new Set<string>();
+        rows.forEach(r => { if (r.customer_email) monthEmails.add(r.customer_email.toLowerCase()); });
+        let returningCustomers = 0;
+        monthEmails.forEach(e => { if (seenEmails.has(e)) returningCustomers++; });
+        monthEmails.forEach(e => seenEmails.add(e));
+
+        months.push({
+          label: `${MONTH_NAMES_SHORT[month - 1]} ${yearStr.slice(2)}`,
+          year, month,
+          totalRevenue: Math.round(totalRevenue),
+          commission: Math.round(commission),
+          netProfit: Math.round(netProfit),
+          appointments,
+          returningCustomers,
+        });
+      }
+
+      const allTimeNetProfit = months.reduce((s, m) => s + m.netProfit, 0);
+      const allTimeAppointments = months.reduce((s, m) => s + m.appointments, 0);
+
+      results.push({ name: groomerName, commissionRate: rate, months, allTimeNetProfit, allTimeAppointments });
+    });
+
+    return results.sort((a, b) => b.allTimeNetProfit - a.allTimeNetProfit);
+  }, [dbData]);
+
+  return { isLoading, isEmpty: !dbData?.length, timeline, kpi, bestMonthIdx, services, groomers, highlights, annualSummary, groomerPerformance };
 }
