@@ -393,7 +393,7 @@ export function useTimelineAnalytics() {
     });
 
     return results.sort((a, b) => b.allTimeNetProfit - a.allTimeNetProfit);
-  }, [dbData, staffData]);
+  }, [dbData]);
 
   return { isLoading, isEmpty: !dbData?.length, timeline, kpi, bestMonthIdx, services, groomers, highlights, annualSummary, groomerPerformance };
 }
