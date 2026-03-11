@@ -9,10 +9,26 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Pencil, X, ChevronDown } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { formatDistanceToNow, addMonths, startOfMonth, differenceInDays } from "date-fns";
+import { formatDistanceToNow, addMonths, startOfMonth, endOfMonth, differenceInDays, nextSaturday, isSaturday, eachWeekOfInterval, addDays } from "date-fns";
 
 interface CashHealthSectionProps {
   upcomingRevenue: number;
+}
+
+/** Count Saturdays remaining in the current month from today (inclusive of today if Saturday) */
+function countSaturdaysRemaining(today: Date): number {
+  const monthEnd = endOfMonth(today);
+  let count = 0;
+  let d = new Date(today);
+  // If today is Saturday, count it
+  if (isSaturday(d)) count++;
+  // Move to next Saturday
+  d = nextSaturday(d);
+  while (d <= monthEnd) {
+    count++;
+    d = nextSaturday(d);
+  }
+  return count;
 }
 
 const CashHealthSection = ({ upcomingRevenue }: CashHealthSectionProps) => {
@@ -22,7 +38,7 @@ const CashHealthSection = ({ upcomingRevenue }: CashHealthSectionProps) => {
   const [balanceInput, setBalanceInput] = useState<number>(0);
   const [showAddCommitment, setShowAddCommitment] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [commitmentForm, setCommitmentForm] = useState({ name: "", amount: 0, due_day: 1, category: "other" });
+  const [commitmentForm, setCommitmentForm] = useState({ name: "", amount: 0, due_day: 1, category: "other", frequency: "monthly" });
 
   // Fetch latest bank balance
   const { data: latestBalance, refetch: refetchBalance } = useQuery({
@@ -83,15 +99,14 @@ const CashHealthSection = ({ upcomingRevenue }: CashHealthSectionProps) => {
   // Add/update commitment mutation
   const saveCommitmentMutation = useMutation({
     mutationFn: async (form: typeof commitmentForm & { id?: string }) => {
+      const payload: any = {
+        name: form.name, amount: form.amount, due_day: form.due_day, category: form.category, frequency: form.frequency,
+      };
       if (form.id) {
-        const { error } = await supabase.from("monthly_commitments").update({
-          name: form.name, amount: form.amount, due_day: form.due_day, category: form.category,
-        } as any).eq("id", form.id);
+        const { error } = await supabase.from("monthly_commitments").update(payload).eq("id", form.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("monthly_commitments").insert({
-          name: form.name, amount: form.amount, due_day: form.due_day, category: form.category,
-        } as any);
+        const { error } = await supabase.from("monthly_commitments").insert(payload);
         if (error) throw error;
       }
     },
@@ -99,7 +114,7 @@ const CashHealthSection = ({ upcomingRevenue }: CashHealthSectionProps) => {
       queryClient.invalidateQueries({ queryKey: ["monthly-commitments"] });
       setShowAddCommitment(false);
       setEditingId(null);
-      setCommitmentForm({ name: "", amount: 0, due_day: 1, category: "other" });
+      setCommitmentForm({ name: "", amount: 0, due_day: 1, category: "other", frequency: "monthly" });
       toast({ title: "✅ Commitment saved" });
     },
   });
@@ -118,9 +133,12 @@ const CashHealthSection = ({ upcomingRevenue }: CashHealthSectionProps) => {
 
   const startEdit = (c: any) => {
     setEditingId(c.id);
-    setCommitmentForm({ name: c.name, amount: Number(c.amount), due_day: c.due_day, category: c.category || "other" });
+    setCommitmentForm({ name: c.name, amount: Number(c.amount), due_day: c.due_day, category: c.category || "other", frequency: c.frequency || "monthly" });
     setShowAddCommitment(false);
   };
+
+  const today = new Date();
+  const saturdaysRemaining = countSaturdaysRemaining(today);
 
   // Cash Health Check calculations
   const hasBalance = !!latestBalance;
@@ -128,20 +146,30 @@ const CashHealthSection = ({ upcomingRevenue }: CashHealthSectionProps) => {
   const showHealthCheck = hasBalance && activeCommitmentsWithAmount.length > 0;
 
   const currentBalance = hasBalance ? Number(latestBalance.balance) : 0;
-  const totalCommitments = activeCommitmentsWithAmount.reduce((s: number, c: any) => s + Number(c.amount), 0);
+
+  // Total commitments this month: monthly amounts + (weekly amount × saturdays remaining)
+  const totalCommitments = useMemo(() => {
+    return activeCommitmentsWithAmount.reduce((s: number, c: any) => {
+      const amt = Number(c.amount);
+      if ((c.frequency || "monthly") === "weekly") {
+        return s + amt * saturdaysRemaining;
+      }
+      return s + amt;
+    }, 0);
+  }, [activeCommitmentsWithAmount, saturdaysRemaining]);
+
   const projectedEndBalance = currentBalance + upcomingRevenue;
 
-  const today = new Date();
   const nextFirst = today.getDate() === 1
-    ? startOfMonth(addMonths(today, 1))
+    ? startOfMonth(addMonths(today, 2))
     : startOfMonth(addMonths(today, 1));
-  // If today is the 1st, use 1st of month after next
-  const targetFirst = today.getDate() === 1 ? startOfMonth(addMonths(today, 2)) : nextFirst;
-  const daysUntil1st = differenceInDays(targetFirst, today);
+  const daysUntil1st = differenceInDays(nextFirst, today);
 
   const shortfall = totalCommitments - projectedEndBalance;
   const isCovered = projectedEndBalance >= totalCommitments;
   const surplus = Math.abs(shortfall);
+
+  const isWeekly = commitmentForm.frequency === "weekly";
 
   const commitmentFormUI = (
     <div className="flex flex-wrap gap-2 items-end mt-2">
@@ -153,10 +181,23 @@ const CashHealthSection = ({ upcomingRevenue }: CashHealthSectionProps) => {
         <label className="text-xs text-muted-foreground">Amount £</label>
         <NumericInput value={commitmentForm.amount} onValueChange={v => setCommitmentForm(f => ({ ...f, amount: v }))} className="h-8 text-sm" />
       </div>
-      <div className="w-20">
-        <label className="text-xs text-muted-foreground">Due day</label>
-        <NumericInput value={commitmentForm.due_day} onValueChange={v => setCommitmentForm(f => ({ ...f, due_day: Math.max(1, Math.min(31, v)) }))} allowDecimals={false} className="h-8 text-sm" />
+      {/* Frequency toggle */}
+      <div className="w-48">
+        <label className="text-xs text-muted-foreground">Frequency</label>
+        <Select value={commitmentForm.frequency} onValueChange={v => setCommitmentForm(f => ({ ...f, frequency: v }))}>
+          <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="monthly">Monthly (fixed date)</SelectItem>
+            <SelectItem value="weekly">Weekly (every Saturday)</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
+      {!isWeekly && (
+        <div className="w-20">
+          <label className="text-xs text-muted-foreground">Due day</label>
+          <NumericInput value={commitmentForm.due_day} onValueChange={v => setCommitmentForm(f => ({ ...f, due_day: Math.max(1, Math.min(31, v)) }))} allowDecimals={false} className="h-8 text-sm" />
+        </div>
+      )}
       <div className="w-32">
         <label className="text-xs text-muted-foreground">Category</label>
         <Select value={commitmentForm.category} onValueChange={v => setCommitmentForm(f => ({ ...f, category: v }))}>
@@ -173,7 +214,7 @@ const CashHealthSection = ({ upcomingRevenue }: CashHealthSectionProps) => {
       <Button size="sm" className="h-8 text-xs" style={{ backgroundColor: "#FF6B35", color: "white" }} onClick={() => saveCommitmentMutation.mutate({ ...commitmentForm, id: editingId || undefined })} disabled={!commitmentForm.name || saveCommitmentMutation.isPending}>
         {editingId ? "Save" : "Add"}
       </Button>
-      <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => { setShowAddCommitment(false); setEditingId(null); setCommitmentForm({ name: "", amount: 0, due_day: 1, category: "other" }); }}>
+      <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => { setShowAddCommitment(false); setEditingId(null); setCommitmentForm({ name: "", amount: 0, due_day: 1, category: "other", frequency: "monthly" }); }}>
         Cancel
       </Button>
     </div>
@@ -228,31 +269,39 @@ const CashHealthSection = ({ upcomingRevenue }: CashHealthSectionProps) => {
       <div className="space-y-2">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">📅 Monthly Commitments</h3>
         <div className="space-y-1">
-          {commitments.map((c: any) => (
-            <div key={c.id} className="flex items-center justify-between text-sm">
-              {editingId === c.id ? commitmentFormUI : (
-                <>
-                  <span className="flex items-center gap-2">
-                    {c.name}
-                    <span className="text-muted-foreground text-xs">Day {c.due_day}</span>
-                  </span>
-                  <span className="flex items-center gap-2">
-                    {Number(c.amount) === 0 ? (
-                      <span className="text-amber-600 text-xs">⚠️ Amount not set</span>
-                    ) : (
-                      <span className="font-semibold">£{Math.round(Number(c.amount)).toLocaleString()}</span>
-                    )}
-                    <button onClick={() => startEdit(c)} className="text-muted-foreground hover:text-foreground"><Pencil className="h-3.5 w-3.5" /></button>
-                    <button onClick={() => deleteCommitmentMutation.mutate(c.id)} className="text-muted-foreground hover:text-destructive"><X className="h-3.5 w-3.5" /></button>
-                  </span>
-                </>
-              )}
-            </div>
-          ))}
+          {commitments.map((c: any) => {
+            const freq = c.frequency || "monthly";
+            return (
+              <div key={c.id} className="flex items-center justify-between text-sm">
+                {editingId === c.id ? commitmentFormUI : (
+                  <>
+                    <span className="flex items-center gap-2">
+                      {c.name}
+                      <span className="text-muted-foreground text-xs">
+                        {freq === "weekly" ? "Every Saturday" : `Day ${c.due_day}`}
+                      </span>
+                    </span>
+                    <span className="flex items-center gap-2">
+                      {Number(c.amount) === 0 ? (
+                        <span className="text-amber-600 text-xs">⚠️ Amount not set</span>
+                      ) : (
+                        <span className="font-semibold">
+                          £{Math.round(Number(c.amount)).toLocaleString()}
+                          {freq === "weekly" && <span className="text-muted-foreground text-xs font-normal"> /wk</span>}
+                        </span>
+                      )}
+                      <button onClick={() => startEdit(c)} className="text-muted-foreground hover:text-foreground"><Pencil className="h-3.5 w-3.5" /></button>
+                      <button onClick={() => deleteCommitmentMutation.mutate(c.id)} className="text-muted-foreground hover:text-destructive"><X className="h-3.5 w-3.5" /></button>
+                    </span>
+                  </>
+                )}
+              </div>
+            );
+          })}
         </div>
         {showAddCommitment && !editingId && commitmentFormUI}
         {!showAddCommitment && !editingId && (
-          <button className="text-xs font-medium" style={{ color: "#FF6B35" }} onClick={() => { setShowAddCommitment(true); setCommitmentForm({ name: "", amount: 0, due_day: 1, category: "other" }); }}>
+          <button className="text-xs font-medium" style={{ color: "#FF6B35" }} onClick={() => { setShowAddCommitment(true); setCommitmentForm({ name: "", amount: 0, due_day: 1, category: "other", frequency: "monthly" }); }}>
             + Add Commitment
           </button>
         )}
@@ -313,14 +362,26 @@ const CashHealthSection = ({ upcomingRevenue }: CashHealthSectionProps) => {
             </CollapsibleTrigger>
             <CollapsibleContent className="mt-2">
               <div className="space-y-1">
-                {commitments.filter((c: any) => Number(c.amount) > 0).map((c: any) => {
-                  // Check if projected balance covers this commitment
-                  const covered = projectedEndBalance >= Number(c.amount);
+                {activeCommitmentsWithAmount.map((c: any) => {
+                  const freq = c.frequency || "monthly";
+                  const amt = Number(c.amount);
+                  const totalForMonth = freq === "weekly" ? amt * saturdaysRemaining : amt;
+                  const covered = projectedEndBalance >= totalForMonth;
                   return (
                     <div key={c.id} className="flex items-center justify-between text-xs border-b pb-1">
-                      <span>{c.name}</span>
-                      <span className="text-muted-foreground">Day {c.due_day}</span>
-                      <span className="font-medium">£{Math.round(Number(c.amount)).toLocaleString()}</span>
+                      <span>
+                        {freq === "weekly"
+                          ? `${c.name} — ${saturdaysRemaining} Saturday${saturdaysRemaining !== 1 ? "s" : ""} remaining`
+                          : c.name}
+                      </span>
+                      <span className="text-muted-foreground">
+                        {freq === "weekly" ? "Every Saturday" : `Day ${c.due_day}`}
+                      </span>
+                      <span className="font-medium">
+                        {freq === "weekly"
+                          ? `£${Math.round(amt).toLocaleString()} × ${saturdaysRemaining} = £${Math.round(totalForMonth).toLocaleString()}`
+                          : `£${Math.round(totalForMonth).toLocaleString()}`}
+                      </span>
                       <span>{covered ? "✅ Covered" : "🔴 At risk"}</span>
                     </div>
                   );
