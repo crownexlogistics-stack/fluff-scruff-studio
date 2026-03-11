@@ -91,6 +91,8 @@ const BookingsPage = () => {
         service_name: b.services?.name ?? "",
         stripe_payment_id: b.stripe_payment_id ?? null,
         is_groomers_own_customer: b.is_groomers_own_customer ?? false,
+        booking_source: b.booking_source ?? null,
+        created_by_staff: b.created_by_staff ?? null,
       })) as BookingData[];
     },
   });
