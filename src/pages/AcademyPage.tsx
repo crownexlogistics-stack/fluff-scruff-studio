@@ -345,9 +345,12 @@ export default function AcademyPage() {
               🐾 Now Accepting Applications
             </span>
           </motion.div>
-          <motion.h1 variants={fadeUp} className="font-heading text-4xl md:text-6xl leading-tight mb-6" style={{ color: "hsl(20, 60%, 12%)" }}>
-            Learn to Groom.{"\n"}Love What You Do.
+          <motion.h1 variants={fadeUp} className="font-heading text-4xl md:text-6xl leading-tight mb-4" style={{ color: "hsl(20, 60%, 12%)" }}>
+            Welcome to Fluff &amp; Scruff Academy
           </motion.h1>
+          <motion.p variants={fadeUp} className="font-heading text-xl md:text-2xl mb-6" style={{ color: "hsl(18, 100%, 60%)" }}>
+            Learn to Groom. Love What You Do.
+          </motion.p>
           <motion.p variants={fadeUp} className="text-lg md:text-xl mb-8 max-w-2xl mx-auto" style={{ color: "hsla(20, 60%, 12%, 0.7)" }}>
             Hands-on grooming masterclasses at Fluff &amp; Scruff Studio — real dogs, real skills, real results. No exams. No theory. Just grooming.
           </motion.p>
