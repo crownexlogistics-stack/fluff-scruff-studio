@@ -10,25 +10,11 @@ import { useAuth } from "@/hooks/useAuth";
 import {
   formatDistanceToNow, addMonths, addDays, startOfMonth, endOfMonth,
   differenceInDays, parseISO, getDate, isBefore, isAfter, isSameMonth,
-  nextSaturday, isSaturday, format, startOfWeek, endOfWeek,
+  nextSaturday, isSaturday, format, startOfWeek,
 } from "date-fns";
 
 interface CashHealthSectionProps {
   upcomingRevenue: number;
-}
-
-/** Count Saturdays remaining in the current month from today (inclusive if today is Saturday) */
-function countSaturdaysRemaining(today: Date): number {
-  const monthEnd = endOfMonth(today);
-  let count = 0;
-  let d = new Date(today);
-  if (isSaturday(d)) count++;
-  d = nextSaturday(d);
-  while (d <= monthEnd) {
-    count++;
-    d = nextSaturday(d);
-  }
-  return count;
 }
 
 interface UpcomingBill {
@@ -137,16 +123,14 @@ const CashHealthSection = ({ upcomingRevenue }: CashHealthSectionProps) => {
     },
   });
 
-  // Date boundaries
+  // Date boundaries — week is Monday 00:00 to Saturday 23:59
   const today = new Date();
   const todayStr = format(today, "yyyy-MM-dd");
   const horizonStr = format(addDays(today, 35), "yyyy-MM-dd");
-  const sevenDayStr = format(addDays(today, 7), "yyyy-MM-dd");
-  const weekStart = startOfWeek(today, { weekStartsOn: 1 });
-  const weekEnd = endOfWeek(today, { weekStartsOn: 1 });
-  const weekStartStr = format(weekStart, "yyyy-MM-dd");
-  const weekEndStr = format(weekEnd, "yyyy-MM-dd");
+  const weekMonday = startOfWeek(today, { weekStartsOn: 1 });
+  const weekMondayStr = format(weekMonday, "yyyy-MM-dd");
   const nextSat = isSaturday(today) ? today : nextSaturday(today);
+  const nextSatStr = format(nextSat, "yyyy-MM-dd");
   const daysUntilSaturday = differenceInDays(nextSat, today);
 
   // Fetch one-off expenses due in next 35 days
@@ -163,43 +147,43 @@ const CashHealthSection = ({ upcomingRevenue }: CashHealthSectionProps) => {
     },
   });
 
-  // Fetch confirmed bookings in next 7 days for 7-day projection
-  const { data: next7DayBookings = [] } = useQuery({
-    queryKey: ["cash-health-7day-bookings", todayStr, sevenDayStr],
+  // Fetch ALL bookings Mon–Sat this week with staff info and booking_date
+  const { data: weekGroomerBookings = [] } = useQuery({
+    queryKey: ["cash-health-week-groomer", weekMondayStr, nextSatStr],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("bookings")
+        .select("id, total_price, is_groomers_own_customer, staff_id, deposit_paid, status, booking_date, staff(name)")
+        .gte("booking_date", weekMondayStr)
+        .lte("booking_date", nextSatStr)
+        .not("staff_id", "is", null);
+      return (data ?? []) as any[];
+    },
+  });
+
+  // Fetch remaining bookings (today–Saturday) for owner revenue projection (includes bookings without staff)
+  const { data: remainingWeekBookings = [] } = useQuery({
+    queryKey: ["cash-health-remaining-week", todayStr, nextSatStr],
     queryFn: async () => {
       const { data } = await supabase
         .from("bookings")
         .select("total_price")
         .gte("booking_date", todayStr)
-        .lte("booking_date", sevenDayStr)
-        .eq("status", "Confirmed");
-      return (data ?? []) as any[];
-    },
-  });
-
-  // Fetch this week's bookings to calculate unpaid groomer payouts
-  const { data: weekGroomerBookings = [] } = useQuery({
-    queryKey: ["cash-health-week-groomer", weekStartStr, weekEndStr],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("bookings")
-        .select("id, total_price, is_groomers_own_customer, staff_id, deposit_paid, status, staff(name)")
-        .gte("booking_date", weekStartStr)
-        .lte("booking_date", weekEndStr)
-        .not("staff_id", "is", null);
+        .lte("booking_date", nextSatStr)
+        .in("status", ["Confirmed", "Pending"]);
       return (data ?? []) as any[];
     },
   });
 
   // Check if groomers have already been paid for this week
   const { data: weekPaidPayouts = [] } = useQuery({
-    queryKey: ["cash-health-week-paid", weekStartStr, weekEndStr],
+    queryKey: ["cash-health-week-paid", weekMondayStr, nextSatStr],
     queryFn: async () => {
       const { data } = await supabase
         .from("groomer_payout_history")
         .select("groomer_id")
-        .gte("period_end", weekStartStr)
-        .lte("period_start", weekEndStr);
+        .gte("period_end", weekMondayStr)
+        .lte("period_start", nextSatStr);
       return (data ?? []) as any[];
     },
   });
@@ -251,83 +235,99 @@ const CashHealthSection = ({ upcomingRevenue }: CashHealthSectionProps) => {
   const billsBeyond7Day = allBills35.filter(b => b.daysUntilDue > 7);
   const expenseBills7DayTotal = expenseBills7Day.reduce((s, b) => s + b.amount, 0);
 
-  // ── UNPAID GROOMER PAYOUTS ──
-  const unpaidGroomerPayouts = useMemo(() => {
+  // ── GROOMER PAYOUTS — FULL WEEK PROJECTION ──
+  interface GroomerProjection {
+    staffId: string;
+    name: string;
+    completedPay: number;
+    projectedPay: number;
+    remainingBookingsCount: number;
+    totalPay: number;
+  }
+
+  const groomerProjections = useMemo((): GroomerProjection[] => {
     const paidGroomerIds = new Set(weekPaidPayouts.map((p: any) => p.groomer_id));
-    const byGroomer: Record<string, { name: string; total: number }> = {};
+    const byGroomer: Record<string, { name: string; completedPay: number; projectedPay: number; remainingCount: number }> = {};
 
     for (const b of weekGroomerBookings) {
       if (!b.staff_id || paidGroomerIds.has(b.staff_id)) continue;
-
-      if (b.status === "No Show") {
-        if (!byGroomer[b.staff_id]) {
-          const staffName = (b.staff as any)?.name || "Unknown";
-          byGroomer[b.staff_id] = { name: staffName, total: 0 };
-        }
-        byGroomer[b.staff_id].total += Number(b.deposit_paid || 0) * 0.5;
-        continue;
+      const staffName = (b.staff as any)?.name || "Unknown";
+      if (!byGroomer[b.staff_id]) {
+        byGroomer[b.staff_id] = { name: staffName, completedPay: 0, projectedPay: 0, remainingCount: 0 };
       }
-
-      if (!["Confirmed", "Completed"].includes(b.status)) continue;
 
       const rate = b.is_groomers_own_customer ? 0.5 : 0.4;
-      const pay = Number(b.total_price || 0) * rate;
-      if (!byGroomer[b.staff_id]) {
-        const staffName = (b.staff as any)?.name || "Unknown";
-        byGroomer[b.staff_id] = { name: staffName, total: 0 };
+
+      if (b.status === "Completed") {
+        byGroomer[b.staff_id].completedPay += Number(b.total_price || 0) * rate;
+      } else if (b.status === "No Show") {
+        byGroomer[b.staff_id].completedPay += Number(b.deposit_paid || 0) * 0.5;
+      } else if (["Confirmed", "Pending"].includes(b.status) && b.booking_date >= todayStr) {
+        byGroomer[b.staff_id].projectedPay += Number(b.total_price || 0) * rate;
+        byGroomer[b.staff_id].remainingCount += 1;
       }
-      byGroomer[b.staff_id].total += pay;
     }
 
     return Object.entries(byGroomer)
-      .map(([staffId, { name, total }]) => ({ staffId, name, total: Math.round(total * 100) / 100 }))
-      .filter(g => g.total > 0)
-      .sort((a, b) => b.total - a.total);
-  }, [weekGroomerBookings, weekPaidPayouts]);
+      .map(([staffId, g]) => ({
+        staffId,
+        name: g.name,
+        completedPay: Math.round(g.completedPay * 100) / 100,
+        projectedPay: Math.round(g.projectedPay * 100) / 100,
+        remainingBookingsCount: g.remainingCount,
+        totalPay: Math.round((g.completedPay + g.projectedPay) * 100) / 100,
+      }))
+      .filter(g => g.totalPay > 0)
+      .sort((a, b) => b.totalPay - a.totalPay);
+  }, [weekGroomerBookings, weekPaidPayouts, todayStr]);
 
-  const totalUnpaidGroomerPayouts = unpaidGroomerPayouts.reduce((s, g) => s + g.total, 0);
+  const totalCompletedGroomerPay = groomerProjections.reduce((s, g) => s + g.completedPay, 0);
+  const totalProjectedAdditionalGroomerPay = groomerProjections.reduce((s, g) => s + g.projectedPay, 0);
+  const totalSaturdayPayout = totalCompletedGroomerPay + totalProjectedAdditionalGroomerPay;
 
-  // ── 7-DAY PROJECTED INCOME ──
-  const projected7DayIncome = next7DayBookings.reduce((s: number, b: any) => s + Number(b.total_price || 0), 0);
-  const groomerCut7Day = projected7DayIncome * 0.40;
-  const ownerNet7Day = projected7DayIncome - groomerCut7Day;
+  // ── REMAINING REVENUE (owner net) ──
+  const remainingRevenue = remainingWeekBookings.reduce((s: number, b: any) => s + Number(b.total_price || 0), 0);
+  const ownerNetRemaining = remainingRevenue * 0.60;
 
   // ── TOTALS ──
-  const totalBills7Day = expenseBills7DayTotal + totalUnpaidGroomerPayouts;
+  // bills_due_this_week = total_saturday_payout + expense_bills
+  const totalBills7Day = totalSaturdayPayout + expenseBills7DayTotal;
 
   const hasBalance = !!latestBalance;
   const currentBalance = hasBalance ? Number(latestBalance.balance) : 0;
-  const availableFunds = currentBalance + ownerNet7Day;
-  const projected7DayBalance = availableFunds; // what's available to pay bills
+
+  // projected_7day_balance = bank + ownerNet - completedGroomerPay - expenseBills
+  // (projected groomer pay is already excluded from ownerNet via the 0.60 factor)
+  const finalBalance = currentBalance + ownerNetRemaining - totalCompletedGroomerPay - expenseBills7DayTotal;
   const showHealthCheck = hasBalance;
 
-  const shortfall7Day = totalBills7Day - availableFunds;
-  const isCovered7Day = availableFunds >= totalBills7Day;
-  const surplus7Day = Math.abs(shortfall7Day);
-  const finalRemaining = availableFunds - totalBills7Day;
-
-  const bankAloneCovers = currentBalance >= totalBills7Day;
-  const incomeClosesGap = availableFunds >= totalBills7Day && !bankAloneCovers;
+  // For banner: is everything covered?
+  const isCovered7Day = finalBalance >= 0;
+  const shortfall7Day = Math.max(0, -finalBalance);
+  const surplus7Day = Math.max(0, finalBalance);
 
   const nextBillDaysAway = billsBeyond7Day.length > 0 ? billsBeyond7Day[0].daysUntilDue : null;
+  const hasAnyCommitments = groomerProjections.length > 0 || expenseBills7Day.length > 0;
 
   // ── COMBINED COMMITMENTS WITH RISK ──
-  // Groomer payouts first, then expense bills
   const allCommitments7DayWithRisk = useMemo(() => {
-    const items: { name: string; amount: number; dueDate: Date; daysUntilDue: number; type: "groomer" | "expense"; atRisk: boolean }[] = [];
-    let running = availableFunds;
+    const items: { name: string; amount: number; dueLabel: string; type: "groomer" | "expense"; atRisk: boolean; detail?: string }[] = [];
+    let running = currentBalance + ownerNetRemaining;
 
     // Add groomer payouts first
-    for (const g of unpaidGroomerPayouts) {
-      const atRisk = running < g.total;
-      running -= g.total;
+    for (const g of groomerProjections) {
+      const atRisk = running < g.totalPay;
+      running -= g.totalPay;
+      const detail = g.remainingBookingsCount > 0
+        ? `£${Math.round(g.completedPay).toLocaleString()} earned + ~£${Math.round(g.projectedPay).toLocaleString()} from ${g.remainingBookingsCount} remaining`
+        : `£${Math.round(g.completedPay).toLocaleString()} earned`;
       items.push({
-        name: `👤 ${g.name} payout`,
-        amount: g.total,
-        dueDate: nextSat,
-        daysUntilDue: daysUntilSaturday,
+        name: `👤 ${g.name}`,
+        amount: g.totalPay,
+        dueLabel: "due Saturday",
         type: "groomer",
         atRisk,
+        detail,
       });
     }
 
@@ -338,19 +338,17 @@ const CashHealthSection = ({ upcomingRevenue }: CashHealthSectionProps) => {
       items.push({
         name: b.name,
         amount: b.amount,
-        dueDate: b.dueDate,
-        daysUntilDue: b.daysUntilDue,
+        dueLabel: b.daysUntilDue === 0 ? "Today" : `in ${b.daysUntilDue}d`,
         type: "expense",
         atRisk,
       });
     }
 
     return items;
-  }, [unpaidGroomerPayouts, expenseBills7Day, availableFunds, nextSat, daysUntilSaturday]);
+  }, [groomerProjections, expenseBills7Day, currentBalance, ownerNetRemaining]);
 
   const atRiskItems = allCommitments7DayWithRisk.filter(b => b.atRisk);
   const coveredItems = allCommitments7DayWithRisk.filter(b => !b.atRisk);
-  const hasAnyCommitments = allCommitments7DayWithRisk.length > 0;
 
   return (
     <>
@@ -413,36 +411,45 @@ const CashHealthSection = ({ upcomingRevenue }: CashHealthSectionProps) => {
             <>
               {/* At-risk items */}
               {atRiskItems.map((b, i) => (
-                <div key={`risk-${i}`} className="flex items-center justify-between">
-                  <span className="flex items-center gap-2">
-                    🔴 {b.name}
-                    <span className="text-muted-foreground text-xs">
-                      {b.type === "groomer" ? "due Saturday" : b.daysUntilDue === 0 ? "Today" : `in ${b.daysUntilDue}d`}
+                <div key={`risk-${i}`} className="space-y-0.5">
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-2">
+                      🔴 {b.name}
+                      <span className="text-muted-foreground text-xs">{b.dueLabel}</span>
                     </span>
-                  </span>
-                  <span className="flex items-center gap-2">
-                    <span className="font-semibold">£{Math.round(b.amount).toLocaleString()}</span>
-                    <span className="text-destructive text-xs font-medium">⚠️ AT RISK</span>
-                  </span>
+                    <span className="flex items-center gap-2">
+                      <span className="font-semibold">~£{Math.round(b.amount).toLocaleString()}</span>
+                      <span className="text-destructive text-xs font-medium">⚠️ AT RISK</span>
+                    </span>
+                  </div>
+                  {b.detail && (
+                    <p className="text-[10px] text-muted-foreground ml-6">{b.detail}</p>
+                  )}
                 </div>
               ))}
               {/* Covered items */}
               {coveredItems.map((b, i) => (
-                <div key={`cov-${i}`} className="flex items-center justify-between text-muted-foreground">
-                  <span className="flex items-center gap-2">
-                    ✅ {b.name}
-                    <span className="text-xs">
-                      {b.type === "groomer" ? "due Saturday" : b.daysUntilDue === 0 ? "Today" : `in ${b.daysUntilDue}d`}
+                <div key={`cov-${i}`} className="space-y-0.5">
+                  <div className="flex items-center justify-between text-muted-foreground">
+                    <span className="flex items-center gap-2">
+                      ✅ {b.name}
+                      <span className="text-xs">{b.dueLabel}</span>
                     </span>
-                  </span>
-                  <span className="font-semibold">£{Math.round(b.amount).toLocaleString()}</span>
+                    <span className="font-semibold">{b.type === "groomer" ? "~" : ""}£{Math.round(b.amount).toLocaleString()}</span>
+                  </div>
+                  {b.detail && (
+                    <p className="text-[10px] text-muted-foreground ml-6">{b.detail}</p>
+                  )}
                 </div>
               ))}
 
-              {/* Groomer subtotal if multiple */}
-              {unpaidGroomerPayouts.length > 0 && (
-                <div className="text-xs text-muted-foreground pt-1">
-                  Total groomer payouts this week: £{Math.round(totalUnpaidGroomerPayouts).toLocaleString()}
+              {/* Groomer subtotal */}
+              {groomerProjections.length > 0 && (
+                <div className="pt-1">
+                  <div className="text-xs font-medium">
+                    Total groomer payouts Saturday: ~£{Math.round(totalSaturdayPayout).toLocaleString()}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">(includes completed + projected)</p>
                 </div>
               )}
             </>
@@ -469,8 +476,8 @@ const CashHealthSection = ({ upcomingRevenue }: CashHealthSectionProps) => {
 
           {hasAnyCommitments && (
             <div className="border-t pt-1 flex items-center justify-between font-semibold">
-              <span>Bills this week</span>
-              <span>£{Math.round(totalBills7Day).toLocaleString()}</span>
+              <span>Total due this week</span>
+              <span>~£{Math.round(totalBills7Day).toLocaleString()}</span>
             </div>
           )}
         </div>
@@ -483,15 +490,15 @@ const CashHealthSection = ({ upcomingRevenue }: CashHealthSectionProps) => {
 
           <div className="flex flex-wrap gap-4">
             <div>
-              <p className="text-xs text-muted-foreground">Balance in 7 days (after groomer pay)</p>
+              <p className="text-xs text-muted-foreground">Balance after Saturday payout</p>
               <p className={`text-lg font-bold ${isCovered7Day ? "text-green-600" : "text-destructive"}`}>
-                £{Math.round(availableFunds).toLocaleString()}
+                £{Math.round(finalBalance).toLocaleString()}
               </p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Bills due this week</p>
               <p className={`text-lg font-bold ${totalBills7Day === 0 ? "text-green-600" : ""}`} style={totalBills7Day > 0 ? { color: "#2D1B0E" } : undefined}>
-                £{Math.round(totalBills7Day).toLocaleString()}
+                ~£{Math.round(totalBills7Day).toLocaleString()}
               </p>
             </div>
           </div>
@@ -509,16 +516,16 @@ const CashHealthSection = ({ upcomingRevenue }: CashHealthSectionProps) => {
                 ✅ This week's bills are covered — £{Math.round(surplus7Day).toLocaleString()} to spare
               </p>
             </div>
-          ) : (availableFunds < totalBills7Day && ownerNet7Day > 0 && (currentBalance + ownerNet7Day) >= totalBills7Day) ? (
+          ) : (ownerNetRemaining > 0 && (currentBalance + ownerNetRemaining) >= (totalCompletedGroomerPay + expenseBills7DayTotal)) ? (
             <div className="rounded-xl p-3 border" style={{ backgroundColor: "#fff8e7", borderColor: "#f59e0b" }}>
               <p className="text-sm font-medium text-amber-700">
-                ⚠️ £{Math.round(shortfall7Day).toLocaleString()} short for this week's bills — but covered if all {next7DayBookings.length} upcoming appointments take place
+                ⚠️ ~£{Math.round(shortfall7Day).toLocaleString()} short for this week's bills — but covered if all remaining appointments take place
               </p>
             </div>
           ) : (
             <div className="rounded-xl p-3 border" style={{ backgroundColor: "#fee2e2", borderColor: "#ef4444" }}>
               <p className="text-sm font-bold text-red-700">
-                🚨 £{Math.round(shortfall7Day).toLocaleString()} short for this week's bills even with all upcoming appointments. Action needed.
+                🚨 ~£{Math.round(shortfall7Day).toLocaleString()} short for this week's bills even with all upcoming appointments. Action needed.
               </p>
             </div>
           )}
@@ -529,21 +536,28 @@ const CashHealthSection = ({ upcomingRevenue }: CashHealthSectionProps) => {
               Show breakdown <ChevronDown className="h-3 w-3" />
             </CollapsibleTrigger>
             <CollapsibleContent className="mt-2 space-y-3">
-              {unpaidGroomerPayouts.length > 0 && (
+              {groomerProjections.length > 0 && (
                 <div className="space-y-1">
-                  <p className="text-xs font-semibold text-muted-foreground">👥 Groomer Payouts (owed this week)</p>
-                  {unpaidGroomerPayouts.map((g, i) => (
-                    <div key={i} className="flex items-center justify-between text-xs border-b pb-1">
-                      <span className="flex-1">👤 {g.name}</span>
-                      <span className="text-muted-foreground w-20 text-center">Saturday</span>
-                      <span className="text-muted-foreground w-16 text-center">{daysUntilSaturday === 0 ? "Today" : `${daysUntilSaturday}d`}</span>
-                      <span className="font-medium w-16 text-right">£{Math.round(g.total).toLocaleString()}</span>
+                  <p className="text-xs font-semibold text-muted-foreground">👥 Groomer Payouts — this Saturday</p>
+                  {groomerProjections.map((g, i) => (
+                    <div key={i} className="text-xs border-b pb-1 space-y-0.5">
+                      <div className="flex items-center justify-between">
+                        <span className="flex-1 font-medium">👤 {g.name}</span>
+                        <span className="font-medium w-20 text-right">~£{Math.round(g.totalPay).toLocaleString()}</span>
+                      </div>
+                      <div className="text-muted-foreground pl-4">
+                        £{g.completedPay.toFixed(2)} earned
+                        {g.remainingBookingsCount > 0 && (
+                          <> + ~£{Math.round(g.projectedPay).toLocaleString()} from {g.remainingBookingsCount} remaining booking{g.remainingBookingsCount !== 1 ? "s" : ""}</>
+                        )}
+                      </div>
                     </div>
                   ))}
                   <div className="flex items-center justify-between text-xs font-semibold pt-0.5">
-                    <span>Subtotal groomer payouts</span>
-                    <span>£{Math.round(totalUnpaidGroomerPayouts).toLocaleString()}</span>
+                    <span>Total Saturday payout</span>
+                    <span>~£{Math.round(totalSaturdayPayout).toLocaleString()}</span>
                   </div>
+                  <p className="text-[10px] text-muted-foreground italic">(includes completed + projected from remaining bookings)</p>
                 </div>
               )}
 
@@ -564,7 +578,7 @@ const CashHealthSection = ({ upcomingRevenue }: CashHealthSectionProps) => {
           </Collapsible>
 
           <p className="text-[10px] text-muted-foreground">
-            Projected balance = £{Math.round(currentBalance).toLocaleString()} in bank + £{Math.round(projected7DayIncome).toLocaleString()} from bookings this week (after ~40% groomer pay on future bookings = £{Math.round(ownerNet7Day).toLocaleString()} owner net) − £{Math.round(totalUnpaidGroomerPayouts).toLocaleString()} groomer payouts already owed − £{Math.round(expenseBills7DayTotal).toLocaleString()} in bills due this week = £{Math.round(finalRemaining).toLocaleString()} remaining
+            £{Math.round(currentBalance).toLocaleString()} in bank + £{Math.round(ownerNetRemaining).toLocaleString()} owner net from remaining bookings this week − £{totalCompletedGroomerPay.toFixed(2)} groomer pay earned so far − ~£{Math.round(totalProjectedAdditionalGroomerPay).toLocaleString()} projected groomer pay from remaining bookings − £{Math.round(expenseBills7DayTotal).toLocaleString()} in bills due this week = £{Math.round(finalBalance).toLocaleString()} projected balance after Saturday payout
           </p>
         </div>
       )}
