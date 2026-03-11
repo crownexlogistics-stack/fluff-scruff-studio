@@ -5,7 +5,7 @@ const conductItems = [
   {
     title: "Cleanliness & Shared Responsibility",
     description:
-      "The salon is a shared workspace. All staff members are expected to clean up after each session and leave the area fully prepared for the next groomer. A clean and organised environment is essential for safety, professionalism, and the well-being of both staff and animals.",
+      "The salon is a shared workspace. All contractors are expected to clean up after each session and leave the area fully prepared for the next groomer. A clean and organised environment is essential for safety, professionalism, and the well-being of both contractors and animals.",
   },
   {
     title: "Client Retention & Rebooking",
