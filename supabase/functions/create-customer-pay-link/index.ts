@@ -178,7 +178,7 @@ serve(async (req) => {
           // Log SMS in sms_messages table
           const twilioData = await twilioRes.json();
           await supabase.from("sms_messages").insert({
-            phone_number: customer_phone,
+            phone_number: formattedPhone,
             body: smsBody,
             direction: "outbound",
             status: "sent",
