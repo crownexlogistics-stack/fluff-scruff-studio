@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      academy_applications: {
+        Row: {
+          about_me: string | null
+          course_interest: string | null
+          email: string
+          full_name: string
+          id: string
+          phone: string | null
+          referral_source: string | null
+          status: string | null
+          submitted_at: string | null
+        }
+        Insert: {
+          about_me?: string | null
+          course_interest?: string | null
+          email: string
+          full_name: string
+          id?: string
+          phone?: string | null
+          referral_source?: string | null
+          status?: string | null
+          submitted_at?: string | null
+        }
+        Update: {
+          about_me?: string | null
+          course_interest?: string | null
+          email?: string
+          full_name?: string
+          id?: string
+          phone?: string | null
+          referral_source?: string | null
+          status?: string | null
+          submitted_at?: string | null
+        }
+        Relationships: []
+      }
       add_on_services: {
         Row: {
           add_on_id: string
