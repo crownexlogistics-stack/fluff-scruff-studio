@@ -28,7 +28,7 @@ const gridProps = {
 };
 
 export default function YearOnYearTab() {
-  const { isLoading, isEmpty, timeline, kpi, bestMonthIdx, services, groomers, highlights, annualSummary } = useTimelineAnalytics();
+  const { isLoading, isEmpty, timeline, kpi, bestMonthIdx, services, groomers, highlights, annualSummary, groomerPerformance } = useTimelineAnalytics();
   const exportRef = useRef<HTMLDivElement>(null);
 
   const handleDownload = useCallback(async () => {
