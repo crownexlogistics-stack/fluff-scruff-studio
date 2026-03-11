@@ -186,6 +186,30 @@ export type Database = {
           },
         ]
       }
+      bank_balance_snapshots: {
+        Row: {
+          balance: number
+          id: string
+          note: string | null
+          noted_at: string | null
+          noted_by: string
+        }
+        Insert: {
+          balance: number
+          id?: string
+          note?: string | null
+          noted_at?: string | null
+          noted_by: string
+        }
+        Update: {
+          balance?: number
+          id?: string
+          note?: string | null
+          noted_at?: string | null
+          noted_by?: string
+        }
+        Relationships: []
+      }
       booking_addons: {
         Row: {
           added_at: string | null
@@ -1478,6 +1502,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      monthly_commitments: {
+        Row: {
+          amount: number
+          category: string | null
+          created_at: string | null
+          due_day: number
+          id: string
+          is_active: boolean | null
+          name: string
+        }
+        Insert: {
+          amount: number
+          category?: string | null
+          created_at?: string | null
+          due_day?: number
+          id?: string
+          is_active?: boolean | null
+          name: string
+        }
+        Update: {
+          amount?: number
+          category?: string | null
+          created_at?: string | null
+          due_day?: number
+          id?: string
+          is_active?: boolean | null
+          name?: string
+        }
+        Relationships: []
       }
       payout_records: {
         Row: {

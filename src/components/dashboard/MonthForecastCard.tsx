@@ -30,6 +30,7 @@ import {
   getDate,
 } from "date-fns";
 import { cn } from "@/lib/utils";
+import CashHealthSection from "./CashHealthSection";
 
 const MonthForecastCard = () => {
   const [forecastMonth, setForecastMonth] = useState(new Date());
@@ -397,6 +398,9 @@ const MonthForecastCard = () => {
               : `£${Math.round(earnedRevenue).toLocaleString()} earned of £${Math.round(breakevenTarget).toLocaleString()} needed to break even`}
           </p>
         </div>
+
+        {/* Cash Health Sections */}
+        <CashHealthSection upcomingRevenue={upcomingRevenue} />
 
         {/* Footer */}
         <div className="flex items-center justify-between pt-2 border-t flex-wrap gap-2">
