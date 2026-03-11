@@ -513,6 +513,8 @@ const FinancePage = () => {
           <TabsList>
             <TabsTrigger value="payouts">Groomer Payouts</TabsTrigger>
             <TabsTrigger value="expenses">Expenses</TabsTrigger>
+            <TabsTrigger value="anomalies">🚨 Anomalies</TabsTrigger>
+            <TabsTrigger value="payout-history">💳 Payout History</TabsTrigger>
           </TabsList>
 
           <TabsContent value="payouts" className="space-y-4 mt-4">
