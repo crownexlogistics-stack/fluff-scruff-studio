@@ -39,6 +39,8 @@ const FinancePage = () => {
   const [payoutNotes, setPayoutNotes] = useState("");
   const [activeTab, setActiveTab] = useState("payouts");
   const [includeWixHistory, setIncludeWixHistory] = useState(false);
+  const [anomalyWarningOpen, setAnomalyWarningOpen] = useState(false);
+  const [anomalyWarningData, setAnomalyWarningData] = useState<{ count: number; shortfall: number } | null>(null);
 
   const now = new Date();
   const periodStart = useMemo(() => {
