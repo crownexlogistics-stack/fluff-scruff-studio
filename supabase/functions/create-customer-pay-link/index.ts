@@ -146,11 +146,19 @@ serve(async (req) => {
       const MESSAGING_SERVICE_SID = "MG3c95c22cb05574f545cc1b32d9db4600";
 
       if (TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN) {
+        // Format UK phone numbers to E.164
+        let formattedPhone = customer_phone.replace(/\s+/g, "");
+        if (formattedPhone.startsWith("0")) {
+          formattedPhone = "+44" + formattedPhone.slice(1);
+        } else if (!formattedPhone.startsWith("+")) {
+          formattedPhone = "+44" + formattedPhone;
+        }
+
         const smsBody = `Hi ${firstName}, Fluff & Scruff Studio has sent you a payment request for £${amountNum.toFixed(2)}.${notes ? ` Note: ${notes}` : ""}\n\nPay here: ${paymentLink.url}\n\nQuestions? Call 01708 606655 or WhatsApp +44 7476 452782`;
 
         const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`;
         const formData = new URLSearchParams();
-        formData.append("To", customer_phone);
+        formData.append("To", formattedPhone);
         formData.append("MessagingServiceSid", MESSAGING_SERVICE_SID);
         formData.append("Body", smsBody);
 
