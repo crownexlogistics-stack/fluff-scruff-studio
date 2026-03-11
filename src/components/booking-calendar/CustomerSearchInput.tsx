@@ -124,7 +124,8 @@ export function CustomerSearchInput({ onSelect, onAddNew, disabled, initialSelec
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
-        setShowResults(false);
+        // Small delay to let button onMouseDown fire first
+        setTimeout(() => setShowResults(false), 50);
       }
     };
     document.addEventListener("mousedown", handler);
