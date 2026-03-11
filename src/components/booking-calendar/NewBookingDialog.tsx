@@ -606,7 +606,10 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button
-            onClick={() => createBooking.mutate()}
+            onClick={() => {
+              console.log("[CreateBooking] clicked", { isNewCustomer, customerSelected, mode, form, isPending: createBooking.isPending, blockDisabled });
+              createBooking.mutate();
+            }}
             disabled={createBooking.isPending || blockDisabled || (mode === "appointment" && !customerSelected && !isNewCustomer)}
           >
             {mode === "block" ? "Block Time" : "Create Booking"}
