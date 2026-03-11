@@ -472,7 +472,6 @@ const CashHealthSection = ({ upcomingRevenue }: CashHealthSectionProps) => {
           <p className="text-[10px] text-muted-foreground">
             Based on £{Math.round(currentBalance).toLocaleString()} in bank + £{Math.round(upcomingRevenue).toLocaleString()} projected income (after ~40% groomer pay = £{Math.round(ownerNetRemaining).toLocaleString()} owner net)
           </p>
-          </p>
         </div>
       )}
     </>
