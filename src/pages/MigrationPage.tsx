@@ -15,6 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AppLayout } from "@/components/AppLayout";
 import { Upload, FileSpreadsheet, CheckCircle2, Users, Calendar, ChevronDown, ChevronRight, Pencil, Send, AlertCircle, ShieldCheck, Wrench, Link2 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import GapFillSection from "@/components/wix-migration/GapFillSection";
 import { toast } from "sonner";
 import Papa from "papaparse";
 import { format } from "date-fns";
