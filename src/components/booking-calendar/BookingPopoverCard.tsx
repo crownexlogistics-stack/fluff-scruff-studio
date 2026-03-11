@@ -54,6 +54,21 @@ export function BookingPopoverCard({
   const remaining = total - deposit;
   const isDirector = userRole === "director";
 
+  // Fetch audit log for this booking
+  const { data: auditLog } = useQuery({
+    queryKey: ["booking-audit-log", booking.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("booking_audit_log" as any)
+        .select("event_type, performed_by, performed_at, old_date, old_time, new_date, new_time, note")
+        .eq("booking_id", booking.id)
+        .order("performed_at", { ascending: true });
+      if (error) throw error;
+      return data as any[];
+    },
+    enabled: !booking.is_block,
+  });
+
   const handleRefund = async () => {
     if (!confirm(`Are you sure you want to refund this booking for ${booking.customer_name}? This will process a refund through Stripe.`)) return;
     setProcessingRefund(true);
