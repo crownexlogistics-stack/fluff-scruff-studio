@@ -432,11 +432,20 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
           ) : (
             <>
               {/* Customer Search / Selected display */}
-              <CustomerSearchInput
-                onSelect={handleCustomerSelect}
-                onAddNew={handleAddNew}
-                initialSelectedName={customerSelected ? form.customer_name : null}
-              />
+              {!isNewCustomer && (
+                <>
+                  <CustomerSearchInput
+                    onSelect={handleCustomerSelect}
+                    onAddNew={handleAddNew}
+                    initialSelectedName={customerSelected ? form.customer_name : null}
+                  />
+                  {!customerSelected && (
+                    <Button type="button" variant="outline" size="sm" className="w-full" onClick={handleAddNew}>
+                      + Add New Customer
+                    </Button>
+                  )}
+                </>
+              )}
 
               {/* New customer manual entry */}
               {isNewCustomer && (
