@@ -54,7 +54,7 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
   });
 
   // Only reset form when the dialog opens — NOT on prop reference changes while open
-  const prevOpenRef = React.useRef(false);
+  const prevOpenRef = useRef(false);
   useEffect(() => {
     if (open && !prevOpenRef.current) {
       setIsNewCustomer(false);
