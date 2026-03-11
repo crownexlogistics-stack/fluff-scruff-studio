@@ -354,7 +354,7 @@ export function useTimelineAnalytics() {
       // Only include groomers with at least 3 months of data
       if (monthsMap.size < 3) return;
 
-      const rate = commissionMap.get(groomerName) ?? 0.4;
+      const rate = DEFAULT_COMMISSION_RATE;
       const sortedKeys = [...monthsMap.keys()].sort();
       const seenEmails = new Set<string>();
       const months: GroomerMonthEntry[] = [];
