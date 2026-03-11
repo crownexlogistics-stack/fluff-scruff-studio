@@ -196,37 +196,11 @@ export default function ImportDataTab() {
     toast({ title: `✅ Re-import complete — ${imported} records imported` });
   };
 
-  // Archive month state
+  const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
   const now = new Date();
-  const defaultArchiveMonth = now.getMonth() === 0 ? 12 : now.getMonth();
-  const defaultArchiveYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
-  const [archiveMonth, setArchiveMonth] = useState(defaultArchiveMonth);
-  const [archiveYear, setArchiveYear] = useState(defaultArchiveYear);
-  const [archiving, setArchiving] = useState(false);
-
-  const handleArchiveMonth = async () => {
-    setArchiving(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("archive-completed-month", {
-        body: { month: archiveMonth, year: archiveYear },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      const monthNames = ["", "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-      toast({ title: `✅ ${data.archived} bookings archived from ${monthNames[archiveMonth]} ${archiveYear}` });
-    } catch (err: any) {
-      toast({ title: `❌ Archive failed — ${err.message || "Unknown error"}`, variant: "destructive" });
-    } finally {
-      setArchiving(false);
-    }
-  };
-
-  const monthOptions = [
-    { value: 1, label: "January" }, { value: 2, label: "February" }, { value: 3, label: "March" },
-    { value: 4, label: "April" }, { value: 5, label: "May" }, { value: 6, label: "June" },
-    { value: 7, label: "July" }, { value: 8, label: "August" }, { value: 9, label: "September" },
-    { value: 10, label: "October" }, { value: 11, label: "November" }, { value: 12, label: "December" },
-  ];
+  const m = now.getMonth() === 0 ? 11 : now.getMonth() - 1;
+  const y = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+  const lastCompletedMonthLabel = `${MONTH_NAMES[m]} ${y}`;
 
   return (
     <div className="space-y-6">
