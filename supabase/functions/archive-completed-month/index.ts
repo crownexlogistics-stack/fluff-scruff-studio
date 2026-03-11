@@ -12,12 +12,12 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const supabase = createClient(
+    const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Determine which month to archive
+    // 1. Read optional { month, year } from request body
     let completedMonth: number;
     let completedYear: number;
 
@@ -30,20 +30,30 @@ Deno.serve(async (req) => {
         throw new Error("use auto");
       }
     } catch {
-      // Auto-calculate most recently completed month
       const now = new Date();
       completedMonth = now.getMonth() === 0 ? 12 : now.getMonth();
       completedYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
     }
 
-    // Build date range for the completed month
-    const startDate = `${completedYear}-${String(completedMonth).padStart(2, "0")}-01`;
-    const endMonth = completedMonth === 12 ? 1 : completedMonth + 1;
-    const endYear = completedMonth === 12 ? completedYear + 1 : completedYear;
-    const endDate = `${endYear}-${String(endMonth).padStart(2, "0")}-01`;
+    // 2. Delete any existing live records for this month/year
+    const { error: deleteError } = await supabaseAdmin
+      .from("wix_historical_bookings")
+      .delete()
+      .eq("source", "live")
+      .eq("created_month", completedMonth)
+      .eq("created_year", completedYear);
 
-    // Query live bookings for that month
-    const { data: bookings, error: fetchError } = await supabase
+    if (deleteError) {
+      console.error("Delete error:", deleteError);
+    }
+
+    // 3. Build date range and query live bookings
+    const startDate = `${completedYear}-${String(completedMonth).padStart(2, "0")}-01`;
+    const endDate = completedMonth === 12
+      ? `${completedYear + 1}-01-01`
+      : `${completedYear}-${String(completedMonth + 1).padStart(2, "0")}-01`;
+
+    const { data: liveBookings, error: fetchError } = await supabaseAdmin
       .from("bookings")
       .select(
         "id, customer_name, customer_email, customer_phone, dog_name, booking_date, booking_time, total_price, status, staff_id, service_id, created_at"
@@ -55,18 +65,18 @@ Deno.serve(async (req) => {
       throw new Error(`Failed to fetch bookings: ${fetchError.message}`);
     }
 
-    if (!bookings || bookings.length === 0) {
+    if (!liveBookings || liveBookings.length === 0) {
       return new Response(
         JSON.stringify({ archived: 0, month: completedMonth, year: completedYear, message: "No bookings found for this month" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Fetch staff names for mapping
-    const staffIds = [...new Set(bookings.filter(b => b.staff_id).map(b => b.staff_id))];
+    // Fetch staff names
+    const staffIds = [...new Set(liveBookings.filter(b => b.staff_id).map(b => b.staff_id))];
     let staffMap: Record<string, string> = {};
     if (staffIds.length > 0) {
-      const { data: staffData } = await supabase
+      const { data: staffData } = await supabaseAdmin
         .from("staff")
         .select("id, name")
         .in("id", staffIds);
@@ -76,10 +86,10 @@ Deno.serve(async (req) => {
     }
 
     // Fetch service names
-    const serviceIds = [...new Set(bookings.filter(b => b.service_id).map(b => b.service_id))];
+    const serviceIds = [...new Set(liveBookings.filter(b => b.service_id).map(b => b.service_id))];
     let serviceMap: Record<string, string> = {};
     if (serviceIds.length > 0) {
-      const { data: serviceData } = await supabase
+      const { data: serviceData } = await supabaseAdmin
         .from("services")
         .select("id, name")
         .in("id", serviceIds);
@@ -88,8 +98,8 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Map to wix_historical_bookings schema
-    const archiveRows = bookings.map((b: any) => ({
+    // 4. Map each booking to wix_historical_bookings schema
+    const mappedRecords = liveBookings.map((b: any) => ({
       customer_name: b.customer_name || "",
       customer_email: b.customer_email?.toLowerCase().trim() || "",
       customer_phone: b.customer_phone || "",
@@ -110,28 +120,20 @@ Deno.serve(async (req) => {
       revenue_recognised: !(b.status || "").toLowerCase().includes("cancel"),
     }));
 
-    // Upsert in batches
-    const BATCH = 100;
-    let archived = 0;
-    for (let i = 0; i < archiveRows.length; i += BATCH) {
-      const batch = archiveRows.slice(i, i + BATCH);
-      const { error: upsertError } = await supabase
-        .from("wix_historical_bookings")
-        .upsert(batch, { onConflict: "wix_order_number", ignoreDuplicates: true });
-      if (upsertError) {
-        console.error("Batch upsert error:", upsertError);
-      } else {
-        archived += batch.length;
-      }
+    // 5. Insert all mapped records
+    const { error: insertError } = await supabaseAdmin
+      .from("wix_historical_bookings")
+      .insert(mappedRecords);
+
+    if (insertError) {
+      throw new Error(`Insert error: ${insertError.message}`);
     }
 
-    const monthNames = ["", "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-
+    // 6. Return result
     return new Response(
       JSON.stringify({
-        archived,
-        month: monthNames[completedMonth],
-        monthNumber: completedMonth,
+        archived: mappedRecords.length,
+        month: completedMonth,
         year: completedYear,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
