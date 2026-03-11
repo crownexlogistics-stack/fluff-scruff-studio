@@ -121,6 +121,7 @@ const CashHealthSection = ({ upcomingRevenue }: CashHealthSectionProps) => {
   const queryClient = useQueryClient();
   const [showBalanceForm, setShowBalanceForm] = useState(false);
   const [balanceInput, setBalanceInput] = useState<number>(0);
+  const [showAllBills, setShowAllBills] = useState(false);
 
   // Fetch latest bank balance
   const { data: latestBalance } = useQuery({
