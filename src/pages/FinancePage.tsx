@@ -303,6 +303,34 @@ const FinancePage = () => {
             </CardContent>
           </Card>
 
+          {/* Anomaly summary box */}
+          {(() => {
+            const anomalyItems = selectedSummary.commissions.filter((c: any) => {
+              if (c.booking_source === "migrated" || c.migrated_booking_id) return false;
+              const balanceDue = Number(c.total_price) - Number(c.deposit_paid);
+              const charged = c.final_charge != null ? Number(c.final_charge) : null;
+              if (charged === null) return false;
+              const diff = charged - balanceDue;
+              return Math.abs(diff) > 2;
+            });
+            const totalShortfall = anomalyItems.reduce((s: number, c: any) => {
+              const diff = Number(c.final_charge) - (Number(c.total_price) - Number(c.deposit_paid));
+              return diff < 0 ? s + Math.abs(diff) : s;
+            }, 0);
+            if (anomalyItems.length > 0) {
+              return (
+                <div style={{ background: "#fff3cd", borderLeft: "4px solid #FF6B35", borderRadius: 12, padding: 16, marginBottom: 16 }}>
+                  <p className="text-sm font-medium">⚠️ {anomalyItems.length} anomalies detected this period. Total potential shortfall: £{totalShortfall.toFixed(2)}</p>
+                </div>
+              );
+            }
+            return (
+              <div style={{ background: "#f0fdf4", borderLeft: "4px solid #43a047", borderRadius: 12, padding: 16, marginBottom: 16 }}>
+                <p className="text-sm font-medium">✅ All charges verified for this period</p>
+              </div>
+            );
+          })()}
+
           <Card>
             <CardHeader className="pb-3"><CardTitle className="text-base">Revenue Breakdown</CardTitle></CardHeader>
             <CardContent className="p-0">
@@ -311,6 +339,7 @@ const FinancePage = () => {
                   <TableRow>
                     <TableHead>Customer</TableHead><TableHead>Dog</TableHead><TableHead>Service</TableHead>
                     <TableHead>Price</TableHead><TableHead>Type</TableHead><TableHead className="text-right">Groomer Pay</TableHead>
+                    <TableHead>Balance Due</TableHead><TableHead>Charged</TableHead><TableHead>Difference</TableHead><TableHead>Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -328,12 +357,12 @@ const FinancePage = () => {
                     const sortedDays = Array.from(grouped.entries()).sort((a, b) => b[0].localeCompare(a[0]));
                     
                     if (sortedDays.length === 0) {
-                      return <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No completed appointments this period</TableCell></TableRow>;
+                      return <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-8">No completed appointments this period</TableCell></TableRow>;
                     }
                     
                     return sortedDays.flatMap(([dateKey, items]) => [
                       <TableRow key={`header-${dateKey}`} className="bg-muted/60 hover:bg-muted/60">
-                        <TableCell colSpan={6} className="py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                        <TableCell colSpan={10} className="py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                           {dateKey !== "Unknown" ? format(new Date(dateKey + "T00:00:00"), "EEEE, d MMMM yyyy") : "Unknown Date"}
                         </TableCell>
                       </TableRow>,
@@ -348,6 +377,19 @@ const FinancePage = () => {
                         const serviceName = isMigrated
                           ? c.migrated_bookings?.service_name || "—"
                           : c.bookings?.services?.name || "—";
+                        const balanceDue = Number(c.total_price) - Number(c.deposit_paid);
+                        const charged = c.final_charge != null ? Number(c.final_charge) : null;
+                        const diff = charged != null ? charged - balanceDue : null;
+                        const diffColor = diff === null ? "" : Math.abs(diff) <= 2 ? "text-emerald-600" : diff < 0 ? "text-destructive" : "text-amber-600";
+                        const statusBadge = charged === null
+                          ? <Badge variant="secondary" className="text-xs">⚫ Pending</Badge>
+                          : Math.abs(diff!) <= 2
+                            ? <Badge className="bg-emerald-600 text-white text-xs">✅ Correct</Badge>
+                            : diff! < 0
+                              ? (balanceDue > 0 && charged === 0
+                                ? <Badge variant="destructive" className="text-xs">🚨 Zero — Balance Due</Badge>
+                                : <Badge variant="destructive" className="text-xs">🔴 Under</Badge>)
+                              : <Badge className="bg-amber-500 text-white text-xs">🟡 Over</Badge>;
                         return (
                         <TableRow key={c.id}>
                           <TableCell className="text-sm">
@@ -363,6 +405,10 @@ const FinancePage = () => {
                             </Badge>
                           </TableCell>
                           <TableCell className="text-right font-medium">£{Number(c.groomer_pay).toFixed(2)}</TableCell>
+                          <TableCell className="text-sm">£{balanceDue.toFixed(2)}</TableCell>
+                          <TableCell className="text-sm">{charged != null ? `£${charged.toFixed(2)}` : <span className="text-muted-foreground italic">Not entered</span>}</TableCell>
+                          <TableCell className={`text-sm font-medium ${diffColor}`}>{diff != null ? `£${diff.toFixed(2)}` : "—"}</TableCell>
+                          <TableCell>{statusBadge}</TableCell>
                         </TableRow>
                         );
                       }),
@@ -420,6 +466,28 @@ const FinancePage = () => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        <AlertDialog open={anomalyWarningOpen} onOpenChange={setAnomalyWarningOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>⚠️ Unreviewed Anomalies</AlertDialogTitle>
+              <AlertDialogDescription>
+                There are {anomalyWarningData?.count || 0} unreviewed payment anomalies for {selectedSummary.name} this period with a potential shortfall of £{(anomalyWarningData?.shortfall || 0).toFixed(2)}. We recommend reviewing these before processing payout.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => { setAnomalyWarningOpen(false); setSelectedStaffId(null); setActiveTab("anomalies"); }}>
+                Review First
+              </AlertDialogCancel>
+              <AlertDialogAction
+                style={{ backgroundColor: "#FF6B35" }}
+                onClick={() => { setAnomalyWarningOpen(false); setPayoutAmount(owedRemaining); setPayoutOpen(true); }}
+              >
+                Process Anyway
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </AppLayout>
     );
   }
