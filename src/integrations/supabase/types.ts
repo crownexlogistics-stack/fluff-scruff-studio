@@ -1509,6 +1509,7 @@ export type Database = {
           category: string | null
           created_at: string | null
           due_day: number
+          frequency: string | null
           id: string
           is_active: boolean | null
           name: string
@@ -1518,6 +1519,7 @@ export type Database = {
           category?: string | null
           created_at?: string | null
           due_day?: number
+          frequency?: string | null
           id?: string
           is_active?: boolean | null
           name: string
@@ -1527,6 +1529,7 @@ export type Database = {
           category?: string | null
           created_at?: string | null
           due_day?: number
+          frequency?: string | null
           id?: string
           is_active?: boolean | null
           name?: string

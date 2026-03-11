@@ -1,0 +1,1 @@
+ALTER TABLE public.monthly_commitments ADD COLUMN IF NOT EXISTS frequency text DEFAULT 'monthly';
