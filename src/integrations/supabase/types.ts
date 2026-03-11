@@ -225,6 +225,53 @@ export type Database = {
           },
         ]
       }
+      booking_audit_log: {
+        Row: {
+          booking_id: string
+          event_type: string
+          id: string
+          new_date: string | null
+          new_time: string | null
+          note: string | null
+          old_date: string | null
+          old_time: string | null
+          performed_at: string | null
+          performed_by: string | null
+        }
+        Insert: {
+          booking_id: string
+          event_type: string
+          id?: string
+          new_date?: string | null
+          new_time?: string | null
+          note?: string | null
+          old_date?: string | null
+          old_time?: string | null
+          performed_at?: string | null
+          performed_by?: string | null
+        }
+        Update: {
+          booking_id?: string
+          event_type?: string
+          id?: string
+          new_date?: string | null
+          new_time?: string | null
+          note?: string | null
+          old_date?: string | null
+          old_time?: string | null
+          performed_at?: string | null
+          performed_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_audit_log_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       booking_emails: {
         Row: {
           booking_id: string
@@ -260,10 +307,12 @@ export type Database = {
       bookings: {
         Row: {
           booking_date: string
+          booking_source: string | null
           booking_time: string
           breed_id: string | null
           campaign_id: string | null
           created_at: string
+          created_by_staff: string | null
           customer_email: string | null
           customer_name: string
           customer_phone: string | null
@@ -285,10 +334,12 @@ export type Database = {
         }
         Insert: {
           booking_date: string
+          booking_source?: string | null
           booking_time: string
           breed_id?: string | null
           campaign_id?: string | null
           created_at?: string
+          created_by_staff?: string | null
           customer_email?: string | null
           customer_name: string
           customer_phone?: string | null
@@ -310,10 +361,12 @@ export type Database = {
         }
         Update: {
           booking_date?: string
+          booking_source?: string | null
           booking_time?: string
           breed_id?: string | null
           campaign_id?: string | null
           created_at?: string
+          created_by_staff?: string | null
           customer_email?: string | null
           customer_name?: string
           customer_phone?: string | null
