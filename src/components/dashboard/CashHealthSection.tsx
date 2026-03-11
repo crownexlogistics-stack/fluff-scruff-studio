@@ -147,15 +147,32 @@ const CashHealthSection = ({ upcomingRevenue }: CashHealthSectionProps) => {
     },
   });
 
-  // Fetch ALL bookings Mon–Sat this week with staff info and booking_date
-  const { data: weekGroomerBookings = [] } = useQuery({
-    queryKey: ["cash-health-week-groomer", weekMondayStr, nextSatStr],
+  // Fetch COMPLETED groomer pay this week from commission_records
+  const { data: completedThisWeek = [] } = useQuery({
+    queryKey: ["cash-health-completed-groomer", weekMondayStr, nextSatStr],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("commission_records")
+        .select("staff_id, groomer_pay, staff(name), booking_id, bookings:booking_id(booking_date)")
+        .not("booking_id", "is", null);
+      // Filter client-side for this week's bookings
+      return ((data ?? []) as any[]).filter((r: any) => {
+        const bd = r.bookings?.booking_date;
+        return bd && bd >= weekMondayStr && bd <= nextSatStr;
+      });
+    },
+  });
+
+  // Fetch UPCOMING bookings this week (confirmed/pending, today onwards)
+  const { data: upcomingThisWeek = [] } = useQuery({
+    queryKey: ["cash-health-upcoming-groomer", todayStr, nextSatStr],
     queryFn: async () => {
       const { data } = await supabase
         .from("bookings")
-        .select("id, total_price, is_groomers_own_customer, staff_id, deposit_paid, status, booking_date, staff(name)")
-        .gte("booking_date", weekMondayStr)
+        .select("staff_id, total_price, staff(name), booking_date")
+        .gte("booking_date", todayStr)
         .lte("booking_date", nextSatStr)
+        .in("status", ["Confirmed", "Pending"])
         .not("staff_id", "is", null);
       return (data ?? []) as any[];
     },
