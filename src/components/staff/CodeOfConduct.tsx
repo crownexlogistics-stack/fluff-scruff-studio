@@ -52,7 +52,7 @@ const CodeOfConduct = ({ compact = false }: CodeOfConductProps) => {
         </CardTitle>
         {!compact && (
           <p className="text-sm text-muted-foreground mt-1">
-            All staff members are required to read, understand, and adhere to the following professional standards.
+            All contractors are required to read, understand, and adhere to the following professional standards.
           </p>
         )}
       </CardHeader>
