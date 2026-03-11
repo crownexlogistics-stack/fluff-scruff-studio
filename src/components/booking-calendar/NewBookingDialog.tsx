@@ -53,25 +53,33 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
     notes: "",
   });
 
+  // Only reset form when the dialog opens — NOT on prop reference changes while open
+  const prevOpenRef = React.useRef(false);
   useEffect(() => {
-    if (open) {
+    if (open && !prevOpenRef.current) {
       setIsNewCustomer(false);
       setCustomerSelected(false);
+      setNewCustomerError("");
       setSelectedDogs([]);
       setSelectedAddOns([]);
-      setForm(prev => ({
-        ...prev,
-        staff_id: defaultStaffId || prev.staff_id,
-        booking_date: dateStr || prev.booking_date,
+      setForm({
+        customer_name: "",
+        dog_name: "",
+        customer_email: "",
+        customer_phone: "",
+        breed_id: "",
+        service_id: "",
+        staff_id: defaultStaffId || "",
+        booking_date: dateStr,
         booking_time: timeStr,
         end_time: endTimeStr,
-        ...(mode === "block" ? { notes: "" } : {
-          customer_name: "", dog_name: "", customer_email: "", customer_phone: "",
-          breed_id: "", service_id: "", total_price: 0, deposit_paid: 0, notes: "",
-        }),
-      }));
+        total_price: 0,
+        deposit_paid: 0,
+        notes: mode === "block" ? "" : "",
+      });
     }
-  }, [open, defaultDate, defaultHour, defaultStaffId, mode]);
+    prevOpenRef.current = open;
+  }, [open]);
 
   const { data: staff } = useQuery({
     queryKey: ["staff-list"],
