@@ -1241,6 +1241,8 @@ export default function MigrationPage() {
           <p className="text-sm text-muted-foreground">Import customers and booking history from Wix</p>
         </div>
 
+        <GapFillSection />
+
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList>
             <TabsTrigger value="import">Import</TabsTrigger>
