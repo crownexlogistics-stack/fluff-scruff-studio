@@ -4,7 +4,7 @@ import {
   UsersRound, BarChart3, Mail,
   LogOut, Sparkles, AlertTriangle, ShieldCheck, BookOpen,
   Inbox, FileText, Ticket, PoundSterling, Bug, Activity, ArrowRightLeft,
-  PawPrint, Bot, MessageSquare, PhoneForwarded, Settings,
+  PawPrint, Bot, MessageSquare, PhoneForwarded, Settings, Search,
   BookOpen as HistoryBook,
 } from "lucide-react";
 import logo from "@/assets/logo-transparent.png";

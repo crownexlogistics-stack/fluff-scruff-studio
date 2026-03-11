@@ -132,6 +132,7 @@ const App = () => (
           <Route path="/admin/migration" element={<ProtectedRoute allowedRoles={["manager", "director"]}><MigrationPage /></ProtectedRoute>} />
           <Route path="/admin/wix-migration" element={<ProtectedRoute allowedRoles={["manager", "director"]}><WixMigrationPage /></ProtectedRoute>} />
           <Route path="/admin/historical" element={<ProtectedRoute allowedRoles={["manager", "director"]}><HistoricalDataPage /></ProtectedRoute>} />
+          <Route path="/admin/duplicate-report" element={<ProtectedRoute allowedRoles={["director"]}><DuplicateReportPage /></ProtectedRoute>} />
 
           <Route path="*" element={<NotFound />} />
         </Routes>
