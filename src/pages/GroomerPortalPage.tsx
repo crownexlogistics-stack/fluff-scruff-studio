@@ -95,30 +95,51 @@ function GroomerFinanceView({ staffId }: { staffId: string }) {
             <Table>
               <TableHeader><TableRow><TableHead>Customer</TableHead><TableHead>Service</TableHead><TableHead>Type</TableHead><TableHead className="text-right">Pay</TableHead></TableRow></TableHeader>
               <TableBody>
-                {commissions.map((c: any) => {
-                  const isMigrated = c.booking_source === "migrated" || c.migrated_booking_id;
-                  const customerName = isMigrated
-                    ? c.migrated_bookings?.migrated_customers?.full_name || "Wix Customer"
-                    : c.bookings?.customer_name || "—";
-                  const serviceName = isMigrated
-                    ? c.migrated_bookings?.service_name || "—"
-                    : c.bookings?.services?.name || "—";
-                  return (
-                  <TableRow key={c.id}>
-                    <TableCell className="text-sm">
-                      {customerName}
-                      {isMigrated && <Badge className="ml-1 bg-amber-500 text-white hover:bg-amber-500 text-[8px] px-1 py-0">W</Badge>}
-                    </TableCell>
-                    <TableCell className="text-sm">{serviceName}</TableCell>
-                    <TableCell>
-                      <Badge variant={c.commission_type === "no_show" ? "destructive" : c.commission_type === "own_customer" ? "default" : "secondary"} className="text-xs">
-                        {c.commission_type === "own_customer" ? "Own 50%" : c.commission_type === "no_show" ? "No Show" : "40%"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right font-medium">£{Number(c.groomer_pay).toFixed(2)}</TableCell>
-                  </TableRow>
-                  );
-                })}
+                {(() => {
+                  const grouped = new Map<string, any[]>();
+                  for (const c of commissions) {
+                    const isMigrated = c.booking_source === "migrated" || c.migrated_booking_id;
+                    const dateStr = isMigrated
+                      ? c.migrated_bookings?.booking_date
+                      : c.bookings?.booking_date;
+                    const key = dateStr || "Unknown";
+                    if (!grouped.has(key)) grouped.set(key, []);
+                    grouped.get(key)!.push(c);
+                  }
+                  const sortedDays = Array.from(grouped.entries()).sort((a, b) => b[0].localeCompare(a[0]));
+                  
+                  return sortedDays.flatMap(([dateKey, items]) => [
+                    <TableRow key={`header-${dateKey}`} className="bg-muted/60 hover:bg-muted/60">
+                      <TableCell colSpan={4} className="py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                        {dateKey !== "Unknown" ? format(new Date(dateKey + "T00:00:00"), "EEEE, d MMMM yyyy") : "Unknown Date"}
+                      </TableCell>
+                    </TableRow>,
+                    ...items.map((c: any) => {
+                      const isMigrated = c.booking_source === "migrated" || c.migrated_booking_id;
+                      const customerName = isMigrated
+                        ? c.migrated_bookings?.migrated_customers?.full_name || "Wix Customer"
+                        : c.bookings?.customer_name || "—";
+                      const serviceName = isMigrated
+                        ? c.migrated_bookings?.service_name || "—"
+                        : c.bookings?.services?.name || "—";
+                      return (
+                      <TableRow key={c.id}>
+                        <TableCell className="text-sm">
+                          {customerName}
+                          {isMigrated && <Badge className="ml-1 bg-amber-500 text-white hover:bg-amber-500 text-[8px] px-1 py-0">W</Badge>}
+                        </TableCell>
+                        <TableCell className="text-sm">{serviceName}</TableCell>
+                        <TableCell>
+                          <Badge variant={c.commission_type === "no_show" ? "destructive" : c.commission_type === "own_customer" ? "default" : "secondary"} className="text-xs">
+                            {c.commission_type === "own_customer" ? "Own 50%" : c.commission_type === "no_show" ? "No Show" : "40%"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right font-medium">£{Number(c.groomer_pay).toFixed(2)}</TableCell>
+                      </TableRow>
+                      );
+                    }),
+                  ]);
+                })()}
               </TableBody>
             </Table>
           </CardContent>
