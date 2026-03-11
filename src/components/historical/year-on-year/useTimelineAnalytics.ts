@@ -351,8 +351,8 @@ export function useTimelineAnalytics() {
     const results: GroomerPerformanceData[] = [];
 
     groomerMap.forEach((monthsMap, groomerName) => {
-      // Only include groomers with at least 3 months of data
-      if (monthsMap.size < 3) return;
+      // Only include groomers with at least 1 month of data
+      if (monthsMap.size < 1) return;
 
       const rate = DEFAULT_COMMISSION_RATE;
       const sortedKeys = [...monthsMap.keys()].sort();
