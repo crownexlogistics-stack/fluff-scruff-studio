@@ -238,7 +238,11 @@ const CashHealthSection = ({ upcomingRevenue }: CashHealthSectionProps) => {
   const hasBalance = !!latestBalance;
   const currentBalance = hasBalance ? Number(latestBalance.balance) : 0;
   const totalCommitments = totalBills + groomerPayoutsThisMonth;
-  const projectedEndBalance = currentBalance + upcomingRevenue;
+
+  // FIX: Deduct 40% groomer commission from projected income
+  const groomerCostOfRemainingIncome = upcomingRevenue * 0.40;
+  const ownerNetRemaining = upcomingRevenue - groomerCostOfRemainingIncome;
+  const projectedEndBalance = currentBalance + ownerNetRemaining;
   const showHealthCheck = hasBalance && totalCommitments > 0;
 
   const nextFirst = today.getDate() === 1
@@ -249,6 +253,22 @@ const CashHealthSection = ({ upcomingRevenue }: CashHealthSectionProps) => {
   const shortfall = totalCommitments - projectedEndBalance;
   const isCovered = projectedEndBalance >= totalCommitments;
   const surplus = Math.abs(shortfall);
+
+  // Determine at-risk bills
+  const comfortMargin = projectedEndBalance - totalCommitments;
+  const allCoveredComfortably = comfortMargin > 50;
+
+  const billsWithRisk = useMemo(() => {
+    let running = projectedEndBalance;
+    return upcomingBills.map(b => {
+      const atRisk = currentBalance < b.amount || running < b.amount;
+      running -= b.amount;
+      return { ...b, atRisk };
+    });
+  }, [upcomingBills, projectedEndBalance, currentBalance]);
+
+  const atRiskBills = billsWithRisk.filter(b => b.atRisk);
+  const coveredBills = billsWithRisk.filter(b => !b.atRisk);
 
   return (
     <>
