@@ -228,6 +228,8 @@ const AuthPage = () => {
                 <Label htmlFor="email">Email</Label>
                 <Input
                   id="email"
+                  name="email"
+                  autoComplete="email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
