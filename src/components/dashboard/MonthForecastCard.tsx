@@ -399,6 +399,9 @@ const MonthForecastCard = () => {
           </p>
         </div>
 
+        {/* Cash Health Sections */}
+        <CashHealthSection upcomingRevenue={upcomingRevenue} />
+
         {/* Footer */}
         <div className="flex items-center justify-between pt-2 border-t flex-wrap gap-2">
           <div className="flex items-center gap-2">
