@@ -262,6 +262,8 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
 
         // Internal bookings created by staff have deposit_paid = 0 (no Stripe payment yet)
         // Status is "Pending" until the customer actually pays via Stripe
+        const staffName = staff?.find(s => s.id === form.staff_id)?.name || "Unknown";
+
         const { data: insertedBooking, error } = await supabase.from("bookings").insert({
           customer_name: form.customer_name,
           dog_name: form.dog_name,
@@ -276,7 +278,9 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
           deposit_paid: 0,
           notes: notesWithAddOns || null,
           status: "Pending",
-        }).select("id").single();
+          booking_source: "staff",
+          created_by_staff: staffName,
+        } as any).select("id").single();
         if (error) throw error;
 
         const staffName = staff?.find(s => s.id === form.staff_id)?.name || "Unknown";
