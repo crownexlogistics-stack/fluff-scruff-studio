@@ -33,6 +33,7 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
 
   const [isNewCustomer, setIsNewCustomer] = useState(false);
   const [customerSelected, setCustomerSelected] = useState(false);
+  const [newCustomerError, setNewCustomerError] = useState("");
   const [selectedDogs, setSelectedDogs] = useState<{ name: string; breed_id: string | null }[]>([]);
   const [selectedAddOns, setSelectedAddOns] = useState<string[]>([]);
 
@@ -253,6 +254,43 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
           details: `Blocked ${formattedDate} ${form.booking_time.slice(0, 5)}-${form.end_time.slice(0, 5)} for ${staffName}. Reason: ${form.notes.trim()}`,
         });
       } else {
+        // Validate new customer fields
+        if (isNewCustomer) {
+          if (!form.customer_name.trim() || (!form.customer_email.trim() && !form.customer_phone.trim())) {
+            throw new Error("Please enter a name and email or phone number");
+          }
+
+          // Create or link migrated_customers record
+          const emailLower = form.customer_email.trim().toLowerCase();
+          const phoneTrimmed = form.customer_phone.trim();
+
+          // Check if customer already exists
+          let existingCustomer = null;
+          if (emailLower) {
+            const { data } = await supabase.from("migrated_customers")
+              .select("id")
+              .ilike("email", emailLower)
+              .limit(1);
+            if (data && data.length > 0) existingCustomer = data[0];
+          }
+          if (!existingCustomer && phoneTrimmed) {
+            const { data } = await supabase.from("migrated_customers")
+              .select("id")
+              .eq("phone", phoneTrimmed)
+              .limit(1);
+            if (data && data.length > 0) existingCustomer = data[0];
+          }
+
+          if (!existingCustomer) {
+            await supabase.from("migrated_customers").insert({
+              full_name: form.customer_name.trim(),
+              email: emailLower || null,
+              phone: phoneTrimmed || null,
+              status: "pending",
+            });
+          }
+        }
+
         // Build notes with add-ons info
         const addOnNames = selectedAddOns.map(id => addOns?.find(a => a.id === id)?.name).filter(Boolean);
         const notesWithAddOns = [
@@ -260,8 +298,6 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
           addOnNames.length > 0 ? `Add-ons: ${addOnNames.join(", ")}` : "",
         ].filter(Boolean).join("\n");
 
-        // Internal bookings created by staff have deposit_paid = 0 (no Stripe payment yet)
-        // Status is "Pending" until the customer actually pays via Stripe
         const staffName = staff?.find(s => s.id === form.staff_id)?.name || "Unknown";
 
         const { data: insertedBooking, error } = await supabase.from("bookings").insert({
@@ -289,7 +325,6 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
           details: `Booking for ${form.customer_name} (${form.dog_name}) on ${form.booking_date} at ${form.booking_time.slice(0, 5)} with ${staffName}`,
         });
 
-        // Audit trail entry
         if (insertedBooking?.id) {
           supabase.from("booking_audit_log" as any).insert({
             booking_id: insertedBooking.id,
@@ -314,9 +349,16 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
       queryClient.invalidateQueries({ queryKey: ["groomer-overrides"] });
       queryClient.invalidateQueries({ queryKey: ["staff-notes"] });
       queryClient.invalidateQueries({ queryKey: ["audit-logs"] });
+      queryClient.invalidateQueries({ queryKey: ["customer-search-list"] });
       onOpenChange(false);
     },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: any) => {
+      if (e.message === "Please enter a name and email or phone number") {
+        setNewCustomerError(e.message);
+      } else {
+        toast.error(e.message);
+      }
+    },
   });
 
   const blockDisabled = mode === "block" && !form.notes.trim();
@@ -392,7 +434,7 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
               {/* Customer Search / Selected display */}
               <CustomerSearchInput
                 onSelect={handleCustomerSelect}
-                onAddNew={handleClearCustomer}
+                onAddNew={handleAddNew}
                 initialSelectedName={customerSelected ? form.customer_name : null}
               />
 
@@ -401,14 +443,14 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <Label className="text-sm font-medium">New Customer</Label>
-                    <Button type="button" variant="ghost" size="sm" onClick={() => { setIsNewCustomer(false); setCustomerSelected(false); }}>
+                    <Button type="button" variant="ghost" size="sm" onClick={() => { setIsNewCustomer(false); setCustomerSelected(false); setNewCustomerError(""); }}>
                       ← Back to search
                     </Button>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <Label>Customer Name</Label>
-                      <Input value={form.customer_name} onChange={(e) => setForm({ ...form, customer_name: e.target.value })} />
+                      <Input value={form.customer_name} onChange={(e) => { setForm({ ...form, customer_name: e.target.value }); setNewCustomerError(""); }} />
                     </div>
                     <div className="space-y-1">
                       <Label>Dog Name</Label>
@@ -418,13 +460,16 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <Label>Email</Label>
-                      <Input type="email" value={form.customer_email} onChange={(e) => setForm({ ...form, customer_email: e.target.value })} />
+                      <Input type="email" value={form.customer_email} onChange={(e) => { setForm({ ...form, customer_email: e.target.value }); setNewCustomerError(""); }} />
                     </div>
                     <div className="space-y-1">
                       <Label>Phone</Label>
-                      <Input value={form.customer_phone} onChange={(e) => setForm({ ...form, customer_phone: e.target.value })} />
+                      <Input value={form.customer_phone} onChange={(e) => { setForm({ ...form, customer_phone: e.target.value }); setNewCustomerError(""); }} />
                     </div>
                   </div>
+                  {newCustomerError && (
+                    <p className="text-sm text-destructive">{newCustomerError}</p>
+                  )}
                 </div>
               )}
 
