@@ -297,48 +297,17 @@ export default function ImportDataTab() {
         </Card>
       )}
 
-      {/* Archive Completed Month */}
-      <div className="border-t pt-6" style={{ borderColor: "#f0e6da" }}>
-        <h2 className="font-heading text-xl font-bold" style={{ color: "#2D1B0E" }}>Archive a Completed Month</h2>
-        <p className="text-sm mt-1 mb-4" style={{ color: "#8B6F5C" }}>
-          Manually archive all bookings from a completed month into the historical record. This runs automatically on the 1st of each month but can be triggered manually here.
+      {/* Auto-Archive Status */}
+      <div style={{ backgroundColor: "#f0fdf4", borderRadius: "20px", padding: "24px", marginTop: "32px" }}>
+        <h3 style={{ fontFamily: "Fredoka One", color: "#2D1B0E", marginBottom: "8px" }}>
+          ⚙️ Auto-Archive Status
+        </h3>
+        <p style={{ fontFamily: "Nunito", color: "#666", marginBottom: "8px" }}>
+          Historical data is archived automatically on the 1st of each month at 2:00 AM. No manual action is needed.
         </p>
-        <div className="flex flex-wrap items-end gap-3">
-          <div>
-            <label className="text-xs font-medium mb-1 block" style={{ color: "#8B6F5C" }}>Month</label>
-            <select
-              value={archiveMonth}
-              onChange={e => setArchiveMonth(Number(e.target.value))}
-              className="h-10 px-3 rounded-[30px] border-2 text-sm"
-              style={{ borderColor: "#f0e6da" }}
-            >
-              {monthOptions.map(m => (
-                <option key={m.value} value={m.value}>{m.label}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="text-xs font-medium mb-1 block" style={{ color: "#8B6F5C" }}>Year</label>
-            <select
-              value={archiveYear}
-              onChange={e => setArchiveYear(Number(e.target.value))}
-              className="h-10 px-3 rounded-[30px] border-2 text-sm"
-              style={{ borderColor: "#f0e6da" }}
-            >
-              {[2024, 2025, 2026, 2027].map(y => (
-                <option key={y} value={y}>{y}</option>
-              ))}
-            </select>
-          </div>
-          <Button
-            className="rounded-[30px] font-bold text-white"
-            style={{ backgroundColor: "#2D1B0E" }}
-            disabled={archiving}
-            onClick={handleArchiveMonth}
-          >
-            {archiving ? "Archiving…" : "Archive Month"}
-          </Button>
-        </div>
+        <p style={{ fontFamily: "Nunito", color: "#2D1B0E", fontWeight: 600 }}>
+          Last completed month: {lastCompletedMonthLabel}
+        </p>
       </div>
     </div>
   );
