@@ -685,9 +685,9 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
     }
 
     let assignedStaffId: string | null = null;
-    if (isExistingCustomer && selectedStaffId) {
-      assignedStaffId = selectedStaffId;
-    } else if (groomers && groomers.length > 0 && baseSchedules) {
+
+    // ALWAYS re-fetch fresh data at submission time to prevent double-bookings
+    if (groomers && groomers.length > 0 && baseSchedules) {
       const [freshBookingsRes, freshOverridesRes, freshMigratedRes] = await Promise.all([
         supabase
           .from("bookings")
@@ -723,23 +723,50 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
       const freshOverrides = (freshOverridesRes.data || []) as ScheduleOverride[];
       const bookingDate = new Date(selectedDate! + "T00:00:00");
 
-      const freeGroomer = findFreeGroomer(
-        selectedTime!,
-        serviceDuration,
-        bookingDate,
-        groomers,
-        baseSchedules,
-        freshOverrides,
-        freshBookings
-      );
+      if (isExistingCustomer && selectedStaffId) {
+        // Customer selected a specific groomer — verify THAT groomer is still free
+        const slotStart = parseTimeToMinutes(selectedTime!);
+        const slotEnd = slotStart + serviceDuration;
+        const dayOfWeek = (bookingDate.getDay() + 6) % 7;
 
-      if (!freeGroomer) {
-        setAlertMessage("This slot is no longer available. The groomer's schedule changed while you were booking. Please choose another time.");
-        setIsSubmitting(false);
-        return;
+        // Check the groomer has a working window that fits the slot
+        const { generateAvailableSlots: _, ...rest } = await import("@/lib/availability");
+        // Inline window + conflict check for the selected groomer
+        const hasBookingConflict = freshBookings.some((b) => {
+          if (b.staff_id !== selectedStaffId) return false;
+          const bStart = parseTimeToMinutes(b.booking_time);
+          const bDuration = Number(b.services?.duration_minutes ?? b.breeds?.duration_minutes ?? 90);
+          const bEnd = bStart + bDuration;
+          return slotStart < bEnd && slotEnd > bStart;
+        });
+
+        if (hasBookingConflict) {
+          setAlertMessage("This slot is no longer available — your selected groomer already has a booking at this time. Please choose another time.");
+          setIsSubmitting(false);
+          return;
+        }
+
+        assignedStaffId = selectedStaffId;
+      } else {
+        // No preference — find any free groomer by priority
+        const freeGroomer = findFreeGroomer(
+          selectedTime!,
+          serviceDuration,
+          bookingDate,
+          groomers,
+          baseSchedules,
+          freshOverrides,
+          freshBookings
+        );
+
+        if (!freeGroomer) {
+          setAlertMessage("This slot is no longer available. The groomer's schedule changed while you were booking. Please choose another time.");
+          setIsSubmitting(false);
+          return;
+        }
+
+        assignedStaffId = freeGroomer.id;
       }
-
-      assignedStaffId = freeGroomer.id;
     }
 
     const { data: insertedBooking, error } = await supabase.from("bookings").insert({
