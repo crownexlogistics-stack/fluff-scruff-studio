@@ -17,36 +17,48 @@ export type Database = {
       academy_applications: {
         Row: {
           about_me: string | null
+          contact_number: string | null
           course_interest: string | null
           email: string
+          first_name: string | null
           full_name: string
           id: string
+          last_name: string | null
           phone: string | null
           referral_source: string | null
           status: string | null
           submitted_at: string | null
+          timing_preference: string | null
         }
         Insert: {
           about_me?: string | null
+          contact_number?: string | null
           course_interest?: string | null
           email: string
+          first_name?: string | null
           full_name: string
           id?: string
+          last_name?: string | null
           phone?: string | null
           referral_source?: string | null
           status?: string | null
           submitted_at?: string | null
+          timing_preference?: string | null
         }
         Update: {
           about_me?: string | null
+          contact_number?: string | null
           course_interest?: string | null
           email?: string
+          first_name?: string | null
           full_name?: string
           id?: string
+          last_name?: string | null
           phone?: string | null
           referral_source?: string | null
           status?: string | null
           submitted_at?: string | null
+          timing_preference?: string | null
         }
         Relationships: []
       }
