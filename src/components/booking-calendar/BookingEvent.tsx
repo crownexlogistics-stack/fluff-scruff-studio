@@ -580,6 +580,13 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
                       Created by {(booking as any).created_by_staff || "staff"}
                     </p>
                   </div>
+                ) : booking.stripe_payment_id || Number(booking.deposit_paid) > 0 ? (
+                  <div className="flex items-start gap-2">
+                    <div className="mt-1 shrink-0 h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "#FFB800" }} />
+                    <p className="text-xs" style={{ color: "#2D1B0E", fontFamily: "Nunito, sans-serif", fontSize: "12px" }}>
+                      Booked online by customer
+                    </p>
+                  </div>
                 ) : (
                   <p className="text-xs italic" style={{ color: "#999", fontFamily: "Nunito, sans-serif" }}>
                     No history recorded — audit trail starts from today
