@@ -121,6 +121,7 @@ const CashHealthSection = ({ upcomingRevenue }: CashHealthSectionProps) => {
   const queryClient = useQueryClient();
   const [showBalanceForm, setShowBalanceForm] = useState(false);
   const [balanceInput, setBalanceInput] = useState<number>(0);
+  const [showAllBills, setShowAllBills] = useState(false);
 
   // Fetch latest bank balance
   const { data: latestBalance } = useQuery({
@@ -237,7 +238,11 @@ const CashHealthSection = ({ upcomingRevenue }: CashHealthSectionProps) => {
   const hasBalance = !!latestBalance;
   const currentBalance = hasBalance ? Number(latestBalance.balance) : 0;
   const totalCommitments = totalBills + groomerPayoutsThisMonth;
-  const projectedEndBalance = currentBalance + upcomingRevenue;
+
+  // FIX: Deduct 40% groomer commission from projected income
+  const groomerCostOfRemainingIncome = upcomingRevenue * 0.40;
+  const ownerNetRemaining = upcomingRevenue - groomerCostOfRemainingIncome;
+  const projectedEndBalance = currentBalance + ownerNetRemaining;
   const showHealthCheck = hasBalance && totalCommitments > 0;
 
   const nextFirst = today.getDate() === 1
@@ -248,6 +253,22 @@ const CashHealthSection = ({ upcomingRevenue }: CashHealthSectionProps) => {
   const shortfall = totalCommitments - projectedEndBalance;
   const isCovered = projectedEndBalance >= totalCommitments;
   const surplus = Math.abs(shortfall);
+
+  // Determine at-risk bills
+  const comfortMargin = projectedEndBalance - totalCommitments;
+  const allCoveredComfortably = comfortMargin > 50;
+
+  const billsWithRisk = useMemo(() => {
+    let running = projectedEndBalance;
+    return upcomingBills.map(b => {
+      const atRisk = currentBalance < b.amount || running < b.amount;
+      running -= b.amount;
+      return { ...b, atRisk };
+    });
+  }, [upcomingBills, projectedEndBalance, currentBalance]);
+
+  const atRiskBills = billsWithRisk.filter(b => b.atRisk);
+  const coveredBills = billsWithRisk.filter(b => !b.atRisk);
 
   return (
     <>
@@ -304,17 +325,48 @@ const CashHealthSection = ({ upcomingRevenue }: CashHealthSectionProps) => {
           <p className="text-xs text-muted-foreground">No upcoming expenses found</p>
         ) : (
           <div className="space-y-1 text-sm">
-            {upcomingBills.slice(0, 8).map((b, i) => (
-              <div key={i} className="flex items-center justify-between">
-                <span className="flex items-center gap-2">
-                  {b.name}
-                  <span className="text-muted-foreground text-xs">
-                    {b.daysUntilDue === 0 ? "Today" : `in ${b.daysUntilDue}d`}
-                  </span>
-                </span>
-                <span className="font-semibold">£{Math.round(b.amount).toLocaleString()}</span>
-              </div>
-            ))}
+            {allCoveredComfortably && !showAllBills ? (
+              <p className="text-sm text-green-700 font-medium">✅ All £{Math.round(totalBills).toLocaleString()} in upcoming bills are covered</p>
+            ) : (
+              <>
+                {/* Show at-risk bills (always) */}
+                {atRiskBills.map((b, i) => (
+                  <div key={`risk-${i}`} className="flex items-center justify-between">
+                    <span className="flex items-center gap-2">
+                      🔴 {b.name}
+                      <span className="text-muted-foreground text-xs">
+                        {b.daysUntilDue === 0 ? "Today" : `in ${b.daysUntilDue}d`}
+                      </span>
+                    </span>
+                    <span className="flex items-center gap-2">
+                      <span className="font-semibold">£{Math.round(b.amount).toLocaleString()}</span>
+                      <span className="text-destructive text-xs font-medium">⚠️ AT RISK</span>
+                    </span>
+                  </div>
+                ))}
+                {/* Show covered bills only when toggled */}
+                {showAllBills && coveredBills.map((b, i) => (
+                  <div key={`cov-${i}`} className="flex items-center justify-between text-muted-foreground">
+                    <span className="flex items-center gap-2">
+                      ✅ {b.name}
+                      <span className="text-xs">
+                        {b.daysUntilDue === 0 ? "Today" : `in ${b.daysUntilDue}d`}
+                      </span>
+                    </span>
+                    <span className="font-semibold">£{Math.round(b.amount).toLocaleString()}</span>
+                  </div>
+                ))}
+              </>
+            )}
+            {/* Toggle link */}
+            {coveredBills.length > 0 && (
+              <button
+                className="text-xs font-medium text-muted-foreground hover:text-foreground"
+                onClick={() => setShowAllBills(v => !v)}
+              >
+                {showAllBills ? "Hide covered bills" : `Show all bills (${coveredBills.length} covered)`}
+              </button>
+            )}
             {avgWeeklyPayout > 0 && (
               <div className="flex items-center justify-between">
                 <span className="flex items-center gap-2">
@@ -339,7 +391,7 @@ const CashHealthSection = ({ upcomingRevenue }: CashHealthSectionProps) => {
 
           <div className="flex flex-wrap gap-4">
             <div>
-              <p className="text-xs text-muted-foreground">Projected balance on 1st</p>
+              <p className="text-xs text-muted-foreground">Projected balance on 1st (after groomer pay)</p>
               <p className={`text-lg font-bold ${isCovered ? "text-green-600" : "text-destructive"}`}>
                 £{Math.round(projectedEndBalance).toLocaleString()}
               </p>
@@ -418,7 +470,7 @@ const CashHealthSection = ({ upcomingRevenue }: CashHealthSectionProps) => {
           </Collapsible>
 
           <p className="text-[10px] text-muted-foreground">
-            Based on bank balance of £{Math.round(currentBalance).toLocaleString()} updated {formatDistanceToNow(new Date(latestBalance.noted_at), { addSuffix: true })} + £{Math.round(upcomingRevenue).toLocaleString()} projected income remaining this month
+            Based on £{Math.round(currentBalance).toLocaleString()} in bank + £{Math.round(upcomingRevenue).toLocaleString()} projected income (after ~40% groomer pay = £{Math.round(ownerNetRemaining).toLocaleString()} owner net)
           </p>
         </div>
       )}
