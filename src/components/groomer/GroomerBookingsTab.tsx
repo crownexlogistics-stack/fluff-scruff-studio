@@ -414,12 +414,18 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
         logAudit({ action: "BOOKING_COMPLETED", details: `Completed booking ${bookingId}. Total: £${totalPrice.toFixed(2)}. Final charge: £${finalCharge.toFixed(2)}. Commission: ${isOwnCustomer ? "Own 50%" : "Standard 40%"} = £${groomerPay.toFixed(2)} groomer / £${studioShare.toFixed(2)} studio.` });
       }
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       toast.success("Appointment completed");
       queryClient.invalidateQueries({ queryKey: ["groomer-bookings"] });
       queryClient.invalidateQueries({ queryKey: ["groomer-migrated-bookings"] });
       queryClient.invalidateQueries({ queryKey: ["commission-records"] });
       queryClient.invalidateQueries({ queryKey: ["groomer-commissions"] });
+      // Trigger anomaly detection (fire and forget)
+      if (!variables.isMigrated) {
+        supabase.functions.invoke("check-payment-anomaly", {
+          body: { booking_id: variables.bookingId },
+        }).catch(() => {});
+      }
     },
     onError: (e: any) => toast.error(e.message),
   });

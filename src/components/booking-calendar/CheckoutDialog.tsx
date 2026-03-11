@@ -92,6 +92,9 @@ export function CheckoutDialog({ open, onOpenChange, booking, onComplete, onNoSh
             </div>
 
             <div className="space-y-1">
+              <p className="text-xs text-muted-foreground italic" style={{ fontFamily: 'Nunito, sans-serif', fontSize: '12px', color: '#666' }}>
+                💡 All charges are verified against the booking total and deposit before payout is processed.
+              </p>
               <Label>Final charge to customer (£)</Label>
               <NumericInput
                 value={finalCharge}
