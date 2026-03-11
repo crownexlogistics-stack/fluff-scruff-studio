@@ -316,6 +316,9 @@ export default function YearOnYearTab() {
 
       {/* Sidebar — outside export area */}
       <TimelineHighlightsSidebar highlights={highlights} />
+
+      {/* Groomer Performance — below everything */}
+      <GroomerPerformanceSection data={groomerPerformance} isLoading={isLoading} />
     </div>
   );
 }
