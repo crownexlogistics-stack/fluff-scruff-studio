@@ -10,6 +10,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTimelineAnalytics } from "./year-on-year/useTimelineAnalytics";
 import TimelineHighlightsSidebar from "./year-on-year/TimelineHighlightsSidebar";
+import GroomerPerformanceSection from "./year-on-year/GroomerPerformanceSection";
 
 const xAxisProps = {
   dataKey: "label" as const,
