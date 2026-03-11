@@ -766,6 +766,16 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
       return;
     }
 
+    // Audit trail entry for online booking
+    if (insertedBooking?.id) {
+      supabase.from("booking_audit_log" as any).insert({
+        booking_id: insertedBooking.id,
+        event_type: "created_online",
+        performed_by: "Customer (online)",
+        note: "Booking created online by customer",
+      } as any).then(() => {});
+    }
+
     if (appliedCoupon && insertedBooking?.id) {
       try {
         await supabase.from("coupon_usages").insert({

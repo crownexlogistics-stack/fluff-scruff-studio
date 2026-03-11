@@ -248,12 +248,21 @@ export function NewAppointmentDialog({
       } as any).select("id").single();
       if (error) throw error;
 
-      const staffName = staff?.find(s => s.id === form.staff_id)?.name || "Unknown";
       logAudit({
         staffId: form.staff_id || undefined,
         action: "BOOKING_CREATED",
         details: `Booking for ${form.customer_name} (${form.dog_name}) on ${form.booking_date} at ${form.booking_time.slice(0, 5)} with ${staffName}`,
       });
+
+      // Audit trail entry
+      if (insertedBooking?.id) {
+        supabase.from("booking_audit_log" as any).insert({
+          booking_id: insertedBooking.id,
+          event_type: "created_by_staff",
+          performed_by: staffName,
+          note: "Booking created manually by staff",
+        } as any).then(() => {});
+      }
 
       if (form.customer_email && insertedBooking?.id) {
         supabase.functions.invoke("send-booking-email", {
