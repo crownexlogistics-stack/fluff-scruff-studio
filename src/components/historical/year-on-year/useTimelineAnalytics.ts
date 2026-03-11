@@ -97,17 +97,6 @@ export function useTimelineAnalytics() {
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
 
-  const { data: staffData } = useQuery({
-    queryKey: ["staff-commission-rates"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("staff")
-        .select("id, name, commission_rate");
-      if (error) throw error;
-      return data || [];
-    },
-  });
-
   const { data: dbData, isLoading } = useQuery({
     queryKey: ["wix-timeline-full"],
     queryFn: async () => {
