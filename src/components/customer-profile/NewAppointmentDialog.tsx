@@ -227,6 +227,8 @@ export function NewAppointmentDialog({
         addOnNames.length > 0 ? `Add-ons: ${addOnNames.join(", ")}` : "",
       ].filter(Boolean).join("\n");
 
+      const staffName = staff?.find(s => s.id === form.staff_id)?.name || "Unknown";
+
       const { data: insertedBooking, error } = await supabase.from("bookings").insert({
         customer_name: form.customer_name,
         dog_name: form.dog_name,
@@ -241,7 +243,9 @@ export function NewAppointmentDialog({
         deposit_paid: form.deposit_paid,
         notes: notesWithAddOns || null,
         status: "Confirmed",
-      }).select("id").single();
+        booking_source: "staff",
+        created_by_staff: staffName,
+      } as any).select("id").single();
       if (error) throw error;
 
       const staffName = staff?.find(s => s.id === form.staff_id)?.name || "Unknown";
