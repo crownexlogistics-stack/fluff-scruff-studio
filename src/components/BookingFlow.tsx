@@ -911,16 +911,21 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
   const availableTimeSlots = useMemo(() => {
     if (!selectedDate || !groomers?.length || !baseSchedules) return [];
     const date = new Date(selectedDate + "T00:00:00");
+    // If customer selected a specific groomer, only show THAT groomer's available slots
+    const groomersForSlots = (isExistingCustomer && selectedStaffId)
+      ? groomers.filter(g => g.id === selectedStaffId)
+      : groomers;
+    if (!groomersForSlots.length) return [];
     return generateAvailableSlots(
       date,
       serviceDuration,
-      groomers,
+      groomersForSlots,
       baseSchedules,
       allOverridesForDate || [],
       existingBookingsForDate || [],
       30
     );
-  }, [selectedDate, groomers, baseSchedules, allOverridesForDate, existingBookingsForDate, serviceDuration]);
+  }, [selectedDate, groomers, baseSchedules, allOverridesForDate, existingBookingsForDate, serviceDuration, isExistingCustomer, selectedStaffId]);
 
   const isDateSelectableDate = (d: Date) => {
     const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
