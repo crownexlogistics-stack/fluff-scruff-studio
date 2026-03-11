@@ -425,8 +425,8 @@ export default function CustomerProfilePage() {
 
   // ── Derived data ──────────────────────────────────────────────────
 
-  const customerName = bookings?.[0]?.customer_name || "Customer";
-  const customerPhone = bookings?.find((b) => b.customer_phone)?.customer_phone || "";
+  const customerName = bookings?.[0]?.customer_name || migratedCustomer?.full_name || "Customer";
+  const customerPhone = bookings?.find((b) => b.customer_phone)?.customer_phone || migratedCustomer?.phone || "";
   const initials = customerName.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
 
   // Merge migrated bookings into past bookings display
