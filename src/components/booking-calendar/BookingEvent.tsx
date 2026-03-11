@@ -87,6 +87,22 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
       return (data as any[]) || [];
     },
   });
+
+  // Fetch audit log for this booking
+  const { data: auditLog } = useQuery({
+    queryKey: ["booking-audit-log", booking.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("booking_audit_log" as any)
+        .select("event_type, performed_by, performed_at, old_date, old_time, new_date, new_time, note")
+        .eq("booking_id", booking.id)
+        .order("performed_at", { ascending: true });
+      if (error) throw error;
+      return data as any[];
+    },
+    enabled: !booking.is_block && !booking.is_overtime,
+  });
+
   const isCancelled = booking.status === "Cancelled";
   const isNoShow = booking.status === "No Show";
   const isRefunded = booking.status === "Refunded";
