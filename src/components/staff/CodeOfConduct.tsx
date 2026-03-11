@@ -27,6 +27,16 @@ const conductItems = [
     description:
       "All staff members are expected to treat one another with courtesy, respect, and professionalism at all times. We are committed to maintaining a positive and supportive workplace where everyone feels valued and safe.",
   },
+  {
+    title: "Client Loyalty & Business Integrity",
+    description:
+      "Contractors must not, under any circumstances, encourage, suggest, or advise clients to take their business elsewhere, whether to another salon, a private arrangement, or any other grooming service. This includes direct verbal suggestions, indirect comments, sharing personal contact details for private bookings, or any communication that could reasonably result in the salon losing a client relationship. Fluff & Scruff Studio invests significantly in client acquisition and retention, and all client relationships developed through the salon's booking system, premises, equipment, and materials remain the property of the business.",
+  },
+  {
+    title: "Termination of Contract",
+    description:
+      "Fluff & Scruff Studio reserves the right to terminate any contractor agreement immediately and without notice in the event of a breach of any section of this Code of Conduct. This includes but is not limited to: directing clients away from the business, misconduct, failure to maintain professional standards, or any action deemed damaging to the reputation or commercial interests of Fluff & Scruff Studio. No notice period is required where a serious breach has occurred.",
+  },
 ];
 
 interface CodeOfConductProps {
