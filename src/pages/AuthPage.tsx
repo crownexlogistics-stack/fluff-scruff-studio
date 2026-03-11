@@ -216,7 +216,7 @@ const AuthPage = () => {
         {/* Hide form when migrated prompt is showing */}
         {!migratedPrompt.show && (
           <>
-            <form onSubmit={getFormHandler()} className="space-y-4">
+            <form onSubmit={getFormHandler()} className="space-y-4" data-form-type="login">
               {mode === "signup" && (
                 <div className="space-y-2">
                   <Label htmlFor="fullName">Full Name</Label>
@@ -228,6 +228,8 @@ const AuthPage = () => {
                 <Label htmlFor="email">Email</Label>
                 <Input
                   id="email"
+                  name="email"
+                  autoComplete="email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -242,6 +244,8 @@ const AuthPage = () => {
                     <Label htmlFor="password">Password</Label>
                     <Input
                       id="password"
+                      name="password"
+                      autoComplete="current-password"
                       type="password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
