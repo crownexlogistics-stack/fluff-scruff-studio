@@ -558,9 +558,34 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
           <div className="border-t pt-3">
             <p className="font-bold text-[13px] mb-2" style={{ color: "#2D1B0E", fontFamily: "Nunito, sans-serif" }}>📋 Booking History</p>
             {(!auditLog || auditLog.length === 0) ? (
-              <p className="text-xs italic" style={{ color: "#999", fontFamily: "Nunito, sans-serif" }}>
-                No history recorded — audit trail starts from today
-              </p>
+              <div className="space-y-1.5">
+                {booking.is_migrated ? (
+                  <div className="flex items-start gap-2">
+                    <div className="mt-1 shrink-0 h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "#FF9800" }} />
+                    <p className="text-xs" style={{ color: "#2D1B0E", fontFamily: "Nunito, sans-serif", fontSize: "12px" }}>
+                      Wix Migrated Appointment
+                    </p>
+                  </div>
+                ) : (booking as any).booking_source === "online" ? (
+                  <div className="flex items-start gap-2">
+                    <div className="mt-1 shrink-0 h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "#FFB800" }} />
+                    <p className="text-xs" style={{ color: "#2D1B0E", fontFamily: "Nunito, sans-serif", fontSize: "12px" }}>
+                      Booked online by customer
+                    </p>
+                  </div>
+                ) : (booking as any).booking_source === "staff" ? (
+                  <div className="flex items-start gap-2">
+                    <div className="mt-1 shrink-0 h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "#FF6B35" }} />
+                    <p className="text-xs" style={{ color: "#2D1B0E", fontFamily: "Nunito, sans-serif", fontSize: "12px" }}>
+                      Created by {(booking as any).created_by_staff || "staff"}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-xs italic" style={{ color: "#999", fontFamily: "Nunito, sans-serif" }}>
+                    No history recorded — audit trail starts from today
+                  </p>
+                )}
+              </div>
             ) : (
               <div className="space-y-1.5">
                 {auditLog.map((entry: any, i: number) => {
