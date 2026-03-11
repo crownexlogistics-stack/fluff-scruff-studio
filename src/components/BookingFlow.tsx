@@ -757,7 +757,8 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
       notes: guestForm.notes.trim() || null,
       status: "Pending",
       campaign_id: utmCampaignId,
-    }).select("id").single();
+      booking_source: "online",
+    } as any).select("id").single();
 
     if (error) {
       setAlertMessage("Failed to book — please try again");
