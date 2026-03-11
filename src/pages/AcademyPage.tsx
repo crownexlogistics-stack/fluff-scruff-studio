@@ -438,7 +438,7 @@ export default function AcademyPage() {
           </div>
 
           {/* ── FOURTH CARD — Month-Long Programme ── */}
-          <motion.div variants={fadeUp} className="relative rounded-2xl p-8 md:p-10 mt-8 flex flex-col" style={{ background: "#2D1B0E" }}>
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.1 }} variants={fadeUp} className="relative rounded-2xl p-8 md:p-10 mt-8 flex flex-col" style={{ background: "#2D1B0E" }}>
             <span className="absolute -top-3 left-4 px-3 py-1 rounded-full text-xs font-bold" style={{ background: "#FFB800", color: "#2D1B0E" }}>
               ⭐ Most Comprehensive
             </span>
