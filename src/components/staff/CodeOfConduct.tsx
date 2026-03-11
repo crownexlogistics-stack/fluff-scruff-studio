@@ -15,7 +15,7 @@ const conductItems = [
   {
     title: "Escalation & Decision-Making",
     description:
-      "Any matters relating to discounts, timekeeping, cleaning duties, time-off requests, or pay must be directed to the salon directors, Sevak and Andriy. As self-employed contractors, all staff are expected to take personal responsibility for their own work, scheduling, and client management.",
+      "Any matters relating to discounts, timekeeping, cleaning duties, time-off requests, or pay must be directed to the salon directors, Sevak and Andriy. As self-employed contractors, all contractors are expected to take personal responsibility for their own work, scheduling, and client management.",
   },
   {
     title: "Reporting Concerns & Incidents",
