@@ -122,7 +122,7 @@ export default function YearOnYearTab() {
                 </div>
                 <p className="font-heading text-2xl font-bold" style={{ color: "#2D1B0E" }}>£{yr.revenue.toLocaleString()}</p>
                 <p className="text-xs" style={{ color: "#8B6F5C" }}>{yr.bookings.toLocaleString()} confirmed bookings</p>
-                {yr.growthPct !== null && (
+                {yr.growthPct !== null && yr.year !== new Date().getFullYear() && (
                   <span
                     className="inline-block mt-1 text-[10px] font-bold px-2 py-0.5 rounded-full text-white"
                     style={{ backgroundColor: yr.growthPct >= 0 ? "#22c55e" : "#ef4444" }}
