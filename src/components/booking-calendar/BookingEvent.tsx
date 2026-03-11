@@ -305,51 +305,43 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <TooltipProvider delayDuration={400}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div
-                className={cn(
-                  "absolute rounded-md px-2 py-1 text-xs cursor-pointer z-10 overflow-hidden transition-opacity hover:opacity-90",
-                  color.bg, color.text,
-                  isGhost && "line-through opacity-50"
-                )}
-                style={{ ...overlapStyle, height: `${height}px`, minHeight: isGhost ? "16px" : "48px" }}
-              >
-                {isGhost ? (
-                  <p className="font-medium truncate text-[10px]">
-                    {booking.customer_name} — {isRefunded ? "Refunded" : isCancelled ? "Cancelled" : "No Show"}
-                  </p>
-                ) : (
-                  <>
-                    {booking.is_migrated && (
-                      <span className="absolute top-0.5 right-0.5 bg-amber-500 text-white text-[8px] font-bold rounded px-0.5 leading-tight z-20">W</span>
-                    )}
-                    {height < 50 ? (
-                      <p className="text-[10px] font-bold truncate">{booking.booking_time.slice(0, 5)}</p>
-                    ) : height < 80 ? (
-                      <>
-                        <p className="text-[10px] opacity-70">{booking.booking_time.slice(0, 5)}</p>
-                        <p className="font-bold truncate">{booking.customer_name}</p>
-                      </>
-                    ) : (
-                      <>
-                        <p className="text-[10px] opacity-70">{booking.booking_time.slice(0, 5)}</p>
-                        <p className="font-bold truncate">{booking.service_name || "Appointment"}</p>
-                        <p className="truncate">{booking.breed_name || booking.dog_name}</p>
-                        <p className="truncate">{booking.customer_name}</p>
-                        <p className="opacity-80 truncate text-[10px]">With: {booking.staff_name}</p>
-                      </>
-                    )}
-                  </>
-                )}
-              </div>
-            </TooltipTrigger>
-            <TooltipContent side="top" className="max-w-xs text-xs">
-              {tooltipSummary}
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <div
+          title={tooltipSummary}
+          className={cn(
+            "absolute rounded-md px-2 py-1 text-xs cursor-pointer z-10 overflow-hidden transition-opacity hover:opacity-90",
+            color.bg, color.text,
+            isGhost && "line-through opacity-50"
+          )}
+          style={{ ...overlapStyle, height: `${height}px`, minHeight: isGhost ? "16px" : "48px" }}
+        >
+          {isGhost ? (
+            <p className="font-medium truncate text-[10px]">
+              {booking.customer_name} — {isRefunded ? "Refunded" : isCancelled ? "Cancelled" : "No Show"}
+            </p>
+          ) : (
+            <>
+              {booking.is_migrated && (
+                <span className="absolute top-0.5 right-0.5 bg-amber-500 text-white text-[8px] font-bold rounded px-0.5 leading-tight z-20">W</span>
+              )}
+              {height < 50 ? (
+                <p className="text-[10px] font-bold truncate">{booking.booking_time.slice(0, 5)}</p>
+              ) : height < 80 ? (
+                <>
+                  <p className="text-[10px] opacity-70">{booking.booking_time.slice(0, 5)}</p>
+                  <p className="font-bold truncate">{booking.customer_name}</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-[10px] opacity-70">{booking.booking_time.slice(0, 5)}</p>
+                  <p className="font-bold truncate">{booking.service_name || "Appointment"}</p>
+                  <p className="truncate">{booking.breed_name || booking.dog_name}</p>
+                  <p className="truncate">{booking.customer_name}</p>
+                  <p className="opacity-80 truncate text-[10px]">With: {booking.staff_name}</p>
+                </>
+              )}
+            </>
+          )}
+        </div>
       </PopoverTrigger>
       <PopoverContent className="w-[calc(100vw-2rem)] sm:w-80 max-w-sm p-0 max-h-[75vh] overflow-y-auto" side="bottom" align="center" sideOffset={4} avoidCollisions collisionPadding={16}>
         <div className="p-4 space-y-3">
