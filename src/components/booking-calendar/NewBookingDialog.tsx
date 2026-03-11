@@ -195,7 +195,6 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
   };
 
   const handleAddNew = () => {
-    console.log("[NewBookingDialog] handleAddNew called, setting isNewCustomer=true");
     setIsNewCustomer(true);
     setCustomerSelected(false);
     setNewCustomerError("");
