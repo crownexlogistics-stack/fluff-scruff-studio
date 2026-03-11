@@ -727,11 +727,9 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
         // Customer selected a specific groomer — verify THAT groomer is still free
         const slotStart = parseTimeToMinutes(selectedTime!);
         const slotEnd = slotStart + serviceDuration;
-        const dayOfWeek = (bookingDate.getDay() + 6) % 7;
 
-        // Check the groomer has a working window that fits the slot
-        const { generateAvailableSlots: _, ...rest } = await import("@/lib/availability");
-        // Inline window + conflict check for the selected groomer
+        // Check the selected groomer has no booking conflict at this time
+
         const hasBookingConflict = freshBookings.some((b) => {
           if (b.staff_id !== selectedStaffId) return false;
           const bStart = parseTimeToMinutes(b.booking_time);
