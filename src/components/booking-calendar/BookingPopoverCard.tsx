@@ -143,10 +143,18 @@ export function BookingPopoverCard({
         </div>
       </div>
 
-      {/* Status + Payment badges */}
+      {/* Status + Payment + Source badges */}
       <div className="flex flex-wrap gap-2">
         {booking.is_migrated && (
           <Badge className="bg-amber-500 text-white hover:bg-amber-500 text-[10px]">W — Wix Booking</Badge>
+        )}
+        {(booking as any).booking_source === "online" && (
+          <Badge className="text-[10px]" style={{ backgroundColor: "#FFB800", color: "#2D1B0E" }}>🌐 Booked Online</Badge>
+        )}
+        {(booking as any).booking_source === "staff" && (
+          <Badge className="text-[10px]" style={{ backgroundColor: "#f0f0f0", color: "#2D1B0E" }}>
+            👤 Booked by Staff{(booking as any).created_by_staff ? ` — ${(booking as any).created_by_staff}` : ""}
+          </Badge>
         )}
         <Badge variant={
           booking.status === "Confirmed" ? "default" :
