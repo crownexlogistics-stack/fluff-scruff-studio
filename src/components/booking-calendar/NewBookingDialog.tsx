@@ -33,6 +33,7 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
 
   const [isNewCustomer, setIsNewCustomer] = useState(false);
   const [customerSelected, setCustomerSelected] = useState(false);
+  const [newCustomerError, setNewCustomerError] = useState("");
   const [selectedDogs, setSelectedDogs] = useState<{ name: string; breed_id: string | null }[]>([]);
   const [selectedAddOns, setSelectedAddOns] = useState<string[]>([]);
 
