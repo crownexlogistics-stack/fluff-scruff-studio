@@ -36,6 +36,7 @@ const COURSE_VALUES: Record<string, string> = {
   "Groom Your Own Dog": "Pet Owner Session — £300",
   "Full Day Grooming Masterclass": "Full Day Masterclass — £250",
   "Pro Skills Workshop": "Pro Skills Workshop — £180",
+  "Month-Long Grooming Programme": "Month-Long Grooming Programme — £2,800",
 };
 
 interface InterestFormData {
