@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { NumericInput } from "@/components/ui/numeric-input";
 import { Textarea } from "@/components/ui/textarea";
@@ -20,6 +21,8 @@ import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addWeeks, add
 import { toast } from "sonner";
 import { logAudit } from "@/lib/auditLog";
 import ExpensesTab from "@/components/finance/ExpensesTab";
+import AnomaliesTab from "@/components/finance/AnomaliesTab";
+import PayoutHistoryTab from "@/components/finance/PayoutHistoryTab";
 
 type Period = "weekly" | "monthly";
 
