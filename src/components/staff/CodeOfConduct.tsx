@@ -25,7 +25,7 @@ const conductItems = [
   {
     title: "Mutual Respect & Professionalism",
     description:
-      "All staff members are expected to treat one another with courtesy, respect, and professionalism at all times. We are committed to maintaining a positive and supportive workplace where everyone feels valued and safe.",
+      "All contractors are expected to treat one another with courtesy, respect, and professionalism at all times. We are committed to maintaining a positive and supportive working environment where everyone feels valued and safe.",
   },
   {
     title: "Client Loyalty & Business Integrity",
