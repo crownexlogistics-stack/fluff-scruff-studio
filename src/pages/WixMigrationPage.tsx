@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Upload, FileSpreadsheet, CheckCircle2, AlertTriangle, XCircle, TrendingUp, ShieldCheck, FolderOpen, Calendar, Users } from "lucide-react";
+import GapFillSection from "@/components/wix-migration/GapFillSection";
 import { toast } from "sonner";
 import Papa from "papaparse";
 import { format } from "date-fns";
@@ -574,6 +575,8 @@ const WixMigrationPage = () => {
           <h1 className="text-2xl font-heading font-bold">Wix Historical Bookings</h1>
           <p className="text-sm text-muted-foreground">Import and browse historical booking data from Wix for revenue analysis</p>
         </div>
+
+        <GapFillSection />
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList>
