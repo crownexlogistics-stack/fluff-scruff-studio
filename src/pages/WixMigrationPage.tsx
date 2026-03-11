@@ -576,6 +576,8 @@ const WixMigrationPage = () => {
           <p className="text-sm text-muted-foreground">Import and browse historical booking data from Wix for revenue analysis</p>
         </div>
 
+        <GapFillSection />
+
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList>
             <TabsTrigger value="archive">📂 Wix Historical Archive</TabsTrigger>
