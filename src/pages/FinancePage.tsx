@@ -295,7 +295,7 @@ const FinancePage = () => {
                   {owedRemaining <= 0 && selectedSummary.totalGroomerPay > 0 && <Badge className="bg-emerald-600 text-white mt-1">Fully Paid</Badge>}
                 </div>
                 {owedRemaining > 0 && (
-                  <Button onClick={() => { setPayoutAmount(owedRemaining); setPayoutOpen(true); }}>
+                  <Button onClick={handleProcessPayoutClick}>
                     <Banknote className="h-4 w-4 mr-1" /> Process Payout
                   </Button>
                 )}
