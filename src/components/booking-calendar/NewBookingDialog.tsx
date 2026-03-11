@@ -443,14 +443,14 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <Label className="text-sm font-medium">New Customer</Label>
-                    <Button type="button" variant="ghost" size="sm" onClick={() => { setIsNewCustomer(false); setCustomerSelected(false); }}>
+                    <Button type="button" variant="ghost" size="sm" onClick={() => { setIsNewCustomer(false); setCustomerSelected(false); setNewCustomerError(""); }}>
                       ← Back to search
                     </Button>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <Label>Customer Name</Label>
-                      <Input value={form.customer_name} onChange={(e) => setForm({ ...form, customer_name: e.target.value })} />
+                      <Input value={form.customer_name} onChange={(e) => { setForm({ ...form, customer_name: e.target.value }); setNewCustomerError(""); }} />
                     </div>
                     <div className="space-y-1">
                       <Label>Dog Name</Label>
@@ -460,13 +460,16 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <Label>Email</Label>
-                      <Input type="email" value={form.customer_email} onChange={(e) => setForm({ ...form, customer_email: e.target.value })} />
+                      <Input type="email" value={form.customer_email} onChange={(e) => { setForm({ ...form, customer_email: e.target.value }); setNewCustomerError(""); }} />
                     </div>
                     <div className="space-y-1">
                       <Label>Phone</Label>
-                      <Input value={form.customer_phone} onChange={(e) => setForm({ ...form, customer_phone: e.target.value })} />
+                      <Input value={form.customer_phone} onChange={(e) => { setForm({ ...form, customer_phone: e.target.value }); setNewCustomerError(""); }} />
                     </div>
                   </div>
+                  {newCustomerError && (
+                    <p className="text-sm text-destructive">{newCustomerError}</p>
+                  )}
                 </div>
               )}
 
