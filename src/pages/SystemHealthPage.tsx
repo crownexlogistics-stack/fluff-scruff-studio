@@ -61,7 +61,7 @@ export default function SystemHealthPage() {
       { name: "record-payment", category: "Edge Functions", status: "checking", description: "Payment recording function" },
       { name: "cancel-booking-with-refund", category: "Edge Functions", status: "checking", description: "Cancellation/refund function" },
       { name: "sign-document", category: "Edge Functions", status: "checking", description: "Document signing function" },
-      { name: "SendGrid (Email)", category: "Email", status: "checking", description: "Email provider connection" },
+      { name: "Resend (Email)", category: "Email", status: "checking", description: "Email provider connection" },
       { name: "Stripe API", category: "Stripe", status: "checking", description: "Payment processor connection" },
       { name: "Storage Buckets", category: "Storage", status: "checking", description: "File storage access" },
       { name: "Twilio (SMS)", category: "SMS", status: "checking", description: "SMS provider connection" },
