@@ -176,13 +176,20 @@ const StaffDetailPage = () => {
 
   const saveAvailabilityMutation = useMutation({
     mutationFn: async () => {
-      // Delete existing then insert
-      await supabase.from("staff_availability").delete().eq("staff_id", id!);
-      const rows = availability.map((a) => ({
-        staff_id: id!, day_of_week: a.day_of_week, start_time: a.start_time, end_time: a.end_time, is_available: a.is_available,
-      }));
-      const { error } = await supabase.from("staff_availability").insert(rows);
-      if (error) throw error;
+      // UPSERT each day — never delete/recreate to avoid ghost records
+      for (const a of availability) {
+        const { error } = await supabase.from("staff_availability").upsert(
+          {
+            staff_id: id!,
+            day_of_week: a.day_of_week,
+            start_time: a.start_time,
+            end_time: a.end_time,
+            is_available: a.is_available,
+          },
+          { onConflict: "staff_id,day_of_week" }
+        );
+        if (error) throw error;
+      }
     },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["staff_availability", id] }); toast.success("Working hours saved"); },
     onError: (e: Error) => toast.error(e.message),

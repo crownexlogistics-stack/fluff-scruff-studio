@@ -195,14 +195,14 @@ Deno.serve(async (req) => {
     // ── 4. Check existing bookings for conflicts ──
     const { data: existingBookings } = await supabase
       .from("bookings")
-      .select("booking_time, duration_minutes, staff_id, services(duration_minutes), breeds(duration_minutes)")
+      .select("id, booking_time, duration_minutes, staff_id, status, services(duration_minutes), breeds(duration_minutes)")
       .eq("booking_date", date)
       .eq("staff_id", groomer_id)
       .not("status", "in", "(Cancelled,No Show,Refunded)");
 
+    console.log(`[check-availability] Found ${(existingBookings || []).length} active bookings for ${staff.name} on ${date}`);
     for (const b of (existingBookings || [])) {
       const bStart = parseTimeToMinutes(b.booking_time);
-      // Use duration_minutes from booking first, then service, then breed, fallback 90
       const bDuration = Number(
         b.duration_minutes ??
         (b as any).services?.duration_minutes ??
@@ -210,6 +210,7 @@ Deno.serve(async (req) => {
         90
       );
       const bEnd = bStart + bDuration;
+      console.log(`[check-availability] Existing booking id=${b.id} status=${b.status} time=${b.booking_time} duration=${bDuration}min range=${bStart}-${bEnd}`);
       if (slotStart < bEnd && slotEnd > bStart) {
         console.log(`[check-availability] BLOCKED: overlaps existing booking ${b.booking_time} duration=${bDuration}min`);
         return new Response(
