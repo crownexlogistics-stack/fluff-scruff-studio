@@ -52,6 +52,10 @@ export default function CustomerProfilePage() {
   const [newMessage, setNewMessage] = useState("");
   const [emailSubject, setEmailSubject] = useState("");
   const [emailBody, setEmailBody] = useState("");
+  const [aiOpen, setAiOpen] = useState(false);
+  const [aiInput, setAiInput] = useState("");
+  const [aiGenerated, setAiGenerated] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
   const [viewBookingOpen, setViewBookingOpen] = useState(false);
   const [viewBookingData, setViewBookingData] = useState<any>(null);
 
