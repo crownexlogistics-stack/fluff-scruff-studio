@@ -1429,7 +1429,6 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
                           )}
                         </div>
                       )}
-                      </div>
                     </div>
                   ) : (
                     <div className="text-center py-8">
