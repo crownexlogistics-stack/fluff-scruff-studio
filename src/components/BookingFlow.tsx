@@ -965,7 +965,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
     enabled: !!selectedDate && !!groomers?.length,
   });
 
-  const availableTimeSlots = useMemo(() => {
+  const clientSideSlots = useMemo(() => {
     if (!selectedDate || !groomers?.length || !baseSchedules) return [];
     const date = new Date(selectedDate + "T00:00:00");
     // If customer selected a specific groomer, only show THAT groomer's available slots
@@ -984,6 +984,72 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
       30
     );
   }, [selectedDate, groomers, baseSchedules, allOverridesForDate, existingBookingsForDate, serviceDuration, isExistingCustomer, selectedStaffId]);
+
+  // Server-side verification of every slot via check-availability edge function
+  useEffect(() => {
+    if (!clientSideSlots.length || !selectedDate) {
+      setServerVerifiedSlots([]);
+      setVerifyingSlots(false);
+      return;
+    }
+
+    // Determine which groomer(s) to check — if customer picked one, use that; otherwise check all
+    const groomerIdsToCheck = (isExistingCustomer && selectedStaffId)
+      ? [selectedStaffId]
+      : (groomers || []).map(g => g.id);
+
+    if (!groomerIdsToCheck.length) {
+      setServerVerifiedSlots([]);
+      return;
+    }
+
+    let cancelled = false;
+    setVerifyingSlots(true);
+    setServerVerifiedSlots(null);
+
+    (async () => {
+      console.log(`[availability] Server-verifying ${clientSideSlots.length} slots for date=${selectedDate}`);
+      const verified: string[] = [];
+
+      // Check all slots in parallel (batch of promises)
+      const results = await Promise.all(
+        clientSideSlots.map(async (time) => {
+          // For "any groomer" mode, check each groomer until one is available
+          for (const gid of groomerIdsToCheck) {
+            try {
+              const { data } = await supabase.functions.invoke("check-availability", {
+                body: {
+                  groomer_id: gid,
+                  date: selectedDate,
+                  start_time: time,
+                  duration_minutes: serviceDuration,
+                },
+              });
+              if (data?.available) return time;
+            } catch (err) {
+              console.warn(`[availability] Edge fn error for slot ${time} groomer ${gid}:`, err);
+            }
+          }
+          return null; // No groomer available for this slot
+        })
+      );
+
+      if (cancelled) return;
+
+      for (const r of results) {
+        if (r) verified.push(r);
+      }
+
+      console.log(`[availability] Server verified: ${verified.length}/${clientSideSlots.length} slots available`);
+      setServerVerifiedSlots(verified);
+      setVerifyingSlots(false);
+    })();
+
+    return () => { cancelled = true; };
+  }, [clientSideSlots, selectedDate, serviceDuration, groomers, isExistingCustomer, selectedStaffId]);
+
+  // Use server-verified slots for display; fall back to empty while verifying
+  const availableTimeSlots = serverVerifiedSlots ?? [];
 
   const isDateSelectableDate = (d: Date) => {
     const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
