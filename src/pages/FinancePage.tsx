@@ -409,9 +409,13 @@ const FinancePage = () => {
                           <TableCell className="text-sm">{serviceName}</TableCell>
                           <TableCell className="text-sm">£{Number(c.total_price).toFixed(2)}</TableCell>
                           <TableCell>
-                            <Badge variant={c.commission_type === "no_show" ? "destructive" : c.commission_type === "own_customer" ? "default" : "secondary"} className="text-xs">
-                              {c.commission_type === "own_customer" ? "Own 50%" : c.commission_type === "no_show" ? "No Show" : "Normal 40%"}
-                            </Badge>
+                            {c.commission_type === "no_show" ? (
+                              <Badge className="bg-amber-500 text-white hover:bg-amber-500 text-xs">NO SHOW SPLIT</Badge>
+                            ) : (
+                              <Badge variant={c.commission_type === "own_customer" ? "default" : "secondary"} className="text-xs">
+                                {c.commission_type === "own_customer" ? "Own 50%" : "Normal 40%"}
+                              </Badge>
+                            )}
                           </TableCell>
                           <TableCell className="text-right font-medium">£{Number(c.groomer_pay).toFixed(2)}</TableCell>
                           <TableCell className="text-sm">£{balanceDue.toFixed(2)}</TableCell>
