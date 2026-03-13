@@ -125,3 +125,6 @@ verify_jwt = false
 
 [functions.check-payment-anomaly]
 verify_jwt = false
+
+[functions.check-availability]
+verify_jwt = false

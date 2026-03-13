@@ -691,7 +691,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
       const [freshBookingsRes, freshOverridesRes, freshMigratedRes] = await Promise.all([
         supabase
           .from("bookings")
-          .select("booking_time, staff_id, services(duration_minutes), breeds(duration_minutes)")
+          .select("booking_time, staff_id, duration_minutes, services(duration_minutes), breeds(duration_minutes)")
           .eq("booking_date", selectedDate!)
           .not("status", "in", "(Cancelled,No Show,Refunded)"),
         supabase
@@ -733,7 +733,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
         const hasBookingConflict = freshBookings.some((b) => {
           if (b.staff_id !== selectedStaffId) return false;
           const bStart = parseTimeToMinutes(b.booking_time);
-          const bDuration = Number(b.services?.duration_minutes ?? b.breeds?.duration_minutes ?? 90);
+          const bDuration = Number(b.duration_minutes ?? b.services?.duration_minutes ?? b.breeds?.duration_minutes ?? 90);
           const bEnd = bStart + bDuration;
           return slotStart < bEnd && slotEnd > bStart;
         });
@@ -767,6 +767,36 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
       }
     }
 
+    // ── Server-side availability check via edge function ──
+    console.log(`[booking] Server-side availability check: groomer=${assignedStaffId} date=${selectedDate} time=${selectedTime} duration=${serviceDuration}`);
+    try {
+      const { data: availCheck, error: availErr } = await supabase.functions.invoke("check-availability", {
+        body: {
+          groomer_id: assignedStaffId,
+          date: selectedDate,
+          start_time: selectedTime,
+          duration_minutes: serviceDuration,
+        },
+      });
+      if (availErr) {
+        console.error("[booking] Availability check failed:", availErr);
+        setAlertMessage("Could not verify availability — please try again.");
+        setIsSubmitting(false);
+        return;
+      }
+      if (!availCheck?.available) {
+        console.warn("[booking] Server rejected:", availCheck?.reason);
+        setAlertMessage(availCheck?.reason || "This slot is no longer available. Please choose another time.");
+        setIsSubmitting(false);
+        return;
+      }
+    } catch (checkErr) {
+      console.error("[booking] Availability check error:", checkErr);
+      setAlertMessage("Could not verify availability — please try again.");
+      setIsSubmitting(false);
+      return;
+    }
+
     const { data: insertedBooking, error } = await supabase.from("bookings").insert({
       customer_name: guestForm.name,
       customer_phone: guestForm.phone || null,
@@ -779,6 +809,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
       booking_time: selectedTime!,
       total_price: totalPrice,
       deposit_paid: 0,
+      duration_minutes: serviceDuration,
       notes: guestForm.notes.trim() || null,
       status: "Pending",
       campaign_id: utmCampaignId,
@@ -897,15 +928,39 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
     queryKey: ["bookings-for-date", selectedDate],
     queryFn: async () => {
       if (!selectedDate) return [];
-      const { data, error } = await supabase
-        .from("bookings")
-        .select("booking_time, staff_id, status, services(duration_minutes), breeds(duration_minutes)")
-        .eq("booking_date", selectedDate)
-        .not("status", "in", "(Cancelled,No Show,Refunded)");
-      if (error) throw error;
-      return (data || []) as ExistingBooking[];
+      const [bookingsRes, migratedRes] = await Promise.all([
+        supabase
+          .from("bookings")
+          .select("booking_time, staff_id, duration_minutes, services(duration_minutes), breeds(duration_minutes)")
+          .eq("booking_date", selectedDate)
+          .not("status", "in", "(Cancelled,No Show,Refunded)"),
+        supabase
+          .from("migrated_bookings")
+          .select("booking_time, staff_name, duration_minutes")
+          .eq("booking_date", selectedDate)
+          .eq("is_future_booking", true),
+      ]);
+      if (bookingsRes.error) throw bookingsRes.error;
+      const realBookings = (bookingsRes.data || []) as ExistingBooking[];
+      
+      // Convert migrated bookings to ExistingBooking format
+      const migratedAsBookings: ExistingBooking[] = (migratedRes.data || [])
+        .map((mb: any) => {
+          const firstName = mb.staff_name?.split(" ")[0]?.toLowerCase() || "";
+          const matched = groomers?.find(g => g.name.split(" ")[0].toLowerCase() === firstName);
+          if (!matched || !mb.booking_time) return null;
+          return {
+            staff_id: matched.id,
+            booking_time: mb.booking_time,
+            services: { duration_minutes: mb.duration_minutes || 60 },
+          } as ExistingBooking;
+        })
+        .filter(Boolean) as ExistingBooking[];
+      
+      console.log(`[availability] Date ${selectedDate}: ${realBookings.length} bookings + ${migratedAsBookings.length} migrated bookings`);
+      return [...realBookings, ...migratedAsBookings];
     },
-    enabled: !!selectedDate,
+    enabled: !!selectedDate && !!groomers?.length,
   });
 
   const availableTimeSlots = useMemo(() => {
@@ -916,6 +971,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
       ? groomers.filter(g => g.id === selectedStaffId)
       : groomers;
     if (!groomersForSlots.length) return [];
+    console.log(`[availability] Generating slots: duration=${serviceDuration}min, groomers=${groomersForSlots.length}, bookings=${(existingBookingsForDate || []).length}`);
     return generateAvailableSlots(
       date,
       serviceDuration,
