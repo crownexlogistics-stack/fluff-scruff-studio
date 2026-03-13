@@ -1079,6 +1079,9 @@ export default function CustomerProfilePage() {
                               <Badge variant={em.direction === "inbound" ? "default" : "outline"} className="text-[10px] px-1.5 py-0 shrink-0">
                                 {em.direction === "inbound" ? "Received" : "Sent"}
                               </Badge>
+                              {(em as any)._isAutomated && (
+                                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 shrink-0">⚡ Auto</Badge>
+                              )}
                               <p className="text-sm font-medium truncate">{em.displaySubject}</p>
                             </div>
                             <span className="text-xs text-muted-foreground shrink-0">{format(new Date(em.created_at), "dd MMM yyyy, HH:mm")}</span>
