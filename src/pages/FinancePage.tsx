@@ -274,6 +274,7 @@ const FinancePage = () => {
     onError: (e: any) => toast.error(e.message),
   });
 
+  const handleProcessPayoutClick = async () => {
     if (!selectedStaffId || !selectedSummary) return;
     // Check for unreviewed anomalies
     const { data: unreviewed } = await supabase
