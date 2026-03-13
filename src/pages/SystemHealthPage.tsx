@@ -374,6 +374,14 @@ export default function SystemHealthPage() {
             </div>
           </div>
         ))}
+
+        {/* AI Analysis Section */}
+        {serverResults && (
+          <HealthAIAnalysis
+            healthResults={serverResults}
+            checksFinished={!running && checks.length > 0}
+          />
+        )}
       </div>
     </AppLayout>
   );
