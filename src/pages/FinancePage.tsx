@@ -236,7 +236,44 @@ const FinancePage = () => {
     onError: (e: any) => toast.error(e.message),
   });
 
-  const handleProcessPayoutClick = async () => {
+  const amendChargeMutation = useMutation({
+    mutationFn: async () => {
+      if (!amendCommission) throw new Error("No commission selected");
+      const isMigrated = amendCommission.booking_source === "migrated" || amendCommission.migrated_booking_id;
+      
+      // Update the booking's final_charge
+      if (!isMigrated && amendCommission.booking_id) {
+        await supabase.from("bookings").update({ final_charge: amendCharge } as any).eq("id", amendCommission.booking_id);
+      }
+
+      // Recalculate commission based on new charge
+      const rate = Number(amendCommission.commission_rate);
+      const totalPrice = Number(amendCommission.total_price);
+      const newGroomerPay = Math.round(totalPrice * rate * 100) / 100;
+      const newStudioShare = Math.round((totalPrice - newGroomerPay) * 100) / 100;
+
+      // Update the commission record with new final_charge
+      const { error } = await supabase.from("commission_records").update({
+        final_charge: amendCharge,
+      } as any).eq("id", amendCommission.id);
+      if (error) throw error;
+
+      logAudit({
+        staffId: amendCommission.staff_id,
+        action: "CHARGE_AMENDED",
+        details: `Amended charge from £${Number(amendCommission.final_charge || 0).toFixed(2)} to £${amendCharge.toFixed(2)} for commission record ${amendCommission.id}`,
+      });
+    },
+    onSuccess: () => {
+      toast.success("Charge amended successfully");
+      setAmendOpen(false);
+      setAmendCommission(null);
+      queryClient.invalidateQueries({ queryKey: ["commission-records"] });
+      queryClient.invalidateQueries({ queryKey: ["bookings"] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
     if (!selectedStaffId || !selectedSummary) return;
     // Check for unreviewed anomalies
     const { data: unreviewed } = await supabase
