@@ -6,8 +6,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Progress } from "@/components/ui/progress";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Upload, FileText, CheckCircle2, AlertTriangle, XCircle, ChevronDown, ChevronRight, Download, X, Info } from "lucide-react";
-import { format, startOfWeek, endOfWeek, addWeeks } from "date-fns";
+import { format, startOfWeek, endOfWeek, addWeeks, addDays, isBefore, isAfter } from "date-fns";
 import Papa from "papaparse";
 
 /* ─── Types ─── */
@@ -181,6 +183,19 @@ export default function ReconciliationTab() {
     return { weekTransactions: transactions, voidPairs };
   }, [allRows, weekStartStr, weekEndStr]);
 
+  // Compute CSV coverage: which of the 5 working days (Mon–Fri) have data
+  const { workingDays, coveredDays, missingDays, isFullCoverage } = useMemo(() => {
+    const days: { date: Date; str: string; label: string }[] = [];
+    for (let i = 0; i < 5; i++) {
+      const d = addDays(weekStart, i);
+      days.push({ date: d, str: format(d, "yyyy-MM-dd"), label: format(d, "EEE dd MMM") });
+    }
+    const csvDates = new Set(allRows.filter(r => r.date >= weekStartStr && r.date <= weekEndStr).map(r => r.date));
+    const covered = days.filter(d => csvDates.has(d.str));
+    const missing = days.filter(d => !csvDates.has(d.str));
+    return { workingDays: days, coveredDays: covered, missingDays: missing, isFullCoverage: missing.length === 0 };
+  }, [allRows, weekStart, weekStartStr, weekEndStr]);
+
   // Per-groomer summaries
   const groomerSummaries = useMemo(() => {
     return staff.map(s => {
@@ -299,6 +314,7 @@ export default function ReconciliationTab() {
                   <TableHead className="text-right">Balance Due</TableHead>
                   <TableHead className="text-right">Groomer Typed</TableHead>
                   <TableHead className="text-right">Card Machine</TableHead>
+                  <TableHead>Coverage</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
@@ -314,6 +330,9 @@ export default function ReconciliationTab() {
                       onToggle={() => setExpandedGroomer(isExpanded ? null : g.staffId)}
                       voidPairs={voidPairs.filter(v => v.seller.toLowerCase() === g.firstName)}
                       hasData={hasData}
+                      coveredDays={coveredDays.length}
+                      missingDays={missingDays}
+                      isFullCoverage={isFullCoverage}
                     />
                   );
                 })}
@@ -420,15 +439,21 @@ function getStatusBadge(g: Parameters<typeof getStatus>[0]) {
 
 /* ─── Groomer drill-down row ─── */
 
-function GroomerRow({ summary: g, commissionByBooking, isExpanded, onToggle, voidPairs, hasData }: {
+function GroomerRow({ summary: g, commissionByBooking, isExpanded, onToggle, voidPairs, hasData, coveredDays, missingDays, isFullCoverage }: {
   summary: ReturnType<typeof Object>; // groomer summary object
   commissionByBooking: Map<string, any>;
   isExpanded: boolean;
   onToggle: () => void;
   voidPairs: VoidPair[];
   hasData: boolean;
+  coveredDays: number;
+  missingDays: { date: Date; str: string; label: string }[];
+  isFullCoverage: boolean;
 }) {
   const s: any = g;
+  const coverageColor = !hasData ? "text-muted-foreground" : coveredDays >= 5 ? "text-emerald-600" : coveredDays >= 3 ? "text-amber-600" : "text-destructive";
+  const coveragePct = hasData ? (coveredDays / 5) * 100 : 0;
+  const coverageBarColor = !hasData ? "bg-muted" : coveredDays >= 5 ? "bg-emerald-500" : coveredDays >= 3 ? "bg-amber-500" : "bg-destructive";
 
   return (
     <>
@@ -443,15 +468,45 @@ function GroomerRow({ summary: g, commissionByBooking, isExpanded, onToggle, voi
           {s.hasAnyTyped ? `£${s.totalGroomerTyped.toFixed(2)}` : <span className="text-amber-600 italic text-xs">Not entered</span>}
         </TableCell>
         <TableCell className="text-right font-medium">
-          {hasData ? `£${s.totalCardMachine.toFixed(2)}` : <span className="text-muted-foreground text-xs">—</span>}
+          {!hasData
+            ? <span className="text-muted-foreground text-xs">—</span>
+            : !isFullCoverage
+              ? <span className="text-blue-600 text-xs italic">Cannot verify — {missingDays.length} day{missingDays.length !== 1 ? "s" : ""} missing</span>
+              : `£${s.totalCardMachine.toFixed(2)}`}
         </TableCell>
-        <TableCell>{getStatusBadge(s)}</TableCell>
+        <TableCell>
+          {hasData ? (
+            <div className="flex items-center gap-1.5 min-w-[100px]">
+              <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                <div className={`h-full rounded-full transition-all ${coverageBarColor}`} style={{ width: `${coveragePct}%` }} />
+              </div>
+              <span className={`text-xs font-medium whitespace-nowrap ${coverageColor}`}>{coveredDays}/5</span>
+            </div>
+          ) : <span className="text-muted-foreground text-xs">—</span>}
+        </TableCell>
+        <TableCell>
+          {!hasData || !isFullCoverage
+            ? (!hasData
+              ? <Badge variant="outline" className="text-blue-600 border-blue-300"><Info className="h-3 w-3 mr-1" />No CSV data yet</Badge>
+              : <Badge variant="outline" className="text-blue-600 border-blue-300"><Info className="h-3 w-3 mr-1" />Incomplete data ({missingDays.length} days missing)</Badge>)
+            : getStatusBadge(s)}
+        </TableCell>
       </TableRow>
 
       {isExpanded && (
         <TableRow>
-          <TableCell colSpan={7} className="p-0 bg-muted/20">
+          <TableCell colSpan={8} className="p-0 bg-muted/20">
             <div className="p-4 space-y-4">
+              {/* Missing CSV days warning */}
+              {hasData && missingDays.length > 0 && (
+                <Alert className="border-amber-300 bg-amber-50/60 dark:bg-amber-950/20">
+                  <AlertTriangle className="h-4 w-4 text-amber-600" />
+                  <AlertDescription className="text-xs text-amber-800 dark:text-amber-300">
+                    <p className="font-semibold">⚠️ Missing CSV data for: {missingDays.map(d => d.label).join(", ")}</p>
+                    <p className="mt-0.5">Upload these files to complete the reconciliation. Card Machine column is incomplete until all dates are uploaded.</p>
+                  </AlertDescription>
+                </Alert>
+              )}
               {/* Appointment drill-down */}
               <div className="rounded-lg border overflow-hidden">
                 <Table>
@@ -530,7 +585,11 @@ function GroomerRow({ summary: g, commissionByBooking, isExpanded, onToggle, voi
               <div className="flex items-center justify-between rounded-lg bg-muted/50 px-4 py-2.5 text-sm flex-wrap gap-2">
                 <span>Balance Due: <strong>£{s.totalBalanceDue.toFixed(2)}</strong></span>
                 <span>Groomer Typed: <strong>£{s.totalGroomerTyped.toFixed(2)}</strong></span>
-                {hasData && <span>Card Machine: <strong>£{s.totalCardMachine.toFixed(2)}</strong></span>}
+                {hasData && isFullCoverage
+                  ? <span>Card Machine: <strong>£{s.totalCardMachine.toFixed(2)}</strong></span>
+                  : hasData
+                    ? <span className="text-blue-600 italic text-xs">Card Machine: Cannot verify — incomplete data ({missingDays.length} day{missingDays.length !== 1 ? "s" : ""} missing)</span>
+                    : null}
               </div>
 
               {/* Commission impact callouts */}
@@ -543,7 +602,7 @@ function GroomerRow({ summary: g, commissionByBooking, isExpanded, onToggle, voi
                 </div>
               )}
 
-              {hasData && Math.abs(s.totalCardMachine - s.totalGroomerTyped) > 0.01 && s.hasAnyTyped && (
+              {hasData && isFullCoverage && Math.abs(s.totalCardMachine - s.totalGroomerTyped) > 0.01 && s.hasAnyTyped && (
                 <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-xs">
                   <p className="font-medium text-destructive">
                     Card machine shows £{Math.abs(s.totalCardMachine - s.totalGroomerTyped).toFixed(2)}{" "}
