@@ -117,12 +117,12 @@ export default function SystemHealthPage() {
           );
         }
 
-        // SendGrid
-        if (data.sendgrid) {
+        // Resend (Email)
+        if (data.resend) {
           setChecks((prev) =>
             prev.map((c) =>
-              c.name === "SendGrid (Email)"
-                ? { ...c, status: data.sendgrid.status, responseTime: data.sendgrid.responseTime, error: data.sendgrid.error, checkedAt: new Date().toISOString() }
+              c.name === "Resend (Email)"
+                ? { ...c, status: data.resend.status, responseTime: data.resend.responseTime, error: data.resend.error, checkedAt: new Date().toISOString() }
                 : c
             )
           );
