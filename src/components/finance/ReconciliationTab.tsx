@@ -585,7 +585,11 @@ function GroomerRow({ summary: g, commissionByBooking, isExpanded, onToggle, voi
               <div className="flex items-center justify-between rounded-lg bg-muted/50 px-4 py-2.5 text-sm flex-wrap gap-2">
                 <span>Balance Due: <strong>£{s.totalBalanceDue.toFixed(2)}</strong></span>
                 <span>Groomer Typed: <strong>£{s.totalGroomerTyped.toFixed(2)}</strong></span>
-                {hasData && <span>Card Machine: <strong>£{s.totalCardMachine.toFixed(2)}</strong></span>}
+                {hasData && isFullCoverage
+                  ? <span>Card Machine: <strong>£{s.totalCardMachine.toFixed(2)}</strong></span>
+                  : hasData
+                    ? <span className="text-blue-600 italic text-xs">Card Machine: Cannot verify — incomplete data ({missingDays.length} day{missingDays.length !== 1 ? "s" : ""} missing)</span>
+                    : null}
               </div>
 
               {/* Commission impact callouts */}
