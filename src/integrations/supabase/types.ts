@@ -1690,6 +1690,42 @@ export type Database = {
         }
         Relationships: []
       }
+      reconciliation_runs: {
+        Row: {
+          filename: string | null
+          id: string
+          matched_count: number | null
+          raw_csv: string | null
+          total_transactions: number | null
+          unmatched_count: number | null
+          uploaded_at: string | null
+          uploaded_by: string | null
+          void_count: number | null
+        }
+        Insert: {
+          filename?: string | null
+          id?: string
+          matched_count?: number | null
+          raw_csv?: string | null
+          total_transactions?: number | null
+          unmatched_count?: number | null
+          uploaded_at?: string | null
+          uploaded_by?: string | null
+          void_count?: number | null
+        }
+        Update: {
+          filename?: string | null
+          id?: string
+          matched_count?: number | null
+          raw_csv?: string | null
+          total_transactions?: number | null
+          unmatched_count?: number | null
+          uploaded_at?: string | null
+          uploaded_by?: string | null
+          void_count?: number | null
+        }
+        Relationships: []
+      }
       risk_assessment_items: {
         Row: {
           additional_actions: string | null
