@@ -23,6 +23,7 @@ import { logAudit } from "@/lib/auditLog";
 import ExpensesTab from "@/components/finance/ExpensesTab";
 import AnomaliesTab from "@/components/finance/AnomaliesTab";
 import PayoutHistoryTab from "@/components/finance/PayoutHistoryTab";
+import ReconciliationTab from "@/components/finance/ReconciliationTab";
 
 type Period = "weekly" | "monthly";
 
