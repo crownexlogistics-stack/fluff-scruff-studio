@@ -70,6 +70,7 @@ type DocView = null | "contract" | "health-safety" | "room-rules" | "code-of-con
 
 export function GroomerDocumentsTab({ staffId }: { staffId: string }) {
   const [activeDoc, setActiveDoc] = useState<DocView>(null);
+  const [downloading, setDownloading] = useState(false);
 
   const { data: staff } = useQuery({
     queryKey: ["staff-doc", staffId],
