@@ -407,7 +407,7 @@ const FinancePage = () => {
                           </TableCell>
                           <TableCell className="text-sm">{dogName}</TableCell>
                           <TableCell className="text-sm">{serviceName}</TableCell>
-                          <TableCell className="text-sm">£{Number(c.total_price).toFixed(2)}</TableCell>
+                          <TableCell className="text-sm">{c.commission_type === "no_show" ? `£${Number(c.deposit_paid).toFixed(2)} deposit` : `£${Number(c.total_price).toFixed(2)}`}</TableCell>
                           <TableCell>
                             {c.commission_type === "no_show" ? (
                               <Badge className="bg-amber-500 text-white hover:bg-amber-500 text-xs">NO SHOW SPLIT</Badge>
