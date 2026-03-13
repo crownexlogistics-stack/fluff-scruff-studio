@@ -1402,26 +1402,33 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
                     <div>
                       <h3 className="text-base font-heading text-foreground mb-1">Available times</h3>
                       <p className="text-xs text-muted-foreground font-body mb-4">{formatSelectedDate(selectedDate)}</p>
-                      <div className="grid grid-cols-2 gap-2.5">
-                        {availableTimeSlots.map((time) => {
-                          const isTimeSelected = selectedTime === time;
-                          return (
-                            <button
-                              key={time}
-                              onClick={() => handleTimeClick(time)}
-                              className={`py-3.5 rounded-full text-sm font-semibold font-body transition-all duration-200
-                                ${isTimeSelected
-                                  ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20 scale-[1.02]'
-                                  : 'bg-card border border-border/50 hover:border-foreground/20 hover:shadow-sm text-foreground active:scale-95'
-                                }`}
-                            >
-                              {time}
-                            </button>
-                          );
-                        })}
-                        {availableTimeSlots.length === 0 && (
-                          <p className="col-span-2 text-center text-sm text-muted-foreground py-4">We're fully booked on this date — please choose another day</p>
-                        )}
+                      {verifyingSlots ? (
+                        <div className="flex justify-center py-8">
+                          <TailWagSpinner size={36} label="Checking availability…" />
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-2.5">
+                          {availableTimeSlots.map((time) => {
+                            const isTimeSelected = selectedTime === time;
+                            return (
+                              <button
+                                key={time}
+                                onClick={() => handleTimeClick(time)}
+                                className={`py-3.5 rounded-full text-sm font-semibold font-body transition-all duration-200
+                                  ${isTimeSelected
+                                    ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20 scale-[1.02]'
+                                    : 'bg-card border border-border/50 hover:border-foreground/20 hover:shadow-sm text-foreground active:scale-95'
+                                  }`}
+                              >
+                                {time}
+                              </button>
+                            );
+                          })}
+                          {availableTimeSlots.length === 0 && (
+                            <p className="col-span-2 text-center text-sm text-muted-foreground py-4">We're fully booked on this date — please choose another day</p>
+                          )}
+                        </div>
+                      )}
                       </div>
                     </div>
                   ) : (
