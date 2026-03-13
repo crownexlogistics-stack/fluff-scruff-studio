@@ -691,7 +691,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
       const [freshBookingsRes, freshOverridesRes, freshMigratedRes] = await Promise.all([
         supabase
           .from("bookings")
-          .select("booking_time, staff_id, services(duration_minutes), breeds(duration_minutes)")
+          .select("booking_time, staff_id, duration_minutes, services(duration_minutes), breeds(duration_minutes)")
           .eq("booking_date", selectedDate!)
           .not("status", "in", "(Cancelled,No Show,Refunded)"),
         supabase
