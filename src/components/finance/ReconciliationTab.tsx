@@ -439,15 +439,21 @@ function getStatusBadge(g: Parameters<typeof getStatus>[0]) {
 
 /* ─── Groomer drill-down row ─── */
 
-function GroomerRow({ summary: g, commissionByBooking, isExpanded, onToggle, voidPairs, hasData }: {
+function GroomerRow({ summary: g, commissionByBooking, isExpanded, onToggle, voidPairs, hasData, coveredDays, missingDays, isFullCoverage }: {
   summary: ReturnType<typeof Object>; // groomer summary object
   commissionByBooking: Map<string, any>;
   isExpanded: boolean;
   onToggle: () => void;
   voidPairs: VoidPair[];
   hasData: boolean;
+  coveredDays: number;
+  missingDays: { date: Date; str: string; label: string }[];
+  isFullCoverage: boolean;
 }) {
   const s: any = g;
+  const coverageColor = !hasData ? "text-muted-foreground" : coveredDays >= 5 ? "text-emerald-600" : coveredDays >= 3 ? "text-amber-600" : "text-destructive";
+  const coveragePct = hasData ? (coveredDays / 5) * 100 : 0;
+  const coverageBarColor = !hasData ? "bg-muted" : coveredDays >= 5 ? "bg-emerald-500" : coveredDays >= 3 ? "bg-amber-500" : "bg-destructive";
 
   return (
     <>
@@ -462,9 +468,29 @@ function GroomerRow({ summary: g, commissionByBooking, isExpanded, onToggle, voi
           {s.hasAnyTyped ? `£${s.totalGroomerTyped.toFixed(2)}` : <span className="text-amber-600 italic text-xs">Not entered</span>}
         </TableCell>
         <TableCell className="text-right font-medium">
-          {hasData ? `£${s.totalCardMachine.toFixed(2)}` : <span className="text-muted-foreground text-xs">—</span>}
+          {!hasData
+            ? <span className="text-muted-foreground text-xs">—</span>
+            : !isFullCoverage
+              ? <span className="text-blue-600 text-xs italic">Cannot verify — {missingDays.length} day{missingDays.length !== 1 ? "s" : ""} missing</span>
+              : `£${s.totalCardMachine.toFixed(2)}`}
         </TableCell>
-        <TableCell>{getStatusBadge(s)}</TableCell>
+        <TableCell>
+          {hasData ? (
+            <div className="flex items-center gap-1.5 min-w-[100px]">
+              <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                <div className={`h-full rounded-full transition-all ${coverageBarColor}`} style={{ width: `${coveragePct}%` }} />
+              </div>
+              <span className={`text-xs font-medium whitespace-nowrap ${coverageColor}`}>{coveredDays}/5</span>
+            </div>
+          ) : <span className="text-muted-foreground text-xs">—</span>}
+        </TableCell>
+        <TableCell>
+          {!hasData || !isFullCoverage
+            ? (!hasData
+              ? <Badge variant="outline" className="text-blue-600 border-blue-300"><Info className="h-3 w-3 mr-1" />No CSV data yet</Badge>
+              : <Badge variant="outline" className="text-blue-600 border-blue-300"><Info className="h-3 w-3 mr-1" />Incomplete data ({missingDays.length} days missing)</Badge>)
+            : getStatusBadge(s)}
+        </TableCell>
       </TableRow>
 
       {isExpanded && (
