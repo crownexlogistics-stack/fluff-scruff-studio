@@ -294,11 +294,43 @@ export const HRRecordsTab = ({ staffId, staffCreatedAt, staffName }: Props) => {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Last Working Day</Label>
-              <Input
-                readOnly
-                value={(staffData as any)?.employment_end_date ? format(new Date((staffData as any).employment_end_date), "dd MMM yyyy") : "—"}
-                className="bg-muted/50"
-              />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !(staffData as any)?.employment_end_date && "text-muted-foreground")}>
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {(staffData as any)?.employment_end_date
+                      ? format((() => { const [y,m,d] = (staffData as any).employment_end_date.split("-").map(Number); return new Date(y, m-1, d); })(), "dd MMM yyyy")
+                      : "—"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={(staffData as any)?.employment_end_date ? (() => { const [y,m,d] = (staffData as any).employment_end_date.split("-").map(Number); return new Date(y, m-1, d); })() : undefined}
+                    onSelect={async (d) => {
+                      const val = d ? `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}` : null;
+                      const { error } = await supabase.from("staff").update({ employment_end_date: val } as any).eq("id", staffId);
+                      if (!error) {
+                        queryClient.invalidateQueries({ queryKey: ["staff", staffId] });
+                        toast.success(val ? `Last working day set` : "Cleared");
+                      }
+                    }}
+                    initialFocus
+                    className="p-3 pointer-events-auto"
+                  />
+                  {(staffData as any)?.employment_end_date && (
+                    <div className="p-2 border-t">
+                      <Button variant="ghost" size="sm" className="w-full text-destructive" onClick={async () => {
+                        const { error } = await supabase.from("staff").update({ employment_end_date: null } as any).eq("id", staffId);
+                        if (!error) {
+                          queryClient.invalidateQueries({ queryKey: ["staff", staffId] });
+                          toast.success("Last working day cleared");
+                        }
+                      }}>Clear date</Button>
+                    </div>
+                  )}
+                </PopoverContent>
+              </Popover>
             </div>
             <div className="space-y-2">
               <Label>Notice Period</Label>
