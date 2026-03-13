@@ -254,6 +254,38 @@ export default function CustomerProfilePage() {
     enabled: !!decodedEmail && isOwnCustomer,
   });
 
+  // Automated booking emails (confirmations, reminders)
+  const { data: bookingEmailLogs } = useQuery({
+    queryKey: ["customer-booking-emails", decodedEmail],
+    queryFn: async () => {
+      // Get booking IDs for this customer
+      const { data: custBookings } = await supabase
+        .from("bookings")
+        .select("id, booking_date, booking_time, dog_name")
+        .eq("customer_email", decodedEmail);
+      if (!custBookings || custBookings.length === 0) return [];
+      const bookingIds = custBookings.map((b) => b.id);
+      const { data, error } = await supabase
+        .from("booking_emails")
+        .select("*")
+        .in("booking_id", bookingIds)
+        .order("sent_at", { ascending: false });
+      if (error) throw error;
+      // Enrich with booking info
+      const bookingMap = Object.fromEntries(custBookings.map((b) => [b.id, b]));
+      return (data || []).map((e) => ({ ...e, booking: bookingMap[e.booking_id] }));
+    },
+    enabled: !!decodedEmail && isOwnCustomer,
+  });
+
+  const emailTypeLabels: Record<string, string> = {
+    confirmation: "Booking Confirmation",
+    reminder_24h: "24h Reminder",
+    reminder_2h: "2h Reminder",
+    appointment_updated: "Appointment Updated",
+    cancellation: "Cancellation",
+  };
+
   // Combine & sort all emails
   const allEmails = [
     ...(outboundEmails || []).map((e) => ({ ...e, direction: "outbound" as const, displaySubject: e.subject })),
@@ -265,6 +297,15 @@ export default function CustomerProfilePage() {
       body: e.body || "",
       from_name: e.from_name,
       sent_by: null as string | null,
+    })),
+    ...(bookingEmailLogs || []).map((e: any) => ({
+      id: `be-${e.id}`,
+      created_at: e.sent_at,
+      direction: "outbound" as const,
+      displaySubject: emailTypeLabels[e.email_type] || e.email_type,
+      body: e.booking ? `${e.booking.dog_name} — ${format(new Date(e.booking.booking_date), "dd MMM yyyy")} at ${e.booking.booking_time?.substring(0, 5)}` : "Automated email",
+      sent_by: null as string | null,
+      _isAutomated: true,
     })),
   ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
