@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { RefreshCw, Activity, Mail } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { toast } from "sonner";
+import { HealthAIAnalysis } from "@/components/health/HealthAIAnalysis";
 
 type CheckStatus = "pass" | "fail" | "warning" | "checking";
 
