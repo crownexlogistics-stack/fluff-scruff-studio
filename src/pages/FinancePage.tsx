@@ -335,7 +335,8 @@ const FinancePage = () => {
           <Card>
             <CardHeader className="pb-3"><CardTitle className="text-base">Revenue Breakdown</CardTitle></CardHeader>
             <CardContent className="p-0">
-              <Table>
+              <div className="relative w-full overflow-auto max-h-[70vh]">
+              <table className="w-full caption-bottom text-sm">
                 <TableHeader className="sticky top-0 z-10 bg-background shadow-sm">
                   <TableRow>
                     <TableHead>Customer</TableHead><TableHead>Dog</TableHead><TableHead>Service</TableHead>
