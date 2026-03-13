@@ -336,7 +336,7 @@ const FinancePage = () => {
             <CardHeader className="pb-3"><CardTitle className="text-base">Revenue Breakdown</CardTitle></CardHeader>
             <CardContent className="p-0">
               <Table>
-                <TableHeader>
+                <TableHeader className="sticky top-0 z-10 bg-background shadow-sm">
                   <TableRow>
                     <TableHead>Customer</TableHead><TableHead>Dog</TableHead><TableHead>Service</TableHead>
                     <TableHead>Price</TableHead><TableHead>Type</TableHead><TableHead className="text-right">Groomer Pay</TableHead>
