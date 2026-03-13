@@ -47,9 +47,13 @@ serve(async (req) => {
       .from("bookings")
       .select("*, services(name), breeds(name)")
       .eq("id", booking_id)
-      .single();
+      .maybeSingle();
 
-    if (bookingErr || !booking) throw new Error("Booking not found");
+    if (bookingErr || !booking) {
+      return new Response(JSON.stringify({ success: false, message: "Booking not found — may be a migrated booking" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     if (!booking.customer_email) {
       return new Response(JSON.stringify({ success: false, message: "No customer email" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
