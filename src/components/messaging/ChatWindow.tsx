@@ -119,6 +119,23 @@ export function ChatWindow({
     }
   };
 
+  const handleAiGenerate = async () => {
+    if (!aiInput.trim()) return;
+    setAiLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-sms-message", {
+        body: { roughMessage: aiInput.trim() },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setAiGenerated(data.message);
+    } catch (e: any) {
+      toast.error(e.message || "AI generation failed");
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
   if (!customer) {
     return (
       <div className={cn("flex-1 flex items-center justify-center bg-muted/10 hidden md:flex", className)}>
