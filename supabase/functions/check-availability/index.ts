@@ -221,22 +221,29 @@ Deno.serve(async (req) => {
     }
 
     // ── 5. Check migrated bookings for conflicts ──
+    const staffFullName = staff.name;
+    const staffFirstName = staffFullName.split(" ")[0] || staffFullName;
+
     const { data: migratedBookings } = await supabase
       .from("migrated_bookings")
-      .select("booking_time, duration_minutes, staff_name")
+      .select("id, booking_time, duration_minutes, staff_name")
       .eq("booking_date", date)
-      .eq("is_future_booking", true);
+      .eq("is_future_booking", true)
+      .or(`staff_name.eq.${staffFullName},staff_name.ilike.${staffFullName},staff_name.ilike.${staffFirstName}%`);
 
+    console.log(`[check-availability] Found ${(migratedBookings || []).length} migrated bookings for "${staffFullName}" on ${date}`);
     for (const mb of (migratedBookings || [])) {
-      if (!mb.booking_time || !mb.staff_name) continue;
-      // Match by first name
-      const firstName = mb.staff_name.split(" ")[0]?.toLowerCase() || "";
-      const staffFirstName = staff.name.split(" ")[0]?.toLowerCase() || "";
-      if (firstName !== staffFirstName) continue;
+      if (!mb.booking_time) continue;
+
+      let mbDuration = Number(mb.duration_minutes || 0);
+      if (!mbDuration || mbDuration <= 0) {
+        mbDuration = 90;
+      }
 
       const mbStart = parseTimeToMinutes(mb.booking_time);
-      const mbDuration = Number(mb.duration_minutes || 60);
       const mbEnd = mbStart + mbDuration;
+      console.log(`[check-availability] Migrated booking id=${mb.id} staff_name="${mb.staff_name}" time=${mb.booking_time} duration=${mbDuration}min range=${mbStart}-${mbEnd}`);
+
       if (slotStart < mbEnd && slotEnd > mbStart) {
         console.log(`[check-availability] BLOCKED: overlaps migrated booking ${mb.booking_time} duration=${mbDuration}min`);
         return new Response(
