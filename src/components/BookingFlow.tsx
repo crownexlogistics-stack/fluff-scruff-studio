@@ -767,6 +767,36 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
       }
     }
 
+    // ── Server-side availability check via edge function ──
+    console.log(`[booking] Server-side availability check: groomer=${assignedStaffId} date=${selectedDate} time=${selectedTime} duration=${serviceDuration}`);
+    try {
+      const { data: availCheck, error: availErr } = await supabase.functions.invoke("check-availability", {
+        body: {
+          groomer_id: assignedStaffId,
+          date: selectedDate,
+          start_time: selectedTime,
+          duration_minutes: serviceDuration,
+        },
+      });
+      if (availErr) {
+        console.error("[booking] Availability check failed:", availErr);
+        setAlertMessage("Could not verify availability — please try again.");
+        setIsSubmitting(false);
+        return;
+      }
+      if (!availCheck?.available) {
+        console.warn("[booking] Server rejected:", availCheck?.reason);
+        setAlertMessage(availCheck?.reason || "This slot is no longer available. Please choose another time.");
+        setIsSubmitting(false);
+        return;
+      }
+    } catch (checkErr) {
+      console.error("[booking] Availability check error:", checkErr);
+      setAlertMessage("Could not verify availability — please try again.");
+      setIsSubmitting(false);
+      return;
+    }
+
     const { data: insertedBooking, error } = await supabase.from("bookings").insert({
       customer_name: guestForm.name,
       customer_phone: guestForm.phone || null,
@@ -779,6 +809,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
       booking_time: selectedTime!,
       total_price: totalPrice,
       deposit_paid: 0,
+      duration_minutes: serviceDuration,
       notes: guestForm.notes.trim() || null,
       status: "Pending",
       campaign_id: utmCampaignId,
