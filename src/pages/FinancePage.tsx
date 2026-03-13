@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { NumericInput } from "@/components/ui/numeric-input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, PoundSterling, Dog, TrendingUp, Banknote, CreditCard, Users, History } from "lucide-react";
+import { ArrowLeft, PoundSterling, Dog, TrendingUp, Banknote, CreditCard, Users, History, Pencil } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { FinanceExplainerButton } from "@/components/dashboard/FinanceExplainerDialog";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addWeeks, addMonths } from "date-fns";
@@ -42,6 +42,9 @@ const FinancePage = () => {
   const [includeWixHistory, setIncludeWixHistory] = useState(false);
   const [anomalyWarningOpen, setAnomalyWarningOpen] = useState(false);
   const [anomalyWarningData, setAnomalyWarningData] = useState<{ count: number; shortfall: number } | null>(null);
+  const [amendOpen, setAmendOpen] = useState(false);
+  const [amendCommission, setAmendCommission] = useState<any>(null);
+  const [amendCharge, setAmendCharge] = useState(0);
 
   const now = new Date();
   const periodStart = useMemo(() => {
@@ -233,6 +236,44 @@ const FinancePage = () => {
     onError: (e: any) => toast.error(e.message),
   });
 
+  const amendChargeMutation = useMutation({
+    mutationFn: async () => {
+      if (!amendCommission) throw new Error("No commission selected");
+      const isMigrated = amendCommission.booking_source === "migrated" || amendCommission.migrated_booking_id;
+      
+      // Update the booking's final_charge
+      if (!isMigrated && amendCommission.booking_id) {
+        await supabase.from("bookings").update({ final_charge: amendCharge } as any).eq("id", amendCommission.booking_id);
+      }
+
+      // Recalculate commission based on new charge
+      const rate = Number(amendCommission.commission_rate);
+      const totalPrice = Number(amendCommission.total_price);
+      const newGroomerPay = Math.round(totalPrice * rate * 100) / 100;
+      const newStudioShare = Math.round((totalPrice - newGroomerPay) * 100) / 100;
+
+      // Update the commission record with new final_charge
+      const { error } = await supabase.from("commission_records").update({
+        final_charge: amendCharge,
+      } as any).eq("id", amendCommission.id);
+      if (error) throw error;
+
+      logAudit({
+        staffId: amendCommission.staff_id,
+        action: "CHARGE_AMENDED",
+        details: `Amended charge from £${Number(amendCommission.final_charge || 0).toFixed(2)} to £${amendCharge.toFixed(2)} for commission record ${amendCommission.id}`,
+      });
+    },
+    onSuccess: () => {
+      toast.success("Charge amended successfully");
+      setAmendOpen(false);
+      setAmendCommission(null);
+      queryClient.invalidateQueries({ queryKey: ["commission-records"] });
+      queryClient.invalidateQueries({ queryKey: ["bookings"] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
   const handleProcessPayoutClick = async () => {
     if (!selectedStaffId || !selectedSummary) return;
     // Check for unreviewed anomalies
@@ -348,7 +389,7 @@ const FinancePage = () => {
                   <TableRow>
                     <TableHead>Customer</TableHead><TableHead>Dog</TableHead><TableHead>Service</TableHead>
                     <TableHead>Price</TableHead><TableHead>Type</TableHead><TableHead className="text-right">Groomer Pay</TableHead>
-                    <TableHead>Balance Due</TableHead><TableHead>Charged</TableHead><TableHead>Difference</TableHead><TableHead>Status</TableHead>
+                    <TableHead>Balance Due</TableHead><TableHead>Charged</TableHead><TableHead>Difference</TableHead><TableHead>Status</TableHead><TableHead className="w-10"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -366,12 +407,12 @@ const FinancePage = () => {
                     const sortedDays = Array.from(grouped.entries()).sort((a, b) => b[0].localeCompare(a[0]));
                     
                     if (sortedDays.length === 0) {
-                      return <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-8">No completed appointments this period</TableCell></TableRow>;
+                      return <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-8">No completed appointments this period</TableCell></TableRow>;
                     }
                     
                     return sortedDays.flatMap(([dateKey, items]) => [
                       <TableRow key={`header-${dateKey}`} className="bg-muted/60 hover:bg-muted/60">
-                        <TableCell colSpan={10} className="py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                        <TableCell colSpan={11} className="py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                           {dateKey !== "Unknown" ? format(new Date(dateKey + "T00:00:00"), "EEEE, d MMMM yyyy") : "Unknown Date"}
                         </TableCell>
                       </TableRow>,
@@ -425,6 +466,23 @@ const FinancePage = () => {
                           <TableCell className="text-sm">{isNoShow ? "—" : charged != null ? `£${charged.toFixed(2)}` : <span className="text-muted-foreground italic">Not entered</span>}</TableCell>
                           <TableCell className={`text-sm font-medium ${isNoShow ? "" : diffColor}`}>{isNoShow ? "—" : diff != null ? `£${diff.toFixed(2)}` : "—"}</TableCell>
                           <TableCell>{statusBadge}</TableCell>
+                          <TableCell>
+                            {!isNoShow && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={() => {
+                                  setAmendCommission(c);
+                                  setAmendCharge(c.final_charge != null ? Number(c.final_charge) : (Number(c.total_price) - Number(c.deposit_paid)));
+                                  setAmendOpen(true);
+                                }}
+                                title="Amend charge"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
+                          </TableCell>
                         </TableRow>
                         );
                       }),
@@ -526,6 +584,54 @@ const FinancePage = () => {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* Amend Charge Dialog */}
+        <Dialog open={amendOpen} onOpenChange={setAmendOpen}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Amend Charge</DialogTitle>
+            </DialogHeader>
+            {amendCommission && (
+              <div className="space-y-4">
+                <div className="rounded-lg border bg-muted/30 p-3 space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Customer</span>
+                    <span className="font-medium">{amendCommission.bookings?.customer_name || amendCommission.migrated_bookings?.migrated_customers?.full_name || "—"}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Total price</span>
+                    <span>£{Number(amendCommission.total_price).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Deposit paid</span>
+                    <span>£{Number(amendCommission.deposit_paid).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Balance due</span>
+                    <span className="font-medium">£{(Number(amendCommission.total_price) - Number(amendCommission.deposit_paid)).toFixed(2)}</span>
+                  </div>
+                  {amendCommission.final_charge != null && (
+                    <div className="flex justify-between border-t pt-1">
+                      <span className="text-muted-foreground">Current charge</span>
+                      <span className="font-medium">£{Number(amendCommission.final_charge).toFixed(2)}</span>
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <Label>New Charge Amount (£)</Label>
+                  <NumericInput value={amendCharge} onValueChange={setAmendCharge} />
+                  <p className="text-xs text-muted-foreground mt-1">This updates the "Charged" amount for this appointment</p>
+                </div>
+              </div>
+            )}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setAmendOpen(false)}>Cancel</Button>
+              <Button onClick={() => amendChargeMutation.mutate()} disabled={amendChargeMutation.isPending}>
+                {amendChargeMutation.isPending ? "Saving…" : "Save"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </AppLayout>
     );
   }

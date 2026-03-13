@@ -313,19 +313,26 @@ const BookingsPage = () => {
   // No Show mutation — creates commission record (50% of deposit) only if deposit > 0
   const noShowMutation = useMutation({
     mutationFn: async (bookingId: string) => {
-      const { error } = await supabase.from("bookings").update({ status: "No Show" }).eq("id", bookingId);
-      if (error) throw error;
+      // Find in both regular and migrated bookings
+      const booking = allEvents.find(b => b.id === bookingId);
+      const isMigrated = booking?.is_migrated;
+
+      if (isMigrated) {
+        const { error } = await supabase.from("migrated_bookings").update({ payment_status: "No Show" }).eq("id", bookingId);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("bookings").update({ status: "No Show" }).eq("id", bookingId);
+        if (error) throw error;
+      }
 
       // Calculate no-show commission: groomer gets 50% of deposit (only if deposit was paid)
-      const booking = bookings.find(b => b.id === bookingId);
       if (booking && booking.staff_id) {
         const deposit = Number(booking.deposit_paid);
         if (deposit > 0) {
           const groomerPay = Math.round(deposit * 0.5 * 100) / 100;
           const studioShare = Math.round((deposit - groomerPay) * 100) / 100;
 
-          await supabase.from("commission_records").insert({
-            booking_id: bookingId,
+          const commissionData: any = {
             staff_id: booking.staff_id,
             total_price: Number(booking.total_price),
             deposit_paid: deposit,
@@ -334,18 +341,29 @@ const BookingsPage = () => {
             commission_rate: 0.5,
             groomer_pay: groomerPay,
             studio_share: studioShare,
-          });
+          };
+          if (isMigrated) {
+            commissionData.migrated_booking_id = bookingId;
+            commissionData.booking_source = "migrated";
+          } else {
+            commissionData.booking_id = bookingId;
+          }
+
+          await supabase.from("commission_records").insert(commissionData);
         }
       }
 
       const deposit = Number(booking?.deposit_paid || 0);
       const noShowGroomerPay = deposit > 0 ? Math.round(deposit * 0.5 * 100) / 100 : 0;
       logAudit({ staffId: booking?.staff_id, action: "BOOKING_NO_SHOW", details: `No Show: ${booking?.customer_name || "Unknown"} (${booking?.dog_name || "Unknown"}) on ${booking ? format(new Date(booking.booking_date), "dd MMM yyyy") : "?"} at ${booking?.booking_time?.slice(0, 5) || "?"}. Deposit held: £${deposit.toFixed(2)}. Groomer pay: £${noShowGroomerPay.toFixed(2)}.` });
-      supabase.functions.invoke("send-booking-email", { body: { booking_id: bookingId, email_type: "no_show" } }).catch(() => {});
+      if (!isMigrated) {
+        supabase.functions.invoke("send-booking-email", { body: { booking_id: bookingId, email_type: "no_show" } }).catch(() => {});
+      }
     },
     onSuccess: () => {
       toast.success("Marked as No Show");
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["migrated-calendar-bookings"] });
       queryClient.invalidateQueries({ queryKey: ["audit-logs"] });
       queryClient.invalidateQueries({ queryKey: ["commission-records"] });
     },
