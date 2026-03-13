@@ -608,6 +608,10 @@ const FinancePage = () => {
           <TabsContent value="payout-history" className="mt-4">
             <PayoutHistoryTab />
           </TabsContent>
+
+          <TabsContent value="reconciliation" className="mt-4">
+            <ReconciliationTab />
+          </TabsContent>
         </Tabs>
       </div>
     </AppLayout>
