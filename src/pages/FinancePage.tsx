@@ -417,7 +417,8 @@ const FinancePage = () => {
                     ]);
                   })()}
                 </TableBody>
-              </Table>
+              </table>
+              </div>
             </CardContent>
           </Card>
 
