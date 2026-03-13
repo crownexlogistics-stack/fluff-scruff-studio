@@ -733,7 +733,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
         const hasBookingConflict = freshBookings.some((b) => {
           if (b.staff_id !== selectedStaffId) return false;
           const bStart = parseTimeToMinutes(b.booking_time);
-          const bDuration = Number(b.services?.duration_minutes ?? b.breeds?.duration_minutes ?? 90);
+          const bDuration = Number(b.duration_minutes ?? b.services?.duration_minutes ?? b.breeds?.duration_minutes ?? 90);
           const bEnd = bStart + bDuration;
           return slotStart < bEnd && slotEnd > bStart;
         });
