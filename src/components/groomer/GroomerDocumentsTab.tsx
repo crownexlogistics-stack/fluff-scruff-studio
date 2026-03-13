@@ -7,11 +7,12 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { FileText, ShieldCheck, ScrollText, Scissors, Download, ArrowLeft, ChevronRight } from "lucide-react";
+import { FileText, ShieldCheck, ScrollText, Scissors, Download, ArrowLeft, ChevronRight, Loader2 } from "lucide-react";
 import { ContractContent } from "@/components/staff/ContractPreviewDialog";
 import { HealthAndSafetyContent } from "@/components/staff/HealthAndSafetyContent";
 import CodeOfConduct from "@/components/staff/CodeOfConduct";
-
+import { downloadDocumentPdf } from "@/lib/downloadDocumentPdf";
+import { toast } from "sonner";
 
 // Room rules data (same as RulesPage)
 const ruleFolders = [
@@ -69,6 +70,7 @@ type DocView = null | "contract" | "health-safety" | "room-rules" | "code-of-con
 
 export function GroomerDocumentsTab({ staffId }: { staffId: string }) {
   const [activeDoc, setActiveDoc] = useState<DocView>(null);
+  const [downloading, setDownloading] = useState(false);
 
   const { data: staff } = useQuery({
     queryKey: ["staff-doc", staffId],
@@ -87,18 +89,47 @@ export function GroomerDocumentsTab({ staffId }: { staffId: string }) {
     
   ];
 
+  const handleDownload = async (elementId: string, filename: string) => {
+    setDownloading(true);
+    try {
+      await downloadDocumentPdf(elementId, filename);
+      toast.success("Document downloaded");
+    } catch {
+      toast.error("Failed to generate PDF");
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   if (activeDoc) {
     return (
       <div className="space-y-4">
-        <Button variant="ghost" size="sm" onClick={() => setActiveDoc(null)} className="gap-1.5 -ml-2">
-          <ArrowLeft className="h-4 w-4" /> Back to Documents
-        </Button>
+        <div className="flex items-center justify-between">
+          <Button variant="ghost" size="sm" onClick={() => setActiveDoc(null)} className="gap-1.5 -ml-2">
+            <ArrowLeft className="h-4 w-4" /> Back to Documents
+          </Button>
+          {(activeDoc === "contract" || activeDoc === "health-safety" || activeDoc === "room-rules" || activeDoc === "code-of-conduct") && (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={downloading}
+              onClick={() => {
+                const idMap: Record<string, string> = { contract: "groomer-contract-pdf", "health-safety": "groomer-hs-pdf", "room-rules": "groomer-rules-pdf", "code-of-conduct": "groomer-coc-pdf" };
+                const nameMap: Record<string, string> = { contract: "Contract", "health-safety": "Health_Safety_Policy", "room-rules": "Room_Rules", "code-of-conduct": "Code_of_Conduct" };
+                handleDownload(idMap[activeDoc], `${staff?.name?.replace(/\s+/g, "_") || "Document"}_${nameMap[activeDoc]}.pdf`);
+              }}
+            >
+              {downloading ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Download className="mr-2 h-3.5 w-3.5" />}
+              Download PDF
+            </Button>
+          )}
+        </div>
 
         {activeDoc === "contract" && staff && (
           <Card>
             <CardContent className="p-4 md:p-6">
               <ScrollArea className="h-[70vh]">
-                <div className="pr-4">
+                <div className="pr-4" id="groomer-contract-pdf">
                   <ContractContent staff={staff} />
                 </div>
               </ScrollArea>
@@ -110,7 +141,7 @@ export function GroomerDocumentsTab({ staffId }: { staffId: string }) {
           <Card>
             <CardContent className="p-4 md:p-6">
               <ScrollArea className="h-[70vh]">
-                <div className="pr-4">
+                <div className="pr-4" id="groomer-hs-pdf">
                   <HealthAndSafetyContent staff={staff as any} />
                 </div>
               </ScrollArea>
@@ -120,7 +151,7 @@ export function GroomerDocumentsTab({ staffId }: { staffId: string }) {
 
         {activeDoc === "room-rules" && (
           <ScrollArea className="h-[70vh]">
-            <div className="space-y-4 pr-4">
+            <div className="space-y-4 pr-4" id="groomer-rules-pdf">
               {ruleFolders.map((folder, idx) => (
                 <Card key={idx}>
                   <CardContent className="p-4 space-y-3">
@@ -141,7 +172,7 @@ export function GroomerDocumentsTab({ staffId }: { staffId: string }) {
           </ScrollArea>
         )}
 
-        {activeDoc === "code-of-conduct" && <CodeOfConduct />}
+        {activeDoc === "code-of-conduct" && <div id="groomer-coc-pdf"><CodeOfConduct /></div>}
       </div>
     );
   }
