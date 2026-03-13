@@ -998,27 +998,53 @@ export default function CustomerProfilePage() {
                     <Button size="icon" className="shrink-0 self-end" disabled={!newMessage.trim() || sendMessageMutation.isPending} onClick={() => sendMessageMutation.mutate(newMessage.trim())}><Send className="h-4 w-4" /></Button>
                   </div>
                   <Separator />
-                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Message History</h4>
-                  {messages && messages.length > 0 ? (
-                    <div className="space-y-2">
-                      {messages.map((msg) => (
-                        <div key={msg.id} className="p-3 rounded-lg border bg-muted/30">
-                          <div className="flex items-center gap-2 mb-1">
-                            <Badge variant="outline" className="text-[10px] px-1.5 py-0">{msg.direction === "outbound" ? "Sent" : "Received"}</Badge>
-                            <span className="text-xs text-muted-foreground">{format(new Date(msg.created_at), "dd MMM yyyy, HH:mm")}</span>
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Message & SMS History</h4>
+                  {(() => {
+                    const allMessages = [
+                      ...(messages || []).map((msg) => ({
+                        id: msg.id,
+                        created_at: msg.created_at,
+                        direction: msg.direction,
+                        body: msg.body,
+                        sent_by: msg.sent_by,
+                        _type: "message" as const,
+                        _sentByName: msg.sent_by ? getStaffName(msg.sent_by) : null,
+                      })),
+                      ...(smsHistory || []).map((sms: any) => ({
+                        id: `sms-${sms.id}`,
+                        created_at: sms.created_at,
+                        direction: sms.direction,
+                        body: sms.body,
+                        sent_by: null as string | null,
+                        _type: "sms" as const,
+                        _sentByName: sms.sent_by_name || "System (Automated)",
+                      })),
+                    ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+                    return allMessages.length > 0 ? (
+                      <div className="space-y-2">
+                        {allMessages.map((msg) => (
+                          <div key={msg.id} className="p-3 rounded-lg border bg-muted/30">
+                            <div className="flex items-center gap-2 mb-1">
+                              <Badge variant="outline" className="text-[10px] px-1.5 py-0">{msg.direction === "outbound" ? "Sent" : "Received"}</Badge>
+                              {msg._type === "sms" && (
+                                <Badge variant="secondary" className="text-[10px] px-1.5 py-0">📱 SMS</Badge>
+                              )}
+                              <span className="text-xs text-muted-foreground">{format(new Date(msg.created_at), "dd MMM yyyy, HH:mm")}</span>
+                            </div>
+                            <p className="text-sm whitespace-pre-wrap">{msg.body}</p>
+                            {msg._sentByName && <p className="text-xs text-muted-foreground mt-1">by {msg._sentByName}</p>}
                           </div>
-                          <p className="text-sm whitespace-pre-wrap">{msg.body}</p>
-                          {msg.sent_by && <p className="text-xs text-muted-foreground mt-1">by {getStaffName(msg.sent_by)}</p>}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-8">
-                      <MessageSquare className="h-10 w-10 mx-auto text-muted-foreground/40 mb-3" />
-                      <p className="font-medium text-sm">No messages yet</p>
-                      <p className="text-xs text-muted-foreground">Send a message to start the conversation.</p>
-                    </div>
-                  )}
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8">
+                        <MessageSquare className="h-10 w-10 mx-auto text-muted-foreground/40 mb-3" />
+                        <p className="font-medium text-sm">No messages yet</p>
+                        <p className="text-xs text-muted-foreground">Send a message to start the conversation.</p>
+                      </div>
+                    );
+                  })()}
                 </CardContent>
               </Card>
             </TabsContent>
