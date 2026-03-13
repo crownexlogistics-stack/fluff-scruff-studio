@@ -602,7 +602,7 @@ function GroomerRow({ summary: g, commissionByBooking, isExpanded, onToggle, voi
                 </div>
               )}
 
-              {hasData && Math.abs(s.totalCardMachine - s.totalGroomerTyped) > 0.01 && s.hasAnyTyped && (
+              {hasData && isFullCoverage && Math.abs(s.totalCardMachine - s.totalGroomerTyped) > 0.01 && s.hasAnyTyped && (
                 <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-xs">
                   <p className="font-medium text-destructive">
                     Card machine shows £{Math.abs(s.totalCardMachine - s.totalGroomerTyped).toFixed(2)}{" "}
