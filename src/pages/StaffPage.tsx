@@ -13,17 +13,25 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
+import { useUserRole } from "@/hooks/useUserRole";
 
 interface StaffForm { name: string; role: string; is_self_employed: boolean; }
 const emptyForm: StaffForm = { name: "", role: "", is_self_employed: false };
+
+const FLAGGED_EVENT_TYPES = ["Verbal Warning", "Written Warning", "Final Warning", "Suspension", "Termination", "Resignation"];
 
 const StaffPage = () => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [addOpen, setAddOpen] = useState(false);
   const [form, setForm] = useState<StaffForm>(emptyForm);
+  const { user } = useAuth();
+  const { role: currentUserRole } = useUserRole(user?.id);
+  const isManagerOrDirector = currentUserRole === "director" || currentUserRole === "manager";
 
   const { data: staff, isLoading } = useQuery({
     queryKey: ["staff"],
@@ -33,6 +41,31 @@ const StaffPage = () => {
       return data;
     },
   });
+
+  // Fetch HR events for flag indicators (admin only)
+  const { data: hrEventsAll } = useQuery({
+    queryKey: ["hr_events_all"],
+    queryFn: async () => {
+      const { data, error } = await (supabase.from("hr_events" as any) as any)
+        .select("staff_id, event_type");
+      if (error) throw error;
+      return data as { staff_id: string; event_type: string }[];
+    },
+    enabled: isManagerOrDirector,
+  });
+
+  // Build a set of staff IDs that have flagged events
+  const flaggedStaffMap = new Map<string, string>();
+  if (hrEventsAll) {
+    for (const evt of hrEventsAll) {
+      if (FLAGGED_EVENT_TYPES.includes(evt.event_type)) {
+        const isTermination = evt.event_type === "Termination" || evt.event_type === "Resignation";
+        if (isTermination || !flaggedStaffMap.has(evt.staff_id)) {
+          flaggedStaffMap.set(evt.staff_id, isTermination ? "red" : "amber");
+        }
+      }
+    }
+  }
 
   const addMutation = useMutation({
     mutationFn: async (s: StaffForm) => {
@@ -129,41 +162,58 @@ const StaffPage = () => {
                 ) : staff?.length === 0 ? (
                   <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No staff yet.</TableCell></TableRow>
                 ) : (
-                  [...(staff || [])].sort((a: any, b: any) => {
-                    // Sort: active first, then leaving, then left/blocked at bottom
-                    const scoreA = a.account_blocked ? 3 : (a.employment_end_date && new Date(a.employment_end_date) < new Date() ? 2 : 0);
-                    const scoreB = b.account_blocked ? 3 : (b.employment_end_date && new Date(b.employment_end_date) < new Date() ? 2 : 0);
-                    return scoreA - scoreB;
-                  }).map((s: any) => {
-                    const isInactive = s.account_blocked || (s.employment_end_date && new Date(s.employment_end_date) < new Date());
-                    const statusBadge = getStaffStatusBadge(s);
-                    return (
-                      <TableRow
-                        key={s.id}
-                        className={cn(
-                          "cursor-pointer hover:bg-muted/50",
-                          isInactive && "opacity-50",
-                          s.account_blocked && "border-l-2 border-l-destructive",
-                          s.employment_end_date && !s.account_blocked && new Date(s.employment_end_date) >= new Date() && Math.ceil((new Date(s.employment_end_date).getTime() - Date.now()) / 86400000) <= 30 && "border-l-2 border-l-amber-500"
-                        )}
-                        onClick={() => navigate(`/staff/${s.id}`)}
-                      >
-                        <TableCell className="font-medium">{s.name}</TableCell>
-                        <TableCell>{s.role}</TableCell>
-                        <TableCell>{statusBadge || <span className="text-success text-sm font-medium">Active</span>}</TableCell>
-                        <TableCell>
-                          <Badge variant="secondary" className={`text-xs capitalize ${statusColor(s.contract_status)}`}>
-                            {s.contract_status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); deleteMutation.mutate(s.id); }} className="text-destructive hover:text-destructive">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
+                  <TooltipProvider>
+                    {[...(staff || [])].sort((a: any, b: any) => {
+                      const scoreA = a.account_blocked ? 3 : (a.employment_end_date && new Date(a.employment_end_date) < new Date() ? 2 : 0);
+                      const scoreB = b.account_blocked ? 3 : (b.employment_end_date && new Date(b.employment_end_date) < new Date() ? 2 : 0);
+                      return scoreA - scoreB;
+                    }).map((s: any) => {
+                      const isInactive = s.account_blocked || (s.employment_end_date && new Date(s.employment_end_date) < new Date());
+                      const statusBadge = getStaffStatusBadge(s);
+                      const flagColor = isManagerOrDirector ? flaggedStaffMap.get(s.id) : undefined;
+                      return (
+                        <TableRow
+                          key={s.id}
+                          className={cn(
+                            "cursor-pointer hover:bg-muted/50",
+                            isInactive && "opacity-50",
+                            s.account_blocked && "border-l-2 border-l-destructive",
+                            s.employment_end_date && !s.account_blocked && new Date(s.employment_end_date) >= new Date() && Math.ceil((new Date(s.employment_end_date).getTime() - Date.now()) / 86400000) <= 30 && "border-l-2 border-l-amber-500"
+                          )}
+                          onClick={() => navigate(`/staff/${s.id}`)}
+                        >
+                          <TableCell className="font-medium">
+                            <div className="flex items-center gap-2">
+                              {s.name}
+                              {flagColor && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className={cn(
+                                      "inline-block h-2.5 w-2.5 rounded-full shrink-0",
+                                      flagColor === "red" ? "bg-destructive" : "bg-amber-500"
+                                    )} />
+                                  </TooltipTrigger>
+                                  <TooltipContent>HR events on record</TooltipContent>
+                                </Tooltip>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>{s.role}</TableCell>
+                          <TableCell>{statusBadge || <span className="text-success text-sm font-medium">Active</span>}</TableCell>
+                          <TableCell>
+                            <Badge variant="secondary" className={`text-xs capitalize ${statusColor(s.contract_status)}`}>
+                              {s.contract_status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); deleteMutation.mutate(s.id); }} className="text-destructive hover:text-destructive">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TooltipProvider>
                 )}
               </TableBody>
             </Table>
