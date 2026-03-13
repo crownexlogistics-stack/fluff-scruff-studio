@@ -145,9 +145,35 @@ export function CheckoutDialog({ open, onOpenChange, booking, onComplete, onNoSh
             <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4">
               <p className="text-sm font-medium">Customer did not attend</p>
               <p className="text-xs text-muted-foreground mt-1">
-                This will cancel the appointment, free up the calendar slot, and send an email to the customer informing them.
+                This will mark the appointment as No Show and send an email to the customer.
               </p>
             </div>
+
+            {/* Deposit split preview */}
+            {Number(booking.deposit_paid) > 0 ? (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 space-y-2">
+                <p className="text-sm font-semibold text-amber-900">No Show — Deposit Split</p>
+                <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                  <div>
+                    <p className="text-muted-foreground">Deposit Paid</p>
+                    <p className="font-bold text-sm">£{Number(booking.deposit_paid).toFixed(2)}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Salon (50%)</p>
+                    <p className="font-bold text-sm">£{(Number(booking.deposit_paid) * 0.5).toFixed(2)}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Groomer (50%)</p>
+                    <p className="font-bold text-sm text-primary">£{(Number(booking.deposit_paid) * 0.5).toFixed(2)}</p>
+                  </div>
+                </div>
+                <p className="text-[10px] text-amber-600">Groomer's share will appear in their weekly payout.</p>
+              </div>
+            ) : (
+              <div className="rounded-lg border bg-muted/30 p-3">
+                <p className="text-xs text-muted-foreground">No deposit was paid — no financial split applies.</p>
+              </div>
+            )}
 
             <div className="flex gap-2 justify-end">
               <Button variant="outline" onClick={() => setStep("choose")}>Back</Button>

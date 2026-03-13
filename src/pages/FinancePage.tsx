@@ -265,6 +265,10 @@ const FinancePage = () => {
   // Detail view for individual groomer
   if (selectedStaffId && selectedSummary) {
     const owedRemaining = selectedSummary.totalGroomerPay - totalPaidOut;
+    const noShowCommissions = selectedSummary.commissions.filter((c: any) => c.commission_type === "no_show");
+    const regularCommissions = selectedSummary.commissions.filter((c: any) => c.commission_type !== "no_show");
+    const noShowTotal = noShowCommissions.reduce((s: number, c: any) => s + Number(c.groomer_pay), 0);
+    const regularTotal = regularCommissions.reduce((s: number, c: any) => s + Number(c.groomer_pay), 0);
     return (
       <AppLayout>
         <div className="space-y-4 max-w-4xl">
@@ -291,7 +295,10 @@ const FinancePage = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium">Payout Status</p>
-                  <p className="text-xs text-muted-foreground">Paid: £{totalPaidOut.toFixed(2)} / Owed: £{selectedSummary.totalGroomerPay.toFixed(2)}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Paid: £{totalPaidOut.toFixed(2)} / Owed: £{selectedSummary.totalGroomerPay.toFixed(2)}
+                    {noShowTotal > 0 && <span className="block text-[10px] mt-0.5">Regular commission: £{regularTotal.toFixed(2)} + No-show deposits: £{noShowTotal.toFixed(2)} = Total: £{selectedSummary.totalGroomerPay.toFixed(2)}</span>}
+                  </p>
                   {owedRemaining > 0 && <p className="text-sm font-semibold text-destructive mt-1">Remaining: £{owedRemaining.toFixed(2)}</p>}
                   {owedRemaining <= 0 && selectedSummary.totalGroomerPay > 0 && <Badge className="bg-emerald-600 text-white mt-1">Fully Paid</Badge>}
                 </div>
@@ -379,11 +386,14 @@ const FinancePage = () => {
                         const serviceName = isMigrated
                           ? c.migrated_bookings?.service_name || "—"
                           : c.bookings?.services?.name || "—";
+                        const isNoShow = c.commission_type === "no_show";
                         const balanceDue = Number(c.total_price) - Number(c.deposit_paid);
                         const charged = c.final_charge != null ? Number(c.final_charge) : null;
                         const diff = charged != null ? charged - balanceDue : null;
                         const diffColor = diff === null ? "" : Math.abs(diff) <= 2 ? "text-emerald-600" : diff < 0 ? "text-destructive" : "text-amber-600";
-                        const statusBadge = charged === null
+                        const statusBadge = isNoShow
+                          ? <Badge className="bg-emerald-600 text-white text-xs">✅</Badge>
+                          : charged === null
                           ? <Badge variant="secondary" className="text-xs">⚫ Pending</Badge>
                           : Math.abs(diff!) <= 2
                             ? <Badge className="bg-emerald-600 text-white text-xs">✅ Correct</Badge>
@@ -393,23 +403,27 @@ const FinancePage = () => {
                                 : <Badge variant="destructive" className="text-xs">🔴 Under</Badge>)
                               : <Badge className="bg-amber-500 text-white text-xs">🟡 Over</Badge>;
                         return (
-                        <TableRow key={c.id}>
+                        <TableRow key={c.id} className={isNoShow ? "bg-amber-50/50" : ""}>
                           <TableCell className="text-sm">
                             {customerName}
                             {isMigrated && <Badge className="ml-1 bg-amber-500 text-white hover:bg-amber-500 text-[8px] px-1 py-0">W</Badge>}
                           </TableCell>
                           <TableCell className="text-sm">{dogName}</TableCell>
                           <TableCell className="text-sm">{serviceName}</TableCell>
-                          <TableCell className="text-sm">£{Number(c.total_price).toFixed(2)}</TableCell>
+                          <TableCell className="text-sm">{isNoShow ? `£${Number(c.deposit_paid).toFixed(2)} deposit` : `£${Number(c.total_price).toFixed(2)}`}</TableCell>
                           <TableCell>
-                            <Badge variant={c.commission_type === "no_show" ? "destructive" : c.commission_type === "own_customer" ? "default" : "secondary"} className="text-xs">
-                              {c.commission_type === "own_customer" ? "Own 50%" : c.commission_type === "no_show" ? "No Show" : "Normal 40%"}
-                            </Badge>
+                            {isNoShow ? (
+                              <Badge className="bg-amber-500 text-white hover:bg-amber-500 text-xs">NO SHOW SPLIT</Badge>
+                            ) : (
+                              <Badge variant={c.commission_type === "own_customer" ? "default" : "secondary"} className="text-xs">
+                                {c.commission_type === "own_customer" ? "Own 50%" : "Normal 40%"}
+                              </Badge>
+                            )}
                           </TableCell>
                           <TableCell className="text-right font-medium">£{Number(c.groomer_pay).toFixed(2)}</TableCell>
-                          <TableCell className="text-sm">£{balanceDue.toFixed(2)}</TableCell>
-                          <TableCell className="text-sm">{charged != null ? `£${charged.toFixed(2)}` : <span className="text-muted-foreground italic">Not entered</span>}</TableCell>
-                          <TableCell className={`text-sm font-medium ${diffColor}`}>{diff != null ? `£${diff.toFixed(2)}` : "—"}</TableCell>
+                          <TableCell className="text-sm">{isNoShow ? "—" : `£${balanceDue.toFixed(2)}`}</TableCell>
+                          <TableCell className="text-sm">{isNoShow ? "—" : charged != null ? `£${charged.toFixed(2)}` : <span className="text-muted-foreground italic">Not entered</span>}</TableCell>
+                          <TableCell className={`text-sm font-medium ${isNoShow ? "" : diffColor}`}>{isNoShow ? "—" : diff != null ? `£${diff.toFixed(2)}` : "—"}</TableCell>
                           <TableCell>{statusBadge}</TableCell>
                         </TableRow>
                         );
@@ -448,6 +462,27 @@ const FinancePage = () => {
           <DialogContent className="max-w-md">
             <DialogHeader><DialogTitle>Process Payout — {selectedSummary.name}</DialogTitle></DialogHeader>
             <div className="space-y-4">
+              {/* Payout breakdown */}
+              {noShowTotal > 0 && (
+                <div className="rounded-lg border bg-muted/30 p-3 space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Regular commission</span>
+                    <span>£{regularTotal.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">No-show deposits (50% split)</span>
+                    <span>£{noShowTotal.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between border-t pt-1 font-semibold">
+                    <span>Total owed</span>
+                    <span>£{selectedSummary.totalGroomerPay.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Already paid</span>
+                    <span>-£{totalPaidOut.toFixed(2)}</span>
+                  </div>
+                </div>
+              )}
               <div><Label>Amount (£)</Label><NumericInput value={payoutAmount} onValueChange={setPayoutAmount} /></div>
               <div>
                 <Label>Payment Method</Label>
