@@ -495,8 +495,18 @@ function GroomerRow({ summary: g, commissionByBooking, isExpanded, onToggle, voi
 
       {isExpanded && (
         <TableRow>
-          <TableCell colSpan={7} className="p-0 bg-muted/20">
+          <TableCell colSpan={8} className="p-0 bg-muted/20">
             <div className="p-4 space-y-4">
+              {/* Missing CSV days warning */}
+              {hasData && missingDays.length > 0 && (
+                <Alert className="border-amber-300 bg-amber-50/60 dark:bg-amber-950/20">
+                  <AlertTriangle className="h-4 w-4 text-amber-600" />
+                  <AlertDescription className="text-xs text-amber-800 dark:text-amber-300">
+                    <p className="font-semibold">⚠️ Missing CSV data for: {missingDays.map(d => d.label).join(", ")}</p>
+                    <p className="mt-0.5">Upload these files to complete the reconciliation. Card Machine column is incomplete until all dates are uploaded.</p>
+                  </AlertDescription>
+                </Alert>
+              )}
               {/* Appointment drill-down */}
               <div className="rounded-lg border overflow-hidden">
                 <Table>
