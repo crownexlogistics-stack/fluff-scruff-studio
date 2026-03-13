@@ -434,12 +434,35 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
     mutationFn: async (bookingId: string) => {
       const { error } = await supabase.from("bookings").update({ status: "No Show" }).eq("id", bookingId);
       if (error) throw error;
+
+      // Create no-show deposit split commission record (50% of deposit) only if deposit was paid
+      const booking = todayBookings.find(b => b.id === bookingId) || upcomingBookings.find(b => b.id === bookingId) || pastBookings.find(b => b.id === bookingId);
+      if (booking && booking.staff_id) {
+        const deposit = Number(booking.deposit_paid);
+        if (deposit > 0) {
+          const groomerPay = Math.round(deposit * 0.5 * 100) / 100;
+          const studioShare = Math.round((deposit - groomerPay) * 100) / 100;
+          await supabase.from("commission_records").insert({
+            booking_id: bookingId,
+            staff_id: booking.staff_id,
+            total_price: Number(booking.total_price),
+            deposit_paid: deposit,
+            final_charge: 0,
+            commission_type: "no_show",
+            commission_rate: 0.5,
+            groomer_pay: groomerPay,
+            studio_share: studioShare,
+          });
+        }
+      }
+
       logAudit({ action: "BOOKING_NO_SHOW", details: `Marked booking ${bookingId} as No Show` });
       supabase.functions.invoke("send-booking-email", { body: { booking_id: bookingId, email_type: "no_show" } }).catch(() => {});
     },
     onSuccess: () => {
       toast.success("Marked as No Show");
       queryClient.invalidateQueries({ queryKey: ["groomer-bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["commission-records"] });
     },
     onError: (e: any) => toast.error(e.message),
   });

@@ -264,6 +264,28 @@ export function BookingPopoverCard({
         </div>
       )}
 
+      {/* No Show Deposit Split */}
+      {booking.status === "No Show" && Number(booking.deposit_paid) > 0 && (
+        <div className="border-t pt-3">
+          <p className="text-sm font-semibold mb-2" style={{ color: "#92400e" }}>No Show — Deposit Split</p>
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 space-y-1 text-xs">
+            <div className="flex justify-between">
+              <span className="text-amber-800">Total Deposit Paid</span>
+              <span className="font-semibold text-amber-900">£{Number(booking.deposit_paid).toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-amber-800">Salon (50%)</span>
+              <span className="font-semibold text-amber-900">£{(Number(booking.deposit_paid) * 0.5).toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-amber-800">Groomer (50%)</span>
+              <span className="font-semibold text-amber-900">£{(Number(booking.deposit_paid) * 0.5).toFixed(2)}</span>
+            </div>
+            <p className="text-[10px] text-amber-600 pt-1">Deposit has been split. Groomer's share will appear in their weekly payout.</p>
+          </div>
+        </div>
+      )}
+
       {booking.notes && (
         <div className="border-t pt-3">
           <p className="text-xs text-muted-foreground">{booking.notes}</p>
