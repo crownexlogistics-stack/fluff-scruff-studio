@@ -1009,6 +1009,116 @@ export default function CustomerProfilePage() {
                     <Textarea placeholder="Type a message to this customer..." value={newMessage} onChange={(e) => setNewMessage(e.target.value)} className="min-h-[60px]" />
                     <Button size="icon" className="shrink-0 self-end" disabled={!newMessage.trim() || sendMessageMutation.isPending} onClick={() => sendMessageMutation.mutate(newMessage.trim())}><Send className="h-4 w-4" /></Button>
                   </div>
+
+                  {/* AI Writing Assistant */}
+                  {!aiOpen && !aiGenerated && (
+                    <button
+                      type="button"
+                      onClick={() => setAiOpen(true)}
+                      className="flex items-center gap-2 w-full rounded-lg border-2 border-dashed border-primary/30 bg-primary/5 hover:bg-primary/10 hover:border-primary/50 transition-all px-4 py-3 text-sm font-medium text-primary"
+                    >
+                      <Sparkles className="h-4 w-4" />
+                      ✨ Write with AI — let AI draft a professional message for you
+                    </button>
+                  )}
+
+                  {aiOpen && !aiGenerated && (
+                    <div className="rounded-lg border-2 border-primary/30 bg-primary/5 p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-semibold text-foreground flex items-center gap-2">
+                          <Sparkles className="h-4 w-4 text-primary" /> AI Message Writer
+                        </span>
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setAiOpen(false); setAiInput(""); }}>
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground">Type what you want to say in your own words — spelling mistakes and casual language are fine!</p>
+                      <Input
+                        placeholder="e.g. tell them we need to reschedule, we're not working Sunday"
+                        value={aiInput}
+                        onChange={(e) => setAiInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            if (aiInput.trim() && !aiLoading) {
+                              (async () => {
+                                setAiLoading(true);
+                                try {
+                                  const { data, error } = await supabase.functions.invoke("generate-sms-message", { body: { roughMessage: aiInput.trim() } });
+                                  if (error) throw error;
+                                  if (data?.error) throw new Error(data.error);
+                                  setAiGenerated(data.message);
+                                } catch (err: any) {
+                                  toast({ title: err.message || "AI generation failed", variant: "destructive" });
+                                } finally {
+                                  setAiLoading(false);
+                                }
+                              })();
+                            }
+                          }
+                        }}
+                        className="text-sm"
+                      />
+                      <Button
+                        onClick={async () => {
+                          if (!aiInput.trim()) return;
+                          setAiLoading(true);
+                          try {
+                            const { data, error } = await supabase.functions.invoke("generate-sms-message", { body: { roughMessage: aiInput.trim() } });
+                            if (error) throw error;
+                            if (data?.error) throw new Error(data.error);
+                            setAiGenerated(data.message);
+                          } catch (err: any) {
+                            toast({ title: err.message || "AI generation failed", variant: "destructive" });
+                          } finally {
+                            setAiLoading(false);
+                          }
+                        }}
+                        disabled={!aiInput.trim() || aiLoading}
+                        className="w-full"
+                      >
+                        {aiLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}
+                        Generate Message
+                      </Button>
+                    </div>
+                  )}
+
+                  {aiGenerated && (
+                    <div className="rounded-lg border-2 border-primary/30 bg-primary/5 p-4 space-y-3">
+                      <span className="text-sm font-semibold text-foreground flex items-center gap-2">
+                        <Sparkles className="h-4 w-4 text-primary" /> AI Suggestion
+                      </span>
+                      <p className="text-sm bg-background rounded-md p-3 border border-border whitespace-pre-wrap">{aiGenerated}</p>
+                      <div className="flex gap-2 flex-wrap">
+                        <Button size="sm" onClick={() => { setNewMessage(aiGenerated); setAiGenerated(""); setAiOpen(false); setAiInput(""); }}>
+                          <Check className="h-3.5 w-3.5 mr-1" /> Use this message
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={async () => {
+                          setAiLoading(true);
+                          try {
+                            const { data, error } = await supabase.functions.invoke("generate-sms-message", { body: { roughMessage: aiInput.trim() } });
+                            if (error) throw error;
+                            if (data?.error) throw new Error(data.error);
+                            setAiGenerated(data.message);
+                          } catch (err: any) {
+                            toast({ title: err.message || "AI generation failed", variant: "destructive" });
+                          } finally {
+                            setAiLoading(false);
+                          }
+                        }} disabled={aiLoading}>
+                          {aiLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <RotateCcw className="h-3.5 w-3.5 mr-1" />}
+                          Try again
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => { setNewMessage(aiGenerated); setAiGenerated(""); setAiOpen(false); setAiInput(""); }}>
+                          <PenLine className="h-3.5 w-3.5 mr-1" /> Edit manually
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => { setAiGenerated(""); setAiOpen(false); setAiInput(""); }}>
+                          <X className="h-3.5 w-3.5 mr-1" /> Discard
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
                   <Separator />
                   <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Message & SMS History</h4>
                   {(() => {
