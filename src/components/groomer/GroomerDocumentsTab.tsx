@@ -151,7 +151,7 @@ export function GroomerDocumentsTab({ staffId }: { staffId: string }) {
 
         {activeDoc === "room-rules" && (
           <ScrollArea className="h-[70vh]">
-            <div className="space-y-4 pr-4">
+            <div className="space-y-4 pr-4" id="groomer-rules-pdf">
               {ruleFolders.map((folder, idx) => (
                 <Card key={idx}>
                   <CardContent className="p-4 space-y-3">
