@@ -386,11 +386,14 @@ const FinancePage = () => {
                         const serviceName = isMigrated
                           ? c.migrated_bookings?.service_name || "—"
                           : c.bookings?.services?.name || "—";
+                        const isNoShow = c.commission_type === "no_show";
                         const balanceDue = Number(c.total_price) - Number(c.deposit_paid);
                         const charged = c.final_charge != null ? Number(c.final_charge) : null;
                         const diff = charged != null ? charged - balanceDue : null;
                         const diffColor = diff === null ? "" : Math.abs(diff) <= 2 ? "text-emerald-600" : diff < 0 ? "text-destructive" : "text-amber-600";
-                        const statusBadge = charged === null
+                        const statusBadge = isNoShow
+                          ? <Badge className="bg-emerald-600 text-white text-xs">✅</Badge>
+                          : charged === null
                           ? <Badge variant="secondary" className="text-xs">⚫ Pending</Badge>
                           : Math.abs(diff!) <= 2
                             ? <Badge className="bg-emerald-600 text-white text-xs">✅ Correct</Badge>
@@ -400,16 +403,16 @@ const FinancePage = () => {
                                 : <Badge variant="destructive" className="text-xs">🔴 Under</Badge>)
                               : <Badge className="bg-amber-500 text-white text-xs">🟡 Over</Badge>;
                         return (
-                        <TableRow key={c.id}>
+                        <TableRow key={c.id} className={isNoShow ? "bg-amber-50/50" : ""}>
                           <TableCell className="text-sm">
                             {customerName}
                             {isMigrated && <Badge className="ml-1 bg-amber-500 text-white hover:bg-amber-500 text-[8px] px-1 py-0">W</Badge>}
                           </TableCell>
                           <TableCell className="text-sm">{dogName}</TableCell>
                           <TableCell className="text-sm">{serviceName}</TableCell>
-                          <TableCell className="text-sm">{c.commission_type === "no_show" ? `£${Number(c.deposit_paid).toFixed(2)} deposit` : `£${Number(c.total_price).toFixed(2)}`}</TableCell>
+                          <TableCell className="text-sm">{isNoShow ? `£${Number(c.deposit_paid).toFixed(2)} deposit` : `£${Number(c.total_price).toFixed(2)}`}</TableCell>
                           <TableCell>
-                            {c.commission_type === "no_show" ? (
+                            {isNoShow ? (
                               <Badge className="bg-amber-500 text-white hover:bg-amber-500 text-xs">NO SHOW SPLIT</Badge>
                             ) : (
                               <Badge variant={c.commission_type === "own_customer" ? "default" : "secondary"} className="text-xs">
@@ -418,9 +421,9 @@ const FinancePage = () => {
                             )}
                           </TableCell>
                           <TableCell className="text-right font-medium">£{Number(c.groomer_pay).toFixed(2)}</TableCell>
-                          <TableCell className="text-sm">£{balanceDue.toFixed(2)}</TableCell>
-                          <TableCell className="text-sm">{charged != null ? `£${charged.toFixed(2)}` : <span className="text-muted-foreground italic">Not entered</span>}</TableCell>
-                          <TableCell className={`text-sm font-medium ${diffColor}`}>{diff != null ? `£${diff.toFixed(2)}` : "—"}</TableCell>
+                          <TableCell className="text-sm">{isNoShow ? "—" : `£${balanceDue.toFixed(2)}`}</TableCell>
+                          <TableCell className="text-sm">{isNoShow ? "—" : charged != null ? `£${charged.toFixed(2)}` : <span className="text-muted-foreground italic">Not entered</span>}</TableCell>
+                          <TableCell className={`text-sm font-medium ${isNoShow ? "" : diffColor}`}>{isNoShow ? "—" : diff != null ? `£${diff.toFixed(2)}` : "—"}</TableCell>
                           <TableCell>{statusBadge}</TableCell>
                         </TableRow>
                         );
