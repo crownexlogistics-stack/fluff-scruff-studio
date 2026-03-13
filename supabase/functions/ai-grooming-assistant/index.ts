@@ -246,7 +246,7 @@ async function sendEscalationEmail(
       Authorization: `Bearer ${resendKey}`,
     },
     body: JSON.stringify({
-      from: "Fluff & Scruff Studio <onboarding@resend.dev>",
+      from: "Fluff & Scruff Studio <info@fluffandscruff.co.uk>",
       to: ["info@fluffandscruff.co.uk"],
       reply_to: "info@fluffandscruff.co.uk",
       subject: "🐾 Scruff Chat — Customer needs help",

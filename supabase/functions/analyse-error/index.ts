@@ -132,7 +132,7 @@ lovablePrompt should be a ready-to-use prompt they can paste into Lovable to fix
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              from: "Fluff & Scruff Studio <onboarding@resend.dev>",
+              from: "Fluff & Scruff Studio <info@fluffandscruff.co.uk>",
               reply_to: "info@fluffandscruff.co.uk",
               to: ["info@fluffandscruff.co.uk"],
               subject: "🚨 High priority error on your website needs attention",
