@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { RefreshCw, Activity, Mail } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { toast } from "sonner";
+import { HealthAIAnalysis } from "@/components/health/HealthAIAnalysis";
 
 type CheckStatus = "pass" | "fail" | "warning" | "checking";
 
@@ -31,6 +32,7 @@ export default function SystemHealthPage() {
   const [checks, setChecks] = useState<HealthCheck[]>([]);
   const [running, setRunning] = useState(false);
   const [lastRun, setLastRun] = useState<string | null>(null);
+  const [serverResults, setServerResults] = useState<Record<string, any> | null>(null);
 
   const updateCheck = useCallback((name: string, updates: Partial<HealthCheck>) => {
     setChecks((prev) =>
@@ -233,6 +235,23 @@ export default function SystemHealthPage() {
 
     setLastRun(new Date().toISOString());
     setRunning(false);
+
+    // Build combined results for AI analysis
+    const combinedResults: Record<string, any> = {};
+    setChecks((prev) => {
+      prev.forEach((c) => {
+        combinedResults[c.name] = {
+          category: c.category,
+          status: c.status,
+          description: c.description,
+          responseTime: c.responseTime,
+          error: c.error,
+          detail: c.detail,
+        };
+      });
+      return prev;
+    });
+    setServerResults(combinedResults);
   }, []);
 
   useEffect(() => {
@@ -355,6 +374,14 @@ export default function SystemHealthPage() {
             </div>
           </div>
         ))}
+
+        {/* AI Analysis Section */}
+        {serverResults && (
+          <HealthAIAnalysis
+            healthResults={serverResults}
+            checksFinished={!running && checks.length > 0}
+          />
+        )}
       </div>
     </AppLayout>
   );
