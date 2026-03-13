@@ -235,6 +235,23 @@ export default function SystemHealthPage() {
 
     setLastRun(new Date().toISOString());
     setRunning(false);
+
+    // Build combined results for AI analysis
+    const combinedResults: Record<string, any> = {};
+    setChecks((prev) => {
+      prev.forEach((c) => {
+        combinedResults[c.name] = {
+          category: c.category,
+          status: c.status,
+          description: c.description,
+          responseTime: c.responseTime,
+          error: c.error,
+          detail: c.detail,
+        };
+      });
+      return prev;
+    });
+    setServerResults(combinedResults);
   }, []);
 
   useEffect(() => {
