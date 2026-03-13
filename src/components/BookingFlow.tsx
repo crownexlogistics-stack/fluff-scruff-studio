@@ -788,7 +788,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
       }
       if (!availCheck?.available) {
         console.warn("[booking] Server rejected:", availCheck?.reason);
-        setAlertMessage(availCheck?.reason || "This slot is no longer available. Please choose another time.");
+        setAlertMessage(availCheck?.reason || "Sorry, this slot is no longer available. Please choose another time.");
         setIsSubmitting(false);
         return;
       }
