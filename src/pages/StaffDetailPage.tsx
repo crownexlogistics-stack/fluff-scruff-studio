@@ -16,13 +16,15 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, CalendarIcon, Save, FileText, Send, CheckCircle2, User, Clock, Scissors, StickyNote, Cake, ShieldCheck, RotateCcw, KeyRound, Activity, Ban, CalendarX, Download } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ArrowLeft, CalendarIcon, Save, FileText, Send, CheckCircle2, User, Clock, Scissors, StickyNote, Cake, ShieldCheck, RotateCcw, KeyRound, Activity, Ban, CalendarX, Download, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { ContractPreviewDialog } from "@/components/staff/ContractPreviewDialog";
 import { HealthAndSafetyPreviewDialog } from "@/components/staff/HealthAndSafetyPreviewDialog";
+import { HRRecordsTab } from "@/components/staff/HRRecordsTab";
 
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -37,6 +39,7 @@ const StaffDetailPage = () => {
   const { user } = useAuth();
   const { role: currentUserRole } = useUserRole(user?.id);
   const isDirector = currentUserRole === "director";
+  const isManagerOrDirector = currentUserRole === "director" || currentUserRole === "manager";
 
   // Basic form state
   const [form, setForm] = useState({
@@ -120,6 +123,20 @@ const StaffDetailPage = () => {
     enabled: !!id && isDirector,
   });
 
+  // Fetch employment status for banner
+  const { data: employmentStatus } = useQuery({
+    queryKey: ["hr_employment_status", id],
+    queryFn: async () => {
+      const { data, error } = await (supabase.from("hr_employment_status" as any) as any)
+        .select("*")
+        .eq("staff_id", id!)
+        .maybeSingle();
+      if (error) throw error;
+      return data as any;
+    },
+    enabled: !!id && isManagerOrDirector,
+  });
+
   const addNoteMutation = useMutation({
     mutationFn: async (note: string) => {
       const { error } = await supabase.from("staff_notes" as any).insert({ staff_id: id!, note, created_by: user!.id } as any);
@@ -176,7 +193,6 @@ const StaffDetailPage = () => {
 
   const saveAvailabilityMutation = useMutation({
     mutationFn: async () => {
-      // UPSERT each day — never delete/recreate to avoid ghost records
       for (const a of availability) {
         const { error } = await supabase.from("staff_availability").upsert(
           {
@@ -302,6 +318,9 @@ const StaffDetailPage = () => {
   const statusColor = { draft: "bg-muted text-muted-foreground", sent: "bg-primary/15 text-primary", signed: "bg-success/15 text-success" }[staff.contract_status] || "bg-muted text-muted-foreground";
   const hsStatusColor = { pending: "bg-muted text-muted-foreground", sent: "bg-primary/15 text-primary", signed: "bg-success/15 text-success" }[(staff as any).hs_status] || "bg-muted text-muted-foreground";
 
+  const hrStatus = employmentStatus?.current_status;
+  const isTerminatedOrResigned = hrStatus === "Terminated" || hrStatus === "Resigned";
+
   return (
     <AppLayout>
       <div className="space-y-6 max-w-4xl">
@@ -312,7 +331,12 @@ const StaffDetailPage = () => {
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div>
-              <h1 className="text-2xl font-heading font-bold">{staff.name}</h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-2xl font-heading font-bold">{staff.name}</h1>
+                {isTerminatedOrResigned && isManagerOrDirector && (
+                  <Badge variant="destructive">{hrStatus}</Badge>
+                )}
+              </div>
               <p className="text-muted-foreground text-sm">{staff.role} {staff.is_self_employed && "· Self-Employed"}</p>
             </div>
           </div>
@@ -321,402 +345,421 @@ const StaffDetailPage = () => {
           </Button>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-3">
-          {/* Left column: Basic + HR */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Basic Details */}
-            <Card>
-              <CardHeader className="pb-4">
-                <CardTitle className="font-heading text-lg flex items-center gap-2"><User className="h-5 w-5 text-primary" /> Basic Details</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Full Name</Label>
-                    <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Role</Label>
-                    <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
-                      <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Groomer">Groomer</SelectItem>
-                        <SelectItem value="Manager">Manager</SelectItem>
-                        <SelectItem value="Volunteer">Volunteer</SelectItem>
-                        <SelectItem value="Work Placement">Work Placement</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Email</Label>
-                    <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="email@example.com" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Phone</Label>
-                    <Input value={form.contact_number} onChange={(e) => setForm({ ...form, contact_number: e.target.value })} placeholder="07700 900000" />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label className="flex items-center gap-2"><Cake className="h-4 w-4" /> Date of Birth</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !form.date_of_birth && "text-muted-foreground")}>
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {form.date_of_birth ? format(form.date_of_birth, "PPP") : "Pick a date"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar mode="single" selected={form.date_of_birth ?? undefined} onSelect={(d) => setForm({ ...form, date_of_birth: d ?? null })} initialFocus className="p-3 pointer-events-auto" captionLayout="dropdown" fromYear={1950} toYear={2010} />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-                <div className="flex items-center justify-between pt-2">
-                  <Label>Self-Employed Contractor</Label>
-                  <Switch checked={form.is_self_employed} onCheckedChange={(v) => setForm({ ...form, is_self_employed: v })} />
-                </div>
-              </CardContent>
-            </Card>
+        <Tabs defaultValue="profile">
+          <TabsList>
+            <TabsTrigger value="profile">Profile</TabsTrigger>
+            {isManagerOrDirector && <TabsTrigger value="hr-records">HR Records</TabsTrigger>}
+          </TabsList>
 
-            {/* Working Hours */}
-            <Card>
-              <CardHeader className="pb-4">
-                <CardTitle className="font-heading text-lg flex items-center gap-2"><Clock className="h-5 w-5 text-primary" /> Working Hours</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="grid grid-cols-[120px_1fr_auto_1fr] gap-3 items-center text-xs font-medium text-muted-foreground px-1">
-                    <span>Day</span><span>Start</span><span></span><span>End</span>
-                  </div>
-                  {DAYS.map((day, i) => (
-                    <div key={day} className={cn("grid grid-cols-[120px_1fr_auto_1fr] gap-3 items-center rounded-lg px-3 py-2", availability[i].is_available ? "bg-card" : "bg-muted/50 opacity-60")}>
-                      <div className="flex items-center gap-2">
-                        <Switch checked={availability[i].is_available} onCheckedChange={(v) => updateAvail(i, "is_available", v)} className="scale-75" />
-                        <span className="text-sm font-medium">{day}</span>
+          {/* Profile Tab - existing content */}
+          <TabsContent value="profile">
+            <div className="space-y-6 pt-2">
+              <div className="grid gap-6 lg:grid-cols-3">
+                {/* Left column: Basic + Working Hours */}
+                <div className="lg:col-span-2 space-y-6">
+                  {/* Basic Details */}
+                  <Card>
+                    <CardHeader className="pb-4">
+                      <CardTitle className="font-heading text-lg flex items-center gap-2"><User className="h-5 w-5 text-primary" /> Basic Details</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>Full Name</Label>
+                          <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Role</Label>
+                          <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
+                            <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Groomer">Groomer</SelectItem>
+                              <SelectItem value="Manager">Manager</SelectItem>
+                              <SelectItem value="Volunteer">Volunteer</SelectItem>
+                              <SelectItem value="Work Placement">Work Placement</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </div>
-                      <Input type="time" value={availability[i].start_time} onChange={(e) => updateAvail(i, "start_time", e.target.value)} disabled={!availability[i].is_available} className="h-9" />
-                      <span className="text-muted-foreground text-xs">to</span>
-                      <Input type="time" value={availability[i].end_time} onChange={(e) => updateAvail(i, "end_time", e.target.value)} disabled={!availability[i].is_available} className="h-9" />
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>Email</Label>
+                          <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="email@example.com" />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Phone</Label>
+                          <Input value={form.contact_number} onChange={(e) => setForm({ ...form, contact_number: e.target.value })} placeholder="07700 900000" />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="flex items-center gap-2"><Cake className="h-4 w-4" /> Date of Birth</Label>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !form.date_of_birth && "text-muted-foreground")}>
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {form.date_of_birth ? format(form.date_of_birth, "PPP") : "Pick a date"}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar mode="single" selected={form.date_of_birth ?? undefined} onSelect={(d) => setForm({ ...form, date_of_birth: d ?? null })} initialFocus className="p-3 pointer-events-auto" captionLayout="dropdown" fromYear={1950} toYear={2010} />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                      <div className="flex items-center justify-between pt-2">
+                        <Label>Self-Employed Contractor</Label>
+                        <Switch checked={form.is_self_employed} onCheckedChange={(v) => setForm({ ...form, is_self_employed: v })} />
+                      </div>
+                    </CardContent>
+                  </Card>
 
-          {/* Right column: HR & Services */}
-          <div className="space-y-6">
-            {/* HR & Contracts */}
-            <Card>
-              <CardHeader className="pb-4">
-                <CardTitle className="font-heading text-lg flex items-center gap-2"><FileText className="h-5 w-5 text-primary" /> HR & Contracts</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Start Date</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !form.start_date && "text-muted-foreground")}>
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {form.start_date ? format(form.start_date, "PPP") : "Pick a date"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar mode="single" selected={form.start_date ?? undefined} onSelect={(d) => setForm({ ...form, start_date: d ?? null })} initialFocus className="p-3 pointer-events-auto" />
-                    </PopoverContent>
-                  </Popover>
+                  {/* Working Hours */}
+                  <Card>
+                    <CardHeader className="pb-4">
+                      <CardTitle className="font-heading text-lg flex items-center gap-2"><Clock className="h-5 w-5 text-primary" /> Working Hours</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-[120px_1fr_auto_1fr] gap-3 items-center text-xs font-medium text-muted-foreground px-1">
+                          <span>Day</span><span>Start</span><span></span><span>End</span>
+                        </div>
+                        {DAYS.map((day, i) => (
+                          <div key={day} className={cn("grid grid-cols-[120px_1fr_auto_1fr] gap-3 items-center rounded-lg px-3 py-2", availability[i].is_available ? "bg-card" : "bg-muted/50 opacity-60")}>
+                            <div className="flex items-center gap-2">
+                              <Switch checked={availability[i].is_available} onCheckedChange={(v) => updateAvail(i, "is_available", v)} className="scale-75" />
+                              <span className="text-sm font-medium">{day}</span>
+                            </div>
+                            <Input type="time" value={availability[i].start_time} onChange={(e) => updateAvail(i, "start_time", e.target.value)} disabled={!availability[i].is_available} className="h-9" />
+                            <span className="text-muted-foreground text-xs">to</span>
+                            <Input type="time" value={availability[i].end_time} onChange={(e) => updateAvail(i, "end_time", e.target.value)} disabled={!availability[i].is_available} className="h-9" />
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
                 </div>
 
-                {/* Last Working Date - auto-save */}
-                <div className="space-y-2">
-                  <Label className="flex items-center gap-2"><CalendarX className="h-4 w-4" /> Last Working Date</Label>
-                  <p className="text-xs text-muted-foreground">Groomer will not appear for new bookings after this date. Existing appointments are unaffected.</p>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !(staff as any).employment_end_date && "text-muted-foreground")}>
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {(staff as any).employment_end_date ? format(new Date((staff as any).employment_end_date), "PPP") : "No end date set"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={(staff as any).employment_end_date ? new Date((staff as any).employment_end_date) : undefined}
-                        onSelect={async (d) => {
-                          const val = d ? format(d, "yyyy-MM-dd") : null;
-                          const { error } = await supabase.from("staff").update({ employment_end_date: val } as any).eq("id", id!);
-                          if (!error) {
-                            queryClient.invalidateQueries({ queryKey: ["staff", id] });
-                            toast.success(val ? `Last working date set to ${format(d!, "PPP")}` : "End date cleared");
-                          }
-                        }}
-                        initialFocus
-                        className="p-3 pointer-events-auto"
-                      />
-                      {(staff as any).employment_end_date && (
-                        <div className="p-2 border-t">
-                          <Button variant="ghost" size="sm" className="w-full text-destructive" onClick={async () => {
-                            const { error } = await supabase.from("staff").update({ employment_end_date: null } as any).eq("id", id!);
-                            if (!error) {
+                {/* Right column: HR & Services */}
+                <div className="space-y-6">
+                  {/* HR & Contracts */}
+                  <Card>
+                    <CardHeader className="pb-4">
+                      <CardTitle className="font-heading text-lg flex items-center gap-2"><FileText className="h-5 w-5 text-primary" /> HR & Contracts</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="space-y-2">
+                        <Label>Start Date</Label>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !form.start_date && "text-muted-foreground")}>
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {form.start_date ? format(form.start_date, "PPP") : "Pick a date"}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar mode="single" selected={form.start_date ?? undefined} onSelect={(d) => setForm({ ...form, start_date: d ?? null })} initialFocus className="p-3 pointer-events-auto" />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+
+                      {/* Last Working Date */}
+                      <div className="space-y-2">
+                        <Label className="flex items-center gap-2"><CalendarX className="h-4 w-4" /> Last Working Date</Label>
+                        <p className="text-xs text-muted-foreground">Groomer will not appear for new bookings after this date. Existing appointments are unaffected.</p>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !(staff as any).employment_end_date && "text-muted-foreground")}>
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {(staff as any).employment_end_date ? format(new Date((staff as any).employment_end_date), "PPP") : "No end date set"}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={(staff as any).employment_end_date ? new Date((staff as any).employment_end_date) : undefined}
+                              onSelect={async (d) => {
+                                const val = d ? format(d, "yyyy-MM-dd") : null;
+                                const { error } = await supabase.from("staff").update({ employment_end_date: val } as any).eq("id", id!);
+                                if (!error) {
+                                  queryClient.invalidateQueries({ queryKey: ["staff", id] });
+                                  toast.success(val ? `Last working date set to ${format(d!, "PPP")}` : "End date cleared");
+                                }
+                              }}
+                              initialFocus
+                              className="p-3 pointer-events-auto"
+                            />
+                            {(staff as any).employment_end_date && (
+                              <div className="p-2 border-t">
+                                <Button variant="ghost" size="sm" className="w-full text-destructive" onClick={async () => {
+                                  const { error } = await supabase.from("staff").update({ employment_end_date: null } as any).eq("id", id!);
+                                  if (!error) {
+                                    queryClient.invalidateQueries({ queryKey: ["staff", id] });
+                                    toast.success("End date cleared");
+                                  }
+                                }}>Clear end date</Button>
+                              </div>
+                            )}
+                          </PopoverContent>
+                        </Popover>
+                        {(staff as any).employment_end_date && (
+                          <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-400 hover:bg-amber-500/15">
+                            Leaving {format(new Date((staff as any).employment_end_date), "dd MMM yyyy")}
+                          </Badge>
+                        )}
+                      </div>
+
+                      <Separator />
+
+                      {/* Block Account Access */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <Label className="flex items-center gap-2"><Ban className="h-4 w-4" /> Block Login Access</Label>
+                            <p className="text-xs text-muted-foreground mt-0.5">Groomer cannot log in but their profile and booking history is preserved</p>
+                          </div>
+                          <Switch
+                            checked={(staff as any).account_blocked || false}
+                            onCheckedChange={async (checked) => {
+                              const { error } = await supabase.from("staff").update({ account_blocked: checked } as any).eq("id", id!);
+                              if (error) { toast.error(error.message); return; }
                               queryClient.invalidateQueries({ queryKey: ["staff", id] });
-                              toast.success("End date cleared");
-                            }
-                          }}>Clear end date</Button>
+                              if (checked) {
+                                toast.success(`Account blocked — ${staff.name} can no longer log in ✅`);
+                              } else {
+                                toast.success("Access restored ✅");
+                              }
+                            }}
+                          />
+                        </div>
+                        {(staff as any).account_blocked && (
+                          <Badge variant="destructive">Access Blocked</Badge>
+                        )}
+                      </div>
+
+                      <Separator />
+
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium">Contract Status</span>
+                          <Badge variant="secondary" className={cn("capitalize text-xs", statusColor)}>{staff.contract_status}</Badge>
+                        </div>
+
+                        {staff.signed_at && (
+                          <div className="text-xs text-muted-foreground space-y-0.5">
+                            <p>Signed {format(new Date(staff.signed_at), "PPP 'at' p")}</p>
+                            {(staff as any).signed_ip && <p>IP: {(staff as any).signed_ip}</p>}
+                          </div>
+                        )}
+
+                        <div className="flex flex-col gap-2">
+                          <Button size="sm" variant="outline" onClick={() => setContractOpen(true)} className="w-full justify-start">
+                            <FileText className="mr-2 h-3.5 w-3.5" /> View Contract
+                          </Button>
+                          {staff.contract_status === "draft" && (
+                            <Button size="sm" onClick={() => sendForSignatureMutation.mutate()} className="w-full justify-start">
+                              <Send className="mr-2 h-3.5 w-3.5" /> Send for Signature
+                            </Button>
+                          )}
+                          {staff.contract_status === "signed" && (
+                            <div className="flex items-center gap-2 text-success text-sm">
+                              <CheckCircle2 className="h-4 w-4" /> Contract signed
+                            </div>
+                          )}
+                          <Button size="sm" variant="secondary" onClick={() => generateContractMutation.mutate()} className="w-full justify-start">
+                            <FileText className="mr-2 h-3.5 w-3.5" /> Generate Contract
+                          </Button>
+                        </div>
+                      </div>
+
+                      <Separator />
+
+                      <div className="space-y-2">
+                        <span className="text-sm font-medium">Documents Signing Link</span>
+                        <p className="text-xs text-muted-foreground break-all">
+                          https://fluff-scruff-studio.lovable.app/contract/sign/{staff.id}
+                        </p>
+                      </div>
+
+                      <Separator />
+
+                      {/* Health & Safety */}
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium">Health & Safety Policy</span>
+                          <Badge variant="secondary" className={cn("capitalize text-xs", hsStatusColor)}>{(staff as any).hs_status || "pending"}</Badge>
+                        </div>
+
+                        {(staff as any).hs_signed_at && (
+                          <div className="text-xs text-muted-foreground space-y-0.5">
+                            <p>Signed {format(new Date((staff as any).hs_signed_at), "PPP 'at' p")}</p>
+                            {(staff as any).hs_signed_ip && <p>IP: {(staff as any).hs_signed_ip}</p>}
+                          </div>
+                        )}
+
+                        <div className="flex flex-col gap-2">
+                          <Button size="sm" variant="outline" onClick={() => setHsOpen(true)} className="w-full justify-start">
+                            <ShieldCheck className="mr-2 h-3.5 w-3.5" /> {(staff as any).hs_status === "signed" ? "View Signed Policy" : "View Policy"}
+                          </Button>
+                          {(staff as any).hs_status === "signed" && (
+                            <div className="flex items-center gap-2 text-success text-sm">
+                              <CheckCircle2 className="h-4 w-4" /> Policy signed
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Account Actions */}
+                      {staff.auth_user_id && (
+                        <>
+                          <Separator />
+                          <div className="space-y-3">
+                            <span className="text-sm font-medium">Account Actions</span>
+                            <div className="flex flex-col gap-2">
+                              <Button size="sm" variant="outline" onClick={() => resendAccountEmailMutation.mutate()} disabled={resendAccountEmailMutation.isPending} className="w-full justify-start">
+                                <RotateCcw className="mr-2 h-3.5 w-3.5" /> Resend Account Setup Email
+                              </Button>
+                              <Button size="sm" variant="outline" onClick={() => forcePasswordResetMutation.mutate()} disabled={forcePasswordResetMutation.isPending} className="w-full justify-start">
+                                <KeyRound className="mr-2 h-3.5 w-3.5" /> Force Password Reset
+                              </Button>
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  {/* Assigned Services */}
+                  <Card>
+                    <CardHeader className="pb-4">
+                      <CardTitle className="font-heading text-lg flex items-center gap-2"><Scissors className="h-5 w-5 text-primary" /> Assigned Services</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {!allServices || allServices.filter((s) => s.is_active).length === 0 ? (
+                        <p className="text-sm text-muted-foreground">No active services. Enable services in the Services page first.</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {allServices.filter((s) => s.is_active).map((svc) => (
+                            <label key={svc.id} className="flex items-center gap-3 rounded-lg border px-3 py-2.5 cursor-pointer hover:bg-muted/50 transition-colors">
+                              <Checkbox checked={assignedServiceIds.includes(svc.id)} onCheckedChange={() => toggleService(svc.id)} />
+                              <div>
+                                <span className="text-sm font-medium">{svc.name}</span>
+                                {svc.description && <p className="text-xs text-muted-foreground">{svc.description}</p>}
+                              </div>
+                            </label>
+                          ))}
                         </div>
                       )}
-                    </PopoverContent>
-                  </Popover>
-                  {(staff as any).employment_end_date && (
-                    <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-400 hover:bg-amber-500/15">
-                      Leaving {format(new Date((staff as any).employment_end_date), "dd MMM yyyy")}
-                    </Badge>
-                  )}
+                    </CardContent>
+                  </Card>
                 </div>
-
-                <Separator />
-
-                {/* Block Account Access - auto-save */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label className="flex items-center gap-2"><Ban className="h-4 w-4" /> Block Login Access</Label>
-                      <p className="text-xs text-muted-foreground mt-0.5">Groomer cannot log in but their profile and booking history is preserved</p>
-                    </div>
-                    <Switch
-                      checked={(staff as any).account_blocked || false}
-                      onCheckedChange={async (checked) => {
-                        const { error } = await supabase.from("staff").update({ account_blocked: checked } as any).eq("id", id!);
-                        if (error) { toast.error(error.message); return; }
-                        queryClient.invalidateQueries({ queryKey: ["staff", id] });
-                        if (checked) {
-                          toast.success(`Account blocked — ${staff.name} can no longer log in ✅`);
-                        } else {
-                          toast.success("Access restored ✅");
-                        }
-                      }}
-                    />
-                  </div>
-                  {(staff as any).account_blocked && (
-                    <Badge variant="destructive">Access Blocked</Badge>
-                  )}
-                </div>
-
-                <Separator />
-
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">Contract Status</span>
-                    <Badge variant="secondary" className={cn("capitalize text-xs", statusColor)}>{staff.contract_status}</Badge>
-                  </div>
-
-                  {staff.signed_at && (
-                    <div className="text-xs text-muted-foreground space-y-0.5">
-                      <p>Signed {format(new Date(staff.signed_at), "PPP 'at' p")}</p>
-                      {(staff as any).signed_ip && <p>IP: {(staff as any).signed_ip}</p>}
-                    </div>
-                  )}
-
-                  <div className="flex flex-col gap-2">
-                    <Button size="sm" variant="outline" onClick={() => setContractOpen(true)} className="w-full justify-start">
-                      <FileText className="mr-2 h-3.5 w-3.5" /> View Contract
-                    </Button>
-                    {staff.contract_status === "draft" && (
-                      <Button size="sm" onClick={() => sendForSignatureMutation.mutate()} className="w-full justify-start">
-                        <Send className="mr-2 h-3.5 w-3.5" /> Send for Signature
-                      </Button>
-                    )}
-                    {staff.contract_status === "signed" && (
-                      <div className="flex items-center gap-2 text-success text-sm">
-                        <CheckCircle2 className="h-4 w-4" /> Contract signed
-                      </div>
-                    )}
-                    <Button size="sm" variant="secondary" onClick={() => generateContractMutation.mutate()} className="w-full justify-start">
-                      <FileText className="mr-2 h-3.5 w-3.5" /> Generate Contract
-                    </Button>
-                  </div>
-                </div>
-
-                <Separator />
-
-                <div className="space-y-2">
-                  <span className="text-sm font-medium">Documents Signing Link</span>
-                  <p className="text-xs text-muted-foreground break-all">
-                    https://fluff-scruff-studio.lovable.app/contract/sign/{staff.id}
-                  </p>
-                </div>
-
-                <Separator />
-
-                {/* Health & Safety */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">Health & Safety Policy</span>
-                    <Badge variant="secondary" className={cn("capitalize text-xs", hsStatusColor)}>{(staff as any).hs_status || "pending"}</Badge>
-                  </div>
-
-                  {(staff as any).hs_signed_at && (
-                    <div className="text-xs text-muted-foreground space-y-0.5">
-                      <p>Signed {format(new Date((staff as any).hs_signed_at), "PPP 'at' p")}</p>
-                      {(staff as any).hs_signed_ip && <p>IP: {(staff as any).hs_signed_ip}</p>}
-                    </div>
-                  )}
-
-                  <div className="flex flex-col gap-2">
-                    <Button size="sm" variant="outline" onClick={() => setHsOpen(true)} className="w-full justify-start">
-                      <ShieldCheck className="mr-2 h-3.5 w-3.5" /> {(staff as any).hs_status === "signed" ? "View Signed Policy" : "View Policy"}
-                    </Button>
-                    {(staff as any).hs_status === "signed" && (
-                      <div className="flex items-center gap-2 text-success text-sm">
-                        <CheckCircle2 className="h-4 w-4" /> Policy signed
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Account Actions */}
-                {staff.auth_user_id && (
-                  <>
-                    <Separator />
-                    <div className="space-y-3">
-                      <span className="text-sm font-medium">Account Actions</span>
-                      <div className="flex flex-col gap-2">
-                        <Button size="sm" variant="outline" onClick={() => resendAccountEmailMutation.mutate()} disabled={resendAccountEmailMutation.isPending} className="w-full justify-start">
-                          <RotateCcw className="mr-2 h-3.5 w-3.5" /> Resend Account Setup Email
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={() => forcePasswordResetMutation.mutate()} disabled={forcePasswordResetMutation.isPending} className="w-full justify-start">
-                          <KeyRound className="mr-2 h-3.5 w-3.5" /> Force Password Reset
-                        </Button>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Assigned Services */}
-            <Card>
-              <CardHeader className="pb-4">
-                <CardTitle className="font-heading text-lg flex items-center gap-2"><Scissors className="h-5 w-5 text-primary" /> Assigned Services</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {!allServices || allServices.filter((s) => s.is_active).length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No active services. Enable services in the Services page first.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {allServices.filter((s) => s.is_active).map((svc) => (
-                      <label key={svc.id} className="flex items-center gap-3 rounded-lg border px-3 py-2.5 cursor-pointer hover:bg-muted/50 transition-colors">
-                        <Checkbox checked={assignedServiceIds.includes(svc.id)} onCheckedChange={() => toggleService(svc.id)} />
-                        <div>
-                          <span className="text-sm font-medium">{svc.name}</span>
-                          {svc.description && <p className="text-xs text-muted-foreground">{svc.description}</p>}
-                        </div>
-                      </label>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-          </div>
-        </div>
-
-
-        {/* HR Notes - Director only - Full width */}
-        {isDirector && (
-          <Card>
-            <CardHeader className="pb-4">
-              <CardTitle className="font-heading text-lg flex items-center gap-2"><StickyNote className="h-5 w-5 text-primary" /> HR Notes</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Textarea
-                  value={newNote}
-                  onChange={(e) => setNewNote(e.target.value)}
-                  placeholder="Add a confidential HR note..."
-                  rows={3}
-                />
-                <Button
-                  size="sm"
-                  onClick={() => { if (newNote.trim()) addNoteMutation.mutate(newNote.trim()); }}
-                  disabled={!newNote.trim() || addNoteMutation.isPending}
-                >
-                  Add Note
-                </Button>
               </div>
 
-              {staffNotes && staffNotes.length > 0 && (
-                <div className="space-y-3 pt-2">
-                  <Separator />
-                  {staffNotes.map((n: any) => {
-                    const isBlockNote = n.note?.startsWith("⛔");
-                    const isAmendNote = n.note?.startsWith("✏️");
-                    const isCancelNote = n.note?.startsWith("🚫");
-                    const isSystemNote = isBlockNote || isAmendNote || isCancelNote;
-                    return (
-                      <div key={n.id} className={cn(
-                        "rounded-lg border p-3 space-y-1",
-                        isBlockNote && "bg-destructive/10 border-destructive/30",
-                        isAmendNote && "bg-amber-500/10 border-amber-500/30",
-                        isCancelNote && "bg-orange-500/10 border-orange-500/30",
-                        !isSystemNote && "bg-muted/30"
-                      )}>
-                        <p className={cn(
-                          "text-sm",
-                          isBlockNote && "text-destructive font-medium",
-                          isAmendNote && "text-amber-700 dark:text-amber-400 font-medium",
-                          isCancelNote && "text-orange-700 dark:text-orange-400 font-medium"
-                        )}>{n.note}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {format(new Date(n.created_at), "dd MMM yyyy 'at' HH:mm")}
-                        </p>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
+              {/* HR Notes - Director only */}
+              {isDirector && (
+                <Card>
+                  <CardHeader className="pb-4">
+                    <CardTitle className="font-heading text-lg flex items-center gap-2"><StickyNote className="h-5 w-5 text-primary" /> HR Notes</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <Textarea
+                        value={newNote}
+                        onChange={(e) => setNewNote(e.target.value)}
+                        placeholder="Add a confidential HR note..."
+                        rows={3}
+                      />
+                      <Button
+                        size="sm"
+                        onClick={() => { if (newNote.trim()) addNoteMutation.mutate(newNote.trim()); }}
+                        disabled={!newNote.trim() || addNoteMutation.isPending}
+                      >
+                        Add Note
+                      </Button>
+                    </div>
 
-        {/* Audit Trail - Director only */}
-        {isDirector && (
-          <Card>
-            <CardHeader className="pb-4">
-              <CardTitle className="font-heading text-lg flex items-center gap-2"><Activity className="h-5 w-5 text-primary" /> Audit Trail</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {!auditLogs || auditLogs.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No audit entries yet.</p>
-              ) : (
-                <div className="space-y-2 max-h-96 overflow-y-auto">
-                  {auditLogs.map((log: any) => {
-                    const actionIcons: Record<string, string> = {
-                      LOGIN: "🔑",
-                      BOOKING_CREATED: "📅",
-                      TIME_BLOCKED: "⛔",
-                      BLOCK_AMENDED: "✏️",
-                      BLOCK_CANCELLED: "🚫",
-                    };
-                    const icon = actionIcons[log.action] || "📋";
-                    return (
-                      <div key={log.id} className="rounded-lg border bg-muted/20 p-3 space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span>{icon}</span>
-                          <span className="text-sm font-medium">{log.action.replace(/_/g, " ")}</span>
-                        </div>
-                        {log.details && <p className="text-xs text-muted-foreground">{log.details}</p>}
-                        <p className="text-xs text-muted-foreground/70">
-                          {format(new Date(log.created_at), "dd MMM yyyy 'at' HH:mm:ss")}
-                        </p>
+                    {staffNotes && staffNotes.length > 0 && (
+                      <div className="space-y-3 pt-2">
+                        <Separator />
+                        {staffNotes.map((n: any) => {
+                          const isBlockNote = n.note?.startsWith("⛔");
+                          const isAmendNote = n.note?.startsWith("✏️");
+                          const isCancelNote = n.note?.startsWith("🚫");
+                          const isSystemNote = isBlockNote || isAmendNote || isCancelNote;
+                          return (
+                            <div key={n.id} className={cn(
+                              "rounded-lg border p-3 space-y-1",
+                              isBlockNote && "bg-destructive/10 border-destructive/30",
+                              isAmendNote && "bg-amber-500/10 border-amber-500/30",
+                              isCancelNote && "bg-orange-500/10 border-orange-500/30",
+                              !isSystemNote && "bg-muted/30"
+                            )}>
+                              <p className={cn(
+                                "text-sm",
+                                isBlockNote && "text-destructive font-medium",
+                                isAmendNote && "text-amber-700 dark:text-amber-400 font-medium",
+                                isCancelNote && "text-orange-700 dark:text-orange-400 font-medium"
+                              )}>{n.note}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {format(new Date(n.created_at), "dd MMM yyyy 'at' HH:mm")}
+                              </p>
+                            </div>
+                          );
+                        })}
                       </div>
-                    );
-                  })}
-                </div>
+                    )}
+                  </CardContent>
+                </Card>
               )}
-            </CardContent>
-          </Card>
-        )}
+
+              {/* Audit Trail - Director only */}
+              {isDirector && (
+                <Card>
+                  <CardHeader className="pb-4">
+                    <CardTitle className="font-heading text-lg flex items-center gap-2"><Activity className="h-5 w-5 text-primary" /> Audit Trail</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {!auditLogs || auditLogs.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No audit entries yet.</p>
+                    ) : (
+                      <div className="space-y-2 max-h-96 overflow-y-auto">
+                        {auditLogs.map((log: any) => {
+                          const actionIcons: Record<string, string> = {
+                            LOGIN: "🔑",
+                            BOOKING_CREATED: "📅",
+                            TIME_BLOCKED: "⛔",
+                            BLOCK_AMENDED: "✏️",
+                            BLOCK_CANCELLED: "🚫",
+                          };
+                          const icon = actionIcons[log.action] || "📋";
+                          return (
+                            <div key={log.id} className="rounded-lg border bg-muted/20 p-3 space-y-1">
+                              <div className="flex items-center gap-2">
+                                <span>{icon}</span>
+                                <span className="text-sm font-medium">{log.action.replace(/_/g, " ")}</span>
+                              </div>
+                              {log.details && <p className="text-xs text-muted-foreground">{log.details}</p>}
+                              <p className="text-xs text-muted-foreground/70">
+                                {format(new Date(log.created_at), "dd MMM yyyy 'at' HH:mm:ss")}
+                              </p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </TabsContent>
+
+          {/* HR Records Tab */}
+          {isManagerOrDirector && (
+            <TabsContent value="hr-records">
+              <div className="pt-2">
+                <HRRecordsTab staffId={id!} staffCreatedAt={staff.created_at} staffName={staff.name} />
+              </div>
+            </TabsContent>
+          )}
+        </Tabs>
       </div>
 
       <ContractPreviewDialog staff={staff} open={contractOpen} onOpenChange={setContractOpen} />
