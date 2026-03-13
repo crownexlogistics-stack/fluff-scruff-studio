@@ -61,7 +61,7 @@ export default function SystemHealthPage() {
       { name: "record-payment", category: "Edge Functions", status: "checking", description: "Payment recording function" },
       { name: "cancel-booking-with-refund", category: "Edge Functions", status: "checking", description: "Cancellation/refund function" },
       { name: "sign-document", category: "Edge Functions", status: "checking", description: "Document signing function" },
-      { name: "SendGrid (Email)", category: "Email", status: "checking", description: "Email provider connection" },
+      { name: "Resend (Email)", category: "Email", status: "checking", description: "Email provider connection" },
       { name: "Stripe API", category: "Stripe", status: "checking", description: "Payment processor connection" },
       { name: "Storage Buckets", category: "Storage", status: "checking", description: "File storage access" },
       { name: "Twilio (SMS)", category: "SMS", status: "checking", description: "SMS provider connection" },
@@ -117,12 +117,12 @@ export default function SystemHealthPage() {
           );
         }
 
-        // SendGrid
-        if (data.sendgrid) {
+        // Resend (Email)
+        if (data.resend) {
           setChecks((prev) =>
             prev.map((c) =>
-              c.name === "SendGrid (Email)"
-                ? { ...c, status: data.sendgrid.status, responseTime: data.sendgrid.responseTime, error: data.sendgrid.error, checkedAt: new Date().toISOString() }
+              c.name === "Resend (Email)"
+                ? { ...c, status: data.resend.status, responseTime: data.resend.responseTime, error: data.resend.error, checkedAt: new Date().toISOString() }
                 : c
             )
           );
