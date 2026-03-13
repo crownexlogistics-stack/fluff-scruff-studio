@@ -771,7 +771,7 @@ export default function CustomerProfilePage() {
               <TabsTrigger value="bookings" className={tabTriggerClass}>Bookings</TabsTrigger>
               {isOwnCustomer && (
                 <>
-                  <TabsTrigger value="messages" className={tabTriggerClass}><MessageSquare className="h-3.5 w-3.5 mr-1.5" />Messages {messages && messages.length > 0 && `(${messages.length})`}</TabsTrigger>
+                  <TabsTrigger value="messages" className={tabTriggerClass}><MessageSquare className="h-3.5 w-3.5 mr-1.5" />Messages {((messages?.length || 0) + (smsHistory?.length || 0)) > 0 && `(${(messages?.length || 0) + (smsHistory?.length || 0)})`}</TabsTrigger>
                   <TabsTrigger value="email" className={tabTriggerClass}><MailOpen className="h-3.5 w-3.5 mr-1.5" />Email {allEmails.length > 0 && `(${allEmails.length})`}</TabsTrigger>
                   <TabsTrigger value="paylinks" className={tabTriggerClass}><CreditCard className="h-3.5 w-3.5 mr-1.5" />Pay Links {payLinks && payLinks.length > 0 && `(${payLinks.length})`}</TabsTrigger>
                 </>
