@@ -389,7 +389,7 @@ const FinancePage = () => {
                   <TableRow>
                     <TableHead>Customer</TableHead><TableHead>Dog</TableHead><TableHead>Service</TableHead>
                     <TableHead>Price</TableHead><TableHead>Type</TableHead><TableHead className="text-right">Groomer Pay</TableHead>
-                    <TableHead>Balance Due</TableHead><TableHead>Charged</TableHead><TableHead>Difference</TableHead><TableHead>Status</TableHead>
+                    <TableHead>Balance Due</TableHead><TableHead>Charged</TableHead><TableHead>Difference</TableHead><TableHead>Status</TableHead><TableHead className="w-10"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
