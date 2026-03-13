@@ -9,8 +9,9 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Upload, FileText, CheckCircle2, AlertTriangle, XCircle, ChevronDown, ChevronRight, Download, X, Info } from "lucide-react";
-import { format, startOfWeek, endOfWeek, addWeeks, addDays, isBefore, isAfter } from "date-fns";
+import { format, startOfWeek, endOfWeek, addWeeks, addDays } from "date-fns";
 import Papa from "papaparse";
+import { toast } from "sonner";
 
 /* ─── Types ─── */
 
@@ -21,10 +22,9 @@ interface CsvRow {
   orderNo: string;
   seller: string;
   amount: number;
-  type: string; // "worldpay-tripos" | "cash"
+  type: string;
 }
 
-/** After grouping by Order ID — a single logical transaction */
 interface GroupedTransaction {
   orderId: string;
   date: string;
@@ -45,6 +45,11 @@ interface VoidPair {
   voidTime: string;
 }
 
+interface FileEntry {
+  name: string;
+  isDuplicate: boolean;
+}
+
 /* ─── CSV parsing ─── */
 
 function parseCsvRows(text: string): CsvRow[] {
@@ -60,11 +65,6 @@ function parseCsvRows(text: string): CsvRow[] {
   }));
 }
 
-/**
- * Group CSV rows by Order ID.
- * Same Order ID with positive amounts → split payment (card + cash combined).
- * Same Order ID with positive + negative → void pair.
- */
 function groupTransactions(rows: CsvRow[]): { transactions: GroupedTransaction[]; voidPairs: VoidPair[] } {
   const groups = new Map<string, CsvRow[]>();
   rows.forEach(r => {
@@ -80,17 +80,15 @@ function groupTransactions(rows: CsvRow[]): { transactions: GroupedTransaction[]
     const positives = grp.filter(r => r.amount > 0);
     const negatives = grp.filter(r => r.amount < 0);
 
-    // Void detection: positive + negative pair
     if (positives.length > 0 && negatives.length > 0) {
       const pos = positives[0];
       const neg = negatives[0];
       voidPairs.push({ date: pos.date, time: pos.time, seller: pos.seller, amount: pos.amount, voidTime: neg.time });
-      return; // skip voided transactions from totals
+      return;
     }
 
     if (positives.length === 0) return;
 
-    // Split payment or single payment
     let cardAmt = 0, cashAmt = 0;
     positives.forEach(r => {
       if (r.type === "cash") cashAmt += r.amount;
@@ -114,12 +112,20 @@ function groupTransactions(rows: CsvRow[]): { transactions: GroupedTransaction[]
   return { transactions, voidPairs };
 }
 
+/* ─── Prepaid helper ─── */
+
+function isPrepaid(balanceDue: number, groomerTyped: number | null): boolean {
+  return balanceDue <= 0 && (groomerTyped == null || groomerTyped <= 0);
+}
+
 /* ─── Main component ─── */
 
 export default function ReconciliationTab() {
   const [weekOffset, setWeekOffset] = useState(0);
-  const [files, setFiles] = useState<File[]>([]);
+  const [fileEntries, setFileEntries] = useState<FileEntry[]>([]);
   const [allRows, setAllRows] = useState<CsvRow[]>([]);
+  const [loadedFilenames, setLoadedFilenames] = useState<Set<string>>(new Set());
+  const [loadedOrderIds, setLoadedOrderIds] = useState<Set<string>>(new Set());
   const [expandedGroomer, setExpandedGroomer] = useState<string | null>(null);
 
   const now = new Date();
@@ -128,7 +134,6 @@ export default function ReconciliationTab() {
   const weekStartStr = format(weekStart, "yyyy-MM-dd");
   const weekEndStr = format(weekEnd, "yyyy-MM-dd");
 
-  // Fetch staff (groomers)
   const { data: staff = [] } = useQuery({
     queryKey: ["recon-staff"],
     queryFn: async () => {
@@ -138,7 +143,6 @@ export default function ReconciliationTab() {
     },
   });
 
-  // Fetch bookings for the week
   const { data: bookings = [] } = useQuery({
     queryKey: ["recon-bookings", weekStartStr, weekEndStr],
     queryFn: async () => {
@@ -153,7 +157,6 @@ export default function ReconciliationTab() {
     },
   });
 
-  // Fetch commission records for matching bookings
   const bookingIds = useMemo(() => bookings.map(b => b.id), [bookings]);
   const { data: commissionRecords = [] } = useQuery({
     queryKey: ["recon-commissions", bookingIds],
@@ -169,21 +172,18 @@ export default function ReconciliationTab() {
     enabled: bookingIds.length > 0,
   });
 
-  // Build commission lookup by booking_id
   const commissionByBooking = useMemo(() => {
     const map = new Map<string, any>();
     commissionRecords.forEach(c => { if (c.booking_id) map.set(c.booking_id, c); });
     return map;
   }, [commissionRecords]);
 
-  // Filter CSV rows to selected week, then group
   const { weekTransactions, voidPairs } = useMemo(() => {
     const weekRows = allRows.filter(r => r.date >= weekStartStr && r.date <= weekEndStr);
     const { transactions, voidPairs } = groupTransactions(weekRows);
     return { weekTransactions: transactions, voidPairs };
   }, [allRows, weekStartStr, weekEndStr]);
 
-  // Compute CSV coverage: which of the 5 working days (Mon–Fri) have data
   const { workingDays, coveredDays, missingDays, isFullCoverage } = useMemo(() => {
     const days: { date: Date; str: string; label: string }[] = [];
     for (let i = 0; i < 5; i++) {
@@ -196,31 +196,28 @@ export default function ReconciliationTab() {
     return { workingDays: days, coveredDays: covered, missingDays: missing, isFullCoverage: missing.length === 0 };
   }, [allRows, weekStart, weekStartStr, weekEndStr]);
 
-  // Per-groomer summaries
+  // Per-groomer summaries — exclude prepaid from totals
   const groomerSummaries = useMemo(() => {
     return staff.map(s => {
       const firstName = s.name.split(" ")[0].toLowerCase();
-
       const groomerBookings = bookings.filter(b => b.staff_id === s.id);
-      const bookingCount = groomerBookings.length;
 
-      // Balance Due = total_price - deposit_paid for each booking
-      const totalBalanceDue = groomerBookings.reduce((sum, b) => {
-        return sum + Math.max(0, Number(b.total_price) - Number(b.deposit_paid));
-      }, 0);
-
-      // Groomer Typed = final_charge from commission_records (or booking.final_charge fallback)
-      const totalGroomerTyped = groomerBookings.reduce((sum, b) => {
+      // Classify each booking
+      const classified = groomerBookings.map(b => {
+        const balanceDue = Math.max(0, Number(b.total_price) - Number(b.deposit_paid));
         const comm = commissionByBooking.get(b.id);
-        const typed = comm?.final_charge ?? b.final_charge;
-        return sum + (typed != null ? Number(typed) : 0);
-      }, 0);
-      const hasAnyTyped = groomerBookings.some(b => {
-        const comm = commissionByBooking.get(b.id);
-        return (comm?.final_charge ?? b.final_charge) != null;
+        const groomerTyped: number | null = comm?.final_charge ?? b.final_charge ?? null;
+        const prepaid = isPrepaid(balanceDue, groomerTyped);
+        return { booking: b, balanceDue, groomerTyped, prepaid };
       });
 
-      // Card Machine = CSV transactions for this groomer
+      const prepaidCount = classified.filter(c => c.prepaid).length;
+      const chargedBookings = classified.filter(c => !c.prepaid);
+
+      const totalBalanceDue = chargedBookings.reduce((sum, c) => sum + c.balanceDue, 0);
+      const totalGroomerTyped = chargedBookings.reduce((sum, c) => sum + (c.groomerTyped != null ? Number(c.groomerTyped) : 0), 0);
+      const hasAnyTyped = chargedBookings.some(c => c.groomerTyped != null);
+
       const csvTxns = weekTransactions.filter(t => t.seller.toLowerCase() === firstName);
       const totalCardMachine = csvTxns.reduce((sum, t) => sum + t.total, 0);
 
@@ -228,27 +225,78 @@ export default function ReconciliationTab() {
         staffId: s.id,
         name: s.name,
         firstName,
-        bookingCount,
+        bookingCount: groomerBookings.length,
+        prepaidCount,
+        chargedCount: groomerBookings.length - prepaidCount,
         totalBalanceDue,
         totalGroomerTyped,
         hasAnyTyped,
         totalCardMachine,
         groomerBookings,
         csvTxns,
+        classified,
       };
     }).filter(s => s.bookingCount > 0 || s.csvTxns.length > 0);
   }, [staff, bookings, commissionByBooking, weekTransactions]);
 
+  // BUG FIX 1: Duplicate CSV detection
   const handleFiles = useCallback((newFiles: FileList | File[]) => {
     const csvFiles = Array.from(newFiles).filter(f => f.name.endsWith(".csv"));
     if (csvFiles.length === 0) return;
-    setFiles(prev => [...prev, ...csvFiles]);
-    Promise.all(csvFiles.map(f => f.text().then(parseCsvRows))).then(results => {
-      setAllRows(prev => [...prev, ...results.flat()]);
-    });
-  }, []);
 
-  const clearAll = () => { setFiles([]); setAllRows([]); setExpandedGroomer(null); };
+    Promise.all(csvFiles.map(f => f.text().then(text => ({ file: f, rows: parseCsvRows(text) })))).then(results => {
+      const newEntries: FileEntry[] = [];
+      const newRows: CsvRow[] = [];
+
+      results.forEach(({ file, rows }) => {
+        // Check duplicate by filename
+        if (loadedFilenames.has(file.name)) {
+          toast.warning(`⚠️ ${file.name} was already loaded — duplicate ignored`);
+          newEntries.push({ name: file.name, isDuplicate: true });
+          return;
+        }
+
+        // Check duplicate by >50% Order ID overlap
+        const fileOrderIds = new Set(rows.map(r => r.orderId).filter(Boolean));
+        if (fileOrderIds.size > 0) {
+          let overlapCount = 0;
+          fileOrderIds.forEach(id => { if (loadedOrderIds.has(id)) overlapCount++; });
+          if (overlapCount / fileOrderIds.size > 0.5) {
+            toast.warning(`⚠️ ${file.name} was already loaded — duplicate ignored`);
+            newEntries.push({ name: file.name, isDuplicate: true });
+            return;
+          }
+        }
+
+        // Accept the file
+        newEntries.push({ name: file.name, isDuplicate: false });
+        newRows.push(...rows);
+
+        // Track for future duplicate detection
+        setLoadedFilenames(prev => {
+          const next = new Set(prev);
+          next.add(file.name);
+          return next;
+        });
+        setLoadedOrderIds(prev => {
+          const next = new Set(prev);
+          rows.forEach(r => { if (r.orderId) next.add(r.orderId); });
+          return next;
+        });
+      });
+
+      if (newEntries.length > 0) setFileEntries(prev => [...prev, ...newEntries]);
+      if (newRows.length > 0) setAllRows(prev => [...prev, ...newRows]);
+    });
+  }, [loadedFilenames, loadedOrderIds]);
+
+  const clearAll = () => {
+    setFileEntries([]);
+    setAllRows([]);
+    setLoadedFilenames(new Set());
+    setLoadedOrderIds(new Set());
+    setExpandedGroomer(null);
+  };
 
   const exportCsv = () => {
     const headers = ["Groomer", "Bookings", "Balance Due", "Groomer Typed", "Card Machine", "Status"];
@@ -263,7 +311,7 @@ export default function ReconciliationTab() {
     URL.revokeObjectURL(url);
   };
 
-  const hasData = files.length > 0;
+  const hasData = fileEntries.some(f => !f.isDuplicate);
   const weekTxnCount = weekTransactions.length;
 
   return (
@@ -285,16 +333,23 @@ export default function ReconciliationTab() {
         <Upload className="h-8 w-8 text-primary" />
         <span className="text-sm font-medium">
           {hasData
-            ? `${files.length} file(s) loaded — ${weekTxnCount} transactions found for week of ${format(weekStart, "dd MMM")}–${format(weekEnd, "dd MMM")}`
+            ? `${fileEntries.filter(f => !f.isDuplicate).length} file(s) loaded — ${weekTxnCount} transactions found for week of ${format(weekStart, "dd MMM")}–${format(weekEnd, "dd MMM")}`
             : "📂 Drop Worldpay CSV files here or click to browse"}
         </span>
         <input type="file" accept=".csv" multiple className="hidden" onChange={e => { if (e.target.files) handleFiles(e.target.files); }} />
       </label>
 
-      {hasData && (
+      {fileEntries.length > 0 && (
         <div className="flex items-center gap-2 flex-wrap">
-          {files.map((f, i) => (
-            <Badge key={i} variant="secondary" className="text-xs gap-1"><FileText className="h-3 w-3" /> {f.name}</Badge>
+          {fileEntries.map((f, i) => (
+            <Badge
+              key={i}
+              variant={f.isDuplicate ? "outline" : "secondary"}
+              className={`text-xs gap-1 ${f.isDuplicate ? "opacity-50 line-through" : ""}`}
+            >
+              <FileText className="h-3 w-3" /> {f.name}
+              {f.isDuplicate && <span className="ml-1 no-underline text-amber-600">(Duplicate)</span>}
+            </Badge>
           ))}
           <Button variant="ghost" size="sm" onClick={clearAll} className="text-xs"><X className="h-3 w-3 mr-1" /> Clear</Button>
           <Button variant="outline" size="sm" className="ml-auto" onClick={exportCsv}><Download className="h-4 w-4 mr-1" /> Export Report</Button>
@@ -403,7 +458,6 @@ function getStatus(g: { totalBalanceDue: number; totalGroomerTyped: number; tota
 
   const balMatch = Math.abs(g.totalCardMachine - g.totalBalanceDue) < 0.01;
   const typedMatch = Math.abs(g.totalGroomerTyped - g.totalBalanceDue) < 0.01;
-  const cardTypedMatch = Math.abs(g.totalCardMachine - g.totalGroomerTyped) < 0.01;
 
   if (balMatch && typedMatch) {
     return { label: "Balanced", color: "text-white", icon: <CheckCircle2 className="h-3 w-3 mr-1" /> };
@@ -440,7 +494,7 @@ function getStatusBadge(g: Parameters<typeof getStatus>[0]) {
 /* ─── Groomer drill-down row ─── */
 
 function GroomerRow({ summary: g, commissionByBooking, isExpanded, onToggle, voidPairs, hasData, coveredDays, missingDays, isFullCoverage }: {
-  summary: ReturnType<typeof Object>; // groomer summary object
+  summary: any;
   commissionByBooking: Map<string, any>;
   isExpanded: boolean;
   onToggle: () => void;
@@ -455,6 +509,79 @@ function GroomerRow({ summary: g, commissionByBooking, isExpanded, onToggle, voi
   const coveragePct = hasData ? (coveredDays / 5) * 100 : 0;
   const coverageBarColor = !hasData ? "bg-muted" : coveredDays >= 5 ? "bg-emerald-500" : coveredDays >= 3 ? "bg-amber-500" : "bg-destructive";
 
+  // BUG FIX 3: Match CSV transactions to bookings by amount
+  const matchedBookings = useMemo(() => {
+    const sortedBookings = [...s.groomerBookings].sort((a: any, b: any) =>
+      `${a.booking_date}${a.booking_time}`.localeCompare(`${b.booking_date}${b.booking_time}`)
+    );
+
+    // Pool of available CSV transactions (clone so we can remove matched ones)
+    const availableTxns: GroupedTransaction[] = [...s.csvTxns];
+
+    return sortedBookings.map((b: any) => {
+      const balanceDue = Math.max(0, Number(b.total_price) - Number(b.deposit_paid));
+      const comm = commissionByBooking.get(b.id);
+      const groomerTyped: number | null = comm?.final_charge ?? b.final_charge ?? null;
+      const typedVal = groomerTyped != null ? Number(groomerTyped) : null;
+      const prepaid = isPrepaid(balanceDue, typedVal);
+
+      // Don't match CSV for prepaid bookings
+      if (prepaid) {
+        return { booking: b, balanceDue, typedVal, prepaid, csvMatch: null as GroupedTransaction | null, matchType: "prepaid" as const };
+      }
+
+      // Find matching CSV transaction from same date
+      const dateTxns = availableTxns.filter(t => t.date === b.booking_date);
+
+      // 1. Exact match against groomerTyped amount
+      let matchIdx = -1;
+      let matchType: "exact" | "near" | "none" = "none";
+
+      if (typedVal != null) {
+        matchIdx = availableTxns.findIndex(t =>
+          t.date === b.booking_date && Math.abs(t.total - typedVal) < 0.01
+        );
+        if (matchIdx >= 0) matchType = "exact";
+      }
+
+      // 2. Near match (within £2 tolerance)
+      if (matchIdx < 0 && typedVal != null) {
+        matchIdx = availableTxns.findIndex(t =>
+          t.date === b.booking_date && Math.abs(t.total - typedVal) <= 2.00
+        );
+        if (matchIdx >= 0) matchType = "near";
+      }
+
+      // 3. Fallback: match by balance due
+      if (matchIdx < 0 && balanceDue > 0) {
+        matchIdx = availableTxns.findIndex(t =>
+          t.date === b.booking_date && Math.abs(t.total - balanceDue) < 0.01
+        );
+        if (matchIdx >= 0) matchType = "exact";
+      }
+
+      if (matchIdx < 0 && balanceDue > 0) {
+        matchIdx = availableTxns.findIndex(t =>
+          t.date === b.booking_date && Math.abs(t.total - balanceDue) <= 2.00
+        );
+        if (matchIdx >= 0) matchType = "near";
+      }
+
+      let csvMatch: GroupedTransaction | null = null;
+      if (matchIdx >= 0) {
+        csvMatch = availableTxns[matchIdx];
+        availableTxns.splice(matchIdx, 1); // Remove from pool
+      }
+
+      return { booking: b, balanceDue, typedVal, prepaid, csvMatch, matchType };
+    });
+  }, [s.groomerBookings, s.csvTxns, commissionByBooking]);
+
+  // Booking count label
+  const bookingLabel = s.prepaidCount > 0
+    ? `${s.bookingCount} bookings (${s.prepaidCount} prepaid, ${s.chargedCount} charged in salon)`
+    : `${s.bookingCount}`;
+
   return (
     <>
       <TableRow className="cursor-pointer hover:bg-muted/50" onClick={onToggle}>
@@ -462,7 +589,7 @@ function GroomerRow({ summary: g, commissionByBooking, isExpanded, onToggle, voi
           {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
         </TableCell>
         <TableCell className="font-medium">{s.name}</TableCell>
-        <TableCell className="text-right">{s.bookingCount}</TableCell>
+        <TableCell className="text-right text-xs">{bookingLabel}</TableCell>
         <TableCell className="text-right">£{s.totalBalanceDue.toFixed(2)}</TableCell>
         <TableCell className="text-right">
           {s.hasAnyTyped ? `£${s.totalGroomerTyped.toFixed(2)}` : <span className="text-amber-600 italic text-xs">Not entered</span>}
@@ -507,6 +634,7 @@ function GroomerRow({ summary: g, commissionByBooking, isExpanded, onToggle, voi
                   </AlertDescription>
                 </Alert>
               )}
+
               {/* Appointment drill-down */}
               <div className="rounded-lg border overflow-hidden">
                 <Table>
@@ -523,59 +651,58 @@ function GroomerRow({ summary: g, commissionByBooking, isExpanded, onToggle, voi
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {s.groomerBookings.length === 0 ? (
+                    {matchedBookings.length === 0 ? (
                       <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground text-xs py-4">No bookings</TableCell></TableRow>
                     ) : (
-                      s.groomerBookings
-                        .sort((a: any, b: any) => `${a.booking_date}${a.booking_time}`.localeCompare(`${b.booking_date}${b.booking_time}`))
-                        .map((b: any) => {
-                          const balanceDue = Math.max(0, Number(b.total_price) - Number(b.deposit_paid));
-                          const comm = commissionByBooking.get(b.id);
-                          const groomerTyped: number | null = comm?.final_charge ?? b.final_charge ?? null;
-                          const typedVal = groomerTyped != null ? Number(groomerTyped) : null;
+                      matchedBookings.map(({ booking: b, balanceDue, typedVal, prepaid, csvMatch, matchType }) => {
+                        const cardMachineVal = csvMatch ? csvMatch.total : null;
 
-                          // Try to match CSV transaction: same date, closest amount to balance due
-                          const dateTxns = s.csvTxns.filter((t: GroupedTransaction) => t.date === b.booking_date);
-                          let csvMatch: GroupedTransaction | null = null;
-                          if (dateTxns.length > 0) {
-                            // Find closest match by amount
-                            csvMatch = dateTxns.reduce((best: GroupedTransaction | null, t: GroupedTransaction) => {
-                              if (!best) return t;
-                              return Math.abs(t.total - balanceDue) < Math.abs(best.total - balanceDue) ? t : best;
-                            }, null);
-                          }
-                          const cardMachineVal = csvMatch ? csvMatch.total : null;
-
-                          // Flag logic
-                          const flag = getRowFlag(balanceDue, typedVal, cardMachineVal, hasData);
-
+                        // BUG FIX 2: Prepaid rendering
+                        if (prepaid) {
                           return (
-                            <TableRow key={b.id}>
+                            <TableRow key={b.id} className="bg-emerald-50/30 dark:bg-emerald-950/10">
                               <TableCell className="text-xs">{format(new Date(b.booking_date + "T00:00:00"), "dd MMM")} {b.booking_time?.slice(0, 5)}</TableCell>
                               <TableCell className="text-xs">{b.customer_name}</TableCell>
                               <TableCell className="text-xs">{(b as any).services?.name || "—"}</TableCell>
-                              <TableCell className="text-xs text-right">£{balanceDue.toFixed(2)}</TableCell>
-                              <TableCell className="text-xs text-right">
-                                {typedVal != null
-                                  ? `£${typedVal.toFixed(2)}`
-                                  : <span className="text-amber-600 italic">Not entered yet</span>}
-                              </TableCell>
-                              <TableCell className="text-xs text-right">
-                                {csvMatch
-                                  ? csvMatch.cashAmount > 0
-                                    ? <span>£{csvMatch.cardAmount.toFixed(2)} card + £{csvMatch.cashAmount.toFixed(2)} cash = <strong>£{csvMatch.total.toFixed(2)}</strong></span>
-                                    : `£${csvMatch.total.toFixed(2)}`
-                                  : <span className="text-muted-foreground italic">—</span>}
-                              </TableCell>
-                              <TableCell className="text-xs text-right font-medium">
-                                {typedVal != null && cardMachineVal != null
-                                  ? `£${Math.abs(cardMachineVal - balanceDue).toFixed(2)}`
-                                  : "—"}
-                              </TableCell>
-                              <TableCell className="text-xs">{flag}</TableCell>
+                              <TableCell className="text-xs text-right">£0.00</TableCell>
+                              <TableCell className="text-xs text-right">£0.00</TableCell>
+                              <TableCell className="text-xs text-right text-muted-foreground italic">Prepaid online</TableCell>
+                              <TableCell className="text-xs text-right text-emerald-600">£0.00</TableCell>
+                              <TableCell className="text-xs text-emerald-600 font-medium">✅ Prepaid</TableCell>
                             </TableRow>
                           );
-                        })
+                        }
+
+                        // Regular row with match info
+                        const flag = getRowFlag(balanceDue, typedVal, cardMachineVal, hasData, matchType);
+
+                        return (
+                          <TableRow key={b.id}>
+                            <TableCell className="text-xs">{format(new Date(b.booking_date + "T00:00:00"), "dd MMM")} {b.booking_time?.slice(0, 5)}</TableCell>
+                            <TableCell className="text-xs">{b.customer_name}</TableCell>
+                            <TableCell className="text-xs">{(b as any).services?.name || "—"}</TableCell>
+                            <TableCell className="text-xs text-right">£{balanceDue.toFixed(2)}</TableCell>
+                            <TableCell className="text-xs text-right">
+                              {typedVal != null
+                                ? `£${typedVal.toFixed(2)}`
+                                : <span className="text-amber-600 italic">Not entered yet</span>}
+                            </TableCell>
+                            <TableCell className="text-xs text-right">
+                              {csvMatch
+                                ? csvMatch.cashAmount > 0
+                                  ? <span>£{csvMatch.cardAmount.toFixed(2)} card + £{csvMatch.cashAmount.toFixed(2)} cash = <strong>£{csvMatch.total.toFixed(2)}</strong></span>
+                                  : <>£{csvMatch.total.toFixed(2)}{matchType === "near" && <span className="ml-1 text-amber-600">⚠️ Near match</span>}</>
+                                : <span className="text-muted-foreground italic">—</span>}
+                            </TableCell>
+                            <TableCell className="text-xs text-right font-medium">
+                              {typedVal != null && cardMachineVal != null
+                                ? `£${Math.abs(cardMachineVal - balanceDue).toFixed(2)}`
+                                : "—"}
+                            </TableCell>
+                            <TableCell className="text-xs">{flag}</TableCell>
+                          </TableRow>
+                        );
+                      })
                     )}
                   </TableBody>
                 </Table>
@@ -590,6 +717,9 @@ function GroomerRow({ summary: g, commissionByBooking, isExpanded, onToggle, voi
                   : hasData
                     ? <span className="text-blue-600 italic text-xs">Card Machine: Cannot verify — incomplete data ({missingDays.length} day{missingDays.length !== 1 ? "s" : ""} missing)</span>
                     : null}
+                {s.prepaidCount > 0 && (
+                  <span className="text-emerald-600 text-xs">({s.prepaidCount} prepaid booking{s.prepaidCount !== 1 ? "s" : ""} excluded from totals)</span>
+                )}
               </div>
 
               {/* Commission impact callouts */}
@@ -611,13 +741,11 @@ function GroomerRow({ summary: g, commissionByBooking, isExpanded, onToggle, voi
                 </div>
               )}
 
-              {/* Commission note */}
               <div className="flex items-start gap-2 text-xs text-muted-foreground bg-muted/30 rounded-lg p-3">
                 <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                 <p>{s.name}'s commission is calculated on <strong>Groomer Typed</strong> amounts, not Balance Due. Any difference directly affects their pay.</p>
               </div>
 
-              {/* Void alerts */}
               {voidPairs.length > 0 && (
                 <div className="rounded-lg border border-amber-200 bg-amber-50/50 dark:bg-amber-950/20 p-3">
                   <p className="text-xs font-semibold text-amber-600 mb-1">⚠️ {voidPairs.length} voided transaction(s)</p>
@@ -636,25 +764,31 @@ function GroomerRow({ summary: g, commissionByBooking, isExpanded, onToggle, voi
 
 /* ─── Row flag logic ─── */
 
-function getRowFlag(balanceDue: number, groomerTyped: number | null, cardMachine: number | null, hasData: boolean): React.ReactNode {
-  // All three match
+function getRowFlag(
+  balanceDue: number,
+  groomerTyped: number | null,
+  cardMachine: number | null,
+  hasData: boolean,
+  matchType: "exact" | "near" | "none"
+): React.ReactNode {
   if (groomerTyped != null && cardMachine != null) {
+    if (matchType === "near") {
+      return <span className="text-amber-600 font-medium">⚠️ Near match</span>;
+    }
+
     const allMatch = Math.abs(balanceDue - groomerTyped) < 0.01 && Math.abs(balanceDue - cardMachine) < 0.01;
     if (allMatch) return <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />;
 
-    // Groomer typed more than owed
     if (groomerTyped > balanceDue + 0.01) {
       const diff = groomerTyped - balanceDue;
       return <span className="text-destructive font-medium">🔴 Overcharged +£{diff.toFixed(2)}</span>;
     }
 
-    // Groomer typed less than owed
     if (groomerTyped < balanceDue - 0.01) {
       const diff = balanceDue - groomerTyped;
       return <span className="text-amber-600 font-medium">⚠️ Under -£{diff.toFixed(2)}</span>;
     }
 
-    // Card/entry mismatch
     if (Math.abs(cardMachine - groomerTyped) > 0.01) {
       return <span className="text-destructive font-medium">🔴 Card ≠ entry</span>;
     }
