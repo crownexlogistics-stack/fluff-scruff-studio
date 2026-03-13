@@ -462,6 +462,27 @@ const FinancePage = () => {
           <DialogContent className="max-w-md">
             <DialogHeader><DialogTitle>Process Payout — {selectedSummary.name}</DialogTitle></DialogHeader>
             <div className="space-y-4">
+              {/* Payout breakdown */}
+              {noShowTotal > 0 && (
+                <div className="rounded-lg border bg-muted/30 p-3 space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Regular commission</span>
+                    <span>£{regularTotal.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">No-show deposits (50% split)</span>
+                    <span>£{noShowTotal.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between border-t pt-1 font-semibold">
+                    <span>Total owed</span>
+                    <span>£{selectedSummary.totalGroomerPay.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Already paid</span>
+                    <span>-£{totalPaidOut.toFixed(2)}</span>
+                  </div>
+                </div>
+              )}
               <div><Label>Amount (£)</Label><NumericInput value={payoutAmount} onValueChange={setPayoutAmount} /></div>
               <div>
                 <Label>Payment Method</Label>
