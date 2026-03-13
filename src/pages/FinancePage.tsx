@@ -407,7 +407,7 @@ const FinancePage = () => {
                     const sortedDays = Array.from(grouped.entries()).sort((a, b) => b[0].localeCompare(a[0]));
                     
                     if (sortedDays.length === 0) {
-                      return <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-8">No completed appointments this period</TableCell></TableRow>;
+                      return <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-8">No completed appointments this period</TableCell></TableRow>;
                     }
                     
                     return sortedDays.flatMap(([dateKey, items]) => [
