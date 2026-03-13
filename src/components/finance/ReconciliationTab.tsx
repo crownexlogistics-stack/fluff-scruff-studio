@@ -527,7 +527,7 @@ function GroomerRow({ summary: g, commissionByBooking, isExpanded, onToggle, voi
 
       // Don't match CSV for prepaid bookings
       if (prepaid) {
-        return { booking: b, balanceDue, typedVal, prepaid, csvMatch: null as GroupedTransaction | null, matchType: "prepaid" as const };
+        return { booking: b, balanceDue, typedVal, prepaid, csvMatch: null as GroupedTransaction | null, matchType: "none" as const };
       }
 
       // Find matching CSV transaction from same date
