@@ -32,6 +32,7 @@ export default function SystemHealthPage() {
   const [checks, setChecks] = useState<HealthCheck[]>([]);
   const [running, setRunning] = useState(false);
   const [lastRun, setLastRun] = useState<string | null>(null);
+  const [serverResults, setServerResults] = useState<Record<string, any> | null>(null);
 
   const updateCheck = useCallback((name: string, updates: Partial<HealthCheck>) => {
     setChecks((prev) =>
