@@ -1316,6 +1316,117 @@ export type Database = {
         }
         Relationships: []
       }
+      hr_documents: {
+        Row: {
+          created_at: string
+          filename: string
+          id: string
+          staff_id: string
+          storage_path: string
+          uploaded_by: string
+        }
+        Insert: {
+          created_at?: string
+          filename: string
+          id?: string
+          staff_id: string
+          storage_path: string
+          uploaded_by: string
+        }
+        Update: {
+          created_at?: string
+          filename?: string
+          id?: string
+          staff_id?: string
+          storage_path?: string
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_documents_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_employment_status: {
+        Row: {
+          current_status: string
+          id: string
+          notice_period: string | null
+          reason_for_leaving: string | null
+          staff_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          current_status?: string
+          id?: string
+          notice_period?: string | null
+          reason_for_leaving?: string | null
+          staff_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          current_status?: string
+          id?: string
+          notice_period?: string | null
+          reason_for_leaving?: string | null
+          staff_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_employment_status_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: true
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_events: {
+        Row: {
+          created_at: string
+          created_by: string
+          event_date: string
+          event_type: string
+          id: string
+          notes: string | null
+          staff_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          event_date: string
+          event_type: string
+          id?: string
+          notes?: string | null
+          staff_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          event_date?: string
+          event_type?: string
+          id?: string
+          notes?: string | null
+          staff_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_events_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       incident_report_recipients: {
         Row: {
           created_at: string
