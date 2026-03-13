@@ -201,6 +201,29 @@ export default function CustomerProfilePage() {
     enabled: !!decodedEmail && isOwnCustomer,
   });
 
+  // SMS history from sms_messages (automated reminders + manual)
+  const { data: smsHistory } = useQuery({
+    queryKey: ["customer-sms-history", decodedEmail],
+    queryFn: async () => {
+      // Get all phone numbers for this customer from bookings
+      const { data: custBookings } = await supabase
+        .from("bookings")
+        .select("customer_phone")
+        .eq("customer_email", decodedEmail)
+        .not("customer_phone", "is", null);
+      const phones = [...new Set((custBookings || []).map((b) => b.customer_phone).filter(Boolean))];
+      if (phones.length === 0) return [];
+      const { data, error } = await supabase
+        .from("sms_messages")
+        .select("*")
+        .in("phone_number", phones)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!decodedEmail && isOwnCustomer,
+  });
+
   // Emails: combine outbound (customer_communications) + inbound (customer_messages)
   const { data: outboundEmails } = useQuery({
     queryKey: ["customer-emails-out", decodedEmail],
