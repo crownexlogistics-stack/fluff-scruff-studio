@@ -89,12 +89,41 @@ export function GroomerDocumentsTab({ staffId }: { staffId: string }) {
     
   ];
 
+  const handleDownload = async (elementId: string, filename: string) => {
+    setDownloading(true);
+    try {
+      await downloadDocumentPdf(elementId, filename);
+      toast.success("Document downloaded");
+    } catch {
+      toast.error("Failed to generate PDF");
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   if (activeDoc) {
     return (
       <div className="space-y-4">
-        <Button variant="ghost" size="sm" onClick={() => setActiveDoc(null)} className="gap-1.5 -ml-2">
-          <ArrowLeft className="h-4 w-4" /> Back to Documents
-        </Button>
+        <div className="flex items-center justify-between">
+          <Button variant="ghost" size="sm" onClick={() => setActiveDoc(null)} className="gap-1.5 -ml-2">
+            <ArrowLeft className="h-4 w-4" /> Back to Documents
+          </Button>
+          {(activeDoc === "contract" || activeDoc === "health-safety" || activeDoc === "room-rules" || activeDoc === "code-of-conduct") && (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={downloading}
+              onClick={() => {
+                const idMap: Record<string, string> = { contract: "groomer-contract-pdf", "health-safety": "groomer-hs-pdf", "room-rules": "groomer-rules-pdf", "code-of-conduct": "groomer-coc-pdf" };
+                const nameMap: Record<string, string> = { contract: "Contract", "health-safety": "Health_Safety_Policy", "room-rules": "Room_Rules", "code-of-conduct": "Code_of_Conduct" };
+                handleDownload(idMap[activeDoc], `${staff?.name?.replace(/\s+/g, "_") || "Document"}_${nameMap[activeDoc]}.pdf`);
+              }}
+            >
+              {downloading ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Download className="mr-2 h-3.5 w-3.5" />}
+              Download PDF
+            </Button>
+          )}
+        </div>
 
         {activeDoc === "contract" && staff && (
           <Card>
