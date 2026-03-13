@@ -314,6 +314,7 @@ export default function ReconciliationTab() {
                   <TableHead className="text-right">Balance Due</TableHead>
                   <TableHead className="text-right">Groomer Typed</TableHead>
                   <TableHead className="text-right">Card Machine</TableHead>
+                  <TableHead>Coverage</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
@@ -329,6 +330,9 @@ export default function ReconciliationTab() {
                       onToggle={() => setExpandedGroomer(isExpanded ? null : g.staffId)}
                       voidPairs={voidPairs.filter(v => v.seller.toLowerCase() === g.firstName)}
                       hasData={hasData}
+                      coveredDays={coveredDays.length}
+                      missingDays={missingDays}
+                      isFullCoverage={isFullCoverage}
                     />
                   );
                 })}
