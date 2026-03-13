@@ -584,6 +584,54 @@ const FinancePage = () => {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* Amend Charge Dialog */}
+        <Dialog open={amendOpen} onOpenChange={setAmendOpen}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Amend Charge</DialogTitle>
+            </DialogHeader>
+            {amendCommission && (
+              <div className="space-y-4">
+                <div className="rounded-lg border bg-muted/30 p-3 space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Customer</span>
+                    <span className="font-medium">{amendCommission.bookings?.customer_name || amendCommission.migrated_bookings?.migrated_customers?.full_name || "—"}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Total price</span>
+                    <span>£{Number(amendCommission.total_price).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Deposit paid</span>
+                    <span>£{Number(amendCommission.deposit_paid).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Balance due</span>
+                    <span className="font-medium">£{(Number(amendCommission.total_price) - Number(amendCommission.deposit_paid)).toFixed(2)}</span>
+                  </div>
+                  {amendCommission.final_charge != null && (
+                    <div className="flex justify-between border-t pt-1">
+                      <span className="text-muted-foreground">Current charge</span>
+                      <span className="font-medium">£{Number(amendCommission.final_charge).toFixed(2)}</span>
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <Label>New Charge Amount (£)</Label>
+                  <NumericInput value={amendCharge} onValueChange={setAmendCharge} />
+                  <p className="text-xs text-muted-foreground mt-1">This updates the "Charged" amount for this appointment</p>
+                </div>
+              </div>
+            )}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setAmendOpen(false)}>Cancel</Button>
+              <Button onClick={() => amendChargeMutation.mutate()} disabled={amendChargeMutation.isPending}>
+                {amendChargeMutation.isPending ? "Saving…" : "Save"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </AppLayout>
     );
   }
