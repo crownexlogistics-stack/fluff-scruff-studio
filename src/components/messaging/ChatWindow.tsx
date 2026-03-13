@@ -37,6 +37,10 @@ export function ChatWindow({
 }: ChatWindowProps) {
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
+  const [aiInput, setAiInput] = useState("");
+  const [aiGenerated, setAiGenerated] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
 
