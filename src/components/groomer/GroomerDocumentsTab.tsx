@@ -172,7 +172,7 @@ export function GroomerDocumentsTab({ staffId }: { staffId: string }) {
           </ScrollArea>
         )}
 
-        {activeDoc === "code-of-conduct" && <CodeOfConduct />}
+        {activeDoc === "code-of-conduct" && <div id="groomer-coc-pdf"><CodeOfConduct /></div>}
       </div>
     );
   }
