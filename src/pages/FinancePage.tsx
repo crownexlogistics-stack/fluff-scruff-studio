@@ -295,7 +295,10 @@ const FinancePage = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium">Payout Status</p>
-                  <p className="text-xs text-muted-foreground">Paid: £{totalPaidOut.toFixed(2)} / Owed: £{selectedSummary.totalGroomerPay.toFixed(2)}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Paid: £{totalPaidOut.toFixed(2)} / Owed: £{selectedSummary.totalGroomerPay.toFixed(2)}
+                    {noShowTotal > 0 && <span className="block text-[10px] mt-0.5">Regular commission: £{regularTotal.toFixed(2)} + No-show deposits: £{noShowTotal.toFixed(2)} = Total: £{selectedSummary.totalGroomerPay.toFixed(2)}</span>}
+                  </p>
                   {owedRemaining > 0 && <p className="text-sm font-semibold text-destructive mt-1">Remaining: £{owedRemaining.toFixed(2)}</p>}
                   {owedRemaining <= 0 && selectedSummary.totalGroomerPay > 0 && <Badge className="bg-emerald-600 text-white mt-1">Fully Paid</Badge>}
                 </div>
