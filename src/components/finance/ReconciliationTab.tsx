@@ -9,7 +9,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Upload, FileText, CheckCircle2, AlertTriangle, XCircle, ChevronDown, ChevronRight, Download, X, Info } from "lucide-react";
-import { format, startOfWeek, endOfWeek, addWeeks } from "date-fns";
+import { format, startOfWeek, endOfWeek, addWeeks, addDays, isBefore, isAfter } from "date-fns";
 import Papa from "papaparse";
 
 /* ─── Types ─── */
