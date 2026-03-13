@@ -14,7 +14,7 @@ async function sendEmail(apiKey: string, to: string[], subject: string, html: st
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      from: "Fluff & Scruff Studio <onboarding@resend.dev>",
+      from: "Fluff & Scruff Studio <info@fluffandscruff.co.uk>",
       to,
       reply_to: "info@fluffandscruff.co.uk",
       subject,

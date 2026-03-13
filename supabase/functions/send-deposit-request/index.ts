@@ -165,7 +165,7 @@ serve(async (req) => {
         Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: "Fluff & Scruff Studio <onboarding@resend.dev>",
+        from: "Fluff & Scruff Studio <info@fluffandscruff.co.uk>",
         to: [booking.customer_email],
         reply_to: "info@fluffandscruff.co.uk",
         subject: `Pay Your Deposit — ${dogName}'s Appointment on ${dateFormatted}`,
