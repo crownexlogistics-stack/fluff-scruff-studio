@@ -3,7 +3,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Send, MessageSquare, ArrowLeft, Info } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Send, MessageSquare, ArrowLeft, Info, Sparkles, RotateCcw, PenLine, Check, X, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -36,6 +37,10 @@ export function ChatWindow({
 }: ChatWindowProps) {
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
+  const [aiInput, setAiInput] = useState("");
+  const [aiGenerated, setAiGenerated] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
 
@@ -111,6 +116,23 @@ export function ChatWindow({
       toast.error(e.message || "Failed to send message");
     } finally {
       setSending(false);
+    }
+  };
+
+  const handleAiGenerate = async () => {
+    if (!aiInput.trim()) return;
+    setAiLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-sms-message", {
+        body: { roughMessage: aiInput.trim() },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setAiGenerated(data.message);
+    } catch (e: any) {
+      toast.error(e.message || "AI generation failed");
+    } finally {
+      setAiLoading(false);
     }
   };
 
@@ -201,6 +223,72 @@ export function ChatWindow({
             <Send className="h-4 w-4" />
           </Button>
         </div>
+
+        {/* AI Writing Assistant */}
+        {!aiOpen && !aiGenerated && (
+          <button
+            type="button"
+            onClick={() => setAiOpen(true)}
+            className="mt-1.5 flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Sparkles className="h-3 w-3" />
+            Write with AI
+          </button>
+        )}
+
+        {aiOpen && !aiGenerated && (
+          <div className="mt-2 rounded-lg border border-border bg-muted/30 p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-foreground flex items-center gap-1">
+                <Sparkles className="h-3 w-3" /> AI Message Writer
+              </span>
+              <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => { setAiOpen(false); setAiInput(""); }}>
+                <X className="h-3 w-3" />
+              </Button>
+            </div>
+            <Input
+              placeholder="e.g. tell them we need to reschedule, we're not working Sunday"
+              value={aiInput}
+              onChange={(e) => setAiInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") handleAiGenerate(); }}
+              className="text-sm"
+            />
+            <Button
+              size="sm"
+              onClick={handleAiGenerate}
+              disabled={!aiInput.trim() || aiLoading}
+              className="w-full"
+            >
+              {aiLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Sparkles className="h-3.5 w-3.5 mr-1.5" />}
+              Generate Message
+            </Button>
+          </div>
+        )}
+
+        {aiGenerated && (
+          <div className="mt-2 rounded-lg border border-border bg-muted/30 p-3 space-y-2">
+            <span className="text-xs font-medium text-foreground flex items-center gap-1">
+              <Sparkles className="h-3 w-3" /> AI Suggestion
+            </span>
+            <p className="text-sm bg-background rounded-md p-2.5 border border-border whitespace-pre-wrap">{aiGenerated}</p>
+            <div className="flex gap-1.5 flex-wrap">
+              <Button size="sm" variant="default" onClick={() => { setMessage(aiGenerated); setAiGenerated(""); setAiOpen(false); setAiInput(""); }}>
+                <Check className="h-3.5 w-3.5 mr-1" /> Use this message
+              </Button>
+              <Button size="sm" variant="outline" onClick={handleAiGenerate} disabled={aiLoading}>
+                {aiLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <RotateCcw className="h-3.5 w-3.5 mr-1" />}
+                Try again
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => { setMessage(aiGenerated); setAiGenerated(""); setAiOpen(false); setAiInput(""); }}>
+                <PenLine className="h-3.5 w-3.5 mr-1" /> Edit manually
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => { setAiGenerated(""); setAiOpen(false); setAiInput(""); }}>
+                <X className="h-3.5 w-3.5 mr-1" /> Discard
+              </Button>
+            </div>
+          </div>
+        )}
+
         <p className="text-[10px] text-muted-foreground mt-1.5">
           Note: Customers cannot reply to these branded notifications.
         </p>
