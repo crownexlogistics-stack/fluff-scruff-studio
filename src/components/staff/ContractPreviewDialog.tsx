@@ -3,9 +3,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Download, Loader2 } from "lucide-react";
-import { ContractContent } from "./ContractPreviewDialog";
 import { downloadDocumentPdf } from "@/lib/downloadDocumentPdf";
 import { toast } from "sonner";
+import { format } from "date-fns";
 
 interface StaffMember {
   id: string;
@@ -18,9 +18,6 @@ interface StaffMember {
   signed_ip: string | null;
   contract_signature_data?: string | null;
 }
-
-// Re-export ContractContent so existing imports don't break
-export { ContractContent };
 
 interface Props {
   staff: StaffMember;
