@@ -55,8 +55,11 @@ serve(async (req) => {
     for (const b of bookings || []) {
       if (!b.customer_phone) continue;
 
-      // E.164 validation
-      const cleanPhone = b.customer_phone.replace(/\s/g, "");
+      // Normalize UK local numbers to E.164
+      let cleanPhone = b.customer_phone.replace(/\s/g, "");
+      if (cleanPhone.startsWith("0")) {
+        cleanPhone = "+44" + cleanPhone.slice(1);
+      }
       if (!isValidE164(cleanPhone)) {
         skipped.push(`Skipped ${b.customer_name}: invalid phone format "${b.customer_phone}" (must be E.164, e.g. +44...)`);
         console.warn(`Skipping booking ${b.id}: phone "${b.customer_phone}" is not valid E.164`);
