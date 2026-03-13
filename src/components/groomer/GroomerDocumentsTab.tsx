@@ -129,7 +129,7 @@ export function GroomerDocumentsTab({ staffId }: { staffId: string }) {
           <Card>
             <CardContent className="p-4 md:p-6">
               <ScrollArea className="h-[70vh]">
-                <div className="pr-4">
+                <div className="pr-4" id="groomer-contract-pdf">
                   <ContractContent staff={staff} />
                 </div>
               </ScrollArea>
