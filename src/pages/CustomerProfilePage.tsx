@@ -211,8 +211,16 @@ export default function CustomerProfilePage() {
         .select("customer_phone")
         .eq("customer_email", decodedEmail)
         .not("customer_phone", "is", null);
-      const phones = [...new Set((custBookings || []).map((b) => b.customer_phone).filter(Boolean))];
-      if (phones.length === 0) return [];
+      const rawPhones = [...new Set((custBookings || []).map((b) => b.customer_phone).filter(Boolean))];
+      if (rawPhones.length === 0) return [];
+      // Normalize all phone numbers to E.164 for matching (sms_messages stores E.164)
+      const normalizePhone = (p: string) => {
+        const t = p.trim();
+        if (t.startsWith("+")) return t;
+        if (t.startsWith("0")) return "+44" + t.slice(1);
+        return "+44" + t;
+      };
+      const phones = [...new Set(rawPhones.flatMap((p) => [p, normalizePhone(p)]))];
       const { data, error } = await supabase
         .from("sms_messages")
         .select("*")
