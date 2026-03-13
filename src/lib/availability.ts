@@ -318,7 +318,7 @@ export function findFreeGroomer(
       if (b.staff_id !== g.id) return false;
       const bStart = parseTimeToMinutes(b.booking_time);
       const bDuration =
-        Number(b.services?.duration_minutes ?? b.breeds?.duration_minutes ?? 90);
+        Number(b.duration_minutes ?? b.services?.duration_minutes ?? b.breeds?.duration_minutes ?? 90);
       const bEnd = bStart + bDuration;
       return slotStart < bEnd && slotEnd > bStart;
     });
