@@ -183,6 +183,19 @@ export default function ReconciliationTab() {
     return { weekTransactions: transactions, voidPairs };
   }, [allRows, weekStartStr, weekEndStr]);
 
+  // Compute CSV coverage: which of the 5 working days (Mon–Fri) have data
+  const { workingDays, coveredDays, missingDays, isFullCoverage } = useMemo(() => {
+    const days: { date: Date; str: string; label: string }[] = [];
+    for (let i = 0; i < 5; i++) {
+      const d = addDays(weekStart, i);
+      days.push({ date: d, str: format(d, "yyyy-MM-dd"), label: format(d, "EEE dd MMM") });
+    }
+    const csvDates = new Set(allRows.filter(r => r.date >= weekStartStr && r.date <= weekEndStr).map(r => r.date));
+    const covered = days.filter(d => csvDates.has(d.str));
+    const missing = days.filter(d => !csvDates.has(d.str));
+    return { workingDays: days, coveredDays: covered, missingDays: missing, isFullCoverage: missing.length === 0 };
+  }, [allRows, weekStart, weekStartStr, weekEndStr]);
+
   // Per-groomer summaries
   const groomerSummaries = useMemo(() => {
     return staff.map(s => {
