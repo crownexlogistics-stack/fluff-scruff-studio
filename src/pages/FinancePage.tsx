@@ -412,7 +412,7 @@ const FinancePage = () => {
                     
                     return sortedDays.flatMap(([dateKey, items]) => [
                       <TableRow key={`header-${dateKey}`} className="bg-muted/60 hover:bg-muted/60">
-                        <TableCell colSpan={10} className="py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                        <TableCell colSpan={11} className="py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                           {dateKey !== "Unknown" ? format(new Date(dateKey + "T00:00:00"), "EEEE, d MMMM yyyy") : "Unknown Date"}
                         </TableCell>
                       </TableRow>,
