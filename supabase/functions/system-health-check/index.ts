@@ -173,13 +173,14 @@ serve(async (req) => {
     results.tables = tableCounts;
 
     return new Response(JSON.stringify(results), {
+      status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
-    // Absolute last resort — should never reach here now
     console.error("Health check fatal error:", error);
-    return new Response(JSON.stringify({ error: error.message, ...results }), {
-      status: 500,
+    results.fatal_error = error instanceof Error ? error.message : String(error);
+    return new Response(JSON.stringify(results), {
+      status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
