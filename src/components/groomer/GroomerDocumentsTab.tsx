@@ -7,11 +7,12 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { FileText, ShieldCheck, ScrollText, Scissors, Download, ArrowLeft, ChevronRight } from "lucide-react";
+import { FileText, ShieldCheck, ScrollText, Scissors, Download, ArrowLeft, ChevronRight, Loader2 } from "lucide-react";
 import { ContractContent } from "@/components/staff/ContractPreviewDialog";
 import { HealthAndSafetyContent } from "@/components/staff/HealthAndSafetyContent";
 import CodeOfConduct from "@/components/staff/CodeOfConduct";
-
+import { downloadDocumentPdf } from "@/lib/downloadDocumentPdf";
+import { toast } from "sonner";
 
 // Room rules data (same as RulesPage)
 const ruleFolders = [
