@@ -436,7 +436,7 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
       if (error) throw error;
 
       // Create no-show deposit split commission record (50% of deposit) only if deposit was paid
-      const booking = todayBookings.find(b => b.id === bookingId) || upcomingBookings.find(b => b.id === bookingId) || pastBookings.find(b => b.id === bookingId);
+      const booking = bookings.find(b => b.id === bookingId);
       if (booking && booking.staff_id) {
         const deposit = Number(booking.deposit_paid);
         if (deposit > 0) {
