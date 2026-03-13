@@ -466,6 +466,23 @@ const FinancePage = () => {
                           <TableCell className="text-sm">{isNoShow ? "—" : charged != null ? `£${charged.toFixed(2)}` : <span className="text-muted-foreground italic">Not entered</span>}</TableCell>
                           <TableCell className={`text-sm font-medium ${isNoShow ? "" : diffColor}`}>{isNoShow ? "—" : diff != null ? `£${diff.toFixed(2)}` : "—"}</TableCell>
                           <TableCell>{statusBadge}</TableCell>
+                          <TableCell>
+                            {!isNoShow && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={() => {
+                                  setAmendCommission(c);
+                                  setAmendCharge(c.final_charge != null ? Number(c.final_charge) : (Number(c.total_price) - Number(c.deposit_paid)));
+                                  setAmendOpen(true);
+                                }}
+                                title="Amend charge"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
+                          </TableCell>
                         </TableRow>
                         );
                       }),
