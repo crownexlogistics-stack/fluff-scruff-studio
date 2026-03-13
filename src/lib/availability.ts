@@ -32,6 +32,7 @@ export interface ScheduleOverride {
 export interface ExistingBooking {
   staff_id: string;
   booking_time: string;
+  duration_minutes?: number | null;
   services?: { duration_minutes: number | null } | null;
   breeds?: { duration_minutes: number | null } | null;
 }
