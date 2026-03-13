@@ -133,7 +133,8 @@ export function BookingsTab({ bookings, userEmail }: BookingsTabProps) {
     return differenceInHours(parseISO(booking.booking_date + "T" + (booking.booking_time || "09:00")), new Date()) >= 48;
   };
 
-  const today = new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
   const pastMigrated = migratedBookings.filter((b: any) => b.booking_date < today);
   const futureMigrated = migratedBookings.filter((b: any) => b.booking_date >= today);
 

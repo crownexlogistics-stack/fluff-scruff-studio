@@ -446,11 +446,16 @@ export default function CustomerProfilePage() {
     customer_name: customerName,
   }));
 
-  const today = new Date().toISOString().split("T")[0];
-  const upcomingBookings = bookings?.filter((b) => b.booking_date >= today && b.status !== "Cancelled") || [];
+  const todayLocal = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}-${String(new Date().getDate()).padStart(2, "0")}`;
+  const upcomingMigrated = migratedAsBookings.filter((mb) => mb.booking_date >= todayLocal);
+  const pastMigrated = migratedAsBookings.filter((mb) => mb.booking_date < todayLocal);
+  const upcomingBookings = [
+    ...(bookings?.filter((b) => b.booking_date >= todayLocal && b.status !== "Cancelled") || []),
+    ...upcomingMigrated,
+  ].sort((a, b) => a.booking_date.localeCompare(b.booking_date));
   const pastBookings = [
-    ...(bookings?.filter((b) => b.booking_date < today || b.status === "Cancelled") || []),
-    ...migratedAsBookings,
+    ...(bookings?.filter((b) => b.booking_date < todayLocal || b.status === "Cancelled") || []),
+    ...pastMigrated,
   ].sort((a, b) => b.booking_date.localeCompare(a.booking_date));
   const fallbackDogsFromBookings = Array.from(
     new Map(
