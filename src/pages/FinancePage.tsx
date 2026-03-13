@@ -265,6 +265,10 @@ const FinancePage = () => {
   // Detail view for individual groomer
   if (selectedStaffId && selectedSummary) {
     const owedRemaining = selectedSummary.totalGroomerPay - totalPaidOut;
+    const noShowCommissions = selectedSummary.commissions.filter((c: any) => c.commission_type === "no_show");
+    const regularCommissions = selectedSummary.commissions.filter((c: any) => c.commission_type !== "no_show");
+    const noShowTotal = noShowCommissions.reduce((s: number, c: any) => s + Number(c.groomer_pay), 0);
+    const regularTotal = regularCommissions.reduce((s: number, c: any) => s + Number(c.groomer_pay), 0);
     return (
       <AppLayout>
         <div className="space-y-4 max-w-4xl">
