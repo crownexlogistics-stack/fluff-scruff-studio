@@ -897,15 +897,39 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
     queryKey: ["bookings-for-date", selectedDate],
     queryFn: async () => {
       if (!selectedDate) return [];
-      const { data, error } = await supabase
-        .from("bookings")
-        .select("booking_time, staff_id, status, services(duration_minutes), breeds(duration_minutes)")
-        .eq("booking_date", selectedDate)
-        .not("status", "in", "(Cancelled,No Show,Refunded)");
-      if (error) throw error;
-      return (data || []) as ExistingBooking[];
+      const [bookingsRes, migratedRes] = await Promise.all([
+        supabase
+          .from("bookings")
+          .select("booking_time, staff_id, duration_minutes, services(duration_minutes), breeds(duration_minutes)")
+          .eq("booking_date", selectedDate)
+          .not("status", "in", "(Cancelled,No Show,Refunded)"),
+        supabase
+          .from("migrated_bookings")
+          .select("booking_time, staff_name, duration_minutes")
+          .eq("booking_date", selectedDate)
+          .eq("is_future_booking", true),
+      ]);
+      if (bookingsRes.error) throw bookingsRes.error;
+      const realBookings = (bookingsRes.data || []) as ExistingBooking[];
+      
+      // Convert migrated bookings to ExistingBooking format
+      const migratedAsBookings: ExistingBooking[] = (migratedRes.data || [])
+        .map((mb: any) => {
+          const firstName = mb.staff_name?.split(" ")[0]?.toLowerCase() || "";
+          const matched = groomers?.find(g => g.name.split(" ")[0].toLowerCase() === firstName);
+          if (!matched || !mb.booking_time) return null;
+          return {
+            staff_id: matched.id,
+            booking_time: mb.booking_time,
+            services: { duration_minutes: mb.duration_minutes || 60 },
+          } as ExistingBooking;
+        })
+        .filter(Boolean) as ExistingBooking[];
+      
+      console.log(`[availability] Date ${selectedDate}: ${realBookings.length} bookings + ${migratedAsBookings.length} migrated bookings`);
+      return [...realBookings, ...migratedAsBookings];
     },
-    enabled: !!selectedDate,
+    enabled: !!selectedDate && !!groomers?.length,
   });
 
   const availableTimeSlots = useMemo(() => {
@@ -916,6 +940,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
       ? groomers.filter(g => g.id === selectedStaffId)
       : groomers;
     if (!groomersForSlots.length) return [];
+    console.log(`[availability] Generating slots: duration=${serviceDuration}min, groomers=${groomersForSlots.length}, bookings=${(existingBookingsForDate || []).length}`);
     return generateAvailableSlots(
       date,
       serviceDuration,
