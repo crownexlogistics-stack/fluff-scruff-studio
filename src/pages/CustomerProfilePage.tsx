@@ -630,14 +630,19 @@ export default function CustomerProfilePage() {
 
   const tabTriggerClass = "rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4";
 
-  // Find last groomer for non-own customers
-  const lastGroomerName = bookings?.[0]?.staff ? (bookings[0].staff as any).name : null;
+  // Find last groomer for restricted view fallback text
+  const latestLiveStaffName = bookings?.[0]?.staff ? (bookings[0].staff as any).name : null;
+  const latestWixStaffName = migratedBookings?.[0]?.staff_name || null;
+  const lastGroomerName = latestLiveStaffName || latestWixStaffName;
 
   // ── Layout wrapper ────────────────────────────────────────────────
   const Layout = isGroomer ? GroomerLayout : AppLayout;
 
-  // ── LIMITED VIEW for groomers viewing non-own customer ────────────
-  if (isGroomer && !isOwnCustomer && bookings) {
+  // Avoid false restrictions while assignment data is still loading.
+  const accessEvaluationReady = !isGroomer || (bookings !== undefined && migratedBookings !== undefined && !!groomerStaff);
+
+  // ── LIMITED VIEW for groomers viewing non-assigned customer ───────
+  if (isGroomer && accessEvaluationReady && !isOwnCustomer) {
     return (
       <Layout>
         <div className="space-y-0 max-w-5xl px-0">
