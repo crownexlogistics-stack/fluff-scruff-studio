@@ -901,7 +901,37 @@ export default function CustomerProfilePage() {
                     <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => { setNewDogForm({ pet_name: "", breed_id: "", dog_age_years: 0, dog_age_months: 0, notes: "" }); setAddDogOpen(true); }}>
                       <Plus className="h-3.5 w-3.5" /> Add Dog
                     </Button>
-                  )}
+            )}
+
+            {/* Marketing Preference */}
+            {canManageCustomer && !isGroomer && (
+              <Card>
+                <CardContent className="p-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    {unsubRecord ? (
+                      <MailX className="h-5 w-5 text-muted-foreground" />
+                    ) : (
+                      <MailCheck className="h-5 w-5 text-emerald-500" />
+                    )}
+                    <div>
+                      <p className="text-sm font-semibold">Marketing Emails</p>
+                      {unsubRecord ? (
+                        <p className="text-xs text-muted-foreground">
+                          Unsubscribed {unsubRecord.unsubscribed_at ? `on ${format(new Date(unsubRecord.unsubscribed_at), "dd MMM yyyy")}` : ""}
+                        </p>
+                      ) : (
+                        <p className="text-xs text-emerald-600">Subscribed — will receive marketing emails</p>
+                      )}
+                    </div>
+                  </div>
+                  <Switch
+                    checked={!unsubRecord}
+                    onCheckedChange={(checked) => toggleMarketingOptOut.mutate(!checked)}
+                    disabled={toggleMarketingOptOut.isPending}
+                  />
+                </CardContent>
+              </Card>
+            )}
                 </div>
                 {visibleDogs.length > 0 ? (
                   <div className="space-y-2">
