@@ -474,8 +474,19 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
             </>
           ) : (
             <>
+              {/* Book Again: locked customer display */}
+              {bookAgainData && customerSelected && (
+                <div className="rounded-lg border bg-muted/30 p-3 space-y-0.5">
+                  <p className="text-sm font-medium">{form.customer_name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {[form.customer_email, form.customer_phone].filter(Boolean).join(" · ")}
+                  </p>
+                  <p className="text-xs text-muted-foreground">🐕 {form.dog_name}</p>
+                </div>
+              )}
+
               {/* Customer Search / Selected display */}
-              {!isNewCustomer && (
+              {!bookAgainData && !isNewCustomer && (
                 <>
                   <CustomerSearchInput
                     onSelect={handleCustomerSelect}
