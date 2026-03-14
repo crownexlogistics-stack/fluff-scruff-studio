@@ -398,6 +398,24 @@ export function EmailMarketingSection() {
     onError: (err: Error) => toast.error(err.message),
   });
 
+  // Send test email
+  const sendTestMutation = useMutation({
+    mutationFn: async (email: string) => {
+      if (!email.trim()) throw new Error("Please enter a test email");
+      const { data, error } = await supabase.functions.invoke("send-campaign", {
+        body: { emails: [email.trim()], subject: `[TEST] ${generatedSubject}`, htmlBody: generatedHtml },
+      });
+      if (error) throw error;
+      if (data.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: () => {
+      toast.success(`Test email sent to ${testEmail}!`);
+      setShowTestEmail(false);
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
   const loadCampaignToEditor = (c: any) => {
     setGeneratedSubject(c.subject);
     setGeneratedHtml(c.html_body);
