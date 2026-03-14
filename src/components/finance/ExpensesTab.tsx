@@ -690,23 +690,31 @@ export default function ExpensesTab({ periodStart, periodEnd, totalRevenue, tota
           </div>
         </CardHeader>
         <CardContent className="p-4 pt-0">
-          {oneOffs.length > 0 ? (
+          {allOneOffs.length > 0 ? (
             <div className="space-y-2">
-              {oneOffs.map(e => {
+              {allOneOffs.map(e => {
                 const cat = getCategoryDisplay(e.category);
+                const isPO = !!(e as any)._fromPurchaseOrders;
                 return (
                   <div key={e.id} className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                    <span className="text-lg">{cat.icon}</span>
+                    <span className="text-lg">{isPO ? "🛒" : cat.icon}</span>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium">{e.name}</p>
+                      <p className="text-sm font-medium">
+                        {e.name}
+                        {isPO && <Badge variant="outline" className="ml-2 text-[10px] py-0">Purchase Order</Badge>}
+                      </p>
                       <p className="text-xs text-muted-foreground">
                         {e.expense_date ? format(parseISO(e.expense_date), "dd MMM yyyy") : "—"} · {cat.label}
                         {e.notes && ` · ${e.notes}`}
                       </p>
                     </div>
                     <span className="text-sm font-semibold shrink-0">£{Number(e.amount).toFixed(2)}</span>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(e)}><Pencil className="h-3.5 w-3.5" /></Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteId(e.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                    {!isPO && (
+                      <>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(e)}><Pencil className="h-3.5 w-3.5" /></Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteId(e.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                      </>
+                    )}
                   </div>
                 );
               })}
