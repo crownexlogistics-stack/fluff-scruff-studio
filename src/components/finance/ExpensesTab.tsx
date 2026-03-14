@@ -390,6 +390,19 @@ export default function ExpensesTab({ periodStart, periodEnd, totalRevenue, tota
     },
   });
 
+  // Purchases for P&L month
+  const { data: plPurchases = [] } = useQuery({
+    queryKey: ["pl-purchases", plStart, plEnd],
+    queryFn: async () => {
+      const { data } = await (supabase.from("purchases" as any) as any)
+        .select("total_price")
+        .eq("is_returned", false)
+        .gte("purchased_at", `${plStart}T00:00:00`)
+        .lte("purchased_at", `${plEnd}T23:59:59`);
+      return (data ?? []) as any[];
+    },
+  });
+
   // Compare month data
   const cmpStart = compareMonth ? format(startOfMonth(compareMonth), "yyyy-MM-dd") : null;
   const cmpEnd = compareMonth ? format(endOfMonth(compareMonth), "yyyy-MM-dd") : null;
