@@ -56,6 +56,9 @@ export function EmailMarketingSection() {
   const [showPreview, setShowPreview] = useState(false);
   const [selectedSegment, setSelectedSegment] = useState<Segment>("all");
   const [activeTab, setActiveTab] = useState("create");
+  const [excludedEmails, setExcludedEmails] = useState<Set<string>>(new Set());
+  const [showSegmentList, setShowSegmentList] = useState(false);
+  const [segmentListSearch, setSegmentListSearch] = useState("");
   // A/B testing state
   const [abEnabled, setAbEnabled] = useState(false);
   const [variantBSubject, setVariantBSubject] = useState("");
