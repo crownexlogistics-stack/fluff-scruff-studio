@@ -12,6 +12,7 @@ interface GroomerLayoutProps {
 export function GroomerLayout({ children }: GroomerLayoutProps) {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const { hasCustomerBookings } = useStaffIsCustomer(user?.email ?? undefined);
 
   const handleSignOut = async () => {
