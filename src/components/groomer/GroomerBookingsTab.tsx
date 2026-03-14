@@ -136,7 +136,19 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
       return (data || []).map((mb: any) => {
         const staffFirstName = mb.staff_name?.split(" ")[0]?.trim() || "";
         const matchedStaff = allStaff.find(s => s.name.split(" ")[0].toLowerCase() === staffFirstName.toLowerCase());
-        const isCompleted = mb.payment_status === "Completed";
+
+        const rawPaymentStatus = String(mb.payment_status || "").toLowerCase();
+        const calendarStatus =
+          rawPaymentStatus === "completed"
+            ? "Completed"
+            : rawPaymentStatus === "cancelled" || rawPaymentStatus === "canceled"
+              ? "Cancelled"
+              : rawPaymentStatus === "no show"
+                ? "No Show"
+                : rawPaymentStatus === "refunded"
+                  ? "Refunded"
+                  : "Confirmed";
+
         return {
           id: mb.id,
           customer_name: mb.migrated_customers?.full_name || "Unknown",
@@ -145,7 +157,7 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
           booking_time: mb.booking_time || "09:00",
           total_price: Number(mb.total_price || 0),
           deposit_paid: Number(mb.deposit_paid || 0),
-          status: isCompleted ? "Completed" : "Confirmed",
+          status: calendarStatus,
           notes: mb.notes,
           customer_email: mb.migrated_customers?.email || null,
           customer_phone: mb.migrated_customers?.phone || null,
