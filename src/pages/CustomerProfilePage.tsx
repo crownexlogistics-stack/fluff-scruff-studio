@@ -139,10 +139,28 @@ export default function CustomerProfilePage() {
     enabled: !!decodedEmail && migratedCustomer !== undefined,
   });
 
-  // Check if this customer is "owned" by the groomer
-  const isOwnCustomer = !isGroomer || (bookings || []).some(
-    (b) => b.staff_id === groomerStaff?.id
-  );
+  // Groomer profile access is driven by CURRENT assignment (live + Wix), not historical ownership.
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const weekDay = todayStart.getDay();
+  const mondayOffset = weekDay === 0 ? -6 : 1 - weekDay;
+  const payWeekStart = new Date(todayStart);
+  payWeekStart.setDate(todayStart.getDate() + mondayOffset);
+  const payWeekStartIso = format(payWeekStart, "yyyy-MM-dd");
+
+  const hasLiveAssignedAccess = !!groomerStaff?.id && (bookings || []).some((b) => {
+    if (b.staff_id !== groomerStaff.id) return false;
+    if (!["Pending", "Confirmed", "Completed"].includes(b.status)) return false;
+    return b.booking_date >= payWeekStartIso;
+  });
+
+  const hasWixAssignedAccess = !!groomerStaff?.name && (migratedBookings || []).some((mb: any) => {
+    if (!mb.staff_name) return false;
+    const assignedToGroomer = mb.staff_name.trim().toLowerCase() === groomerStaff.name.trim().toLowerCase();
+    return assignedToGroomer && mb.booking_date >= payWeekStartIso;
+  });
+
+  const isOwnCustomer = !isGroomer || hasLiveAssignedAccess || hasWixAssignedAccess;
   const canManageCustomer = !isGroomer || isOwnCustomer;
 
   const { data: customerUserId } = useQuery({
