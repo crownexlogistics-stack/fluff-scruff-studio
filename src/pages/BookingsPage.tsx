@@ -33,10 +33,13 @@ import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 
 const BookingsPage = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const highlightBookingId = searchParams.get("highlight");
   const { user } = useAuth();
   const { role: userRole } = useUserRole(user?.id);
   const queryClient = useQueryClient();
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
+  const [highlightHandled, setHighlightHandled] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState<"appointment" | "block">("appointment");
   const [dialogDefaults, setDialogDefaults] = useState<{ date?: Date; hour?: number; staffId?: string }>({});
