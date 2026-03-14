@@ -213,7 +213,7 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
             {booking.notes && <p className="opacity-70 truncate text-[10px]">{booking.notes}</p>}
           </div>
         </PopoverTrigger>
-        <PopoverContent className="w-[calc(100vw-2rem)] sm:w-72 max-w-sm p-0 max-h-[70vh] overflow-y-auto" side="bottom" align="center" sideOffset={4} avoidCollisions collisionPadding={16}>
+        <PopoverContent className="w-[calc(100vw-2rem)] sm:w-72 max-w-sm p-0 max-h-[60vh] overflow-y-auto" side="bottom" align="center" sideOffset={4} avoidCollisions collisionPadding={{ top: 16, bottom: 16, left: 8, right: 8 }} sticky="partial">
           <div className="p-4 space-y-3">
             <div className="flex items-center justify-between">
               <div>
