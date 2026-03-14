@@ -172,20 +172,6 @@ export function EmailMarketingSection() {
       });
     }
 
-    // 3. Add from profiles (if not already in map)
-    for (const p of (profiles || [])) {
-      if (!p.email) continue;
-      const key = p.email.toLowerCase().trim();
-      if (unsubSet.has(key) || map.has(key)) continue;
-      map.set(key, {
-        email: p.email,
-        name: p.full_name || p.email,
-        completedCount: 0,
-        lastBooking: "",
-        source: "profile",
-      });
-    }
-
     const all = Array.from(map.values());
     const threeMonthsAgo = new Date();
     threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
