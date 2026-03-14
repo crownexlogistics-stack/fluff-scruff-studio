@@ -10,6 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -18,7 +20,7 @@ import {
   Loader2, Mail, FileText, CheckCircle2, Wand2, Paperclip, X,
   Copy, Trash2, Clock, CalendarIcon, FolderOpen, Inbox, BookTemplate,
   MoreHorizontal, AlertCircle, Palette, ImagePlus, Zap, MessageSquare,
-  FlaskConical
+  FlaskConical, Search, XCircle
 } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger
@@ -39,6 +41,7 @@ interface CustomerBucket {
   name: string;
   completedCount: number;
   lastBooking: string;
+  source?: string;
 }
 
 export function EmailMarketingSection() {
@@ -53,6 +56,9 @@ export function EmailMarketingSection() {
   const [showPreview, setShowPreview] = useState(false);
   const [selectedSegment, setSelectedSegment] = useState<Segment>("all");
   const [activeTab, setActiveTab] = useState("create");
+  const [excludedEmails, setExcludedEmails] = useState<Set<string>>(new Set());
+  const [showSegmentList, setShowSegmentList] = useState(false);
+  const [segmentListSearch, setSegmentListSearch] = useState("");
   // A/B testing state
   const [abEnabled, setAbEnabled] = useState(false);
   const [variantBSubject, setVariantBSubject] = useState("");
@@ -86,6 +92,19 @@ export function EmailMarketingSection() {
     },
   });
 
+  // Fetch migrated customers with emails
+  const { data: migratedCustomers } = useQuery({
+    queryKey: ["marketing-migrated-customers"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("migrated_customers")
+        .select("email, full_name")
+        .not("email", "is", null);
+      if (error) throw error;
+      return data;
+    },
+  });
+
   // Fetch unsubscribes
   const { data: unsubscribes } = useQuery({
     queryKey: ["email-unsubscribes"],
@@ -113,12 +132,12 @@ export function EmailMarketingSection() {
     return new Set((unsubscribes || []).map(u => u.email.toLowerCase()));
   }, [unsubscribes]);
 
-  // Build customer segments
+  // Build customer segments - include ALL sources
   const segments = useMemo(() => {
-    if (!bookings) return { all: [], "one-timers": [], "lost-regulars": [], vips: [] };
-
     const map = new Map<string, CustomerBucket>();
-    for (const b of bookings) {
+
+    // 1. Add from bookings
+    for (const b of (bookings || [])) {
       if (!b.customer_email) continue;
       const key = b.customer_email.toLowerCase().trim();
       if (unsubSet.has(key)) continue;
@@ -134,8 +153,23 @@ export function EmailMarketingSection() {
           name: b.customer_name,
           completedCount: isCompleted ? 1 : 0,
           lastBooking: b.booking_date,
+          source: "booking",
         });
       }
+    }
+
+    // 2. Add from migrated customers (if not already in map)
+    for (const mc of (migratedCustomers || [])) {
+      if (!mc.email) continue;
+      const key = mc.email.toLowerCase().trim();
+      if (unsubSet.has(key) || map.has(key)) continue;
+      map.set(key, {
+        email: mc.email,
+        name: mc.full_name || mc.email,
+        completedCount: 0,
+        lastBooking: "",
+        source: "migrated",
+      });
     }
 
     const all = Array.from(map.values());
@@ -149,7 +183,12 @@ export function EmailMarketingSection() {
       "lost-regulars": all.filter(c => c.completedCount >= 2 && c.lastBooking < cutoff),
       vips: all.filter(c => c.completedCount > 5),
     };
-  }, [bookings, unsubSet]);
+  }, [bookings, migratedCustomers, unsubSet]);
+
+  // Effective list after exclusions
+  const effectiveList = useMemo(() => {
+    return segments[selectedSegment].filter(c => !excludedEmails.has(c.email.toLowerCase()));
+  }, [segments, selectedSegment, excludedEmails]);
 
   // Filtered campaigns by folder
   const folderCampaigns = useMemo(() => {
@@ -290,7 +329,7 @@ export function EmailMarketingSection() {
   // Send campaign
   const sendMutation = useMutation({
     mutationFn: async (opts: { campaignId?: string; fromDraft?: boolean }) => {
-      const targetEmails = segments[selectedSegment].map(c => c.email);
+      const targetEmails = effectiveList.map(c => c.email);
       if (targetEmails.length === 0) throw new Error("No customers in this segment");
 
       let campaignId = opts.campaignId;
@@ -576,9 +615,10 @@ export function EmailMarketingSection() {
                   {segmentCards.map(seg => {
                     const Icon = seg.icon;
                     const count = segments[seg.key].length;
+                    const excluded = segments[seg.key].filter(c => excludedEmails.has(c.email.toLowerCase())).length;
                     const isActive = selectedSegment === seg.key;
                     return (
-                      <Card key={seg.key} className={`cursor-pointer transition-all hover:shadow-md active:scale-[0.98] ${isActive ? "ring-2 ring-primary shadow-md" : ""}`} onClick={() => setSelectedSegment(seg.key)}>
+                      <Card key={seg.key} className={`cursor-pointer transition-all hover:shadow-md active:scale-[0.98] ${isActive ? "ring-2 ring-primary shadow-md" : ""}`} onClick={() => { setSelectedSegment(seg.key); setExcludedEmails(new Set()); }}>
                         <CardContent className="p-4 space-y-1.5">
                           <div className="flex items-center justify-between">
                             <Icon className={`h-5 w-5 ${seg.color}`} />
@@ -587,6 +627,12 @@ export function EmailMarketingSection() {
                           <p className="text-2xl font-bold font-heading">{count}</p>
                           <p className="text-sm font-medium">{seg.label}</p>
                           <p className="text-xs text-muted-foreground">{seg.desc}</p>
+                          {isActive && (
+                            <Button variant="outline" size="sm" className="mt-2 w-full gap-1.5 text-xs" onClick={(e) => { e.stopPropagation(); setSegmentListSearch(""); setShowSegmentList(true); }}>
+                              <Eye className="h-3 w-3" /> View & Edit List
+                              {excluded > 0 && <Badge variant="destructive" className="ml-1 text-[10px] h-4">{excluded} removed</Badge>}
+                            </Button>
+                          )}
                         </CardContent>
                       </Card>
                     );
@@ -596,14 +642,15 @@ export function EmailMarketingSection() {
                 {/* Send / Schedule buttons */}
                 <div className="flex items-center justify-between pt-2 border-t">
                   <p className="text-sm text-muted-foreground">
-                    Sending to <strong>{segments[selectedSegment].length}</strong> customer{segments[selectedSegment].length !== 1 ? "s" : ""}
+                    Sending to <strong>{effectiveList.length}</strong> customer{effectiveList.length !== 1 ? "s" : ""}
+                    {excludedEmails.size > 0 && <span className="ml-1 text-destructive">({excludedEmails.size} manually removed)</span>}
                     {unsubSet.size > 0 && <span className="ml-1">({unsubSet.size} unsubscribed excluded)</span>}
                   </p>
                   <div className="flex gap-2">
                     <Button variant="outline" onClick={() => setShowScheduler(!showScheduler)} className="gap-1.5">
                       <Clock className="h-4 w-4" /> Schedule
                     </Button>
-                    <Button onClick={() => sendMutation.mutate({})} disabled={sendMutation.isPending || segments[selectedSegment].length === 0} className="gap-1.5" size="lg">
+                    <Button onClick={() => sendMutation.mutate({})} disabled={sendMutation.isPending || effectiveList.length === 0} className="gap-1.5" size="lg">
                       {sendMutation.isPending ? <><Loader2 className="h-4 w-4 animate-spin" /> Sending...</> : <><Send className="h-4 w-4" /> Send Now</>}
                     </Button>
                   </div>
@@ -773,6 +820,76 @@ export function EmailMarketingSection() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Segment Customer List Dialog */}
+      <Dialog open={showSegmentList} onOpenChange={setShowSegmentList}>
+        <DialogContent className="max-w-lg max-h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              {segmentCards.find(s => s.key === selectedSegment)?.label} — {segments[selectedSegment].length} customers
+            </DialogTitle>
+          </DialogHeader>
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by name or email..."
+              value={segmentListSearch}
+              onChange={e => setSegmentListSearch(e.target.value)}
+              className="pl-8"
+            />
+          </div>
+          {excludedEmails.size > 0 && (
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-destructive font-medium">{excludedEmails.size} removed from send list</span>
+              <Button variant="ghost" size="sm" className="text-xs h-6" onClick={() => setExcludedEmails(new Set())}>
+                Restore All
+              </Button>
+            </div>
+          )}
+          <ScrollArea className="flex-1 min-h-0 max-h-[50vh]">
+            <div className="space-y-1 pr-3">
+              {segments[selectedSegment]
+                .filter(c => {
+                  const q = segmentListSearch.toLowerCase();
+                  return !q || c.name.toLowerCase().includes(q) || c.email.toLowerCase().includes(q);
+                })
+                .map(c => {
+                  const isExcluded = excludedEmails.has(c.email.toLowerCase());
+                  return (
+                    <div key={c.email} className={cn("flex items-center justify-between py-2 px-3 rounded-md", isExcluded ? "opacity-50 bg-muted/50" : "hover:bg-accent/50")}>
+                      <div className="min-w-0 flex-1">
+                        <p className={cn("text-sm font-medium truncate", isExcluded && "line-through")}>{c.name}</p>
+                        <p className="text-xs text-muted-foreground truncate">{c.email}</p>
+                        {c.source === "migrated" && <Badge variant="outline" className="text-[9px] h-4 mt-0.5">Wix</Badge>}
+                      </div>
+                      <Button
+                        variant={isExcluded ? "outline" : "ghost"}
+                        size="sm"
+                        className={cn("shrink-0 ml-2 h-7", !isExcluded && "text-destructive hover:text-destructive")}
+                        onClick={() => {
+                          const next = new Set(excludedEmails);
+                          const key = c.email.toLowerCase();
+                          if (isExcluded) next.delete(key);
+                          else next.add(key);
+                          setExcludedEmails(next);
+                        }}
+                      >
+                        {isExcluded ? "Restore" : <><XCircle className="h-3.5 w-3.5 mr-1" /> Remove</>}
+                      </Button>
+                    </div>
+                  );
+                })}
+            </div>
+          </ScrollArea>
+          <div className="pt-3 border-t flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              Will send to <strong>{effectiveList.length}</strong> of {segments[selectedSegment].length}
+            </p>
+            <Button onClick={() => setShowSegmentList(false)}>Done</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
