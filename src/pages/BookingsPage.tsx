@@ -524,6 +524,7 @@ const BookingsPage = () => {
           onPrevWeek={() => setWeekStart(w => addWeeks(w, -1))}
           onNextWeek={() => setWeekStart(w => addWeeks(w, 1))}
           onToday={() => setWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }))}
+          onJumpToDate={(date) => setWeekStart(startOfWeek(date, { weekStartsOn: 1 }))}
         />
 
         <div className="flex flex-wrap gap-2">
