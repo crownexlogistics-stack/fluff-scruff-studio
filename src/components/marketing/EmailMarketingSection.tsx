@@ -105,18 +105,6 @@ export function EmailMarketingSection() {
     },
   });
 
-  // Fetch profiles with emails
-  const { data: profiles } = useQuery({
-    queryKey: ["marketing-profiles"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("email, full_name");
-      if (error) throw error;
-      return data;
-    },
-  });
-
   // Fetch unsubscribes
   const { data: unsubscribes } = useQuery({
     queryKey: ["email-unsubscribes"],
