@@ -760,6 +760,11 @@ const StaffDetailPage = () => {
               </div>
             </TabsContent>
           )}
+          {isManagerOrDirector && (
+            <TabsContent value="equipment" className="mt-4">
+              <EquipmentTab staffId={id!} isTerminated={isTerminatedOrResigned} />
+            </TabsContent>
+          )}
         </Tabs>
       </div>
 
