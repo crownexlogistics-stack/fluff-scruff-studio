@@ -1,54 +1,28 @@
 
 
-## Booking Flow UI Overhaul — Pet-Themed Animations
+# Fix: Groomer can't see full profile of their own customers
 
-This plan adds playful, on-brand animations to the booking flow while preserving all existing logic (Stripe, puppy auto-switch, back navigation).
+## Problem
 
----
+Two related issues:
 
-### 1. Walking Paw Progress Bar
+1. **Customer Profile access**: When Brylee opens a customer profile (e.g. Kadee Louise), the system checks if any booking for that customer is assigned to Brylee **within the current pay week**. If Kadee's last appointment was before this week, Brylee is treated as "not the assigned groomer" and sees only a limited view saying "Last groomed by Brylee" — which is obviously wrong since she IS Brylee.
 
-- Add a **paw-print step indicator** at the top of the BookingFlow, below the header.
-- Define the steps as an ordered array (e.g. `["sub-service", "breed", "calendar", "addons", "guest-details"]`), filtered based on whether the flow needs breed/addons.
-- Render a row of `PawPrint` icons — completed steps use the brand accent color, current step is highlighted, future steps are greyed out (`text-muted-foreground/30`).
-- Use `framer-motion`'s `layoutId` on a small underline/highlight element that animates smoothly between paw positions as the step changes, creating the "walking" effect.
-- Each paw tilts slightly (`rotate: -15deg` → `15deg`) using a short spring animation on the active paw.
+2. **Search bar "Your customer" badge**: The search uses `staff_id` comparison against the most recent booking, which works but doesn't help when the profile itself blocks access.
 
-### 2. Tail Wag Loading Animation
+## Root cause
 
-- Create a small `TailWagSpinner` component using an inline SVG of a simplified dog tail.
-- Animate with `framer-motion` using a repeating `rotate` keyframe (`[-20, 20, -20]` on loop) with `duration: 0.4s`.
-- Replace the existing CSS spinner (line 825: `animate-spin h-8 w-8 border-4...`) and the "Processing..." text in submit buttons with this component.
+Lines 168-189 in `CustomerProfilePage.tsx` restrict groomer access to customers who have a booking **in the current pay week or later**. This is too restrictive — if Brylee groomed Kadee last week, she can't see the profile this week.
 
-### 3. Bouncy Page Transitions (Framer Motion)
+## Fix
 
-- Wrap each step's content block in a `<motion.div>` with `AnimatePresence` and keyed by `step`.
-- Entry: `initial={{ x: 80, opacity: 0 }}`, `animate={{ x: 0, opacity: 1 }}` with `type: "spring", stiffness: 300, damping: 25`.
-- Exit: `exit={{ x: -80, opacity: 0 }}` with a fast tween.
-- Track navigation direction (forward/back) to reverse the slide direction when going back (slide in from left instead of right).
+Expand the groomer access window from "current pay week" to a more practical range: any booking in the **last 90 days or any future booking**. This way groomers retain access to their recent customers while still preventing access to customers they haven't seen in months.
 
-### 4. Back Button & Puppy Logic
+### Changes
 
-- The existing `goBack` function already resets state per step — no changes needed there.
-- For the **Puppy Special "pop" effect**: when `showPuppyPopup` closes and the calendar step appears, add a `motion.div` around the "Puppy Special" service name in the calendar's summary card with `animate={{ scale: [1, 1.15, 1] }}` and a sparkle keyframe, triggered when `puppySwitched` is true.
+**`src/pages/CustomerProfilePage.tsx`** (lines ~170-187):
+- Replace the `payWeekStart` date calculation with a 90-day lookback window
+- Update both `hasLiveAssignedAccess` and `hasWixAssignedAccess` to use `booking_date >= ninetyDaysAgo` instead of `booking_date >= payWeekStartIso`
 
-### 5. Styling Constraints
-
-- All animations use `duration: 0.3–0.5s` max.
-- Spring transitions use high stiffness (300+) and moderate damping (25+) for snappy feel.
-- No layout shifts — all animated elements have fixed dimensions or use `layout` prop.
-
----
-
-### Files to Edit
-
-| File | Change |
-|------|--------|
-| `src/components/BookingFlow.tsx` | Add `AnimatePresence`, `motion.div` wrappers per step, paw progress bar component, tail wag spinner, direction tracking for transitions, sparkle effect on puppy switch |
-
-### Technical Notes
-
-- `framer-motion` is already installed.
-- The `TailWagSpinner` and `PawProgressBar` will be inline components within `BookingFlow.tsx` to keep changes contained.
-- No database or edge function changes needed.
+This is a ~5 line change in one file. No database or edge function changes needed.
 
