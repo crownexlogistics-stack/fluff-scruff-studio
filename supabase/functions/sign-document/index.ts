@@ -136,7 +136,7 @@ serve(async (req) => {
               type: "recovery",
               email: staff.email,
               options: {
-                redirectTo: "https://fluff-scruff-studio.lovable.app/reset-password",
+                redirectTo: "https://fluffandscruff.co.uk/reset-password",
               },
             });
 
