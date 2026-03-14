@@ -110,7 +110,7 @@ serve(async (req) => {
         ? new Date(staff.signed_at).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
         : "Unknown";
 
-      const contractUrl = signing_url || `https://fluff-scruff-studio.lovable.app/contract/sign/${staff_id}`;
+      const contractUrl = signing_url || `https://fluffandscruff.co.uk/contract/sign/${staff_id}`;
 
       await sendEmail(RESEND_API_KEY, emails, `Contract Signed — ${staff.name}`, `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
