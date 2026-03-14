@@ -307,6 +307,47 @@ export default function ExpensesTab({ periodStart, periodEnd, totalRevenue, tota
     },
   });
 
+  // Fetch non-returned purchases from Purchase Orders to show as one-off expenses
+  const { data: purchaseExpenses = [] } = useQuery({
+    queryKey: ["purchase-expenses", oneOffStart],
+    queryFn: async () => {
+      const { data, error } = await (supabase.from("purchases" as any) as any)
+        .select("id, title, total_price, purchased_at, supplier, notes, is_returned, assigned_to, assignment_type")
+        .eq("is_returned", false)
+        .gte("purchased_at", `${oneOffStart}T00:00:00`)
+        .order("purchased_at", { ascending: false });
+      if (error) throw error;
+      return (data || []) as any[];
+    },
+  });
+
+  // Merge purchases into one-off display list
+  const allOneOffs = useMemo(() => {
+    const purchaseRows: (ExpenseRow & { _fromPurchaseOrders?: boolean })[] = purchaseExpenses
+      .filter((p: any) => p.total_price && Number(p.total_price) > 0)
+      .map((p: any) => ({
+        id: p.id,
+        name: p.title,
+        category: "equipment",
+        amount: Number(p.total_price),
+        expense_type: "one_off" as const,
+        frequency: null,
+        expense_date: p.purchased_at ? p.purchased_at.split("T")[0] : null,
+        recurring_start_date: null,
+        recurring_end_date: null,
+        notes: [p.supplier, p.notes].filter(Boolean).join(" · ") || null,
+        created_by: "",
+        created_at: p.purchased_at || "",
+        _fromPurchaseOrders: true,
+      }));
+    const expenseRows = oneOffs.map(e => ({ ...e, _fromPurchaseOrders: false }));
+    return [...expenseRows, ...purchaseRows].sort((a, b) => {
+      const da = a.expense_date || a.created_at;
+      const db = b.expense_date || b.created_at;
+      return db.localeCompare(da);
+    });
+  }, [oneOffs, purchaseExpenses]);
+
   // P&L data for selected month
   const plStart = format(startOfMonth(plMonth), "yyyy-MM-dd");
   const plEnd = format(endOfMonth(plMonth), "yyyy-MM-dd");
@@ -345,6 +386,19 @@ export default function ExpensesTab({ periodStart, periodEnd, totalRevenue, tota
         .eq("expense_type", "one_off")
         .gte("expense_date", plStart)
         .lte("expense_date", plEnd);
+      return (data ?? []) as any[];
+    },
+  });
+
+  // Purchases for P&L month
+  const { data: plPurchases = [] } = useQuery({
+    queryKey: ["pl-purchases", plStart, plEnd],
+    queryFn: async () => {
+      const { data } = await (supabase.from("purchases" as any) as any)
+        .select("total_price")
+        .eq("is_returned", false)
+        .gte("purchased_at", `${plStart}T00:00:00`)
+        .lte("purchased_at", `${plEnd}T23:59:59`);
       return (data ?? []) as any[];
     },
   });
@@ -397,24 +451,40 @@ export default function ExpensesTab({ periodStart, periodEnd, totalRevenue, tota
     enabled: !!compareMonth,
   });
 
+  const { data: cmpPurchases = [] } = useQuery({
+    queryKey: ["cmp-purchases", cmpStart, cmpEnd],
+    queryFn: async () => {
+      if (!cmpStart || !cmpEnd) return [];
+      const { data } = await (supabase.from("purchases" as any) as any)
+        .select("total_price")
+        .eq("is_returned", false)
+        .gte("purchased_at", `${cmpStart}T00:00:00`)
+        .lte("purchased_at", `${cmpEnd}T23:59:59`);
+      return (data ?? []) as any[];
+    },
+    enabled: !!compareMonth,
+  });
+
   // Calculations
   const totalMonthlyRecurring = recurring.reduce((s, e) => s + toMonthly(Number(e.amount), e.frequency || "monthly"), 0);
-  const totalOneOffs = oneOffs.reduce((s, e) => s + Number(e.amount), 0);
+  const totalOneOffs = allOneOffs.reduce((s, e) => s + Number(e.amount), 0);
 
-  const calcPL = useCallback((bookings: any[], commissions: any[], oneOffs: any[], monthRef: Date) => {
+  const calcPL = useCallback((bookings: any[], commissions: any[], oneOffs: any[], purchases: any[], monthRef: Date) => {
     const revenue = bookings.reduce((s: number, b: any) => s + Number(b.total_price), 0);
     const groomerPay = commissions.reduce((s: number, c: any) => s + Number(c.groomer_pay), 0);
     const oneOffCosts = oneOffs.reduce((s: number, e: any) => s + Number(e.amount), 0);
+    const purchaseCosts = purchases.reduce((s: number, p: any) => s + Number(p.total_price || 0), 0);
     const isCurrentMonth = isSameMonth(monthRef, new Date());
     const dateAware = calcDateAwareExpenses(recurring, monthRef);
     const recurringCostsPaid = isCurrentMonth ? dateAware.paidTotal : dateAware.fullMonthTotal;
     const recurringCostsUpcoming = isCurrentMonth ? dateAware.upcomingTotal : 0;
-    const netProfit = revenue - groomerPay - recurringCostsPaid - oneOffCosts;
-    return { revenue, groomerPay, recurringCostsPaid, recurringCostsUpcoming, oneOffCosts, netProfit, isCurrentMonth };
+    const totalOneOffCosts = oneOffCosts + purchaseCosts;
+    const netProfit = revenue - groomerPay - recurringCostsPaid - totalOneOffCosts;
+    return { revenue, groomerPay, recurringCostsPaid, recurringCostsUpcoming, oneOffCosts: totalOneOffCosts, netProfit, isCurrentMonth };
   }, [recurring]);
 
-  const pl = calcPL(plBookings, plCommissions, plOneOffs, plMonth);
-  const cmpPl = compareMonth ? calcPL(cmpBookings, cmpCommissions, cmpOneOffs, compareMonth) : null;
+  const pl = calcPL(plBookings, plCommissions, plOneOffs, plPurchases, plMonth);
+  const cmpPl = compareMonth ? calcPL(cmpBookings, cmpCommissions, cmpOneOffs, cmpPurchases, compareMonth) : null;
 
   const handleNameChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setForm((prev) => ({ ...prev, name: e.target.value }));
@@ -620,23 +690,31 @@ export default function ExpensesTab({ periodStart, periodEnd, totalRevenue, tota
           </div>
         </CardHeader>
         <CardContent className="p-4 pt-0">
-          {oneOffs.length > 0 ? (
+          {allOneOffs.length > 0 ? (
             <div className="space-y-2">
-              {oneOffs.map(e => {
+              {allOneOffs.map(e => {
                 const cat = getCategoryDisplay(e.category);
+                const isPO = !!(e as any)._fromPurchaseOrders;
                 return (
                   <div key={e.id} className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                    <span className="text-lg">{cat.icon}</span>
+                    <span className="text-lg">{isPO ? "🛒" : cat.icon}</span>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium">{e.name}</p>
+                      <p className="text-sm font-medium">
+                        {e.name}
+                        {isPO && <Badge variant="outline" className="ml-2 text-[10px] py-0">Purchase Order</Badge>}
+                      </p>
                       <p className="text-xs text-muted-foreground">
                         {e.expense_date ? format(parseISO(e.expense_date), "dd MMM yyyy") : "—"} · {cat.label}
                         {e.notes && ` · ${e.notes}`}
                       </p>
                     </div>
                     <span className="text-sm font-semibold shrink-0">£{Number(e.amount).toFixed(2)}</span>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(e)}><Pencil className="h-3.5 w-3.5" /></Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteId(e.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                    {!isPO && (
+                      <>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(e)}><Pencil className="h-3.5 w-3.5" /></Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteId(e.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                      </>
+                    )}
                   </div>
                 );
               })}

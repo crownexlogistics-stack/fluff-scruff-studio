@@ -186,10 +186,25 @@ const MonthForecastCard = () => {
     ...queryOpts,
   });
 
+  // Purchase orders (non-returned) for this month
+  const { data: purchasesPaid = [], refetch: r10 } = useQuery({
+    queryKey: ["forecast-purchases-paid", startStr, endStr],
+    queryFn: async () => {
+      const cutoff = isPastMonth ? `${endStr}T23:59:59` : isCurrentMonth ? `${todayStr}T23:59:59` : `${startStr}T00:00:00`;
+      const { data } = await (supabase.from("purchases" as any) as any)
+        .select("total_price")
+        .eq("is_returned", false)
+        .gte("purchased_at", `${startStr}T00:00:00`)
+        .lte("purchased_at", cutoff);
+      return (data ?? []) as any[];
+    },
+    ...queryOpts,
+  });
+
   const handleRefresh = useCallback(() => {
-    r1(); r2(); r3(); r4(); r5(); r6(); r7(); r8(); if (isPastMonth) r9();
+    r1(); r2(); r3(); r4(); r5(); r6(); r7(); r8(); r10(); if (isPastMonth) r9();
     setLastRefresh(new Date());
-  }, [r1, r2, r3, r4, r5, r6, r7, r8, r9, isPastMonth]);
+  }, [r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, isPastMonth]);
 
   // ── Calculations ─────────────────────────────
   const wixHistoricalRevenue = wixHistorical.reduce((s: number, b: any) => s + Number(b.price_charged || 0), 0);
@@ -234,8 +249,10 @@ const MonthForecastCard = () => {
 
   // Expenses
   const dateAware = calcDateAwareExpenses(recurringExpenses, forecastMonth, today);
+  const purchasesPaidTotal = purchasesPaid.reduce((s: number, p: any) => s + Number(p.total_price || 0), 0);
   const billsPaid = (isPastMonth ? dateAware.fullMonthTotal : dateAware.paidTotal)
-    + oneOffPaid.reduce((s: number, e: any) => s + Number(e.amount || 0), 0);
+    + oneOffPaid.reduce((s: number, e: any) => s + Number(e.amount || 0), 0)
+    + purchasesPaidTotal;
   const billsUpcoming = (isPastMonth ? 0 : dateAware.upcomingTotal)
     + oneOffUpcoming.reduce((s: number, e: any) => s + Number(e.amount || 0), 0);
 
