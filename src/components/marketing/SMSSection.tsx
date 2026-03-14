@@ -148,11 +148,15 @@ function SmsRemindersLog() {
       const { data, error } = await supabase
         .from("sms_messages")
         .select("*, bookings(customer_name, booking_date, booking_time, status)")
-        .not("booking_id", "is", null)
         .order("created_at", { ascending: false })
-        .limit(50);
+        .limit(100);
       if (error) throw error;
-      return data;
+      // Filter to only reminder-type messages (linked to bookings OR containing reminder keywords)
+      return (data || []).filter(m =>
+        m.booking_id != null ||
+        m.body.toLowerCase().includes("reminder") ||
+        m.body.toLowerCase().includes("appt at fluff")
+      );
     },
   });
 

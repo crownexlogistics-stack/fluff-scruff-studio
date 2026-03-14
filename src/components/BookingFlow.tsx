@@ -615,8 +615,8 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
   };
 
   const handleGuestSubmit = async (selectedPaymentType: "deposit" | "full" = "full") => {
-    if (!guestForm.name.trim() || !guestForm.dogName.trim()) {
-      setAlertMessage("Please fill in your name and dog's name");
+    if (!guestForm.name.trim() || !guestForm.dogName.trim() || !guestForm.phone.trim()) {
+      setAlertMessage("Please fill in your name, phone number and dog's name");
       return;
     }
     if (!acceptedTerms) {
@@ -1762,8 +1762,8 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
                         </div>
                       )}
                       <div className="space-y-2">
-                        <Label className="text-sm font-medium">Phone</Label>
-                        <Input value={guestForm.phone} onChange={(e) => setGuestForm({ ...guestForm, phone: e.target.value })} placeholder="07xxx xxxxxx" type="tel" className="h-12 rounded-xl" />
+                        <Label className="text-sm font-medium">Phone <span className="text-destructive">*</span></Label>
+                        <Input value={guestForm.phone} onChange={(e) => setGuestForm({ ...guestForm, phone: e.target.value })} placeholder="07xxx xxxxxx" type="tel" className="h-12 rounded-xl" required />
                       </div>
                     </>
                   )}
