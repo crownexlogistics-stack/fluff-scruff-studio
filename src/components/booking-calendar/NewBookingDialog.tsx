@@ -68,26 +68,49 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
   const prevOpenRef = useRef(false);
   useEffect(() => {
     if (open && !prevOpenRef.current) {
-      setIsNewCustomer(false);
-      setCustomerSelected(false);
       setNewCustomerError("");
-      setSelectedDogs([]);
       setSelectedAddOns([]);
-      setForm({
-        customer_name: "",
-        dog_name: "",
-        customer_email: "",
-        customer_phone: "",
-        breed_id: "",
-        service_id: "",
-        staff_id: defaultStaffId || "",
-        booking_date: dateStr,
-        booking_time: timeStr,
-        end_time: endTimeStr,
-        total_price: 0,
-        deposit_paid: 0,
-        notes: mode === "block" ? "" : "",
-      });
+
+      if (bookAgainData) {
+        // Pre-fill from existing booking
+        setIsNewCustomer(false);
+        setCustomerSelected(true);
+        setSelectedDogs([{ name: bookAgainData.dog_name, breed_id: bookAgainData.breed_id || null }]);
+        setForm({
+          customer_name: bookAgainData.customer_name,
+          dog_name: bookAgainData.dog_name,
+          customer_email: bookAgainData.customer_email || "",
+          customer_phone: bookAgainData.customer_phone || "",
+          breed_id: bookAgainData.breed_id || "",
+          service_id: bookAgainData.service_id || "",
+          staff_id: "",
+          booking_date: "",
+          booking_time: "09:00",
+          end_time: "10:00",
+          total_price: 0,
+          deposit_paid: 0,
+          notes: "",
+        });
+      } else {
+        setIsNewCustomer(false);
+        setCustomerSelected(false);
+        setSelectedDogs([]);
+        setForm({
+          customer_name: "",
+          dog_name: "",
+          customer_email: "",
+          customer_phone: "",
+          breed_id: "",
+          service_id: "",
+          staff_id: defaultStaffId || "",
+          booking_date: dateStr,
+          booking_time: timeStr,
+          end_time: endTimeStr,
+          total_price: 0,
+          deposit_paid: 0,
+          notes: "",
+        });
+      }
     }
     prevOpenRef.current = open;
   }, [open]);
