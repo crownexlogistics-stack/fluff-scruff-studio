@@ -404,6 +404,39 @@ export default function CustomerProfilePage() {
     enabled: !!decodedEmail && isOwnCustomer,
   });
 
+  // Marketing opt-out status
+  const { data: unsubRecord, refetch: refetchUnsub } = useQuery({
+    queryKey: ["customer-unsub-status", decodedEmail],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("email_unsubscribes")
+        .select("email, unsubscribed_at")
+        .eq("email", decodedEmail.toLowerCase().trim())
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!decodedEmail,
+  });
+
+  const toggleMarketingOptOut = useMutation({
+    mutationFn: async (optOut: boolean) => {
+      if (optOut) {
+        await supabase.from("email_unsubscribes").upsert(
+          { email: decodedEmail.toLowerCase().trim() },
+          { onConflict: "email" }
+        );
+      } else {
+        await supabase.from("email_unsubscribes").delete().eq("email", decodedEmail.toLowerCase().trim());
+      }
+    },
+    onSuccess: (_, optOut) => {
+      refetchUnsub();
+      toast({ title: optOut ? "Customer unsubscribed from marketing" : "Customer resubscribed to marketing" });
+    },
+    onError: () => toast({ title: "Failed to update marketing preference", variant: "destructive" }),
+  });
+
   // ── Mutations ─────────────────────────────────────────────────────
 
   const addNoteMutation = useMutation({
