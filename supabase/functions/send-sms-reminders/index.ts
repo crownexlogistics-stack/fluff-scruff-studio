@@ -71,7 +71,7 @@ serve(async (req) => {
 
       // Check 24h reminder
       if (!b.sms_24h_sent && bookingDateTime >= h24From && bookingDateTime <= h24To) {
-        const message = `Hi ${b.customer_name}, reminder of your appt at Fluff and Scruff tomorrow at ${timeFormatted}. Address: 153 Hacton Lane, Hornchurch, Essex RM12 6PH. See you then!`;
+        const message = `Hi ${b.customer_name}, reminder of your appt at Fluff and Scruff tomorrow at ${timeFormatted}. Address: 138 Hillview Avenue, Hornchurch RM11 2DL. See you then!`;
 
         try {
           await sendTwilioSms(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER, cleanPhone, message);
