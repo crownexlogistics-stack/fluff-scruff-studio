@@ -1801,6 +1801,150 @@ export type Database = {
         }
         Relationships: []
       }
+      purchase_requests: {
+        Row: {
+          created_at: string | null
+          decline_reason: string | null
+          description: string | null
+          id: string
+          image_url: string | null
+          priority: string | null
+          product_link: string | null
+          request_method: string | null
+          requested_by: string
+          responded_at: string | null
+          responded_by: string | null
+          status: string | null
+          title: string
+        }
+        Insert: {
+          created_at?: string | null
+          decline_reason?: string | null
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          priority?: string | null
+          product_link?: string | null
+          request_method?: string | null
+          requested_by: string
+          responded_at?: string | null
+          responded_by?: string | null
+          status?: string | null
+          title: string
+        }
+        Update: {
+          created_at?: string | null
+          decline_reason?: string | null
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          priority?: string | null
+          product_link?: string | null
+          request_method?: string | null
+          requested_by?: string
+          responded_at?: string | null
+          responded_by?: string | null
+          status?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_requests_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchases: {
+        Row: {
+          assigned_to: string | null
+          assignment_type: string | null
+          description: string | null
+          id: string
+          image_url: string | null
+          is_returned: boolean | null
+          notes: string | null
+          product_link: string | null
+          purchased_at: string | null
+          purchased_by: string | null
+          quantity: number | null
+          request_id: string | null
+          request_method: string | null
+          requested_by_groomer: string | null
+          returned_at: string | null
+          supplier: string | null
+          title: string
+          total_price: number | null
+          unit_price: number | null
+        }
+        Insert: {
+          assigned_to?: string | null
+          assignment_type?: string | null
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          is_returned?: boolean | null
+          notes?: string | null
+          product_link?: string | null
+          purchased_at?: string | null
+          purchased_by?: string | null
+          quantity?: number | null
+          request_id?: string | null
+          request_method?: string | null
+          requested_by_groomer?: string | null
+          returned_at?: string | null
+          supplier?: string | null
+          title: string
+          total_price?: number | null
+          unit_price?: number | null
+        }
+        Update: {
+          assigned_to?: string | null
+          assignment_type?: string | null
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          is_returned?: boolean | null
+          notes?: string | null
+          product_link?: string | null
+          purchased_at?: string | null
+          purchased_by?: string | null
+          quantity?: number | null
+          request_id?: string | null
+          request_method?: string | null
+          requested_by_groomer?: string | null
+          returned_at?: string | null
+          supplier?: string | null
+          title?: string
+          total_price?: number | null
+          unit_price?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchases_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchases_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchases_requested_by_groomer_fkey"
+            columns: ["requested_by_groomer"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reconciliation_runs: {
         Row: {
           filename: string | null

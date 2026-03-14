@@ -5,7 +5,7 @@ import {
   LogOut, Sparkles, AlertTriangle, ShieldCheck, BookOpen,
   Inbox, FileText, Ticket, PoundSterling, Bug, Activity, ArrowRightLeft,
   PawPrint, Bot, MessageSquare, PhoneForwarded, Settings, Search,
-  BookOpen as HistoryBook,
+  BookOpen as HistoryBook, ShoppingCart,
 } from "lucide-react";
 import logo from "@/assets/logo-transparent.png";
 import { useNewErrorReportsCount } from "@/hooks/useNewErrorReportsCount";
@@ -15,6 +15,7 @@ import { useUnreadSmsCount } from "@/hooks/useUnreadSmsCount";
 import { Badge } from "@/components/ui/badge";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useStaffIsCustomer } from "@/hooks/useStaffIsCustomer";
+import { useUrgentPurchaseRequests } from "@/hooks/useUrgentPurchaseRequests";
 import {
   Sidebar,
   SidebarContent,
@@ -48,6 +49,7 @@ const directorNavItems = [
 
 const hrSubItems = [
   { title: "Manage Staff", url: "/staff", icon: UserPlus },
+  { title: "Purchase Orders", url: "/purchase-orders", icon: ShoppingCart },
   { title: "Booking Priority", url: "/staff/priority", icon: Crown },
   { title: "Work Schedule", url: "/staff/schedule", icon: CalendarClock },
   { title: "Incident Reports", url: "/staff/incidents", icon: AlertTriangle },
@@ -87,6 +89,7 @@ export function AppSidebar() {
   const { totalUnread } = useUnreadSmsCount();
   const newErrorCount = useNewErrorReportsCount();
   const { hasCustomerBookings } = useStaffIsCustomer(user?.email ?? undefined);
+  const urgentPurchaseCount = useUrgentPurchaseRequests();
 
   return (
     <Sidebar collapsible="icon">
@@ -176,7 +179,12 @@ export function AppSidebar() {
                           activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
                         >
                           <item.icon className="mr-2 h-4 w-4" />
-                          {!collapsed && <span>{item.title}</span>}
+                          {!collapsed && <span className="flex-1">{item.title}</span>}
+                          {item.url === "/purchase-orders" && urgentPurchaseCount > 0 && (
+                            <Badge variant="destructive" className="ml-auto h-5 min-w-5 px-1.5 text-[10px] font-bold rounded-full">
+                              {urgentPurchaseCount}
+                            </Badge>
+                          )}
                         </NavLink>
                       </SidebarMenuButton>
                     </SidebarMenuItem>

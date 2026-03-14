@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useQuery } from "@tanstack/react-query";
 import { GroomerLayout } from "@/components/GroomerLayout";
-import { CalendarDays, MessageSquare, Dog, PoundSterling, FileText, ChevronRight, ArrowLeft } from "lucide-react";
+import { CalendarDays, MessageSquare, Dog, PoundSterling, FileText, ChevronRight, ArrowLeft, ShoppingCart } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,6 +14,7 @@ import { GroomerBookingsTab } from "@/components/groomer/GroomerBookingsTab";
 import { GroomerMessagesTab } from "@/components/groomer/GroomerMessagesTab";
 import { GroomerBreedsTab } from "@/components/groomer/GroomerBreedsTab";
 import { GroomerDocumentsTab } from "@/components/groomer/GroomerDocumentsTab";
+import { GroomerPurchaseRequestsTab } from "@/components/groomer/GroomerPurchaseRequestsTab";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addWeeks, addMonths } from "date-fns";
 
 function GroomerFinanceView({ staffId }: { staffId: string }) {
@@ -154,11 +155,12 @@ function GroomerFinanceView({ staffId }: { staffId: string }) {
   );
 }
 
-type Section = "bookings" | "messages" | "breeds" | "finance" | "documents";
+type Section = "bookings" | "messages" | "breeds" | "finance" | "documents" | "purchases";
 
 const sectionCards: { id: Section; icon: React.ElementType; title: string; subtitle: string }[] = [
   { id: "bookings", icon: CalendarDays, title: "Bookings", subtitle: "Your schedule & salon calendar" },
   { id: "messages", icon: MessageSquare, title: "Messages", subtitle: "Customer enquiries & replies" },
+  { id: "purchases", icon: ShoppingCart, title: "Purchase Requests", subtitle: "Request equipment & supplies" },
   { id: "breeds", icon: Dog, title: "Breeds", subtitle: "Pricing & duration reference" },
   { id: "finance", icon: PoundSterling, title: "Finance", subtitle: "Commission & payouts" },
   { id: "documents", icon: FileText, title: "Documents", subtitle: "Contract, policies & reports" },
@@ -215,6 +217,7 @@ const GroomerPortalPage = () => {
       case "breeds": return <GroomerBreedsTab />;
       case "documents": return <GroomerDocumentsTab staffId={staffId} />;
       case "finance": return <GroomerFinanceView staffId={staffId} />;
+      case "purchases": return <GroomerPurchaseRequestsTab staffId={staffId} />;
     }
   };
 
@@ -274,12 +277,14 @@ const GroomerPortalPage = () => {
           <TabsList className="flex-wrap">
             <TabsTrigger value="bookings" className="gap-1.5"><CalendarDays className="h-4 w-4" /> Bookings</TabsTrigger>
             <TabsTrigger value="messages" className="gap-1.5"><MessageSquare className="h-4 w-4" /> Messages</TabsTrigger>
+            <TabsTrigger value="purchases" className="gap-1.5"><ShoppingCart className="h-4 w-4" /> Purchases</TabsTrigger>
             <TabsTrigger value="breeds" className="gap-1.5"><Dog className="h-4 w-4" /> Breeds</TabsTrigger>
             <TabsTrigger value="finance" className="gap-1.5"><PoundSterling className="h-4 w-4" /> Finance</TabsTrigger>
             <TabsTrigger value="documents" className="gap-1.5"><FileText className="h-4 w-4" /> Documents</TabsTrigger>
           </TabsList>
           <TabsContent value="bookings" className="mt-4">{renderSectionContent("bookings")}</TabsContent>
           <TabsContent value="messages" className="mt-4">{renderSectionContent("messages")}</TabsContent>
+          <TabsContent value="purchases" className="mt-4">{renderSectionContent("purchases")}</TabsContent>
           <TabsContent value="breeds" className="mt-4">{renderSectionContent("breeds")}</TabsContent>
           <TabsContent value="finance" className="mt-4">{renderSectionContent("finance")}</TabsContent>
           <TabsContent value="documents" className="mt-4">{renderSectionContent("documents")}</TabsContent>

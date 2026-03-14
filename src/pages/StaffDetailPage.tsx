@@ -17,7 +17,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, CalendarIcon, Save, FileText, Send, CheckCircle2, User, Clock, Scissors, StickyNote, Cake, ShieldCheck, RotateCcw, KeyRound, Activity, Ban, CalendarX, Download, AlertTriangle } from "lucide-react";
+import { ArrowLeft, CalendarIcon, Save, FileText, Send, CheckCircle2, User, Clock, Scissors, StickyNote, Cake, ShieldCheck, RotateCcw, KeyRound, Activity, Ban, CalendarX, Download, AlertTriangle, Package } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { cn } from "@/lib/utils";
@@ -25,7 +25,7 @@ import { toast } from "sonner";
 import { ContractPreviewDialog } from "@/components/staff/ContractPreviewDialog";
 import { HealthAndSafetyPreviewDialog } from "@/components/staff/HealthAndSafetyPreviewDialog";
 import { HRRecordsTab } from "@/components/staff/HRRecordsTab";
-
+import { EquipmentTab } from "@/components/staff/EquipmentTab";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
@@ -348,6 +348,7 @@ const StaffDetailPage = () => {
         <Tabs defaultValue="profile">
           <TabsList>
             <TabsTrigger value="profile">Profile</TabsTrigger>
+            {isManagerOrDirector && <TabsTrigger value="equipment" className="gap-1.5"><Package className="h-4 w-4" /> Equipment</TabsTrigger>}
             {isManagerOrDirector && <TabsTrigger value="hr-records">HR Records</TabsTrigger>}
           </TabsList>
 
@@ -757,6 +758,11 @@ const StaffDetailPage = () => {
               <div className="pt-2">
                 <HRRecordsTab staffId={id!} staffCreatedAt={staff.created_at} staffName={staff.name} />
               </div>
+            </TabsContent>
+          )}
+          {isManagerOrDirector && (
+            <TabsContent value="equipment" className="mt-4">
+              <EquipmentTab staffId={id!} isTerminated={isTerminatedOrResigned} />
             </TabsContent>
           )}
         </Tabs>
