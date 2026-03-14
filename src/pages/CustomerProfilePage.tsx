@@ -858,7 +858,14 @@ export default function CustomerProfilePage() {
 
             <Card>
               <CardContent className="p-5">
-                <h3 className="text-sm font-semibold flex items-center gap-2 mb-3"><Dog className="h-4 w-4" /> Registered Dogs</h3>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold flex items-center gap-2"><Dog className="h-4 w-4" /> Registered Dogs</h3>
+                  {canManageCustomer && customerUserId && (
+                    <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => { setNewDogForm({ pet_name: "", breed_id: "", dog_age_years: 0, dog_age_months: 0, notes: "" }); setAddDogOpen(true); }}>
+                      <Plus className="h-3.5 w-3.5" /> Add Dog
+                    </Button>
+                  )}
+                </div>
                 {visibleDogs.length > 0 ? (
                   <div className="space-y-2">
                     {visibleDogs.map((pet: any) => (
