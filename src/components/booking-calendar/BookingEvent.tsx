@@ -454,7 +454,12 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
 
           {/* Details */}
           <div className="text-sm space-y-1">
-            <p>{format(new Date(booking.booking_date), "EEE, MMM d")} • {booking.booking_time.slice(0, 5)}</p>
+            <p>{format(new Date(booking.booking_date), "EEE, MMM d")} • {booking.booking_time.slice(0, 5)}{(() => {
+              if (!booking.duration_minutes) return "";
+              const [h, m] = booking.booking_time.split(":").map(Number);
+              const endMin = h * 60 + m + (booking.duration_minutes || 60);
+              return ` – ${String(Math.floor(endMin / 60)).padStart(2, "0")}:${String(endMin % 60).padStart(2, "0")}`;
+            })()}</p>
           </div>
 
           <div className="border-t pt-3">
