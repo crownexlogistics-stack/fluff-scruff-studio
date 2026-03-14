@@ -451,24 +451,40 @@ export default function ExpensesTab({ periodStart, periodEnd, totalRevenue, tota
     enabled: !!compareMonth,
   });
 
+  const { data: cmpPurchases = [] } = useQuery({
+    queryKey: ["cmp-purchases", cmpStart, cmpEnd],
+    queryFn: async () => {
+      if (!cmpStart || !cmpEnd) return [];
+      const { data } = await (supabase.from("purchases" as any) as any)
+        .select("total_price")
+        .eq("is_returned", false)
+        .gte("purchased_at", `${cmpStart}T00:00:00`)
+        .lte("purchased_at", `${cmpEnd}T23:59:59`);
+      return (data ?? []) as any[];
+    },
+    enabled: !!compareMonth,
+  });
+
   // Calculations
   const totalMonthlyRecurring = recurring.reduce((s, e) => s + toMonthly(Number(e.amount), e.frequency || "monthly"), 0);
-  const totalOneOffs = oneOffs.reduce((s, e) => s + Number(e.amount), 0);
+  const totalOneOffs = allOneOffs.reduce((s, e) => s + Number(e.amount), 0);
 
-  const calcPL = useCallback((bookings: any[], commissions: any[], oneOffs: any[], monthRef: Date) => {
+  const calcPL = useCallback((bookings: any[], commissions: any[], oneOffs: any[], purchases: any[], monthRef: Date) => {
     const revenue = bookings.reduce((s: number, b: any) => s + Number(b.total_price), 0);
     const groomerPay = commissions.reduce((s: number, c: any) => s + Number(c.groomer_pay), 0);
     const oneOffCosts = oneOffs.reduce((s: number, e: any) => s + Number(e.amount), 0);
+    const purchaseCosts = purchases.reduce((s: number, p: any) => s + Number(p.total_price || 0), 0);
     const isCurrentMonth = isSameMonth(monthRef, new Date());
     const dateAware = calcDateAwareExpenses(recurring, monthRef);
     const recurringCostsPaid = isCurrentMonth ? dateAware.paidTotal : dateAware.fullMonthTotal;
     const recurringCostsUpcoming = isCurrentMonth ? dateAware.upcomingTotal : 0;
-    const netProfit = revenue - groomerPay - recurringCostsPaid - oneOffCosts;
-    return { revenue, groomerPay, recurringCostsPaid, recurringCostsUpcoming, oneOffCosts, netProfit, isCurrentMonth };
+    const totalOneOffCosts = oneOffCosts + purchaseCosts;
+    const netProfit = revenue - groomerPay - recurringCostsPaid - totalOneOffCosts;
+    return { revenue, groomerPay, recurringCostsPaid, recurringCostsUpcoming, oneOffCosts: totalOneOffCosts, netProfit, isCurrentMonth };
   }, [recurring]);
 
-  const pl = calcPL(plBookings, plCommissions, plOneOffs, plMonth);
-  const cmpPl = compareMonth ? calcPL(cmpBookings, cmpCommissions, cmpOneOffs, compareMonth) : null;
+  const pl = calcPL(plBookings, plCommissions, plOneOffs, plPurchases, plMonth);
+  const cmpPl = compareMonth ? calcPL(cmpBookings, cmpCommissions, cmpOneOffs, cmpPurchases, compareMonth) : null;
 
   const handleNameChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setForm((prev) => ({ ...prev, name: e.target.value }));
