@@ -14,6 +14,7 @@ import { GroomerBookingsTab } from "@/components/groomer/GroomerBookingsTab";
 import { GroomerMessagesTab } from "@/components/groomer/GroomerMessagesTab";
 import { GroomerBreedsTab } from "@/components/groomer/GroomerBreedsTab";
 import { GroomerDocumentsTab } from "@/components/groomer/GroomerDocumentsTab";
+import { GroomerPurchaseRequestsTab } from "@/components/groomer/GroomerPurchaseRequestsTab";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addWeeks, addMonths } from "date-fns";
 
 function GroomerFinanceView({ staffId }: { staffId: string }) {
