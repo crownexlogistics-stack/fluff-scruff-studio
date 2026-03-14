@@ -165,25 +165,21 @@ export default function CustomerProfilePage() {
     };
   }, [decodedEmail, queryClient]);
 
-  // Groomer profile access is driven by CURRENT assignment (live + Wix), not historical ownership.
-  const now = new Date();
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const weekDay = todayStart.getDay();
-  const mondayOffset = weekDay === 0 ? -6 : 1 - weekDay;
-  const payWeekStart = new Date(todayStart);
-  payWeekStart.setDate(todayStart.getDate() + mondayOffset);
-  const payWeekStartIso = format(payWeekStart, "yyyy-MM-dd");
+  // Groomer profile access: grant if they have any booking within the last 90 days or any future booking.
+  const ninetyDaysAgo = new Date();
+  ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+  const ninetyDaysAgoIso = format(ninetyDaysAgo, "yyyy-MM-dd");
 
   const hasLiveAssignedAccess = !!groomerStaff?.id && (bookings || []).some((b) => {
     if (b.staff_id !== groomerStaff.id) return false;
     if (!["Pending", "Confirmed", "Completed"].includes(b.status)) return false;
-    return b.booking_date >= payWeekStartIso;
+    return b.booking_date >= ninetyDaysAgoIso;
   });
 
   const hasWixAssignedAccess = !!groomerStaff?.name && (migratedBookings || []).some((mb: any) => {
     if (!mb.staff_name) return false;
     const assignedToGroomer = mb.staff_name.trim().toLowerCase() === groomerStaff.name.trim().toLowerCase();
-    return assignedToGroomer && mb.booking_date >= payWeekStartIso;
+    return assignedToGroomer && mb.booking_date >= ninetyDaysAgoIso;
   });
 
   const isOwnCustomer = !isGroomer || hasLiveAssignedAccess || hasWixAssignedAccess;
