@@ -296,7 +296,7 @@ export function AIChatWidget() {
         {!isOpen && (
           <motion.div
             className="fixed z-50"
-            style={{ bottom: 20, right: 20 }}
+            style={{ bottom: 80, right: 20 }}
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             exit={{ scale: 0 }}
