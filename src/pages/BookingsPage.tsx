@@ -562,11 +562,12 @@ const BookingsPage = () => {
 
       <NewBookingDialog
         open={dialogOpen}
-        onOpenChange={setDialogOpen}
+        onOpenChange={(v) => { setDialogOpen(v); if (!v) setBookAgainData(null); }}
         defaultDate={dialogDefaults.date}
         defaultHour={dialogDefaults.hour}
         defaultStaffId={dialogDefaults.staffId}
         mode={dialogMode}
+        bookAgainData={bookAgainData}
       />
 
       <OvertimeDialog
