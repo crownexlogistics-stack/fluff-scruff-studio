@@ -1606,7 +1606,69 @@ export default function CustomerProfilePage() {
         </Dialog>
       )}
 
-      {/* ═══ EDIT BOOKING DIALOG ═══ */}
+      {/* ═══ ADD DOG DIALOG ═══ */}
+      {canManageCustomer && customerUserId && (
+        <Dialog open={addDogOpen} onOpenChange={setAddDogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader><DialogTitle>Register New Dog</DialogTitle></DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <Label>Dog Name <span className="text-destructive">*</span></Label>
+                <Input value={newDogForm.pet_name} onChange={(e) => setNewDogForm({ ...newDogForm, pet_name: e.target.value })} placeholder="e.g. Buddy" />
+              </div>
+              <div className="space-y-1">
+                <Label>Breed</Label>
+                <Select value={newDogForm.breed_id} onValueChange={(v) => setNewDogForm({ ...newDogForm, breed_id: v })}>
+                  <SelectTrigger><SelectValue placeholder="Select breed" /></SelectTrigger>
+                  <SelectContent>
+                    {allBreeds?.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label>Age (years)</Label>
+                  <Input inputMode="numeric" value={newDogForm.dog_age_years === 0 ? "" : String(newDogForm.dog_age_years)} placeholder="e.g. 3" onChange={(e) => { const val = e.target.value.replace(/[^0-9]/g, ""); setNewDogForm({ ...newDogForm, dog_age_years: val ? parseInt(val, 10) : 0 }); }} />
+                </div>
+                <div className="space-y-1">
+                  <Label>Age (months)</Label>
+                  <Input inputMode="numeric" value={newDogForm.dog_age_months === 0 ? "" : String(newDogForm.dog_age_months)} placeholder="e.g. 6" onChange={(e) => { const val = e.target.value.replace(/[^0-9]/g, ""); setNewDogForm({ ...newDogForm, dog_age_months: Math.min(val ? parseInt(val, 10) : 0, 11) }); }} />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Label>Notes</Label>
+                <Textarea value={newDogForm.notes} onChange={(e) => setNewDogForm({ ...newDogForm, notes: e.target.value })} rows={2} placeholder="Any special notes..." />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setAddDogOpen(false)}>Cancel</Button>
+              <Button
+                disabled={!newDogForm.pet_name.trim()}
+                onClick={async () => {
+                  const { error } = await supabase.from("customer_pets").insert({
+                    user_id: customerUserId!,
+                    pet_name: newDogForm.pet_name.trim(),
+                    breed_id: newDogForm.breed_id || null,
+                    dog_age_years: newDogForm.dog_age_years || null,
+                    dog_age_months: newDogForm.dog_age_months || null,
+                    notes: newDogForm.notes.trim() || null,
+                  });
+                  if (error) {
+                    toast({ title: "Error", description: error.message, variant: "destructive" });
+                    return;
+                  }
+                  toast({ title: "Dog registered successfully" });
+                  queryClient.invalidateQueries({ queryKey: ["customer-profile-pets", customerUserId] });
+                  setAddDogOpen(false);
+                }}
+              >
+                Register Dog
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
       {canManageCustomer && (
         <Dialog open={!!editingBooking} onOpenChange={(open) => { if (!open) setEditingBooking(null); }}>
           <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
