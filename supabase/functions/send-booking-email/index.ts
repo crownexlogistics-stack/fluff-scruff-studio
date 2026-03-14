@@ -156,6 +156,24 @@ serve(async (req) => {
           <p style="color: #999; font-size: 12px;">Fluff & Scruff Studio · 138 Hillview Avenue, Hornchurch RM11 2DL · 01708 606655</p>
         </div>
       `;
+    } else if (email_type === "no_show") {
+      subject = `Missed Appointment — ${booking.dog_name} on ${dateFormatted}`;
+      bodyHtml = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
+          <h2 style="color: #1a1a1a;">Missed Appointment</h2>
+          <p>Hi ${booking.customer_name},</p>
+          <p>We noticed that <strong>${booking.dog_name}</strong> didn't make it to the appointment today at <strong>${timeFormatted}</strong>.</p>
+          <p>We hope everything is okay! If you'd like to rebook, please get in touch and we'll find a new time that works for you.</p>
+          <p style="background: #f8f8f8; padding: 16px; border-radius: 8px; margin: 16px 0;">
+            📍 <strong>Fluff & Scruff Studio</strong><br/>
+            138 Hillview Avenue, Hornchurch RM11 2DL<br/>
+            📞 <a href="tel:01708606655" style="color: #1a1a1a;">01708 606655</a> · WhatsApp: <a href="https://wa.me/447476452782" style="color: #1a1a1a;">+44 7476 452782</a>
+          </p>
+          <p style="color: #666; font-size: 13px;">Please note that deposits for missed appointments are non-refundable as per our booking terms.</p>
+          <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
+          <p style="color: #999; font-size: 12px;">Fluff & Scruff Studio · 138 Hillview Avenue, Hornchurch RM11 2DL · 01708 606655</p>
+        </div>
+      `;
     } else {
       return new Response(JSON.stringify({ error: "Invalid email_type" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
