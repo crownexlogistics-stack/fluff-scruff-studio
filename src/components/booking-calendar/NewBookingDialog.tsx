@@ -14,6 +14,16 @@ import { toast } from "sonner";
 import { logAudit } from "@/lib/auditLog";
 import { CustomerSearchInput, type CustomerResult } from "./CustomerSearchInput";
 
+export interface BookAgainData {
+  customer_name: string;
+  customer_email: string | null;
+  customer_phone: string | null;
+  dog_name: string;
+  breed_id?: string;
+  service_id?: string;
+  notes?: string | null;
+}
+
 interface NewBookingDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -21,9 +31,10 @@ interface NewBookingDialogProps {
   defaultHour?: number;
   defaultStaffId?: string;
   mode: "appointment" | "block";
+  bookAgainData?: BookAgainData | null;
 }
 
-export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour, defaultStaffId, mode }: NewBookingDialogProps) {
+export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour, defaultStaffId, mode, bookAgainData }: NewBookingDialogProps) {
   const queryClient = useQueryClient();
 
   const dateStr = defaultDate ? format(defaultDate, "yyyy-MM-dd") : "";
@@ -57,26 +68,49 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
   const prevOpenRef = useRef(false);
   useEffect(() => {
     if (open && !prevOpenRef.current) {
-      setIsNewCustomer(false);
-      setCustomerSelected(false);
       setNewCustomerError("");
-      setSelectedDogs([]);
       setSelectedAddOns([]);
-      setForm({
-        customer_name: "",
-        dog_name: "",
-        customer_email: "",
-        customer_phone: "",
-        breed_id: "",
-        service_id: "",
-        staff_id: defaultStaffId || "",
-        booking_date: dateStr,
-        booking_time: timeStr,
-        end_time: endTimeStr,
-        total_price: 0,
-        deposit_paid: 0,
-        notes: mode === "block" ? "" : "",
-      });
+
+      if (bookAgainData) {
+        // Pre-fill from existing booking
+        setIsNewCustomer(false);
+        setCustomerSelected(true);
+        setSelectedDogs([{ name: bookAgainData.dog_name, breed_id: bookAgainData.breed_id || null }]);
+        setForm({
+          customer_name: bookAgainData.customer_name,
+          dog_name: bookAgainData.dog_name,
+          customer_email: bookAgainData.customer_email || "",
+          customer_phone: bookAgainData.customer_phone || "",
+          breed_id: bookAgainData.breed_id || "",
+          service_id: bookAgainData.service_id || "",
+          staff_id: "",
+          booking_date: "",
+          booking_time: "09:00",
+          end_time: "10:00",
+          total_price: 0,
+          deposit_paid: 0,
+          notes: "",
+        });
+      } else {
+        setIsNewCustomer(false);
+        setCustomerSelected(false);
+        setSelectedDogs([]);
+        setForm({
+          customer_name: "",
+          dog_name: "",
+          customer_email: "",
+          customer_phone: "",
+          breed_id: "",
+          service_id: "",
+          staff_id: defaultStaffId || "",
+          booking_date: dateStr,
+          booking_time: timeStr,
+          end_time: endTimeStr,
+          total_price: 0,
+          deposit_paid: 0,
+          notes: "",
+        });
+      }
     }
     prevOpenRef.current = open;
   }, [open]);
@@ -376,7 +410,7 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{mode === "block" ? "Block Time" : "New Appointment"}</DialogTitle>
+          <DialogTitle>{mode === "block" ? "Block Time" : bookAgainData ? `Book Again — ${bookAgainData.customer_name}` : "New Appointment"}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -440,8 +474,19 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
             </>
           ) : (
             <>
+              {/* Book Again: locked customer display */}
+              {bookAgainData && customerSelected && (
+                <div className="rounded-lg border bg-muted/30 p-3 space-y-0.5">
+                  <p className="text-sm font-medium">{form.customer_name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {[form.customer_email, form.customer_phone].filter(Boolean).join(" · ")}
+                  </p>
+                  <p className="text-xs text-muted-foreground">🐕 {form.dog_name}</p>
+                </div>
+              )}
+
               {/* Customer Search / Selected display */}
-              {!isNewCustomer && (
+              {!bookAgainData && !isNewCustomer && (
                 <>
                   <CustomerSearchInput
                     onSelect={handleCustomerSelect}
