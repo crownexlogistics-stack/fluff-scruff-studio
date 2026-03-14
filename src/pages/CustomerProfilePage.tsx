@@ -18,11 +18,14 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { cn } from "@/lib/utils";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   ArrowLeft, Mail, Phone, Dog, Calendar, Send,
   Pencil, Check, X, MessageSquare, MailOpen, Ban, CalendarPlus, UserCheck, ChevronDown, ChevronUp,
-  CreditCard, RefreshCw, ExternalLink, Smartphone, Sparkles, RotateCcw, PenLine, Loader2, Plus,
+  CreditCard, RefreshCw, ExternalLink, Smartphone, Sparkles, RotateCcw, PenLine, Loader2, Plus, ChevronsUpDown,
 } from "lucide-react";
 import { AdminPetTools } from "@/components/customer-profile/AdminPetTools";
 import { format, parseISO } from "date-fns";
@@ -1618,12 +1621,30 @@ export default function CustomerProfilePage() {
               </div>
               <div className="space-y-1">
                 <Label>Breed</Label>
-                <Select value={newDogForm.breed_id} onValueChange={(v) => setNewDogForm({ ...newDogForm, breed_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="Select breed" /></SelectTrigger>
-                  <SelectContent>
-                    {allBreeds?.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" role="combobox" className="w-full justify-between font-normal">
+                      {newDogForm.breed_id ? allBreeds?.find(b => b.id === newDogForm.breed_id)?.name : "Select breed"}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                    <Command>
+                      <CommandInput placeholder="Search breed..." />
+                      <CommandList>
+                        <CommandEmpty>No breed found.</CommandEmpty>
+                        <CommandGroup>
+                          {allBreeds?.map(b => (
+                            <CommandItem key={b.id} value={b.name} onSelect={() => setNewDogForm({ ...newDogForm, breed_id: b.id })}>
+                              <Check className={cn("mr-2 h-4 w-4", newDogForm.breed_id === b.id ? "opacity-100" : "opacity-0")} />
+                              {b.name}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
