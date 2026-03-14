@@ -15,7 +15,7 @@ import { ArrowLeft } from "lucide-react";
 function getRoleRedirect(role: AppRole | null): string {
   if (role === "manager" || role === "director") return "/admin";
   if (role === "groomer") return "/portal";
-  return "/";
+  return "/my-pets";
 }
 
 type Mode = "login" | "signup" | "forgot";
