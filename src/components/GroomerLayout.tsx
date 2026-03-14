@@ -1,5 +1,5 @@
 import { CalendarDays, MessageSquare, Dog, PoundSterling, FileText, LogOut, PawPrint } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import logo from "@/assets/logo-transparent.png";
 import { useAuth } from "@/hooks/useAuth";
 import { useStaffIsCustomer } from "@/hooks/useStaffIsCustomer";
