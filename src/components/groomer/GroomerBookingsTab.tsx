@@ -316,9 +316,19 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
     setCancelConfirmOpen(true);
   }, []);
 
+  const [bookAgainData, setBookAgainData] = useState<import("@/components/booking-calendar/NewBookingDialog").BookAgainData | null>(null);
+
   const handleBookAgain = useCallback((booking: GroomerCalendarBooking) => {
     setDialogMode("appointment");
-    setDialogDefaults({ date: new Date(booking.booking_date), staffId: booking.staff_id });
+    setDialogDefaults({});
+    setBookAgainData({
+      customer_name: booking.customer_name,
+      customer_email: booking.customer_email,
+      customer_phone: booking.customer_phone,
+      dog_name: booking.dog_name,
+      breed_id: booking.breed_id,
+      service_id: booking.service_id,
+    });
     setDialogOpen(true);
   }, []);
 
