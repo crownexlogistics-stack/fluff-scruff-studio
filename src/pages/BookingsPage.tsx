@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { CalendarHeader } from "@/components/booking-calendar/CalendarHeader";
 import { WeeklyCalendar } from "@/components/booking-calendar/WeeklyCalendar";
 import { getStaffColor } from "@/components/booking-calendar/staffColors";
+import { useSearchParams } from "react-router-dom";
 import { NewBookingDialog } from "@/components/booking-calendar/NewBookingDialog";
 import { EditBlockDialog } from "@/components/booking-calendar/EditBlockDialog";
 import { CheckoutDialog } from "@/components/booking-calendar/CheckoutDialog";
