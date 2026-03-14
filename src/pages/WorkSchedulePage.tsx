@@ -280,7 +280,62 @@ const WorkSchedulePage = () => {
                             </PopoverContent>
                           </Popover>
                         ) : (
-                          <div className="w-full h-9" />
+                          <Popover
+                            open={isOpen}
+                            onOpenChange={(open) => {
+                              if (open) {
+                                setEditCell({ staffId: s.id, staffName: s.name, date: d, startTime: "09:00", endTime: "17:00", isWorking: false });
+                                setEditStart("09:00");
+                                setEditEnd("17:00");
+                              } else {
+                                setEditCell(null);
+                              }
+                            }}
+                          >
+                            <PopoverTrigger asChild>
+                              <button className="w-full h-9 rounded-lg border border-dashed border-border/50 hover:border-primary/40 hover:bg-primary/5 transition-colors cursor-pointer flex items-center justify-center">
+                                <span className="text-xs text-muted-foreground/50 group-hover:text-primary">+</span>
+                              </button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-72 p-0" align="center">
+                              <div className="p-4 space-y-3">
+                                <div className="flex items-center justify-between">
+                                  <div>
+                                    <h4 className="font-semibold">{s.name}</h4>
+                                    <p className="text-xs text-muted-foreground">Open for {format(d, "MMM d, yyyy")}</p>
+                                  </div>
+                                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEditCell(null)}>
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                  <Clock className="h-4 w-4" />
+                                  <div className="flex items-center gap-1">
+                                    <Input type="time" className="w-28 h-7 text-xs" value={editStart} onChange={(e) => setEditStart(e.target.value)} />
+                                    <span>-</span>
+                                    <Input type="time" className="w-28 h-7 text-xs" value={editEnd} onChange={(e) => setEditEnd(e.target.value)} />
+                                  </div>
+                                </div>
+                                <Button
+                                  size="sm"
+                                  className="w-full"
+                                  onClick={() => editMutation.mutate({ staffId: s.id, date: d, startTime: editStart, endTime: editEnd })}
+                                >
+                                  Open Day
+                                </Button>
+                                {shift?.overrideId && (
+                                  <Button
+                                    variant="link"
+                                    size="sm"
+                                    className="w-full text-xs"
+                                    onClick={() => restoreMutation.mutate({ overrideId: shift.overrideId! })}
+                                  >
+                                    Restore default schedule
+                                  </Button>
+                                )}
+                              </div>
+                            </PopoverContent>
+                          </Popover>
                         )}
                       </td>
                     );
