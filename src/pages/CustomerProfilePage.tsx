@@ -1273,7 +1273,7 @@ export default function CustomerProfilePage() {
                               (async () => {
                                 setEmailAiLoading(true);
                                 try {
-                                  const { data, error } = await supabase.functions.invoke("generate-email-message", { body: { roughMessage: emailAiInput.trim(), customerName: displayName } });
+                                  const { data, error } = await supabase.functions.invoke("generate-email-message", { body: { roughMessage: emailAiInput.trim(), customerName } });
                                   if (error) throw error;
                                   if (data?.error) throw new Error(data.error);
                                   setEmailAiGenerated({ subject: data.subject, body: data.body });
