@@ -1762,8 +1762,8 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
                         </div>
                       )}
                       <div className="space-y-2">
-                        <Label className="text-sm font-medium">Phone</Label>
-                        <Input value={guestForm.phone} onChange={(e) => setGuestForm({ ...guestForm, phone: e.target.value })} placeholder="07xxx xxxxxx" type="tel" className="h-12 rounded-xl" />
+                        <Label className="text-sm font-medium">Phone <span className="text-destructive">*</span></Label>
+                        <Input value={guestForm.phone} onChange={(e) => setGuestForm({ ...guestForm, phone: e.target.value })} placeholder="07xxx xxxxxx" type="tel" className="h-12 rounded-xl" required />
                       </div>
                     </>
                   )}
