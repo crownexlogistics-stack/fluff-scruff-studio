@@ -615,9 +615,10 @@ export function EmailMarketingSection() {
                   {segmentCards.map(seg => {
                     const Icon = seg.icon;
                     const count = segments[seg.key].length;
+                    const excluded = segments[seg.key].filter(c => excludedEmails.has(c.email.toLowerCase())).length;
                     const isActive = selectedSegment === seg.key;
                     return (
-                      <Card key={seg.key} className={`cursor-pointer transition-all hover:shadow-md active:scale-[0.98] ${isActive ? "ring-2 ring-primary shadow-md" : ""}`} onClick={() => setSelectedSegment(seg.key)}>
+                      <Card key={seg.key} className={`cursor-pointer transition-all hover:shadow-md active:scale-[0.98] ${isActive ? "ring-2 ring-primary shadow-md" : ""}`} onClick={() => { setSelectedSegment(seg.key); setExcludedEmails(new Set()); }}>
                         <CardContent className="p-4 space-y-1.5">
                           <div className="flex items-center justify-between">
                             <Icon className={`h-5 w-5 ${seg.color}`} />
@@ -626,6 +627,12 @@ export function EmailMarketingSection() {
                           <p className="text-2xl font-bold font-heading">{count}</p>
                           <p className="text-sm font-medium">{seg.label}</p>
                           <p className="text-xs text-muted-foreground">{seg.desc}</p>
+                          {isActive && (
+                            <Button variant="outline" size="sm" className="mt-2 w-full gap-1.5 text-xs" onClick={(e) => { e.stopPropagation(); setSegmentListSearch(""); setShowSegmentList(true); }}>
+                              <Eye className="h-3 w-3" /> View & Edit List
+                              {excluded > 0 && <Badge variant="destructive" className="ml-1 text-[10px] h-4">{excluded} removed</Badge>}
+                            </Button>
+                          )}
                         </CardContent>
                       </Card>
                     );
@@ -635,14 +642,15 @@ export function EmailMarketingSection() {
                 {/* Send / Schedule buttons */}
                 <div className="flex items-center justify-between pt-2 border-t">
                   <p className="text-sm text-muted-foreground">
-                    Sending to <strong>{segments[selectedSegment].length}</strong> customer{segments[selectedSegment].length !== 1 ? "s" : ""}
+                    Sending to <strong>{effectiveList.length}</strong> customer{effectiveList.length !== 1 ? "s" : ""}
+                    {excludedEmails.size > 0 && <span className="ml-1 text-destructive">({excludedEmails.size} manually removed)</span>}
                     {unsubSet.size > 0 && <span className="ml-1">({unsubSet.size} unsubscribed excluded)</span>}
                   </p>
                   <div className="flex gap-2">
                     <Button variant="outline" onClick={() => setShowScheduler(!showScheduler)} className="gap-1.5">
                       <Clock className="h-4 w-4" /> Schedule
                     </Button>
-                    <Button onClick={() => sendMutation.mutate({})} disabled={sendMutation.isPending || segments[selectedSegment].length === 0} className="gap-1.5" size="lg">
+                    <Button onClick={() => sendMutation.mutate({})} disabled={sendMutation.isPending || effectiveList.length === 0} className="gap-1.5" size="lg">
                       {sendMutation.isPending ? <><Loader2 className="h-4 w-4 animate-spin" /> Sending...</> : <><Send className="h-4 w-4" /> Send Now</>}
                     </Button>
                   </div>
