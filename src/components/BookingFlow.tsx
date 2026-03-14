@@ -615,8 +615,8 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
   };
 
   const handleGuestSubmit = async (selectedPaymentType: "deposit" | "full" = "full") => {
-    if (!guestForm.name.trim() || !guestForm.dogName.trim()) {
-      setAlertMessage("Please fill in your name and dog's name");
+    if (!guestForm.name.trim() || !guestForm.dogName.trim() || !guestForm.phone.trim()) {
+      setAlertMessage("Please fill in your name, phone number and dog's name");
       return;
     }
     if (!acceptedTerms) {
