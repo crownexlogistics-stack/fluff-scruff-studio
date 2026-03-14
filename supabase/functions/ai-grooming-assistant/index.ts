@@ -589,7 +589,7 @@ Deno.serve(async (req) => {
 
           if (result.available) {
             const slotList = result.slots.map((s) => `🕐 ${s.time} — with ${s.groomerName}`).join("\n");
-            availabilityContext = `\n\nAVAILABILITY DATA: There ARE available slots for a ${serviceType} (${serviceDuration} mins) on ${formattedDate}:\n${slotList}\n\nPresent these slots in a friendly way. Mention the groomer names. Include a link to book at fluff-scruff-studio.lovable.app/book`;
+            availabilityContext = `\n\nAVAILABILITY DATA: There ARE available slots for a ${serviceType} (${serviceDuration} mins) on ${formattedDate}:\n${slotList}\n\nPresent these slots in a friendly way. Mention the groomer names. Include a link to book at fluffandscruff.co.uk/book`;
           } else {
             let altText = "No alternative dates found in the next 2 weeks.";
             if (result.fullyBookedAlternatives && result.fullyBookedAlternatives.length > 0) {
