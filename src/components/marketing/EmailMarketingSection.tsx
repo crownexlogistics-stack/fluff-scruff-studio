@@ -92,6 +92,31 @@ export function EmailMarketingSection() {
     },
   });
 
+  // Fetch migrated customers with emails
+  const { data: migratedCustomers } = useQuery({
+    queryKey: ["marketing-migrated-customers"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("migrated_customers")
+        .select("email, full_name")
+        .not("email", "is", null);
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Fetch profiles with emails
+  const { data: profiles } = useQuery({
+    queryKey: ["marketing-profiles"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("email, full_name");
+      if (error) throw error;
+      return data;
+    },
+  });
+
   // Fetch unsubscribes
   const { data: unsubscribes } = useQuery({
     queryKey: ["email-unsubscribes"],
