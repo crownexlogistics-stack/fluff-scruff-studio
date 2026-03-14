@@ -56,6 +56,10 @@ export default function CustomerProfilePage() {
   const [aiInput, setAiInput] = useState("");
   const [aiGenerated, setAiGenerated] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
+  const [emailAiOpen, setEmailAiOpen] = useState(false);
+  const [emailAiInput, setEmailAiInput] = useState("");
+  const [emailAiGenerated, setEmailAiGenerated] = useState<{ subject: string; body: string } | null>(null);
+  const [emailAiLoading, setEmailAiLoading] = useState(false);
   const [viewBookingOpen, setViewBookingOpen] = useState(false);
   const [viewBookingData, setViewBookingData] = useState<any>(null);
 
@@ -1235,6 +1239,117 @@ export default function CustomerProfilePage() {
                       </Button>
                     </div>
                   </div>
+
+                  {/* AI Email Writing Assistant */}
+                  {!emailAiOpen && !emailAiGenerated && (
+                    <button
+                      type="button"
+                      onClick={() => setEmailAiOpen(true)}
+                      className="flex items-center gap-2 w-full rounded-lg border-2 border-dashed border-primary/30 bg-primary/5 hover:bg-primary/10 hover:border-primary/50 transition-all px-4 py-3 text-sm font-medium text-primary"
+                    >
+                      <Sparkles className="h-4 w-4" />
+                      ✨ Write with AI — let AI draft a professional email for you
+                    </button>
+                  )}
+
+                  {emailAiOpen && !emailAiGenerated && (
+                    <div className="rounded-lg border-2 border-primary/30 bg-primary/5 p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-semibold text-foreground flex items-center gap-2">
+                          <Sparkles className="h-4 w-4 text-primary" /> AI Email Writer
+                        </span>
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setEmailAiOpen(false); setEmailAiInput(""); }}>
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                      <Input
+                        placeholder="e.g. let them know their appointment is confirmed for next Tuesday at 2pm"
+                        value={emailAiInput}
+                        onChange={(e) => setEmailAiInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            if (emailAiInput.trim() && !emailAiLoading) {
+                              (async () => {
+                                setEmailAiLoading(true);
+                                try {
+                                  const { data, error } = await supabase.functions.invoke("generate-email-message", { body: { roughMessage: emailAiInput.trim(), customerName } });
+                                  if (error) throw error;
+                                  if (data?.error) throw new Error(data.error);
+                                  setEmailAiGenerated({ subject: data.subject, body: data.body });
+                                } catch (err: any) {
+                                  toast({ title: err.message || "AI generation failed", variant: "destructive" });
+                                } finally {
+                                  setEmailAiLoading(false);
+                                }
+                              })();
+                            }
+                          }
+                        }}
+                      />
+                      <Button
+                        onClick={async () => {
+                          if (!emailAiInput.trim()) return;
+                          setEmailAiLoading(true);
+                          try {
+                            const { data, error } = await supabase.functions.invoke("generate-email-message", { body: { roughMessage: emailAiInput.trim(), customerName } });
+                            if (error) throw error;
+                            if (data?.error) throw new Error(data.error);
+                            setEmailAiGenerated({ subject: data.subject, body: data.body });
+                          } catch (err: any) {
+                            toast({ title: err.message || "AI generation failed", variant: "destructive" });
+                          } finally {
+                            setEmailAiLoading(false);
+                          }
+                        }}
+                        disabled={!emailAiInput.trim() || emailAiLoading}
+                        className="w-full"
+                      >
+                        {emailAiLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}
+                        Generate Email
+                      </Button>
+                    </div>
+                  )}
+
+                  {emailAiGenerated && (
+                    <div className="rounded-lg border-2 border-primary/30 bg-primary/5 p-4 space-y-3">
+                      <span className="text-sm font-semibold text-foreground flex items-center gap-2">
+                        <Sparkles className="h-4 w-4 text-primary" /> AI Suggestion
+                      </span>
+                      <div className="text-sm bg-background rounded-md p-3 border border-border space-y-2">
+                        <p className="font-medium">Subject: {emailAiGenerated.subject}</p>
+                        <Separator />
+                        <p className="whitespace-pre-wrap">{emailAiGenerated.body}</p>
+                      </div>
+                      <div className="flex gap-2 flex-wrap">
+                        <Button size="sm" onClick={() => { setEmailSubject(emailAiGenerated.subject); setEmailBody(emailAiGenerated.body); setEmailAiGenerated(null); setEmailAiOpen(false); setEmailAiInput(""); }}>
+                          <Check className="h-3.5 w-3.5 mr-1" /> Use this email
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={async () => {
+                          setEmailAiLoading(true);
+                          try {
+                            const { data, error } = await supabase.functions.invoke("generate-email-message", { body: { roughMessage: emailAiInput.trim(), customerName } });
+                            if (error) throw error;
+                            if (data?.error) throw new Error(data.error);
+                            setEmailAiGenerated({ subject: data.subject, body: data.body });
+                          } catch (err: any) {
+                            toast({ title: err.message || "AI generation failed", variant: "destructive" });
+                          } finally {
+                            setEmailAiLoading(false);
+                          }
+                        }} disabled={emailAiLoading}>
+                          {emailAiLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <RotateCcw className="h-3.5 w-3.5 mr-1" />}
+                          Try again
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => { setEmailSubject(emailAiGenerated!.subject); setEmailBody(emailAiGenerated!.body); setEmailAiGenerated(null); setEmailAiOpen(false); setEmailAiInput(""); }}>
+                          <PenLine className="h-3.5 w-3.5 mr-1" /> Edit manually
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => { setEmailAiGenerated(null); setEmailAiOpen(false); setEmailAiInput(""); }}>
+                          <X className="h-3.5 w-3.5 mr-1" /> Discard
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                   <Separator />
                   <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Email History</h4>
                   {allEmails.length > 0 ? (
