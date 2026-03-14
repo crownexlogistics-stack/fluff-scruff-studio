@@ -17,7 +17,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, CalendarIcon, Save, FileText, Send, CheckCircle2, User, Clock, Scissors, StickyNote, Cake, ShieldCheck, RotateCcw, KeyRound, Activity, Ban, CalendarX, Download, AlertTriangle } from "lucide-react";
+import { ArrowLeft, CalendarIcon, Save, FileText, Send, CheckCircle2, User, Clock, Scissors, StickyNote, Cake, ShieldCheck, RotateCcw, KeyRound, Activity, Ban, CalendarX, Download, AlertTriangle, Package } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { cn } from "@/lib/utils";
