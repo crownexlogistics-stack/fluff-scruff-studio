@@ -69,6 +69,7 @@ import HistoricalDataPage from "./pages/HistoricalDataPage";
 import DuplicateReportPage from "./pages/DuplicateReportPage";
 import AcademyPage from "./pages/AcademyPage";
 import PurchaseOrdersPage from "./pages/PurchaseOrdersPage";
+import UnsubscribePage from "./pages/UnsubscribePage";
 
 const queryClient = new QueryClient();
 
@@ -92,6 +93,7 @@ const App = () => (
           <Route path="/booking-success" element={<BookingSuccessPage />} />
           <Route path="/welcome" element={<WelcomePage />} />
           <Route path="/academy" element={<AcademyPage />} />
+          <Route path="/unsubscribe" element={<UnsubscribePage />} />
           {/* Old Wix URL redirects */}
           <Route path="/blank" element={<Navigate to="/" replace />} />
           <Route path="/services-2" element={<Navigate to="/" replace />} />

@@ -26,6 +26,7 @@ import {
   ArrowLeft, Mail, Phone, Dog, Calendar, Send,
   Pencil, Check, X, MessageSquare, MailOpen, Ban, CalendarPlus, UserCheck, ChevronDown, ChevronUp,
   CreditCard, RefreshCw, ExternalLink, Smartphone, Sparkles, RotateCcw, PenLine, Loader2, Plus, ChevronsUpDown,
+  MailX, MailCheck,
 } from "lucide-react";
 import { AdminPetTools } from "@/components/customer-profile/AdminPetTools";
 import { format, parseISO } from "date-fns";
@@ -401,6 +402,39 @@ export default function CustomerProfilePage() {
       return data;
     },
     enabled: !!decodedEmail && isOwnCustomer,
+  });
+
+  // Marketing opt-out status
+  const { data: unsubRecord, refetch: refetchUnsub } = useQuery({
+    queryKey: ["customer-unsub-status", decodedEmail],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("email_unsubscribes")
+        .select("email, unsubscribed_at")
+        .eq("email", decodedEmail.toLowerCase().trim())
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!decodedEmail,
+  });
+
+  const toggleMarketingOptOut = useMutation({
+    mutationFn: async (optOut: boolean) => {
+      if (optOut) {
+        await supabase.from("email_unsubscribes").upsert(
+          { email: decodedEmail.toLowerCase().trim() },
+          { onConflict: "email" }
+        );
+      } else {
+        await supabase.from("email_unsubscribes").delete().eq("email", decodedEmail.toLowerCase().trim());
+      }
+    },
+    onSuccess: (_, optOut) => {
+      refetchUnsub();
+      toast({ title: optOut ? "Customer unsubscribed from marketing" : "Customer resubscribed to marketing" });
+    },
+    onError: () => toast({ title: "Failed to update marketing preference", variant: "destructive" }),
   });
 
   // ── Mutations ─────────────────────────────────────────────────────
@@ -797,6 +831,11 @@ export default function CustomerProfilePage() {
                   {customerIsOwn && (
                     <Badge className="bg-accent/15 text-accent border-accent/30"><UserCheck className="h-3 w-3 mr-1" />Own Customer</Badge>
                   )}
+                  {unsubRecord ? (
+                    <Badge variant="outline" className="text-muted-foreground"><MailX className="h-3 w-3 mr-1" />Unsubscribed</Badge>
+                  ) : (
+                    <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"><MailCheck className="h-3 w-3 mr-1" />Marketing: Subscribed</Badge>
+                  )}
                 </div>
               </div>
             </div>
@@ -867,7 +906,37 @@ export default function CustomerProfilePage() {
                     <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => { setNewDogForm({ pet_name: "", breed_id: "", dog_age_years: 0, dog_age_months: 0, notes: "" }); setAddDogOpen(true); }}>
                       <Plus className="h-3.5 w-3.5" /> Add Dog
                     </Button>
-                  )}
+            )}
+
+            {/* Marketing Preference */}
+            {canManageCustomer && !isGroomer && (
+              <Card>
+                <CardContent className="p-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    {unsubRecord ? (
+                      <MailX className="h-5 w-5 text-muted-foreground" />
+                    ) : (
+                      <MailCheck className="h-5 w-5 text-emerald-500" />
+                    )}
+                    <div>
+                      <p className="text-sm font-semibold">Marketing Emails</p>
+                      {unsubRecord ? (
+                        <p className="text-xs text-muted-foreground">
+                          Unsubscribed {unsubRecord.unsubscribed_at ? `on ${format(new Date(unsubRecord.unsubscribed_at), "dd MMM yyyy")}` : ""}
+                        </p>
+                      ) : (
+                        <p className="text-xs text-emerald-600">Subscribed — will receive marketing emails</p>
+                      )}
+                    </div>
+                  </div>
+                  <Switch
+                    checked={!unsubRecord}
+                    onCheckedChange={(checked) => toggleMarketingOptOut.mutate(!checked)}
+                    disabled={toggleMarketingOptOut.isPending}
+                  />
+                </CardContent>
+              </Card>
+            )}
                 </div>
                 {visibleDogs.length > 0 ? (
                   <div className="space-y-2">

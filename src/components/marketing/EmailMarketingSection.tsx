@@ -44,6 +44,14 @@ interface CustomerBucket {
   source?: string;
 }
 
+const UNSUBSCRIBE_FOOTER_PREVIEW = `
+<div style="border-top:1px solid #e0e0e0;margin-top:32px;padding-top:20px;text-align:center;font-family:Arial,sans-serif;">
+  <p style="font-size:12px;color:#999;line-height:1.6;margin:0;">
+    You are receiving this email because you are part of the Fluff &amp; Scruff family.<br/>
+    To unsubscribe from future marketing emails, <a href="https://fluffandscruff.co.uk/unsubscribe?email=preview@example.com" style="color:#999;text-decoration:underline;">click here</a>.
+  </p>
+</div>`;
+
 export function EmailMarketingSection() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -619,8 +627,13 @@ export function EmailMarketingSection() {
                       <span className="text-xs text-muted-foreground ml-2">Email Preview</span>
                     </div>
                     <div className="p-4 flex justify-center" style={{ background: "white" }}>
-                      <iframe srcDoc={generatedHtml} className="w-full max-w-[620px] border-0" style={{ minHeight: 600 }} title="Email preview" sandbox="allow-same-origin" />
+                      <iframe srcDoc={generatedHtml + UNSUBSCRIBE_FOOTER_PREVIEW} className="w-full max-w-[620px] border-0" style={{ minHeight: 600 }} title="Email preview" sandbox="allow-same-origin" />
                     </div>
+                  </div>
+                  {/* Locked footer notice */}
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 rounded-md px-3 py-2">
+                    <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                    <span>The unsubscribe footer shown above is <strong>locked</strong> and will be automatically appended to every marketing email. It cannot be edited or removed (GDPR requirement).</span>
                   </div>
                 </div>
 
