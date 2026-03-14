@@ -165,21 +165,15 @@ export default function CustomerProfilePage() {
     };
   }, [decodedEmail, queryClient]);
 
-  // Groomer profile access: grant if they have any booking within the last 90 days or any future booking.
-  const ninetyDaysAgo = new Date();
-  ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-  const ninetyDaysAgoIso = format(ninetyDaysAgo, "yyyy-MM-dd");
-
+  // Groomer profile access: grant if they have ANY booking (past or future) with that customer.
   const hasLiveAssignedAccess = !!groomerStaff?.id && (bookings || []).some((b) => {
     if (b.staff_id !== groomerStaff.id) return false;
-    if (!["Pending", "Confirmed", "Completed"].includes(b.status)) return false;
-    return b.booking_date >= ninetyDaysAgoIso;
+    return ["Pending", "Confirmed", "Completed"].includes(b.status);
   });
 
   const hasWixAssignedAccess = !!groomerStaff?.name && (migratedBookings || []).some((mb: any) => {
     if (!mb.staff_name) return false;
-    const assignedToGroomer = mb.staff_name.trim().toLowerCase() === groomerStaff.name.trim().toLowerCase();
-    return assignedToGroomer && mb.booking_date >= ninetyDaysAgoIso;
+    return mb.staff_name.trim().toLowerCase() === groomerStaff.name.trim().toLowerCase();
   });
 
   const isOwnCustomer = !isGroomer || hasLiveAssignedAccess || hasWixAssignedAccess;
