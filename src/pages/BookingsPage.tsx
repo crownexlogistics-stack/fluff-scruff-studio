@@ -116,7 +116,19 @@ const BookingsPage = () => {
         // Match staff by first word of staff_name
         const staffFirstName = mb.staff_name?.split(" ")[0]?.trim() || "";
         const matchedStaff = staff.find(s => s.name.split(" ")[0].toLowerCase() === staffFirstName.toLowerCase());
-        const isCompleted = mb.payment_status === "Completed";
+
+        const rawPaymentStatus = String(mb.payment_status || "").toLowerCase();
+        const calendarStatus =
+          rawPaymentStatus === "completed"
+            ? "Completed"
+            : rawPaymentStatus === "cancelled" || rawPaymentStatus === "canceled"
+              ? "Cancelled"
+              : rawPaymentStatus === "no show"
+                ? "No Show"
+                : rawPaymentStatus === "refunded"
+                  ? "Refunded"
+                  : "Confirmed";
+
         return {
           id: mb.id,
           customer_name: mb.migrated_customers?.full_name || "Unknown",
@@ -125,7 +137,7 @@ const BookingsPage = () => {
           booking_time: mb.booking_time || "09:00",
           total_price: Number(mb.total_price || 0),
           deposit_paid: Number(mb.deposit_paid || 0),
-          status: isCompleted ? "Completed" : "Confirmed",
+          status: calendarStatus,
           notes: mb.notes,
           customer_email: mb.migrated_customers?.email || null,
           customer_phone: mb.migrated_customers?.phone || null,
@@ -412,6 +424,16 @@ const BookingsPage = () => {
   // Cancel booking mutation
   const cancelBookingMutation = useMutation({
     mutationFn: async (booking: BookingData) => {
+      if (booking.is_migrated) {
+        const { error } = await supabase
+          .from("migrated_bookings")
+          .update({ payment_status: "Cancelled", is_future_booking: false })
+          .eq("id", booking.id);
+
+        if (error) throw error;
+        return { booking, result: { migrated: true, refunded: false } };
+      }
+
       // Use cancel-with-refund edge function for auto-refund if 48h+ away
       const { data, error } = await supabase.functions.invoke("cancel-booking-with-refund", {
         body: { booking_id: booking.id, cancelled_by: "staff" },
@@ -421,22 +443,27 @@ const BookingsPage = () => {
       return { booking, result: data };
     },
     onSuccess: async ({ booking, result }) => {
-      if (result?.refunded) {
+      if (result?.migrated) {
+        toast.success("Wix booking cancelled and removed from upcoming calendar.");
+      } else if (result?.refunded) {
         toast.success(`Booking cancelled. Refund of £${result.refund_amount?.toFixed(2)} processed automatically (48h+ policy). Please advise the customer: "Your appointment has been cancelled and your deposit has been refunded. It should appear in your account within 5-10 business days."`);
       } else {
         toast.success(`Booking cancelled. Deposit of £${Number(booking.deposit_paid).toFixed(2)} retained (within 48h). Please advise the customer: "Your appointment has been cancelled. As per our policy, the deposit is non-refundable for cancellations within 48 hours."`);
       }
 
-      // Audit trail entry for cancellation
-      const staffName = staff.find(s => s.id === booking.staff_id)?.name || "Staff";
-      supabase.from("booking_audit_log" as any).insert({
-        booking_id: booking.id,
-        event_type: "cancelled",
-        performed_by: staffName,
-        note: "Booking cancelled",
-      } as any).then(() => {});
+      if (!booking.is_migrated) {
+        // Audit trail entry for cancellation
+        const staffName = staff.find(s => s.id === booking.staff_id)?.name || "Staff";
+        supabase.from("booking_audit_log" as any).insert({
+          booking_id: booking.id,
+          event_type: "cancelled",
+          performed_by: staffName,
+          note: "Booking cancelled",
+        } as any).then(() => {});
+      }
 
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["migrated-calendar-bookings"] });
       queryClient.invalidateQueries({ queryKey: ["audit-logs"] });
       setCancelConfirmOpen(false);
     },
