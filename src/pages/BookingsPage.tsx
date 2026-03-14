@@ -181,6 +181,41 @@ const BookingsPage = () => {
 
   const allEvents = useMemo(() => [...bookings, ...migratedBookings, ...overrides], [bookings, migratedBookings, overrides]);
 
+  // Auto-open a booking when navigated with ?highlight=bookingId
+  useEffect(() => {
+    if (!highlightBookingId || highlightHandled) return;
+    // Find the booking in current events
+    const target = allEvents.find(b => b.id === highlightBookingId);
+    if (target) {
+      // Jump calendar to the correct week
+      const bookingWeek = startOfWeek(new Date(target.booking_date + "T00:00:00"), { weekStartsOn: 1 });
+      setWeekStart(bookingWeek);
+      // Open the view order dialog for this booking
+      setViewOrderBooking(target);
+      setViewOrderOpen(true);
+      // Clear the param so it doesn't re-trigger
+      setHighlightHandled(true);
+      searchParams.delete("highlight");
+      setSearchParams(searchParams, { replace: true });
+      return;
+    }
+    // If not found in current week, fetch the booking to get its date and jump
+    if (!highlightHandled) {
+      supabase
+        .from("bookings")
+        .select("booking_date")
+        .eq("id", highlightBookingId)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data?.booking_date) {
+            const bookingWeek = startOfWeek(new Date(data.booking_date + "T00:00:00"), { weekStartsOn: 1 });
+            setWeekStart(bookingWeek);
+            // The booking will appear in allEvents after the query refetches for the new week
+          }
+        });
+    }
+  }, [highlightBookingId, allEvents, highlightHandled]);
+
   // Cancel block mutation
   const cancelBlockMutation = useMutation({
     mutationFn: async (block: BookingData) => {
