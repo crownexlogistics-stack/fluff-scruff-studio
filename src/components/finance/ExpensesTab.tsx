@@ -307,6 +307,47 @@ export default function ExpensesTab({ periodStart, periodEnd, totalRevenue, tota
     },
   });
 
+  // Fetch non-returned purchases from Purchase Orders to show as one-off expenses
+  const { data: purchaseExpenses = [] } = useQuery({
+    queryKey: ["purchase-expenses", oneOffStart],
+    queryFn: async () => {
+      const { data, error } = await (supabase.from("purchases" as any) as any)
+        .select("id, title, total_price, purchased_at, supplier, notes, is_returned, assigned_to, assignment_type")
+        .eq("is_returned", false)
+        .gte("purchased_at", `${oneOffStart}T00:00:00`)
+        .order("purchased_at", { ascending: false });
+      if (error) throw error;
+      return (data || []) as any[];
+    },
+  });
+
+  // Merge purchases into one-off display list
+  const allOneOffs = useMemo(() => {
+    const purchaseRows: (ExpenseRow & { _fromPurchaseOrders?: boolean })[] = purchaseExpenses
+      .filter((p: any) => p.total_price && Number(p.total_price) > 0)
+      .map((p: any) => ({
+        id: p.id,
+        name: p.title,
+        category: "equipment",
+        amount: Number(p.total_price),
+        expense_type: "one_off" as const,
+        frequency: null,
+        expense_date: p.purchased_at ? p.purchased_at.split("T")[0] : null,
+        recurring_start_date: null,
+        recurring_end_date: null,
+        notes: [p.supplier, p.notes].filter(Boolean).join(" · ") || null,
+        created_by: "",
+        created_at: p.purchased_at || "",
+        _fromPurchaseOrders: true,
+      }));
+    const expenseRows = oneOffs.map(e => ({ ...e, _fromPurchaseOrders: false }));
+    return [...expenseRows, ...purchaseRows].sort((a, b) => {
+      const da = a.expense_date || a.created_at;
+      const db = b.expense_date || b.created_at;
+      return db.localeCompare(da);
+    });
+  }, [oneOffs, purchaseExpenses]);
+
   // P&L data for selected month
   const plStart = format(startOfMonth(plMonth), "yyyy-MM-dd");
   const plEnd = format(endOfMonth(plMonth), "yyyy-MM-dd");
