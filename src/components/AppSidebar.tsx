@@ -89,6 +89,7 @@ export function AppSidebar() {
   const { totalUnread } = useUnreadSmsCount();
   const newErrorCount = useNewErrorReportsCount();
   const { hasCustomerBookings } = useStaffIsCustomer(user?.email ?? undefined);
+  const urgentPurchaseCount = useUrgentPurchaseRequests();
 
   return (
     <Sidebar collapsible="icon">
