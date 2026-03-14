@@ -33,21 +33,21 @@ export function GroomerLayout({ children }: GroomerLayoutProps) {
         </div>
 
         <nav className="flex-1 px-3 py-4 space-y-1">
-          <a
-            href="/portal"
-            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-sidebar-accent text-sidebar-primary-foreground font-medium text-sm"
+          <Link
+            to="/portal"
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${location.pathname === "/portal" ? "bg-sidebar-accent text-sidebar-primary-foreground font-medium" : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50"}`}
           >
             <CalendarDays className="h-4 w-4" />
             My Portal
-          </a>
+          </Link>
           {hasCustomerBookings && (
-            <a
-              href="/my-pets"
-              className="flex items-center gap-2 px-3 py-2 rounded-lg text-sidebar-foreground/70 hover:bg-sidebar-accent/50 text-sm transition-colors"
+            <Link
+              to="/my-pets"
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${location.pathname === "/my-pets" ? "bg-sidebar-accent text-sidebar-primary-foreground font-medium" : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50"}`}
             >
               <PawPrint className="h-4 w-4" />
               My Dog's Bookings 🐾
-            </a>
+            </Link>
           )}
         </nav>
 
