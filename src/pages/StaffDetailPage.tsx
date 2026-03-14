@@ -348,6 +348,7 @@ const StaffDetailPage = () => {
         <Tabs defaultValue="profile">
           <TabsList>
             <TabsTrigger value="profile">Profile</TabsTrigger>
+            {isManagerOrDirector && <TabsTrigger value="equipment" className="gap-1.5"><Package className="h-4 w-4" /> Equipment</TabsTrigger>}
             {isManagerOrDirector && <TabsTrigger value="hr-records">HR Records</TabsTrigger>}
           </TabsList>
 
