@@ -410,7 +410,7 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{mode === "block" ? "Block Time" : "New Appointment"}</DialogTitle>
+          <DialogTitle>{mode === "block" ? "Block Time" : bookAgainData ? `Book Again — ${bookAgainData.customer_name}` : "New Appointment"}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
