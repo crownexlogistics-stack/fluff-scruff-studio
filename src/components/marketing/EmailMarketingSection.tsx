@@ -538,7 +538,28 @@ export function EmailMarketingSection() {
             </CardContent>
           </Card>
 
-          {/* Live Preview + Editor */}
+          {/* Upload Template Section */}
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Upload className="h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm font-medium">Upload a Template</p>
+                    <p className="text-xs text-muted-foreground">Import an HTML file directly, or upload a PDF / image and AI will convert it</p>
+                  </div>
+                </div>
+                <label className="cursor-pointer">
+                  <input type="file" accept=".html,.htm,.pdf,.png,.jpg,.jpeg,.webp" className="hidden" onChange={handleTemplateUpload} disabled={uploadingTemplate} />
+                  <Button variant="outline" size="sm" className="gap-1.5 pointer-events-none" tabIndex={-1} disabled={uploadingTemplate}>
+                    {uploadingTemplate ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Converting...</> : <><Upload className="h-3.5 w-3.5" /> Choose File</>}
+                  </Button>
+                </label>
+              </div>
+            </CardContent>
+          </Card>
+
+
           {showPreview && generatedHtml && (
             <Card>
               <CardHeader className="pb-3">
