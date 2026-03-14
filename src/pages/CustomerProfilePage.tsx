@@ -139,6 +139,28 @@ export default function CustomerProfilePage() {
     enabled: !!decodedEmail && migratedCustomer !== undefined,
   });
 
+  // Realtime refresh so reassignment/rebooking updates access immediately.
+  useEffect(() => {
+    if (!decodedEmail) return;
+
+    const channel = supabase
+      .channel(`customer-profile-access-${decodedEmail}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "bookings" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["customer-profile-bookings", decodedEmail] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "migrated_bookings" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["customer-migrated-bookings", decodedEmail] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "migrated_customers" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["migrated-customer-record", decodedEmail] });
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [decodedEmail, queryClient]);
+
   // Groomer profile access is driven by CURRENT assignment (live + Wix), not historical ownership.
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
