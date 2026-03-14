@@ -168,7 +168,7 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
             )}
           </div>
         </PopoverTrigger>
-        <PopoverContent className="w-[calc(100vw-2rem)] sm:w-72 max-w-sm p-0" side="bottom" align="center" sideOffset={4}>
+        <PopoverContent className="w-[calc(100vw-2rem)] sm:w-72 max-w-sm p-0 max-h-[70vh] overflow-y-auto" side="bottom" align="center" sideOffset={4} avoidCollisions collisionPadding={16}>
           <div className="p-4 space-y-3">
             <div className="flex items-center justify-between">
               <div>
@@ -213,7 +213,7 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
             {booking.notes && <p className="opacity-70 truncate text-[10px]">{booking.notes}</p>}
           </div>
         </PopoverTrigger>
-        <PopoverContent className="w-[calc(100vw-2rem)] sm:w-72 max-w-sm p-0" side="bottom" align="center" sideOffset={4}>
+        <PopoverContent className="w-[calc(100vw-2rem)] sm:w-72 max-w-sm p-0 max-h-[70vh] overflow-y-auto" side="bottom" align="center" sideOffset={4} avoidCollisions collisionPadding={16}>
           <div className="p-4 space-y-3">
             <div className="flex items-center justify-between">
               <div>
@@ -343,7 +343,7 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
           )}
         </div>
       </PopoverTrigger>
-      <PopoverContent className="w-[calc(100vw-2rem)] sm:w-80 max-w-sm p-0 max-h-[70vh] overflow-y-auto" side="right" align="start" sideOffset={8} avoidCollisions collisionPadding={24} sticky="always">
+      <PopoverContent className="w-[calc(100vw-2rem)] sm:w-80 max-w-sm p-0 max-h-[70vh] sm:max-h-[80vh] overflow-y-auto" side="bottom" sideOffset={4} align="center" avoidCollisions collisionPadding={16} sticky="always">
         <div className="p-4 space-y-3">
           {/* Top: Customer info */}
           <div className="flex items-center gap-3">

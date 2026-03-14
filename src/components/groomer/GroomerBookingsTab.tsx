@@ -690,7 +690,7 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
                       </CardContent>
                     </Card>
                   </PopoverTrigger>
-                  <PopoverContent className="w-[calc(100vw-2rem)] sm:w-80 max-w-sm p-0" side="bottom" align="start" sideOffset={4}>
+                  <PopoverContent className="w-[calc(100vw-2rem)] sm:w-80 max-w-sm p-0 max-h-[70vh] overflow-y-auto" side="bottom" align="center" sideOffset={4} avoidCollisions collisionPadding={16}>
                     <BookingPopoverCard
                       booking={bookingData}
                       staffIndex={sIdx >= 0 ? sIdx : 0}
