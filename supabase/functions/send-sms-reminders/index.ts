@@ -95,7 +95,7 @@ serve(async (req) => {
 
       // Check 2h reminder
       if (!b.sms_2h_sent && bookingDateTime >= h2From && bookingDateTime <= h2To) {
-        const message = `Hi ${b.customer_name}, just a quick reminder of your appointment at Fluff and Scruff Studio in 2 hours (${timeFormatted}). See you soon!`;
+        const message = `Hi ${b.customer_name}, just a quick reminder of your appointment at Fluff and Scruff Studio in 2 hours (${timeFormatted}). Address: 138 Hillview Avenue, Hornchurch RM11 2DL. See you soon!`;
 
         try {
           await sendTwilioSms(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER, cleanPhone, message);
