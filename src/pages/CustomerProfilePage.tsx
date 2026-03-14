@@ -1349,7 +1349,7 @@ export default function CustomerProfilePage() {
                         </Button>
                       </div>
                     </div>
-                  )
+                  )}
                   <Separator />
                   <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Email History</h4>
                   {allEmails.length > 0 ? (
