@@ -74,6 +74,8 @@ export default function CustomerProfilePage() {
   const [editingPet, setEditingPet] = useState<any>(null);
   const [petForm, setPetForm] = useState({ pet_name: "", breed_id: "", dog_age_years: 0, dog_age_months: 0, notes: "" });
   const [expandedPetId, setExpandedPetId] = useState<string | null>(null);
+  const [addDogOpen, setAddDogOpen] = useState(false);
+  const [newDogForm, setNewDogForm] = useState({ pet_name: "", breed_id: "", dog_age_years: 0, dog_age_months: 0, notes: "" });
 
   // Booking edit dialog
   const [editingBooking, setEditingBooking] = useState<any>(null);
