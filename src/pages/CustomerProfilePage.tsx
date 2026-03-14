@@ -56,6 +56,10 @@ export default function CustomerProfilePage() {
   const [aiInput, setAiInput] = useState("");
   const [aiGenerated, setAiGenerated] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
+  const [emailAiOpen, setEmailAiOpen] = useState(false);
+  const [emailAiInput, setEmailAiInput] = useState("");
+  const [emailAiGenerated, setEmailAiGenerated] = useState<{ subject: string; body: string } | null>(null);
+  const [emailAiLoading, setEmailAiLoading] = useState(false);
   const [viewBookingOpen, setViewBookingOpen] = useState(false);
   const [viewBookingData, setViewBookingData] = useState<any>(null);
 
