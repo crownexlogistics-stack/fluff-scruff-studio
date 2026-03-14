@@ -509,6 +509,17 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
 
   const cancelBookingMutation = useMutation({
     mutationFn: async (booking: BookingData) => {
+      if (booking.is_migrated) {
+        const { error } = await supabase
+          .from("migrated_bookings")
+          .update({ payment_status: "Cancelled", is_future_booking: false })
+          .eq("id", booking.id);
+
+        if (error) throw error;
+        logAudit({ action: "MIGRATED_BOOKING_CANCELLED", details: `Cancelled migrated booking ${booking.id}` });
+        return;
+      }
+
       const { error } = await supabase.from("bookings").update({ status: "Cancelled" }).eq("id", booking.id);
       if (error) throw error;
       logAudit({ action: "BOOKING_CANCELLED", details: `Cancelled booking ${booking.id}` });
@@ -526,6 +537,7 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
     onSuccess: () => {
       toast.success("Booking cancelled");
       queryClient.invalidateQueries({ queryKey: ["groomer-bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["groomer-migrated-bookings"] });
       setCancelConfirmOpen(false);
     },
     onError: (e: any) => toast.error(e.message),
