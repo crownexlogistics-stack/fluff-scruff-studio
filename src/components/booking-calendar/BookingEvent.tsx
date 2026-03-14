@@ -168,7 +168,16 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
             )}
           </div>
         </PopoverTrigger>
-        <PopoverContent className="w-[calc(100vw-2rem)] sm:w-72 max-w-sm p-0 max-h-[60vh] overflow-y-auto" side="bottom" align="center" sideOffset={4} avoidCollisions collisionPadding={{ top: 16, bottom: 16, left: 8, right: 8 }} sticky="partial">
+        <PopoverContent
+          className="w-[calc(100vw-1rem)] sm:w-[22rem] md:w-[24rem] max-w-[24rem] p-0 overflow-y-auto overscroll-contain"
+          side="bottom"
+          align="center"
+          sideOffset={6}
+          avoidCollisions
+          collisionPadding={{ top: 16, bottom: 16, left: 8, right: 8 }}
+          sticky="always"
+          style={{ maxHeight: "min(85dvh, var(--radix-popover-content-available-height))" }}
+        >
           <div className="p-4 space-y-3">
             <div className="flex items-center justify-between">
               <div>
