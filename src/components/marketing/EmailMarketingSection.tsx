@@ -144,12 +144,12 @@ export function EmailMarketingSection() {
     return new Set((unsubscribes || []).map(u => u.email.toLowerCase()));
   }, [unsubscribes]);
 
-  // Build customer segments
+  // Build customer segments - include ALL sources
   const segments = useMemo(() => {
-    if (!bookings) return { all: [], "one-timers": [], "lost-regulars": [], vips: [] };
-
     const map = new Map<string, CustomerBucket>();
-    for (const b of bookings) {
+
+    // 1. Add from bookings
+    for (const b of (bookings || [])) {
       if (!b.customer_email) continue;
       const key = b.customer_email.toLowerCase().trim();
       if (unsubSet.has(key)) continue;
@@ -165,8 +165,37 @@ export function EmailMarketingSection() {
           name: b.customer_name,
           completedCount: isCompleted ? 1 : 0,
           lastBooking: b.booking_date,
+          source: "booking",
         });
       }
+    }
+
+    // 2. Add from migrated customers (if not already in map)
+    for (const mc of (migratedCustomers || [])) {
+      if (!mc.email) continue;
+      const key = mc.email.toLowerCase().trim();
+      if (unsubSet.has(key) || map.has(key)) continue;
+      map.set(key, {
+        email: mc.email,
+        name: mc.full_name || mc.email,
+        completedCount: 0,
+        lastBooking: "",
+        source: "migrated",
+      });
+    }
+
+    // 3. Add from profiles (if not already in map)
+    for (const p of (profiles || [])) {
+      if (!p.email) continue;
+      const key = p.email.toLowerCase().trim();
+      if (unsubSet.has(key) || map.has(key)) continue;
+      map.set(key, {
+        email: p.email,
+        name: p.full_name || p.email,
+        completedCount: 0,
+        lastBooking: "",
+        source: "profile",
+      });
     }
 
     const all = Array.from(map.values());
@@ -180,7 +209,12 @@ export function EmailMarketingSection() {
       "lost-regulars": all.filter(c => c.completedCount >= 2 && c.lastBooking < cutoff),
       vips: all.filter(c => c.completedCount > 5),
     };
-  }, [bookings, unsubSet]);
+  }, [bookings, migratedCustomers, profiles, unsubSet]);
+
+  // Effective list after exclusions
+  const effectiveList = useMemo(() => {
+    return segments[selectedSegment].filter(c => !excludedEmails.has(c.email.toLowerCase()));
+  }, [segments, selectedSegment, excludedEmails]);
 
   // Filtered campaigns by folder
   const folderCampaigns = useMemo(() => {
