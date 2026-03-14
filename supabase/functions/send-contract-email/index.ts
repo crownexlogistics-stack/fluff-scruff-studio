@@ -63,7 +63,7 @@ serve(async (req) => {
     }
 
     const adminEmail = "info@fluffandscruff.co.uk";
-    const logoUrl = "https://fluff-scruff-studio.lovable.app/logo-transparent.png";
+    const logoUrl = "https://fluffandscruff.co.uk/logo-transparent.png";
 
     const emailHeader = `
       <div style="text-align: center; padding: 16px 0;">
