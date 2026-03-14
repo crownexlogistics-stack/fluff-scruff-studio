@@ -63,7 +63,7 @@ serve(async (req) => {
     }
 
     const adminEmail = "info@fluffandscruff.co.uk";
-    const logoUrl = "https://fluff-scruff-studio.lovable.app/logo-transparent.png";
+    const logoUrl = "https://fluffandscruff.co.uk/logo-transparent.png";
 
     const emailHeader = `
       <div style="text-align: center; padding: 16px 0;">
@@ -110,7 +110,7 @@ serve(async (req) => {
         ? new Date(staff.signed_at).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
         : "Unknown";
 
-      const contractUrl = signing_url || `https://fluff-scruff-studio.lovable.app/contract/sign/${staff_id}`;
+      const contractUrl = signing_url || `https://fluffandscruff.co.uk/contract/sign/${staff_id}`;
 
       await sendEmail(RESEND_API_KEY, emails, `Contract Signed — ${staff.name}`, `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
@@ -175,7 +175,7 @@ serve(async (req) => {
       const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
         type: "recovery",
         email: staff.email,
-        options: { redirectTo: "https://fluff-scruff-studio.lovable.app/reset-password" },
+        options: { redirectTo: "https://fluffandscruff.co.uk/reset-password" },
       });
       if (linkError) throw linkError;
 
@@ -214,7 +214,7 @@ serve(async (req) => {
       const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
         type: "recovery",
         email: staff.email,
-        options: { redirectTo: "https://fluff-scruff-studio.lovable.app/reset-password" },
+        options: { redirectTo: "https://fluffandscruff.co.uk/reset-password" },
       });
       if (linkError) throw linkError;
 

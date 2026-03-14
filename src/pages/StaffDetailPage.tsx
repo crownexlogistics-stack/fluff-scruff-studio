@@ -229,7 +229,7 @@ const StaffDetailPage = () => {
       if (!staff?.email) {
         throw new Error("Please add an email address for this staff member before sending.");
       }
-      const signingUrl = `https://fluff-scruff-studio.lovable.app/contract/sign/${id}`;
+      const signingUrl = `https://fluffandscruff.co.uk/contract/sign/${id}`;
       const { error: fnError } = await supabase.functions.invoke("send-contract-email", {
         body: { staff_id: id, type: "send_for_signature", signing_url: signingUrl },
       });
@@ -253,7 +253,7 @@ const StaffDetailPage = () => {
       if (!staff?.email) {
         throw new Error("Please add an email address for this staff member before sending.");
       }
-      const signingUrl = `https://fluff-scruff-studio.lovable.app/hs/sign/${id}`;
+      const signingUrl = `https://fluffandscruff.co.uk/hs/sign/${id}`;
       const { error } = await supabase.from("staff").update({ hs_status: "sent" } as any).eq("id", id!);
       if (error) throw error;
       const { error: fnError } = await supabase.functions.invoke("send-contract-email", {
@@ -576,7 +576,7 @@ const StaffDetailPage = () => {
                       <div className="space-y-2">
                         <span className="text-sm font-medium">Documents Signing Link</span>
                         <p className="text-xs text-muted-foreground break-all">
-                          https://fluff-scruff-studio.lovable.app/contract/sign/{staff.id}
+                          https://fluffandscruff.co.uk/contract/sign/{staff.id}
                         </p>
                       </div>
 

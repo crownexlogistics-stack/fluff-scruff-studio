@@ -90,7 +90,7 @@ export function SMSSection() {
             {[
               { label: "Appointment Reminder", text: "Hi! Reminder: Your dog's grooming appointment at Fluff & Scruff Studio is tomorrow. Please arrive 5 minutes early. Call 01708 606655 if you need to reschedule. See you soon! 🐾" },
               { label: "Booking Confirmation", text: "Your grooming appointment at Fluff & Scruff Studio has been confirmed! We look forward to seeing you and your furry friend. 📍 138 Hillview Avenue, Hornchurch RM11 2DL" },
-              { label: "Follow Up", text: "Hi! Thank you for visiting Fluff & Scruff Studio. We hope your pup is looking fabulous! Ready to rebook? Call 01708 606655 or visit fluff-scruff-studio.lovable.app/book 🐾" },
+              { label: "Follow Up", text: "Hi! Thank you for visiting Fluff & Scruff Studio. We hope your pup is looking fabulous! Ready to rebook? Call 01708 606655 or visit fluffandscruff.co.uk/book 🐾" },
             ].map(t => (
               <button key={t.label} onClick={() => setBody(t.text)} className="text-left border rounded-lg p-3 hover:bg-muted/50 transition-colors space-y-1">
                 <p className="text-sm font-medium">{t.label}</p>

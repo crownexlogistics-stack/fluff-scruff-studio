@@ -95,7 +95,7 @@ export function AdminPetTools({ petId, petName, customerUserId, customerEmail, s
           body: {
             customer_email: customerEmail,
             subject: `New grooming photo of ${petName}! 📸`,
-            body: `Hi there!\n\n${staffName} has just uploaded a new photo of ${petName} to their gallery.\n\nLog in to your account to see the latest pictures:\nhttps://fluff-scruff-studio.lovable.app/my-pets\n\nFluff & Scruff Studio 🐾`,
+            body: `Hi there!\n\n${staffName} has just uploaded a new photo of ${petName} to their gallery.\n\nLog in to your account to see the latest pictures:\nhttps://fluffandscruff.co.uk/my-pets\n\nFluff & Scruff Studio 🐾`,
           },
         });
       } catch (emailErr) {

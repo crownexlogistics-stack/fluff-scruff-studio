@@ -53,7 +53,7 @@ serve(async (req) => {
       }
     }
 
-    const origin = req.headers.get("origin") || "https://fluff-scruff-studio.lovable.app";
+    const origin = req.headers.get("origin") || "https://fluffandscruff.co.uk";
 
     const label = isFullPayment
       ? `Full Payment — ${service_name || "Dog Grooming"}`

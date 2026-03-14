@@ -70,7 +70,7 @@ serve(async (req) => {
       customerId = customers.data[0].id;
     }
 
-    const origin = "https://fluff-scruff-studio.lovable.app";
+    const origin = "https://fluffandscruff.co.uk";
 
     // Create Stripe checkout session
     const session = await stripe.checkout.sessions.create({

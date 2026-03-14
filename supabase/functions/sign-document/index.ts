@@ -43,8 +43,8 @@ serve(async (req) => {
         if (RESEND_API_KEY) {
           const { data: staff } = await supabase.from("staff").select("*").eq("id", staff_id).single();
           if (staff?.email) {
-            const logoUrl = "https://fluff-scruff-studio.lovable.app/logo-transparent.png";
-            const contractUrl = `https://fluff-scruff-studio.lovable.app/contract/sign/${staff_id}`;
+            const logoUrl = "https://fluffandscruff.co.uk/logo-transparent.png";
+            const contractUrl = `https://fluffandscruff.co.uk/contract/sign/${staff_id}`;
             const signedDate = new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
             
             const emails = ["info@fluffandscruff.co.uk"];
@@ -136,7 +136,7 @@ serve(async (req) => {
               type: "recovery",
               email: staff.email,
               options: {
-                redirectTo: "https://fluff-scruff-studio.lovable.app/reset-password",
+                redirectTo: "https://fluffandscruff.co.uk/reset-password",
               },
             });
 
@@ -146,7 +146,7 @@ serve(async (req) => {
               // Send account setup email via Resend
               const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
               if (RESEND_API_KEY && linkData?.properties?.action_link) {
-                const logoUrl = "https://fluff-scruff-studio.lovable.app/logo-transparent.png";
+                const logoUrl = "https://fluffandscruff.co.uk/logo-transparent.png";
                 const portalName = appRole === "manager" || appRole === "director" ? "Management Dashboard" : "Staff Portal";
 
                 await fetch("https://api.resend.com/emails", {

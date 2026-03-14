@@ -146,7 +146,7 @@ lovablePrompt should be a ready-to-use prompt they can paste into Lovable to fix
                 <p><strong>To fix this, copy the following into Lovable:</strong></p>
                 <pre style="background:#f5f5f5;padding:12px;border-radius:8px;white-space:pre-wrap;">${analysis.lovablePrompt}</pre>
                 <br/>
-                <p><a href="https://fluff-scruff-studio.lovable.app/admin/error-reports">View all errors →</a></p>
+                <p><a href="https://fluffandscruff.co.uk/admin/error-reports">View all errors →</a></p>
               `,
             }),
           });
