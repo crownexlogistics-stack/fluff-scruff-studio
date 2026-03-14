@@ -122,7 +122,7 @@ The HTML email MUST follow this professional structure:
    b. HERO IMAGE: Use a placeholder with style "background:#E8D5B7;height:250px;display:flex;align-items:center;justify-content:center;" and a large paw emoji (🐾) with descriptive text about the campaign theme
    c. HEADLINE: Bold, compelling headline related to the campaign
    d. BODY TEXT: 2-3 short paragraphs of persuasive marketing copy. Warm, friendly tone. Reference dogs and grooming naturally.
-   e. CTA BUTTON: A prominent "Book Now" button linking to ${bookingUrl || "https://fluff-scruff-studio.lovable.app/book"} — styled with background #2D3142, white text, rounded corners, large padding
+   e. CTA BUTTON: A prominent "Book Now" button linking to ${bookingUrl || "https://fluffandscruff.co.uk/book"} — styled with background #2D3142, white text, rounded corners, large padding
    f. FOOTER: Salon address "138 Hillview Avenue, Hornchurch RM11 2DL", landline phone 01708 606655 (always show this first), WhatsApp/mobile +44 7476 452782, and an unsubscribe link placeholder {{UNSUBSCRIBE_URL}}
 
 4. Use a warm, professional color palette: primary #2D3142, accent #E8D5B7, text #333333

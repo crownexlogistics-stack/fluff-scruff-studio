@@ -98,7 +98,7 @@ export function ErrorReportModal({ open, onClose }: ErrorReportModalProps) {
               <p><strong>Device:</strong> ${getDeviceInfo()}</p>
               ${screenshotUrl ? `<p><strong>Screenshot:</strong> <a href="${screenshotUrl}">View</a></p>` : ""}
               <br/>
-              <p><a href="https://fluff-scruff-studio.lovable.app/admin/error-reports">View in Admin Panel</a></p>
+              <p><a href="https://fluffandscruff.co.uk/admin/error-reports">View in Admin Panel</a></p>
             `,
           },
         });

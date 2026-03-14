@@ -595,7 +595,7 @@ Deno.serve(async (req) => {
             if (result.fullyBookedAlternatives && result.fullyBookedAlternatives.length > 0) {
               altText = `Next available dates:\n${result.fullyBookedAlternatives.map((a) => `📅 ${a}`).join("\n")}`;
             }
-            availabilityContext = `\n\nAVAILABILITY DATA: Unfortunately there are NO available slots for a ${serviceType} (${serviceDuration} mins) on ${formattedDate}. ${altText}\n\nPresent this in a friendly, empathetic way and suggest the alternatives. Include a link to book at fluff-scruff-studio.lovable.app/book`;
+            availabilityContext = `\n\nAVAILABILITY DATA: Unfortunately there are NO available slots for a ${serviceType} (${serviceDuration} mins) on ${formattedDate}. ${altText}\n\nPresent this in a friendly, empathetic way and suggest the alternatives. Include a link to book at fluffandscruff.co.uk/book`;
           }
         }
       } catch (e) {

@@ -214,7 +214,7 @@ serve(async (req) => {
       const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
         type: "recovery",
         email: staff.email,
-        options: { redirectTo: "https://fluff-scruff-studio.lovable.app/reset-password" },
+        options: { redirectTo: "https://fluffandscruff.co.uk/reset-password" },
       });
       if (linkError) throw linkError;
 

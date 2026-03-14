@@ -146,7 +146,7 @@ serve(async (req) => {
               // Send account setup email via Resend
               const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
               if (RESEND_API_KEY && linkData?.properties?.action_link) {
-                const logoUrl = "https://fluff-scruff-studio.lovable.app/logo-transparent.png";
+                const logoUrl = "https://fluffandscruff.co.uk/logo-transparent.png";
                 const portalName = appRole === "manager" || appRole === "director" ? "Management Dashboard" : "Staff Portal";
 
                 await fetch("https://api.resend.com/emails", {

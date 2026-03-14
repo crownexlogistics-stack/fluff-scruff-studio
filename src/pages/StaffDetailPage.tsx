@@ -253,7 +253,7 @@ const StaffDetailPage = () => {
       if (!staff?.email) {
         throw new Error("Please add an email address for this staff member before sending.");
       }
-      const signingUrl = `https://fluff-scruff-studio.lovable.app/hs/sign/${id}`;
+      const signingUrl = `https://fluffandscruff.co.uk/hs/sign/${id}`;
       const { error } = await supabase.from("staff").update({ hs_status: "sent" } as any).eq("id", id!);
       if (error) throw error;
       const { error: fnError } = await supabase.functions.invoke("send-contract-email", {

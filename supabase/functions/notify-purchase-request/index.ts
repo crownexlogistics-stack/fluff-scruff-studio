@@ -37,7 +37,7 @@ serve(async (req) => {
       <p><strong>Priority:</strong> ${priorityHtml}</p>
       ${product_link ? `<p><strong>Product Link:</strong> <a href="${product_link}">${product_link}</a></p>` : ""}
       <br/>
-      <p><a href="https://fluff-scruff-studio.lovable.app/purchase-orders" style="background:#7c3aed;color:white;padding:10px 20px;border-radius:6px;text-decoration:none;">View in Admin Panel</a></p>
+      <p><a href="https://fluffandscruff.co.uk/purchase-orders" style="background:#7c3aed;color:white;padding:10px 20px;border-radius:6px;text-decoration:none;">View in Admin Panel</a></p>
     `;
 
     const emailRes = await fetch("https://api.resend.com/emails", {

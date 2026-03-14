@@ -74,7 +74,7 @@ serve(async (req) => {
       after_completion: {
         type: "redirect",
         redirect: {
-          url: "https://fluff-scruff-studio.lovable.app/booking-success?pay_link_id=" + payLinkRecord.id + "&payment_type=ad_hoc",
+          url: "https://fluffandscruff.co.uk/booking-success?pay_link_id=" + payLinkRecord.id + "&payment_type=ad_hoc",
         },
       },
     });

@@ -177,7 +177,7 @@ export function EmailMarketingSection() {
   const generateMutation = useMutation({
     mutationFn: async (campaignPrompt: string) => {
       const { data, error } = await supabase.functions.invoke("generate-campaign-email", {
-        body: { prompt: campaignPrompt, bookingUrl: "https://fluff-scruff-studio.lovable.app/book" },
+        body: { prompt: campaignPrompt, bookingUrl: "https://fluffandscruff.co.uk/book" },
       });
       if (error) throw error;
       if (data.error) throw new Error(data.error);
