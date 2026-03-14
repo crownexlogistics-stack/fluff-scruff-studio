@@ -134,7 +134,7 @@ export function UnavailableBookingsWarning() {
                 variant="outline"
                 size="sm"
                 className="h-7 text-xs"
-                onClick={() => navigate("/admin/bookings")}
+                onClick={() => navigate(`/bookings?highlight=${booking.id}`)}
               >
                 Review <ArrowRight className="h-3 w-3 ml-1" />
               </Button>

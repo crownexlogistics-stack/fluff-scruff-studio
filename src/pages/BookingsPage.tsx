@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { CalendarHeader } from "@/components/booking-calendar/CalendarHeader";
 import { WeeklyCalendar } from "@/components/booking-calendar/WeeklyCalendar";
 import { getStaffColor } from "@/components/booking-calendar/staffColors";
+import { useSearchParams } from "react-router-dom";
 import { NewBookingDialog } from "@/components/booking-calendar/NewBookingDialog";
 import { EditBlockDialog } from "@/components/booking-calendar/EditBlockDialog";
 import { CheckoutDialog } from "@/components/booking-calendar/CheckoutDialog";
@@ -32,10 +33,13 @@ import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 
 const BookingsPage = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const highlightBookingId = searchParams.get("highlight");
   const { user } = useAuth();
   const { role: userRole } = useUserRole(user?.id);
   const queryClient = useQueryClient();
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
+  const [highlightHandled, setHighlightHandled] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState<"appointment" | "block">("appointment");
   const [dialogDefaults, setDialogDefaults] = useState<{ date?: Date; hour?: number; staffId?: string }>({});
@@ -176,6 +180,41 @@ const BookingsPage = () => {
   });
 
   const allEvents = useMemo(() => [...bookings, ...migratedBookings, ...overrides], [bookings, migratedBookings, overrides]);
+
+  // Auto-open a booking when navigated with ?highlight=bookingId
+  useEffect(() => {
+    if (!highlightBookingId || highlightHandled) return;
+    // Find the booking in current events
+    const target = allEvents.find(b => b.id === highlightBookingId);
+    if (target) {
+      // Jump calendar to the correct week
+      const bookingWeek = startOfWeek(new Date(target.booking_date + "T00:00:00"), { weekStartsOn: 1 });
+      setWeekStart(bookingWeek);
+      // Open the view order dialog for this booking
+      setViewOrderBooking(target);
+      setViewOrderOpen(true);
+      // Clear the param so it doesn't re-trigger
+      setHighlightHandled(true);
+      searchParams.delete("highlight");
+      setSearchParams(searchParams, { replace: true });
+      return;
+    }
+    // If not found in current week, fetch the booking to get its date and jump
+    if (!highlightHandled) {
+      supabase
+        .from("bookings")
+        .select("booking_date")
+        .eq("id", highlightBookingId)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data?.booking_date) {
+            const bookingWeek = startOfWeek(new Date(data.booking_date + "T00:00:00"), { weekStartsOn: 1 });
+            setWeekStart(bookingWeek);
+            // The booking will appear in allEvents after the query refetches for the new week
+          }
+        });
+    }
+  }, [highlightBookingId, allEvents, highlightHandled]);
 
   // Cancel block mutation
   const cancelBlockMutation = useMutation({
