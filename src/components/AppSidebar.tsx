@@ -15,6 +15,7 @@ import { useUnreadSmsCount } from "@/hooks/useUnreadSmsCount";
 import { Badge } from "@/components/ui/badge";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useStaffIsCustomer } from "@/hooks/useStaffIsCustomer";
+import { useUrgentPurchaseRequests } from "@/hooks/useUrgentPurchaseRequests";
 import {
   Sidebar,
   SidebarContent,
