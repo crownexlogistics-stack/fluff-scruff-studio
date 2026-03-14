@@ -538,9 +538,28 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
           <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setCurrentDate(d => addDays(d, viewMode === "7day" ? -7 : -daysToShow))}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setCurrentDate(viewMode === "7day" ? startOfWeek(new Date(), { weekStartsOn: 1 }) : startOfDay(new Date()))}>
+           <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setCurrentDate(viewMode === "7day" ? startOfWeek(new Date(), { weekStartsOn: 1 }) : startOfDay(new Date()))}>
             Today
           </Button>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="icon" className="h-8 w-8">
+                <CalendarIcon className="h-4 w-4" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={currentDate}
+                onSelect={(date) => {
+                  if (date) {
+                    setCurrentDate(viewMode === "7day" ? startOfWeek(date, { weekStartsOn: 1 }) : startOfDay(date));
+                  }
+                }}
+                initialFocus
+              />
+            </PopoverContent>
+          </Popover>
           <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setCurrentDate(d => addDays(d, viewMode === "7day" ? 7 : daysToShow))}>
             <ChevronRight className="h-4 w-4" />
           </Button>
