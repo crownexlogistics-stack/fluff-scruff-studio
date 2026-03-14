@@ -419,6 +419,65 @@ export function EmailMarketingSection() {
     onError: (err: Error) => toast.error(err.message),
   });
 
+  const handleTemplateUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+      toast.error("File must be under 10MB");
+      return;
+    }
+
+    setUploadingTemplate(true);
+    const ext = file.name.split(".").pop()?.toLowerCase();
+
+    try {
+      if (ext === "html" || ext === "htm") {
+        // Direct HTML file — load straight into editor
+        const text = await file.text();
+        setGeneratedHtml(text);
+        setGeneratedSubject("");
+        setPreviewText("");
+        setPrompt(`Uploaded: ${file.name}`);
+        setShowPreview(true);
+        toast.success("HTML template loaded! You can now edit it with AI Refine.");
+      } else {
+        // PDF, DOCX, image, or other — convert to base64 and send to AI to extract/convert to email HTML
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+          const base64 = reader.result as string;
+          try {
+            const { data, error } = await supabase.functions.invoke("generate-campaign-email", {
+              body: {
+                mode: "refine",
+                currentHtml: `<div style="max-width:600px;margin:0 auto;font-family:Arial,sans-serif;"><h1>Uploaded Template</h1><p>Converting uploaded file into email format...</p></div>`,
+                editInstruction: `The user has uploaded a file named "${file.name}" (type: ${file.type}). The file content is provided as an image. Please recreate this design as a professional HTML email template. Preserve the layout, text, colours, and styling as closely as possible. Make it email-compatible with inline CSS, max-width 600px. Keep the Fluff & Scruff Studio branding with the Book Now button linking to https://fluffandscruff.co.uk/book and footer with address "138 Hillview Avenue, Hornchurch RM11 2DL", phone 01708 606655, WhatsApp +44 7476 452782, and an unsubscribe link placeholder {{UNSUBSCRIBE_URL}}.`,
+                imageBase64: base64,
+              },
+            });
+            if (error) throw error;
+            if (data.error) throw new Error(data.error);
+            setGeneratedSubject(data.subject || "");
+            setGeneratedHtml(data.html || "");
+            setPreviewText(data.previewText || "");
+            setPrompt(`Uploaded: ${file.name}`);
+            setShowPreview(true);
+            toast.success("Template converted! Review the preview and refine with AI if needed.");
+          } catch (err: any) {
+            toast.error(err.message || "Failed to convert file");
+          }
+        };
+        reader.readAsDataURL(file);
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Upload failed");
+    } finally {
+      setUploadingTemplate(false);
+      e.target.value = "";
+    }
+  };
+
   const loadCampaignToEditor = (c: any) => {
     setGeneratedSubject(c.subject);
     setGeneratedHtml(c.html_body);
