@@ -82,6 +82,9 @@ export function EmailMarketingSection() {
   const [testEmail, setTestEmail] = useState("");
   const [showTestEmail, setShowTestEmail] = useState(false);
 
+  // Upload template state
+  const [uploadingTemplate, setUploadingTemplate] = useState(false);
+
   // Fetch all bookings for segmentation
   const { data: bookings } = useQuery({
     queryKey: ["marketing-bookings"],
