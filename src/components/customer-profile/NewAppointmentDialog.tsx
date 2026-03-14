@@ -39,6 +39,7 @@ export function NewAppointmentDialog({
   const [createdBookingId, setCreatedBookingId] = useState<string | null>(null);
   const [sendingDeposit, setSendingDeposit] = useState(false);
   const [selectedAddOns, setSelectedAddOns] = useState<string[]>([]);
+  const [breedOpen, setBreedOpen] = useState(false);
 
   // If opened from customer profile, we already have customer info
   const hasPrefilledCustomer = Boolean(customerName && customerEmail);
