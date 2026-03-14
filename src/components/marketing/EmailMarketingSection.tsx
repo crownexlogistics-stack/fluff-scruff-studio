@@ -820,6 +820,76 @@ export function EmailMarketingSection() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Segment Customer List Dialog */}
+      <Dialog open={showSegmentList} onOpenChange={setShowSegmentList}>
+        <DialogContent className="max-w-lg max-h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              {segmentCards.find(s => s.key === selectedSegment)?.label} — {segments[selectedSegment].length} customers
+            </DialogTitle>
+          </DialogHeader>
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by name or email..."
+              value={segmentListSearch}
+              onChange={e => setSegmentListSearch(e.target.value)}
+              className="pl-8"
+            />
+          </div>
+          {excludedEmails.size > 0 && (
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-destructive font-medium">{excludedEmails.size} removed from send list</span>
+              <Button variant="ghost" size="sm" className="text-xs h-6" onClick={() => setExcludedEmails(new Set())}>
+                Restore All
+              </Button>
+            </div>
+          )}
+          <ScrollArea className="flex-1 min-h-0 max-h-[50vh]">
+            <div className="space-y-1 pr-3">
+              {segments[selectedSegment]
+                .filter(c => {
+                  const q = segmentListSearch.toLowerCase();
+                  return !q || c.name.toLowerCase().includes(q) || c.email.toLowerCase().includes(q);
+                })
+                .map(c => {
+                  const isExcluded = excludedEmails.has(c.email.toLowerCase());
+                  return (
+                    <div key={c.email} className={cn("flex items-center justify-between py-2 px-3 rounded-md", isExcluded ? "opacity-50 bg-muted/50" : "hover:bg-accent/50")}>
+                      <div className="min-w-0 flex-1">
+                        <p className={cn("text-sm font-medium truncate", isExcluded && "line-through")}>{c.name}</p>
+                        <p className="text-xs text-muted-foreground truncate">{c.email}</p>
+                        {c.source === "migrated" && <Badge variant="outline" className="text-[9px] h-4 mt-0.5">Wix</Badge>}
+                      </div>
+                      <Button
+                        variant={isExcluded ? "outline" : "ghost"}
+                        size="sm"
+                        className={cn("shrink-0 ml-2 h-7", !isExcluded && "text-destructive hover:text-destructive")}
+                        onClick={() => {
+                          const next = new Set(excludedEmails);
+                          const key = c.email.toLowerCase();
+                          if (isExcluded) next.delete(key);
+                          else next.add(key);
+                          setExcludedEmails(next);
+                        }}
+                      >
+                        {isExcluded ? "Restore" : <><XCircle className="h-3.5 w-3.5 mr-1" /> Remove</>}
+                      </Button>
+                    </div>
+                  );
+                })}
+            </div>
+          </ScrollArea>
+          <div className="pt-3 border-t flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              Will send to <strong>{effectiveList.length}</strong> of {segments[selectedSegment].length}
+            </p>
+            <Button onClick={() => setShowSegmentList(false)}>Done</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
