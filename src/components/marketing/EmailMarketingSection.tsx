@@ -329,7 +329,7 @@ export function EmailMarketingSection() {
   // Send campaign
   const sendMutation = useMutation({
     mutationFn: async (opts: { campaignId?: string; fromDraft?: boolean }) => {
-      const targetEmails = segments[selectedSegment].map(c => c.email);
+      const targetEmails = effectiveList.map(c => c.email);
       if (targetEmails.length === 0) throw new Error("No customers in this segment");
 
       let campaignId = opts.campaignId;
