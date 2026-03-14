@@ -25,7 +25,7 @@ import { toast } from "sonner";
 import { ContractPreviewDialog } from "@/components/staff/ContractPreviewDialog";
 import { HealthAndSafetyPreviewDialog } from "@/components/staff/HealthAndSafetyPreviewDialog";
 import { HRRecordsTab } from "@/components/staff/HRRecordsTab";
-
+import { EquipmentTab } from "@/components/staff/EquipmentTab";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
