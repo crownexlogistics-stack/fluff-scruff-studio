@@ -121,6 +121,7 @@ const App = () => (
           <Route path="/staff/risk-assessments" element={<ProtectedRoute allowedRoles={["manager", "director"]}><RiskAssessmentsPage /></ProtectedRoute>} />
           <Route path="/staff/rules" element={<ProtectedRoute allowedRoles={["manager", "director", "groomer", "volunteer", "work_placement"]}><RulesPage /></ProtectedRoute>} />
           <Route path="/bookings" element={<ProtectedRoute allowedRoles={["manager", "director"]}><BookingsPage /></ProtectedRoute>} />
+          <Route path="/purchase-orders" element={<ProtectedRoute allowedRoles={["manager", "director"]}><PurchaseOrdersPage /></ProtectedRoute>} />
           <Route path="/finance" element={<ProtectedRoute allowedRoles={["manager", "director"]}><FinancePage /></ProtectedRoute>} />
           <Route path="/messages" element={<ProtectedRoute allowedRoles={["manager", "director", "groomer"]}><MessagesPage /></ProtectedRoute>} />
           <Route path="/admin/customers/:email" element={<ProtectedRoute allowedRoles={["manager", "director", "groomer"]}><CustomerProfilePage /></ProtectedRoute>} />

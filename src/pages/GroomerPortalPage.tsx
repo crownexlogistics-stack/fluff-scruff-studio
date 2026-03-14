@@ -284,6 +284,7 @@ const GroomerPortalPage = () => {
           </TabsList>
           <TabsContent value="bookings" className="mt-4">{renderSectionContent("bookings")}</TabsContent>
           <TabsContent value="messages" className="mt-4">{renderSectionContent("messages")}</TabsContent>
+          <TabsContent value="purchases" className="mt-4">{renderSectionContent("purchases")}</TabsContent>
           <TabsContent value="breeds" className="mt-4">{renderSectionContent("breeds")}</TabsContent>
           <TabsContent value="finance" className="mt-4">{renderSectionContent("finance")}</TabsContent>
           <TabsContent value="documents" className="mt-4">{renderSectionContent("documents")}</TabsContent>
