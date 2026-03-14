@@ -619,8 +619,13 @@ export function EmailMarketingSection() {
                       <span className="text-xs text-muted-foreground ml-2">Email Preview</span>
                     </div>
                     <div className="p-4 flex justify-center" style={{ background: "white" }}>
-                      <iframe srcDoc={generatedHtml} className="w-full max-w-[620px] border-0" style={{ minHeight: 600 }} title="Email preview" sandbox="allow-same-origin" />
+                      <iframe srcDoc={generatedHtml + UNSUBSCRIBE_FOOTER_PREVIEW} className="w-full max-w-[620px] border-0" style={{ minHeight: 600 }} title="Email preview" sandbox="allow-same-origin" />
                     </div>
+                  </div>
+                  {/* Locked footer notice */}
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 rounded-md px-3 py-2">
+                    <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                    <span>The unsubscribe footer shown above is <strong>locked</strong> and will be automatically appended to every marketing email. It cannot be edited or removed (GDPR requirement).</span>
                   </div>
                 </div>
 
