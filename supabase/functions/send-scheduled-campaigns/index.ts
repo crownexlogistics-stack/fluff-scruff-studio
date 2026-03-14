@@ -86,11 +86,20 @@ serve(async (req) => {
       let sent = 0;
       const batchSize = 20;
 
+      // Unsubscribe footer template
+      const makeUnsubFooter = (email: string) => {
+        const unsubUrl = `https://fluffandscruff.co.uk/unsubscribe?email=${encodeURIComponent(email)}`;
+        return `<div style="border-top:1px solid #e0e0e0;margin-top:32px;padding-top:20px;text-align:center;font-family:Arial,sans-serif;"><p style="font-size:12px;color:#999;line-height:1.6;margin:0;">You are receiving this email because you are part of the Fluff &amp; Scruff family.<br/>To unsubscribe from future marketing emails, <a href="${unsubUrl}" style="color:#999;text-decoration:underline;">click here</a>.</p></div>`;
+      };
+
       for (let i = 0; i < validEmails.length; i += batchSize) {
         const batch = validEmails.slice(i, i + batchSize);
         const promises = batch.map(async (email: string) => {
           const unsubUrl = `${unsubscribeBaseUrl}?email=${encodeURIComponent(email)}`;
-          const personalizedHtml = campaign.html_body.replace(/\{\{UNSUBSCRIBE_URL\}\}/g, unsubUrl);
+          let personalizedHtml = campaign.html_body.replace(/\{\{UNSUBSCRIBE_URL\}\}/g, unsubUrl);
+
+          // Auto-append the GDPR unsubscribe footer
+          personalizedHtml += makeUnsubFooter(email);
 
           const res = await fetch("https://api.resend.com/emails", {
             method: "POST",
