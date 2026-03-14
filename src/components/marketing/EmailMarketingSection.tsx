@@ -78,6 +78,10 @@ export function EmailMarketingSection() {
   // Delete dialog
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
+  // Test email state
+  const [testEmail, setTestEmail] = useState("");
+  const [showTestEmail, setShowTestEmail] = useState(false);
+
   // Fetch all bookings for segmentation
   const { data: bookings } = useQuery({
     queryKey: ["marketing-bookings"],
