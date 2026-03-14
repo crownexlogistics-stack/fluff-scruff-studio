@@ -78,6 +78,10 @@ export function EmailMarketingSection() {
   // Delete dialog
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
+  // Test email state
+  const [testEmail, setTestEmail] = useState("");
+  const [showTestEmail, setShowTestEmail] = useState(false);
+
   // Fetch all bookings for segmentation
   const { data: bookings } = useQuery({
     queryKey: ["marketing-bookings"],
@@ -394,6 +398,24 @@ export function EmailMarketingSection() {
     onError: (err: Error) => toast.error(err.message),
   });
 
+  // Send test email
+  const sendTestMutation = useMutation({
+    mutationFn: async (email: string) => {
+      if (!email.trim()) throw new Error("Please enter a test email");
+      const { data, error } = await supabase.functions.invoke("send-campaign", {
+        body: { emails: [email.trim()], subject: `[TEST] ${generatedSubject}`, htmlBody: generatedHtml },
+      });
+      if (error) throw error;
+      if (data.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: () => {
+      toast.success(`Test email sent to ${testEmail}!`);
+      setShowTestEmail(false);
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
   const loadCampaignToEditor = (c: any) => {
     setGeneratedSubject(c.subject);
     setGeneratedHtml(c.html_body);
@@ -646,7 +668,32 @@ export function EmailMarketingSection() {
                     {excludedEmails.size > 0 && <span className="ml-1 text-destructive">({excludedEmails.size} manually removed)</span>}
                     {unsubSet.size > 0 && <span className="ml-1">({unsubSet.size} unsubscribed excluded)</span>}
                   </p>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
+                    <Popover open={showTestEmail} onOpenChange={setShowTestEmail}>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" className="gap-1.5">
+                          <Mail className="h-4 w-4" /> Send Test
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-80 space-y-3" align="end">
+                        <p className="text-sm font-medium">Send a test email</p>
+                        <Input
+                          type="email"
+                          placeholder="Enter email address..."
+                          value={testEmail}
+                          onChange={e => setTestEmail(e.target.value)}
+                          onKeyDown={e => { if (e.key === "Enter" && testEmail.trim()) sendTestMutation.mutate(testEmail); }}
+                        />
+                        <Button
+                          onClick={() => sendTestMutation.mutate(testEmail)}
+                          disabled={!testEmail.trim() || sendTestMutation.isPending}
+                          className="w-full gap-1.5"
+                          size="sm"
+                        >
+                          {sendTestMutation.isPending ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Sending...</> : <><Send className="h-3.5 w-3.5" /> Send Test</>}
+                        </Button>
+                      </PopoverContent>
+                    </Popover>
                     <Button variant="outline" onClick={() => setShowScheduler(!showScheduler)} className="gap-1.5">
                       <Clock className="h-4 w-4" /> Schedule
                     </Button>
