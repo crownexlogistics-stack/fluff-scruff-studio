@@ -445,12 +445,37 @@ export function NewAppointmentDialog({
                 </div>
                 <div className="space-y-1">
                   <Label>Breed</Label>
-                  <Select value={form.breed_id} onValueChange={(v) => setForm({ ...form, breed_id: v })}>
-                    <SelectTrigger><SelectValue placeholder="Select breed" /></SelectTrigger>
-                    <SelectContent>
-                      {breeds?.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  <Popover open={breedOpen} onOpenChange={setBreedOpen}>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" role="combobox" aria-expanded={breedOpen} className="w-full justify-between font-normal">
+                        {form.breed_id ? breeds?.find(b => b.id === form.breed_id)?.name : "Select breed"}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Search breed..." />
+                        <CommandList>
+                          <CommandEmpty>No breed found.</CommandEmpty>
+                          <CommandGroup>
+                            {breeds?.map(b => (
+                              <CommandItem
+                                key={b.id}
+                                value={b.name}
+                                onSelect={() => {
+                                  setForm(prev => ({ ...prev, breed_id: b.id }));
+                                  setBreedOpen(false);
+                                }}
+                              >
+                                <Check className={cn("mr-2 h-4 w-4", form.breed_id === b.id ? "opacity-100" : "opacity-0")} />
+                                {b.name}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 </div>
               </div>
 
