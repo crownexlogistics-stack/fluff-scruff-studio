@@ -576,7 +576,7 @@ const StaffDetailPage = () => {
                       <div className="space-y-2">
                         <span className="text-sm font-medium">Documents Signing Link</span>
                         <p className="text-xs text-muted-foreground break-all">
-                          https://fluff-scruff-studio.lovable.app/contract/sign/{staff.id}
+                          https://fluffandscruff.co.uk/contract/sign/{staff.id}
                         </p>
                       </div>
 
