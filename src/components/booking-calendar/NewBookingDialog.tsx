@@ -14,6 +14,16 @@ import { toast } from "sonner";
 import { logAudit } from "@/lib/auditLog";
 import { CustomerSearchInput, type CustomerResult } from "./CustomerSearchInput";
 
+export interface BookAgainData {
+  customer_name: string;
+  customer_email: string | null;
+  customer_phone: string | null;
+  dog_name: string;
+  breed_id?: string;
+  service_id?: string;
+  notes?: string | null;
+}
+
 interface NewBookingDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -21,9 +31,10 @@ interface NewBookingDialogProps {
   defaultHour?: number;
   defaultStaffId?: string;
   mode: "appointment" | "block";
+  bookAgainData?: BookAgainData | null;
 }
 
-export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour, defaultStaffId, mode }: NewBookingDialogProps) {
+export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour, defaultStaffId, mode, bookAgainData }: NewBookingDialogProps) {
   const queryClient = useQueryClient();
 
   const dateStr = defaultDate ? format(defaultDate, "yyyy-MM-dd") : "";
