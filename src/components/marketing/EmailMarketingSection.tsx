@@ -183,7 +183,7 @@ export function EmailMarketingSection() {
       "lost-regulars": all.filter(c => c.completedCount >= 2 && c.lastBooking < cutoff),
       vips: all.filter(c => c.completedCount > 5),
     };
-  }, [bookings, migratedCustomers, profiles, unsubSet]);
+  }, [bookings, migratedCustomers, unsubSet]);
 
   // Effective list after exclusions
   const effectiveList = useMemo(() => {
