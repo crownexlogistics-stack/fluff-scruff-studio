@@ -1561,6 +1561,8 @@ export type Database = {
           notes: string | null
           payment_status: string | null
           service_name: string
+          sms_24h_sent: boolean
+          sms_2h_sent: boolean
           staff_name: string | null
           supabase_booking_id: string | null
           total_price: number | null
@@ -1581,6 +1583,8 @@ export type Database = {
           notes?: string | null
           payment_status?: string | null
           service_name: string
+          sms_24h_sent?: boolean
+          sms_2h_sent?: boolean
           staff_name?: string | null
           supabase_booking_id?: string | null
           total_price?: number | null
@@ -1601,6 +1605,8 @@ export type Database = {
           notes?: string | null
           payment_status?: string | null
           service_name?: string
+          sms_24h_sent?: boolean
+          sms_2h_sent?: boolean
           staff_name?: string | null
           supabase_booking_id?: string | null
           total_price?: number | null
