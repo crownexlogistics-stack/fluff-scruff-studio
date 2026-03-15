@@ -515,5 +515,6 @@ export function BookingPopoverCard({
         )}
       </div>
     </div>
+    </ScrollHintWrapper>
   );
 }
