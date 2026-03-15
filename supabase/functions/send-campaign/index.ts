@@ -172,14 +172,29 @@ serve(async (req) => {
 
     const skippedCount = recipientEmails.length - validEmails.length;
 
-    // A/B test logic
+    // Resume logic: skip emails already processed for this campaign
+    let emailsToSend = validEmails;
+    if (campaignId) {
+      const { data: alreadyProcessed } = await supabase
+        .from("campaign_send_log")
+        .select("email")
+        .eq("campaign_id", campaignId)
+        .in("status", ["sent", "skipped"]);
+      if (alreadyProcessed && alreadyProcessed.length > 0) {
+        const processedSet = new Set(alreadyProcessed.map((r: any) => r.email.toLowerCase().trim()));
+        emailsToSend = validEmails.filter((e: string) => !processedSet.has(e.toLowerCase().trim()));
+        console.log(`Resume: ${alreadyProcessed.length} already processed, ${emailsToSend.length} remaining`);
+      }
+    }
+
+    // A/B test logic — use emailsToSend (already filtered for resume)
     const isABTest = variantBSubject && abTestPercentage && abTestPercentage > 0;
-    let groupA: string[] = validEmails;
+    let groupA: string[] = emailsToSend;
     let groupB: string[] = [];
     let groupRemainder: string[] = [];
 
     if (isABTest) {
-      const shuffled = [...validEmails].sort(() => Math.random() - 0.5);
+      const shuffled = [...emailsToSend].sort(() => Math.random() - 0.5);
       const testSize = Math.floor(shuffled.length * (abTestPercentage / 100));
       groupA = shuffled.slice(0, testSize);
       groupB = shuffled.slice(testSize, testSize * 2);
@@ -276,6 +291,7 @@ serve(async (req) => {
       failed: failedCount,
       skipped: skippedCount,
       total: recipientEmails.length,
+      remaining: emailsToSend.length - (totalSent + failedCount),
       abTest: isABTest ? { sentA, sentB, remainder: groupRemainder.length } : undefined,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

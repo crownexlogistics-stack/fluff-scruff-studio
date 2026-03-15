@@ -413,7 +413,14 @@ export function EmailMarketingSection() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["email-campaigns"] });
       queryClient.invalidateQueries({ queryKey: ["campaign-send-logs"] });
-      toast.success(`Campaign sent! ${data.sent} delivered, ${data.failed || 0} failed, ${data.skipped} skipped.`);
+      const totalProcessed = (data.sent || 0) + (data.failed || 0) + (data.skipped || 0);
+      const totalRecipients = data.total || totalProcessed;
+      const remaining = totalRecipients - totalProcessed;
+      if (remaining > 0) {
+        toast.info(`Sent ${data.sent} so far — ${remaining} remaining. The function timed out. Click "Continue Sending" on the campaign to resume.`);
+      } else {
+        toast.success(`Campaign sent! ${data.sent} delivered, ${data.failed || 0} failed, ${data.skipped || 0} skipped.`);
+      }
       setActiveTab("campaigns");
       setActiveFolder("sent");
     },
@@ -441,6 +448,33 @@ export function EmailMarketingSection() {
         toast.info("No failed emails to retry — all sends were successful!");
       } else {
         toast.success(`Retry complete! ${data.sent} sent, ${data.failed || 0} still failed.`);
+      }
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  // Continue sending (resume after timeout)
+  const continueMutation = useMutation({
+    mutationFn: async (campaignId: string) => {
+      const campaign = campaigns?.find(c => c.id === campaignId);
+      if (!campaign) throw new Error("Campaign not found");
+      const targetEmails = effectiveList.map(c => c.email);
+      const { data, error } = await supabase.functions.invoke("send-campaign", {
+        body: {
+          campaignId, emails: targetEmails, subject: campaign.subject, htmlBody: campaign.html_body,
+        },
+      });
+      if (error) throw error;
+      if (data.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["email-campaigns"] });
+      queryClient.invalidateQueries({ queryKey: ["campaign-send-logs"] });
+      if (data.remaining > 0) {
+        toast.info(`Sent ${data.sent} more — ${data.remaining} still remaining. Click "Continue Sending" again.`);
+      } else {
+        toast.success(`All done! ${data.sent} sent this round. Campaign fully delivered.`);
       }
     },
     onError: (err: Error) => toast.error(err.message),
@@ -1101,6 +1135,13 @@ export function EmailMarketingSection() {
                               Retry Failed
                             </Button>
                           </>
+                        )}
+                        {/* Continue Sending — shows when total processed < expected recipients */}
+                        {c.emails_sent < effectiveList.length && effectiveList.length > 0 && (stats?.sent || 0) + (stats?.failed || 0) + (stats?.skipped || 0) < effectiveList.length && (
+                          <Button variant="outline" size="sm" className="text-xs h-6 gap-1 border-amber-300 text-amber-700 bg-amber-50 hover:bg-amber-100" onClick={() => continueMutation.mutate(c.id)} disabled={continueMutation.isPending}>
+                            {continueMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
+                            Continue Sending ({effectiveList.length - (stats?.sent || 0) - (stats?.failed || 0) - (stats?.skipped || 0)} remaining)
+                          </Button>
                         )}
                       </div>
                     )}
