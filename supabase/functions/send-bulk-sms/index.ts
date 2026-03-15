@@ -451,7 +451,18 @@ Deno.serve(async (req) => {
     // For large sends (>50 recipients), use background processing
     if (recipients.length > 50) {
       EdgeRuntime.waitUntil(
-        processBulkSend(recipients, fullMessage, cName, message, twilioUrl, twilioAuth, statusCallbackUrl, supabase)
+        processBulkSend(
+          recipients,
+          fullMessage,
+          cName,
+          message,
+          twilioUrl,
+          twilioAuth,
+          statusCallbackUrl,
+          sendMode,
+          twilioFromNumber,
+          supabase,
+        )
           .catch(err => console.error("Background send error:", err))
       );
 
