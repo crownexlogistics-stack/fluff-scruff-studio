@@ -493,6 +493,51 @@ function BulkSmsCampaign() {
             )}
           </div>
 
+          {/* Test SMS before bulk */}
+          <div className="bg-muted/30 border border-dashed rounded-lg p-4 space-y-3">
+            <p className="text-xs font-medium flex items-center gap-1.5">
+              <Phone className="h-3.5 w-3.5 text-muted-foreground" />
+              Send a test SMS first
+            </p>
+            <div className="flex gap-2 items-end">
+              <div className="flex-1 space-y-1">
+                <Input
+                  value={testPhone}
+                  onChange={e => setTestPhone(e.target.value)}
+                  placeholder="+447... or 07..."
+                  className="text-sm"
+                />
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!bulkMessage.trim() || !testPhone.trim() || testSending}
+                onClick={async () => {
+                  setTestSending(true);
+                  try {
+                    const STOP_SUFFIX_TEXT = " Reply STOP to unsubscribe.";
+                    const testBody = bulkMessage + STOP_SUFFIX_TEXT;
+                    const { data, error } = await supabase.functions.invoke("send-sms", {
+                      body: { phone: testPhone.trim(), body: testBody, senderName: "Test" },
+                    });
+                    if (error) throw error;
+                    if (data?.error) throw new Error(data.error);
+                    toast.success("Test SMS sent to " + testPhone.trim());
+                  } catch (err: any) {
+                    toast.error(err.message || "Failed to send test SMS");
+                  } finally {
+                    setTestSending(false);
+                  }
+                }}
+                className="gap-1.5 shrink-0"
+              >
+                {testSending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                Send Test
+              </Button>
+            </div>
+            <p className="text-[10px] text-muted-foreground">Sends the message above (with STOP suffix) to a single number for preview.</p>
+          </div>
+
           <Button
             onClick={() => sendBulkMutation.mutate()}
             disabled={!bulkMessage.trim() || sendBulkMutation.isPending || recipientCount === 0}
