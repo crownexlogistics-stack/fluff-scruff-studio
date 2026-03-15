@@ -30,6 +30,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle
 } from "@/components/ui/alert-dialog";
 import { CampaignROIDashboard } from "./CampaignROIDashboard";
+import { SmsROIDashboard } from "./SmsROIDashboard";
 import { AutomationsSection } from "./AutomationsSection";
 import { SMSSection } from "./SMSSection";
 
