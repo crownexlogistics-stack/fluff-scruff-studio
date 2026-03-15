@@ -31,7 +31,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { CampaignROIDashboard } from "./CampaignROIDashboard";
 import { AutomationsSection } from "./AutomationsSection";
-import { AutomationsSection } from "./AutomationsSection";
 
 
 type Segment = "all" | "one-timers" | "lost-regulars" | "vips";
