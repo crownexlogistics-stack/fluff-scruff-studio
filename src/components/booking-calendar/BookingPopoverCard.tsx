@@ -265,6 +265,43 @@ export function BookingPopoverCard({
         )}
       </div>
 
+      {/* Coupon Used Indicator */}
+      {couponUsage?.coupons && (
+        <div className="bg-purple-50 border border-purple-200 rounded-md px-3 py-2 text-xs text-purple-800 space-y-1">
+          <div className="flex items-center gap-1.5 font-semibold">
+            <Ticket className="h-3.5 w-3.5" />
+            <span>Coupon Applied: <code className="font-mono bg-purple-100 px-1 rounded">{couponUsage.coupons.code}</code></span>
+          </div>
+          <div className="flex justify-between">
+            <span>Discount</span>
+            <span className="font-semibold">
+              {couponUsage.coupons.discount_type === "percentage"
+                ? `${couponUsage.coupons.discount_value}% off`
+                : `£${Number(couponUsage.coupons.discount_value).toFixed(2)} off`}
+            </span>
+          </div>
+          {(() => {
+            const discountVal = Number(couponUsage.coupons.discount_value);
+            const originalPrice = couponUsage.coupons.discount_type === "percentage"
+              ? total / (1 - discountVal / 100)
+              : total + discountVal;
+            return (
+              <div className="flex justify-between border-t border-purple-300 pt-1 mt-1">
+                <span>Price before coupon</span>
+                <span className="font-semibold line-through">£{originalPrice.toFixed(2)}</span>
+              </div>
+            );
+          })()}
+          <div className="flex justify-between">
+            <span>Price after coupon</span>
+            <span className="font-bold">£{total.toFixed(2)}</span>
+          </div>
+          {couponUsage.applied_by_staff_name && (
+            <p className="text-[10px] text-purple-600">Applied by {couponUsage.applied_by_staff_name}</p>
+          )}
+        </div>
+      )}
+
       {/* Migrated booking payment info */}
       {booking.is_migrated && (
         <div className="bg-amber-50 border border-amber-200 rounded-md px-3 py-2 text-xs text-amber-800 space-y-1">
