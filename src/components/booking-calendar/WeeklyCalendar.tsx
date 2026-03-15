@@ -147,11 +147,17 @@ export function WeeklyCalendar({ weekStart, daysToShow = 7, staff, bookings, sta
         ))}
       </div>
 
-      <ScrollArea className="h-[calc(100vh-260px)] sm:h-[calc(100vh-220px)]">
-        <div className="relative grid" style={{ gridTemplateColumns: `60px repeat(${days.length}, 1fr)` }}>
+      <div
+        className="overflow-hidden"
+        style={{
+          height: "calc(100vh - 220px)",
+          ["--slot-h" as any]: `calc((100vh - 220px) / ${TOTAL_SLOTS})`,
+        }}
+      >
+        <div className="relative grid h-full" style={{ gridTemplateColumns: `60px repeat(${days.length}, 1fr)` }}>
           <div className="border-r">
             {HOURS.map(hour => (
-              <div key={hour} className="h-16 border-b flex items-start justify-end pr-2 pt-1">
+              <div key={hour} className="border-b flex items-start justify-end pr-2 pt-1" style={{ height: "var(--slot-h)" }}>
                 <span className="text-xs text-muted-foreground">{`${hour}:00`}</span>
               </div>
             ))}
@@ -175,7 +181,7 @@ export function WeeklyCalendar({ weekStart, daysToShow = 7, staff, bookings, sta
                     onBlock={onBlock}
                     onOvertime={onOvertime}
                   >
-                    <div className="h-16 border-b cursor-pointer hover:bg-accent/30 transition-colors" />
+                    <div className="border-b cursor-pointer hover:bg-accent/30 transition-colors" style={{ height: "var(--slot-h)" }} />
                   </EmptySlotAction>
                 ))}
 
@@ -193,6 +199,7 @@ export function WeeklyCalendar({ weekStart, daysToShow = 7, staff, bookings, sta
                         overlapColumn={layout?.column ?? 0}
                         overlapTotalColumns={layout?.totalColumns ?? 1}
                         privacyMasked={isPrivacyMasked}
+                        slotHeight={`calc((100vh - 220px) / ${TOTAL_SLOTS})`}
                         onEditBlock={isPrivacyMasked ? undefined : onEditBlock}
                         onCancelBlock={isPrivacyMasked ? undefined : onCancelBlock}
                         onEditOvertime={isPrivacyMasked ? undefined : onEditOvertime}
@@ -209,7 +216,7 @@ export function WeeklyCalendar({ weekStart, daysToShow = 7, staff, bookings, sta
             );
           })}
         </div>
-      </ScrollArea>
+      </div>
     </div>
   );
 }
