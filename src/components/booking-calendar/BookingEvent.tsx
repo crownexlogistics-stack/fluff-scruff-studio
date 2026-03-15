@@ -112,7 +112,10 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
   const timeParts = booking.booking_time.split(":");
   const hour = parseInt(timeParts[0]);
   const minutes = parseInt(timeParts[1] || "0");
-  const topOffset = (hour - startHour + minutes / 60) * 64;
+  // Use CSS calc with slotHeight for responsive positioning
+  const sh = slotHeight || "64px";
+  const timeOffset = hour - startHour + minutes / 60;
+  const topOffset = `calc(${sh} * ${timeOffset})`;
 
   let calculatedDuration = durationHours;
   if (booking.end_time) {
@@ -126,14 +129,13 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
   }
 
   // No Show: shrink to thin strip; minimum 30px for real bookings
-  const rawHeight = isGhost ? 16 : calculatedDuration * 64;
-  const height = isGhost ? 16 : Math.max(rawHeight, 30);
+  const heightCalc = isGhost ? "16px" : `max(calc(${sh} * ${calculatedDuration}), 30px)`;
 
   // Overlap layout: side-by-side columns
   const colWidthPercent = 100 / overlapTotalColumns;
   const leftPercent = overlapColumn * colWidthPercent;
   const overlapStyle = {
-    top: `${topOffset}px`,
+    top: topOffset,
     left: `calc(${leftPercent}% + 2px)`,
     width: `calc(${colWidthPercent}% - 4px)`,
   };
