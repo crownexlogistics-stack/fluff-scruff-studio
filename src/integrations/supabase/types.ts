@@ -381,6 +381,7 @@ export type Database = {
           anomaly_review_note: string | null
           anomaly_reviewed: boolean | null
           anomaly_type: string | null
+          attributed_campaign_id: string | null
           booking_date: string
           booking_source: string | null
           booking_time: string
@@ -412,6 +413,7 @@ export type Database = {
           anomaly_review_note?: string | null
           anomaly_reviewed?: boolean | null
           anomaly_type?: string | null
+          attributed_campaign_id?: string | null
           booking_date: string
           booking_source?: string | null
           booking_time: string
@@ -443,6 +445,7 @@ export type Database = {
           anomaly_review_note?: string | null
           anomaly_reviewed?: boolean | null
           anomaly_type?: string | null
+          attributed_campaign_id?: string | null
           booking_date?: string
           booking_source?: string | null
           booking_time?: string
@@ -471,6 +474,13 @@ export type Database = {
           total_price?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "bookings_attributed_campaign_id_fkey"
+            columns: ["attributed_campaign_id"]
+            isOneToOne: false
+            referencedRelation: "email_campaigns"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "bookings_breed_id_fkey"
             columns: ["breed_id"]
