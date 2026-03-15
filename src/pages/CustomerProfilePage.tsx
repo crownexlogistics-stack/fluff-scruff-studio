@@ -937,6 +937,45 @@ export default function CustomerProfilePage() {
                 </CardContent>
               </Card>
             )}
+
+            {/* SMS Preference */}
+            {canManageCustomer && !isGroomer && migratedCustomer && (
+              <Card>
+                <CardContent className="p-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    {migratedCustomer.sms_opt_out ? (
+                      <MessageSquareDashed className="h-5 w-5 text-muted-foreground" />
+                    ) : (
+                      <MessageSquare className="h-5 w-5 text-emerald-500" />
+                    )}
+                    <div>
+                      <p className="text-sm font-semibold">SMS Marketing</p>
+                      {migratedCustomer.sms_opt_out ? (
+                        <p className="text-xs text-muted-foreground">
+                          Opted out {migratedCustomer.sms_opt_out_at ? `on ${format(new Date(migratedCustomer.sms_opt_out_at), "dd MMM yyyy")}` : ""}
+                        </p>
+                      ) : (
+                        <p className="text-xs text-emerald-600">Subscribed — will receive SMS campaigns</p>
+                      )}
+                    </div>
+                  </div>
+                  <Switch
+                    checked={!migratedCustomer.sms_opt_out}
+                    onCheckedChange={async (checked) => {
+                      await supabase
+                        .from("migrated_customers")
+                        .update({
+                          sms_opt_out: !checked,
+                          sms_opt_out_at: !checked ? new Date().toISOString() : null,
+                        })
+                        .eq("id", migratedCustomer.id);
+                      queryClient.invalidateQueries({ queryKey: ["migrated-customer-record", decodedEmail] });
+                      toast({ title: checked ? "Customer resubscribed to SMS" : "Customer opted out of SMS" });
+                    }}
+                  />
+                </CardContent>
+              </Card>
+            )}
                 </div>
                 {visibleDogs.length > 0 ? (
                   <div className="space-y-2">
