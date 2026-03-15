@@ -413,6 +413,7 @@ function BulkSmsCampaign() {
                 { value: "all" as const, label: "All customers" },
                 { value: "has_upcoming" as const, label: "Has upcoming booking" },
                 { value: "no_upcoming" as const, label: "No upcoming booking" },
+                { value: "manual" as const, label: "Manual numbers" },
               ].map(f => (
                 <Button
                   key={f.value}
@@ -425,6 +426,19 @@ function BulkSmsCampaign() {
                 </Button>
               ))}
             </div>
+            {filter === "manual" && (
+              <div className="mt-2 space-y-1">
+                <Textarea
+                  value={manualNumbers}
+                  onChange={e => setManualNumbers(e.target.value)}
+                  placeholder={"Enter phone numbers, one per line or comma-separated:\n07912345678\n+447912345678\n07987654321"}
+                  className="min-h-[100px] resize-none font-mono text-xs"
+                />
+                <p className="text-[10px] text-muted-foreground">
+                  {manualNumberList.length} number{manualNumberList.length !== 1 ? "s" : ""} entered. UK mobile formats accepted (07..., +447..., 447...).
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Preview */}
