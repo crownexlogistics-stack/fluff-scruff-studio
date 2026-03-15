@@ -32,6 +32,21 @@ export function ViewOrderDialog({ open, onOpenChange, booking, userRole, onRefun
   const [processingRefund, setProcessingRefund] = useState(false);
   const [requestingDeposit, setRequestingDeposit] = useState(false);
 
+  // Fetch coupon usage for this booking
+  const { data: couponUsage } = useQuery({
+    queryKey: ["booking-coupon", booking?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("coupon_usages")
+        .select("*, coupons(code, discount_type, discount_value)")
+        .eq("booking_id", booking!.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data as any;
+    },
+    enabled: !!booking,
+  });
+
   if (!booking) return null;
 
   const total = Number(booking.total_price);
