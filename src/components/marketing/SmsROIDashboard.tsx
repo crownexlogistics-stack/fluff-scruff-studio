@@ -13,6 +13,8 @@ interface SmsCampaignROI {
   attributedRevenue: number;
   conversionRate: number;
   deliveryRate: number;
+  clickAttributed: number;
+  couponAttributed: number;
 }
 
 export function SmsROIDashboard() {
