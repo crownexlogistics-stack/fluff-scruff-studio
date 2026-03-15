@@ -139,7 +139,7 @@ export function BookingPopoverCard({
   }
 
   return (
-    <ScrollHintWrapper className="max-h-[75dvh]">
+    <ScrollHintWrapper className="max-h-[85dvh]">
     <div className="p-4 space-y-3">
       {/* Top: Customer info */}
       <div className="flex items-center gap-3">
