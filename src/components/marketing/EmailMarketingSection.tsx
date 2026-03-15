@@ -1204,6 +1204,40 @@ export function EmailMarketingSection() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* View Failed Emails Dialog */}
+      <Dialog open={!!viewFailedCampaignId} onOpenChange={(open) => !open && setViewFailedCampaignId(null)}>
+        <DialogContent className="max-w-lg max-h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <XCircle className="h-5 w-5" />
+              Failed Sends
+            </DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="flex-1 min-h-0 max-h-[50vh]">
+            <div className="space-y-2 pr-3">
+              {viewFailedCampaignId && sendLogStats.get(viewFailedCampaignId)?.failedEmails.map((f, i) => (
+                <div key={i} className="border rounded-md p-3 space-y-1">
+                  <p className="text-sm font-medium">{f.email}</p>
+                  <p className="text-xs text-muted-foreground truncate">{f.error}</p>
+                </div>
+              ))}
+              {viewFailedCampaignId && !sendLogStats.get(viewFailedCampaignId)?.failedEmails.length && (
+                <p className="text-muted-foreground text-center py-6">No failed sends found.</p>
+              )}
+            </div>
+          </ScrollArea>
+          <div className="pt-3 border-t flex justify-between">
+            <Button variant="outline" size="sm" className="gap-1" onClick={() => {
+              if (viewFailedCampaignId) retryMutation.mutate(viewFailedCampaignId);
+              setViewFailedCampaignId(null);
+            }} disabled={retryMutation.isPending}>
+              <Send className="h-3.5 w-3.5" /> Retry All Failed
+            </Button>
+            <Button onClick={() => setViewFailedCampaignId(null)}>Close</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
