@@ -30,9 +30,10 @@ interface WeeklyCalendarProps {
   onCheckout?: (booking: BookingData) => void;
 }
 
-const START_HOUR = 8;
+const START_HOUR = 9;
 const END_HOUR = 18;
 const HOURS = Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, i) => START_HOUR + i);
+const TOTAL_SLOTS = HOURS.length;
 const DAYS = Array.from({ length: 7 }, (_, i) => i);
 
 const DEFAULT_DURATION = 1.5; // hours
