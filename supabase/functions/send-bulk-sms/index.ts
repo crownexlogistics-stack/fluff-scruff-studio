@@ -347,7 +347,18 @@ Deno.serve(async (req) => {
 
       // Process in background — return immediately
       EdgeRuntime.waitUntil(
-        processBulkSend(retryRecipients, fullMessage, existingCampaignName, message, twilioUrl, twilioAuth, statusCallbackUrl, supabase)
+        processBulkSend(
+          retryRecipients,
+          fullMessage,
+          existingCampaignName,
+          message,
+          twilioUrl,
+          twilioAuth,
+          statusCallbackUrl,
+          sendMode,
+          twilioFromNumber,
+          supabase,
+        )
           .catch(err => console.error("Background retry error:", err))
       );
 
