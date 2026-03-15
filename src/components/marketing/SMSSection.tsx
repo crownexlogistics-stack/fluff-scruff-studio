@@ -173,7 +173,8 @@ interface CampaignData {
 function BulkSmsCampaign() {
   const queryClient = useQueryClient();
   const [bulkMessage, setBulkMessage] = useState("");
-  const [filter, setFilter] = useState<"all" | "has_upcoming" | "no_upcoming">("all");
+  const [filter, setFilter] = useState<"all" | "has_upcoming" | "no_upcoming" | "manual">("all");
+  const [manualNumbers, setManualNumbers] = useState("");
   const [viewFailedCampaign, setViewFailedCampaign] = useState<string | null>(null);
   const [viewDetailsCampaign, setViewDetailsCampaign] = useState<string | null>(null);
 
@@ -290,14 +291,27 @@ function BulkSmsCampaign() {
 
   const bulkCharCount = bulkMessage.length;
   const bulkSmsCount = Math.ceil(bulkCharCount / 160) || 1;
-  const recipientCount = customerStats?.total || 0;
+
+  const manualNumberList = useMemo(() => {
+    if (filter !== "manual") return [];
+    return manualNumbers
+      .split(/[\n,;]+/)
+      .map(n => n.trim())
+      .filter(n => n.length > 0);
+  }, [manualNumbers, filter]);
+
+  const recipientCount = filter === "manual" ? manualNumberList.length : (customerStats?.total || 0);
   const unreachableCount = customerStats?.unreachable || 0;
   const estimatedCost = (recipientCount * bulkSmsCount * 0.04).toFixed(2);
 
   const sendBulkMutation = useMutation({
     mutationFn: async () => {
+      const payload: Record<string, unknown> = { message: bulkMessage, filter };
+      if (filter === "manual") {
+        payload.manualNumbers = manualNumberList;
+      }
       const { data, error } = await supabase.functions.invoke("send-bulk-sms", {
-        body: { message: bulkMessage, filter },
+        body: payload,
       });
       if (error) throw error;
       if (data.error) throw new Error(data.error);
@@ -399,6 +413,7 @@ function BulkSmsCampaign() {
                 { value: "all" as const, label: "All customers" },
                 { value: "has_upcoming" as const, label: "Has upcoming booking" },
                 { value: "no_upcoming" as const, label: "No upcoming booking" },
+                { value: "manual" as const, label: "Manual numbers" },
               ].map(f => (
                 <Button
                   key={f.value}
@@ -411,6 +426,19 @@ function BulkSmsCampaign() {
                 </Button>
               ))}
             </div>
+            {filter === "manual" && (
+              <div className="mt-2 space-y-1">
+                <Textarea
+                  value={manualNumbers}
+                  onChange={e => setManualNumbers(e.target.value)}
+                  placeholder={"Enter phone numbers, one per line or comma-separated:\n07912345678\n+447912345678\n07987654321"}
+                  className="min-h-[100px] resize-none font-mono text-xs"
+                />
+                <p className="text-[10px] text-muted-foreground">
+                  {manualNumberList.length} number{manualNumberList.length !== 1 ? "s" : ""} entered. UK mobile formats accepted (07..., +447..., 447...).
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Preview */}
