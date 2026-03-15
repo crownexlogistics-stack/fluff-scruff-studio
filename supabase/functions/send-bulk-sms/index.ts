@@ -10,6 +10,82 @@ const DELAY_MS = 1000;
 const MAX_RETRIES = 3;
 const MESSAGING_SERVICE_SID = "MG3c95c22cb05574f545cc1b32d9db4600";
 
+type TwilioConfig = {
+  accountSid: string;
+  twilioUrl: string;
+  authHeader: string;
+};
+
+function getTwilioConfig(): TwilioConfig {
+  const accountSid = Deno.env.get("TWILIO_ACCOUNT_SID")?.trim();
+  const authToken = Deno.env.get("TWILIO_AUTH_TOKEN")?.trim();
+
+  if (!accountSid || !authToken) {
+    throw new Error("Twilio credentials not configured");
+  }
+
+  if (!accountSid.startsWith("AC")) {
+    throw new Error("Twilio Account SID is invalid (must start with AC)");
+  }
+
+  return {
+    accountSid,
+    twilioUrl: `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
+    authHeader: btoa(`${accountSid}:${authToken}`),
+  };
+}
+
+type TwilioSendMode = "messaging_service" | "from_number";
+
+function getTwilioFromNumber(): string | null {
+  const from = Deno.env.get("TWILIO_PHONE_NUMBER")?.trim();
+  return from && from.startsWith("+") ? from : null;
+}
+
+async function resolveTwilioSendMode(
+  accountSid: string,
+  authHeader: string,
+  twilioFromNumber: string | null,
+): Promise<TwilioSendMode> {
+  const serviceCheckUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messaging/Services/${MESSAGING_SERVICE_SID}.json`;
+
+  const res = await fetch(serviceCheckUrl, {
+    method: "GET",
+    headers: {
+      Authorization: `Basic ${authHeader}`,
+    },
+  });
+
+  if (res.ok) {
+    await res.text();
+    return "messaging_service";
+  }
+
+  const raw = await res.text();
+  let code: string | undefined;
+  let details = raw.slice(0, 300);
+  try {
+    const parsed = JSON.parse(raw);
+    code = parsed?.code ? String(parsed.code) : undefined;
+    details = parsed?.message || parsed?.detail || details;
+  } catch {
+    // keep raw details
+  }
+
+  const serviceUnavailable = res.status === 401 || res.status === 404 || code === "20003" || code === "20404";
+
+  if (serviceUnavailable && twilioFromNumber) {
+    console.warn("Messaging Service unavailable; falling back to TWILIO_PHONE_NUMBER sender");
+    return "from_number";
+  }
+
+  if (serviceUnavailable && !twilioFromNumber) {
+    throw new Error("Twilio Messaging Service is unavailable and TWILIO_PHONE_NUMBER is missing/invalid.");
+  }
+
+  throw new Error(`Twilio sender precheck failed (HTTP ${res.status}): ${details}`);
+}
+
 function delay(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -57,12 +133,20 @@ async function sendOneSms(
   twilioUrl: string,
   authHeader: string,
   statusCallbackUrl: string,
+  sendMode: TwilioSendMode,
+  twilioFromNumber: string | null,
 ): Promise<{ ok: boolean; error?: string; sid?: string; errorCode?: string }> {
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     try {
       const params = new URLSearchParams();
       params.append("To", phone);
-      params.append("MessagingServiceSid", MESSAGING_SERVICE_SID);
+      if (sendMode === "messaging_service") {
+        params.append("MessagingServiceSid", MESSAGING_SERVICE_SID);
+      } else if (twilioFromNumber) {
+        params.append("From", twilioFromNumber);
+      } else {
+        return { ok: false, error: "No valid Twilio sender available" };
+      }
       params.append("Body", body);
       params.append("StatusCallback", statusCallbackUrl);
 
@@ -177,6 +261,8 @@ async function processBulkSend(
   twilioUrl: string,
   twilioAuth: string,
   statusCallbackUrl: string,
+  sendMode: TwilioSendMode,
+  twilioFromNumber: string | null,
   supabase: any,
 ) {
   let sent = 0, failed = 0;
@@ -185,7 +271,15 @@ async function processBulkSend(
     const batch = recipients.slice(i, i + BATCH_SIZE);
     for (const recipient of batch) {
       const trackableMsg = await makeTrackableMessage(fullMessage, campaignName, recipient.phone);
-      const result = await sendOneSms(recipient.phone, trackableMsg, twilioUrl, twilioAuth, statusCallbackUrl);
+      const result = await sendOneSms(
+        recipient.phone,
+        trackableMsg,
+        twilioUrl,
+        twilioAuth,
+        statusCallbackUrl,
+        sendMode,
+        twilioFromNumber,
+      );
       const status = result.ok ? "sent" : "failed";
       await supabase.from("bulk_sms_log").insert({
         campaign_name: campaignName, message, phone: recipient.phone,
@@ -207,9 +301,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const TWILIO_ACCOUNT_SID = Deno.env.get("TWILIO_ACCOUNT_SID");
-    const TWILIO_AUTH_TOKEN = Deno.env.get("TWILIO_AUTH_TOKEN");
-    if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN) throw new Error("Twilio credentials not configured");
+    const { accountSid, twilioUrl, authHeader: twilioAuth } = getTwilioConfig();
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -229,8 +321,9 @@ Deno.serve(async (req) => {
     const STOP_SUFFIX = " Reply STOP to unsubscribe.";
     const fullMessage = message.endsWith(STOP_SUFFIX) ? message : message + STOP_SUFFIX;
 
-    const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`;
-    const twilioAuth = btoa(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`);
+    const twilioFromNumber = getTwilioFromNumber();
+    const sendMode = await resolveTwilioSendMode(accountSid, twilioAuth, twilioFromNumber);
+
     const statusCallbackUrl = `${supabaseUrl}/functions/v1/twilio-sms-status`;
 
     // Retry failed mode — use background processing
@@ -256,7 +349,18 @@ Deno.serve(async (req) => {
 
       // Process in background — return immediately
       EdgeRuntime.waitUntil(
-        processBulkSend(retryRecipients, fullMessage, existingCampaignName, message, twilioUrl, twilioAuth, statusCallbackUrl, supabase)
+        processBulkSend(
+          retryRecipients,
+          fullMessage,
+          existingCampaignName,
+          message,
+          twilioUrl,
+          twilioAuth,
+          statusCallbackUrl,
+          sendMode,
+          twilioFromNumber,
+          supabase,
+        )
           .catch(err => console.error("Background retry error:", err))
       );
 
@@ -349,7 +453,18 @@ Deno.serve(async (req) => {
     // For large sends (>50 recipients), use background processing
     if (recipients.length > 50) {
       EdgeRuntime.waitUntil(
-        processBulkSend(recipients, fullMessage, cName, message, twilioUrl, twilioAuth, statusCallbackUrl, supabase)
+        processBulkSend(
+          recipients,
+          fullMessage,
+          cName,
+          message,
+          twilioUrl,
+          twilioAuth,
+          statusCallbackUrl,
+          sendMode,
+          twilioFromNumber,
+          supabase,
+        )
           .catch(err => console.error("Background send error:", err))
       );
 
@@ -369,7 +484,15 @@ Deno.serve(async (req) => {
       const batch = recipients.slice(i, i + BATCH_SIZE);
       for (const recipient of batch) {
         const trackableMsg = await makeTrackableMessage(fullMessage, cName, recipient.phone);
-        const result = await sendOneSms(recipient.phone, trackableMsg, twilioUrl, twilioAuth, statusCallbackUrl);
+        const result = await sendOneSms(
+          recipient.phone,
+          trackableMsg,
+          twilioUrl,
+          twilioAuth,
+          statusCallbackUrl,
+          sendMode,
+          twilioFromNumber,
+        );
         const status = result.ok ? "sent" : "failed";
         await supabase.from("bulk_sms_log").insert({
           campaign_name: cName, message, phone: recipient.phone,
