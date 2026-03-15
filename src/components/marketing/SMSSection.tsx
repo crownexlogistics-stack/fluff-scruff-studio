@@ -193,6 +193,8 @@ function BulkSmsCampaign() {
   const [manualNumbers, setManualNumbers] = useState("");
   const [viewFailedCampaign, setViewFailedCampaign] = useState<string | null>(null);
   const [viewDetailsCampaign, setViewDetailsCampaign] = useState<string | null>(null);
+  const [testPhone, setTestPhone] = useState("");
+  const [testSending, setTestSending] = useState(false);
 
   const TEMPLATES = [
     { label: "Appointment Reminder", text: "Hi! Reminder: Your dog's grooming appointment at Fluff & Scruff Studio is tomorrow. Please arrive 5 minutes early. Call 01708 606655 if you need to reschedule. See you soon! 🐾" },
