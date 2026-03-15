@@ -412,7 +412,8 @@ export function EmailMarketingSection() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["email-campaigns"] });
-      toast.success(`Campaign sent! ${data.sent} emails delivered, ${data.skipped} unsubscribed skipped.`);
+      queryClient.invalidateQueries({ queryKey: ["campaign-send-logs"] });
+      toast.success(`Campaign sent! ${data.sent} delivered, ${data.failed || 0} failed, ${data.skipped} skipped.`);
       setActiveTab("campaigns");
       setActiveFolder("sent");
     },
