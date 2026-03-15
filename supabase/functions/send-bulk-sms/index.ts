@@ -47,12 +47,11 @@ async function makeTrackableMessage(
   phone: string,
 ): Promise<string> {
   const phoneHash = await hashPhone(phone);
-  // Match http/https URLs
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   return body.replace(
     /(https?:\/\/[^\s]+)/g,
     (url: string) => {
-      const trackUrl = `https://fluffandscruff.co.uk/track?c=${encodeURIComponent(campaignName)}&p=${phoneHash}&url=${encodeURIComponent(url)}`;
-      return trackUrl;
+      return `${supabaseUrl}/functions/v1/sms-track?c=${encodeURIComponent(campaignName)}&p=${phoneHash}&url=${encodeURIComponent(url)}`;
     }
   );
 }
