@@ -525,7 +525,7 @@ export function GroomerCalendar({ currentDate, daysToShow, staff, bookings, curr
                               myColor.bg, myColor.text,
                               isGhost && "line-through opacity-40"
                             )}
-                            style={{ top: `${topOffset}px`, height: `${height}px`, minHeight: isGhost ? "20px" : "60px" }}
+                            style={{ top: `${topOffset}px`, height: `${height}px`, minHeight: isGhost ? "20px" : "60px", zIndex: zIdx }}
                           >
                             {booking.is_migrated && (
                               <span className="absolute top-1 right-1.5 bg-amber-500 text-white text-[8px] font-bold rounded px-1 leading-tight z-20">W</span>
