@@ -17,13 +17,17 @@ function delay(ms: number) {
 
 function normalizeUkMobile(raw: string): string | null {
   if (!raw) return null;
-  let phone = raw.trim().replace(/\s+/g, "").replace(/-/g, "");
+  let phone = raw.trim().replace(/\s+/g, "").replace(/-/g, "").replace(/\(/g, "").replace(/\)/g, "");
+  // Handle +440 prefix (double zero, e.g. +4407...)
+  if (phone.startsWith("+440")) phone = "+44" + phone.slice(4);
+  // Standard conversions
   if (phone.startsWith("07")) phone = "+44" + phone.slice(1);
-  else if (phone.startsWith("447")) phone = "+" + phone;
-  else if (phone.startsWith("+447")) { /* ok */ }
+  else if (phone.startsWith("7") && phone.length === 10) phone = "+44" + phone;
+  else if (phone.startsWith("447") && !phone.startsWith("+")) phone = "+" + phone;
+  else if (phone.startsWith("+447")) { /* already correct */ }
+  // Skip landlines (01, 02, 03) and non-UK numbers
   else return null;
-  if (!/^\+44\d{10}$/.test(phone)) return null;
-  if (!phone.startsWith("+447")) return null;
+  if (!/^\+447\d{9}$/.test(phone)) return null;
   return phone;
 }
 
