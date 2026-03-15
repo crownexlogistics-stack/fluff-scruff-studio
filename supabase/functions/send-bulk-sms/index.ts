@@ -126,6 +126,10 @@ serve(async (req) => {
     const { message, campaignName, filter, retryFailed, existingCampaignName, manualNumbers } = await req.json();
     if (!message) throw new Error("message is required");
 
+    // Auto-append STOP instruction
+    const STOP_SUFFIX = " Reply STOP to unsubscribe.";
+    const fullMessage = message.endsWith(STOP_SUFFIX) ? message : message + STOP_SUFFIX;
+
     const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`;
     const twilioAuth = btoa(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`);
     const statusCallbackUrl = `${supabaseUrl}/functions/v1/twilio-sms-status`;
