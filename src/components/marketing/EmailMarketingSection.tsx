@@ -577,6 +577,18 @@ export function EmailMarketingSection() {
 
         {/* ── CREATE TAB ─────────────────────────────── */}
         <TabsContent value="create" className="space-y-6">
+          {/* Editing banner */}
+          {editingCampaignId && (
+            <div className="flex items-center justify-between bg-primary/10 border border-primary/20 rounded-lg px-4 py-3">
+              <div className="flex items-center gap-2">
+                <Pencil className="h-4 w-4 text-primary" />
+                <span className="text-sm font-medium">Editing: <strong>{generatedSubject || "Untitled"}</strong></span>
+              </div>
+              <Button variant="ghost" size="sm" onClick={cancelEditing} className="gap-1 text-xs">
+                <X className="h-3.5 w-3.5" /> Cancel Edit
+              </Button>
+            </div>
+          )}
           {/* AI Prompt Section */}
           <Card>
             <CardHeader className="pb-3">
