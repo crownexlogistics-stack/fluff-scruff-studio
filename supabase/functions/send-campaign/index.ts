@@ -187,14 +187,14 @@ serve(async (req) => {
       }
     }
 
-    // A/B test logic
+    // A/B test logic — use emailsToSend (already filtered for resume)
     const isABTest = variantBSubject && abTestPercentage && abTestPercentage > 0;
-    let groupA: string[] = validEmails;
+    let groupA: string[] = emailsToSend;
     let groupB: string[] = [];
     let groupRemainder: string[] = [];
 
     if (isABTest) {
-      const shuffled = [...validEmails].sort(() => Math.random() - 0.5);
+      const shuffled = [...emailsToSend].sort(() => Math.random() - 0.5);
       const testSize = Math.floor(shuffled.length * (abTestPercentage / 100));
       groupA = shuffled.slice(0, testSize);
       groupB = shuffled.slice(testSize, testSize * 2);
