@@ -570,32 +570,44 @@ export type Database = {
         Row: {
           campaign_name: string | null
           customer_name: string | null
+          delivery_status: string | null
+          delivery_updated_at: string | null
+          error_code: string | null
           error_message: string | null
           id: string
           message: string
           phone: string
           sent_at: string | null
           status: string
+          twilio_message_sid: string | null
         }
         Insert: {
           campaign_name?: string | null
           customer_name?: string | null
+          delivery_status?: string | null
+          delivery_updated_at?: string | null
+          error_code?: string | null
           error_message?: string | null
           id?: string
           message: string
           phone: string
           sent_at?: string | null
           status?: string
+          twilio_message_sid?: string | null
         }
         Update: {
           campaign_name?: string | null
           customer_name?: string | null
+          delivery_status?: string | null
+          delivery_updated_at?: string | null
+          error_code?: string | null
           error_message?: string | null
           id?: string
           message?: string
           phone?: string
           sent_at?: string | null
           status?: string
+          twilio_message_sid?: string | null
         }
         Relationships: []
       }
@@ -1699,6 +1711,7 @@ export type Database = {
           invited_at: string | null
           phone: string | null
           profile_id: string | null
+          sms_unreachable: boolean | null
           status: string
           supabase_user_id: string | null
         }
@@ -1711,6 +1724,7 @@ export type Database = {
           invited_at?: string | null
           phone?: string | null
           profile_id?: string | null
+          sms_unreachable?: boolean | null
           status?: string
           supabase_user_id?: string | null
         }
@@ -1723,6 +1737,7 @@ export type Database = {
           invited_at?: string | null
           phone?: string | null
           profile_id?: string | null
+          sms_unreachable?: boolean | null
           status?: string
           supabase_user_id?: string | null
         }
@@ -2386,6 +2401,30 @@ export type Database = {
           key?: string
           updated_at?: string
           value?: Json
+        }
+        Relationships: []
+      }
+      sms_link_clicks: {
+        Row: {
+          campaign_name: string | null
+          clicked_at: string | null
+          destination_url: string | null
+          id: string
+          phone_hash: string | null
+        }
+        Insert: {
+          campaign_name?: string | null
+          clicked_at?: string | null
+          destination_url?: string | null
+          id?: string
+          phone_hash?: string | null
+        }
+        Update: {
+          campaign_name?: string | null
+          clicked_at?: string | null
+          destination_url?: string | null
+          id?: string
+          phone_hash?: string | null
         }
         Relationships: []
       }
