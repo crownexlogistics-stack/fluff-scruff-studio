@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,9 +6,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { MessageSquare, Send, Loader2, Phone, ArrowUpRight, ArrowDownLeft, Bell, CheckCircle2, AlertTriangle, Clock } from "lucide-react";
+import {
+  MessageSquare, Send, Loader2, Phone, ArrowUpRight, ArrowDownLeft,
+  Bell, CheckCircle2, AlertTriangle, Clock, Users, XCircle, Megaphone
+} from "lucide-react";
 
 export function SMSSection() {
   const queryClient = useQueryClient();
@@ -104,6 +110,11 @@ export function SMSSection() {
       {/* Automated SMS Reminders Log */}
       <SmsRemindersLog />
 
+      <Separator className="my-8" />
+
+      {/* Bulk SMS Campaign */}
+      <BulkSmsCampaign />
+
       {/* SMS History */}
       <Card>
         <CardHeader className="pb-3">
@@ -141,6 +152,308 @@ export function SMSSection() {
   );
 }
 
+// ─── BULK SMS CAMPAIGN ──────────────────────────────────
+function BulkSmsCampaign() {
+  const queryClient = useQueryClient();
+  const [bulkMessage, setBulkMessage] = useState("");
+  const [filter, setFilter] = useState<"all" | "has_upcoming" | "no_upcoming">("all");
+  const [viewFailedCampaign, setViewFailedCampaign] = useState<string | null>(null);
+
+  const TEMPLATES = [
+    { label: "Appointment Reminder", text: "Hi! Reminder: Your dog's grooming appointment at Fluff & Scruff Studio is tomorrow. Please arrive 5 minutes early. Call 01708 606655 if you need to reschedule. See you soon! 🐾" },
+    { label: "Booking Confirmation", text: "Your grooming appointment at Fluff & Scruff Studio has been confirmed! We look forward to seeing you and your furry friend. 📍 138 Hillview Avenue, Hornchurch RM11 2DL" },
+    { label: "Follow Up", text: "Hi! Thank you for visiting Fluff & Scruff Studio. We hope your pup is looking fabulous! Ready to rebook? Call 01708 606655 or visit fluffandscruff.co.uk/book 🐾" },
+  ];
+
+  // Fetch customer phone numbers for count
+  const { data: customerCount } = useQuery({
+    queryKey: ["bulk-sms-customer-count"],
+    queryFn: async () => {
+      const phoneSet = new Set<string>();
+
+      const { data: mc } = await supabase.from("migrated_customers").select("phone").not("phone", "is", null);
+      for (const c of (mc || [])) {
+        if (c.phone) {
+          const n = normalizePhone(c.phone);
+          if (n) phoneSet.add(n);
+        }
+      }
+
+      const { data: bk } = await supabase.from("bookings").select("customer_phone").not("customer_phone", "is", null);
+      for (const b of (bk || [])) {
+        if (b.customer_phone) {
+          const n = normalizePhone(b.customer_phone);
+          if (n) phoneSet.add(n);
+        }
+      }
+
+      return phoneSet.size;
+    },
+  });
+
+  // Fetch campaign history
+  const { data: campaignHistory, isLoading: historyLoading } = useQuery({
+    queryKey: ["bulk-sms-history"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("bulk_sms_log")
+        .select("campaign_name, message, status, sent_at, phone, error_message")
+        .order("sent_at", { ascending: false });
+      if (error) throw error;
+
+      // Group by campaign_name
+      const campaigns = new Map<string, { name: string; message: string; sent: number; failed: number; skipped: number; date: string; failedEntries: { phone: string; error: string }[] }>();
+      for (const log of (data || [])) {
+        const key = log.campaign_name || "Unknown";
+        if (!campaigns.has(key)) {
+          campaigns.set(key, { name: key, message: log.message, sent: 0, failed: 0, skipped: 0, date: log.sent_at, failedEntries: [] });
+        }
+        const c = campaigns.get(key)!;
+        if (log.status === "sent") c.sent++;
+        else if (log.status === "failed") {
+          c.failed++;
+          c.failedEntries.push({ phone: log.phone, error: log.error_message || "Unknown" });
+        }
+        else c.skipped++;
+      }
+      return Array.from(campaigns.values());
+    },
+  });
+
+  const bulkCharCount = bulkMessage.length;
+  const bulkSmsCount = Math.ceil(bulkCharCount / 160) || 1;
+  const recipientCount = customerCount || 0;
+  const estimatedCost = (recipientCount * bulkSmsCount * 0.04).toFixed(2);
+
+  const sendBulkMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke("send-bulk-sms", {
+        body: { message: bulkMessage, filter },
+      });
+      if (error) throw error;
+      if (data.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["bulk-sms-history"] });
+      if (data.remaining > 0) {
+        toast.info(`Sent ${data.sent} so far — ${data.remaining} remaining. Function timed out. Click "Continue Sending" to resume.`);
+      } else {
+        toast.success(`Bulk SMS complete! ${data.sent} sent, ${data.failed || 0} failed.`);
+      }
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const retryMutation = useMutation({
+    mutationFn: async (campaignName: string) => {
+      const campaign = campaignHistory?.find(c => c.name === campaignName);
+      const { data, error } = await supabase.functions.invoke("send-bulk-sms", {
+        body: { message: campaign?.message || bulkMessage, retryFailed: true, existingCampaignName: campaignName },
+      });
+      if (error) throw error;
+      if (data.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["bulk-sms-history"] });
+      if (data.noFailedToRetry) {
+        toast.info("No failed SMS to retry — all were successful!");
+      } else {
+        toast.success(`Retry complete! ${data.sent} sent, ${data.failed || 0} still failed.`);
+      }
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const failedCampaignEntries = viewFailedCampaign
+    ? campaignHistory?.find(c => c.name === viewFailedCampaign)?.failedEntries || []
+    : [];
+
+  return (
+    <>
+      <Card className="border-2 border-dashed border-primary/30">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Megaphone className="h-5 w-5 text-primary" />
+            Bulk SMS Campaign
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          {/* Quick Templates */}
+          <div>
+            <label className="text-xs font-medium text-muted-foreground mb-2 block">Quick Templates</label>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+              {TEMPLATES.map(t => (
+                <button key={t.label} onClick={() => setBulkMessage(t.text)} className="text-left border rounded-lg p-2.5 hover:bg-muted/50 transition-colors space-y-0.5">
+                  <p className="text-xs font-medium">{t.label}</p>
+                  <p className="text-[10px] text-muted-foreground line-clamp-2">{t.text}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Message */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground flex items-center justify-between">
+              <span>Message</span>
+              <span>{bulkCharCount}/160 ({bulkSmsCount} SMS per recipient)</span>
+            </label>
+            <Textarea
+              value={bulkMessage}
+              onChange={e => setBulkMessage(e.target.value)}
+              placeholder="Type your bulk SMS message..."
+              className="min-h-[100px] resize-none"
+              maxLength={480}
+            />
+          </div>
+
+          {/* Filter */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">Recipients</label>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { value: "all" as const, label: "All customers" },
+                { value: "has_upcoming" as const, label: "Has upcoming booking" },
+                { value: "no_upcoming" as const, label: "No upcoming booking" },
+              ].map(f => (
+                <Button
+                  key={f.value}
+                  variant={filter === f.value ? "default" : "outline"}
+                  size="sm"
+                  className="text-xs"
+                  onClick={() => setFilter(f.value)}
+                >
+                  {f.label}
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          {/* Preview */}
+          <div className="bg-muted/50 border rounded-lg p-4 space-y-1">
+            <div className="flex items-center gap-2 text-sm">
+              <Users className="h-4 w-4 text-muted-foreground" />
+              <span className="font-medium">
+                This will send {bulkSmsCount} SMS × {recipientCount} customers = ~{recipientCount * bulkSmsCount} messages
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Estimated cost: £{estimatedCost} (at £0.04 per SMS segment)
+            </p>
+          </div>
+
+          {/* Send */}
+          <Button
+            onClick={() => sendBulkMutation.mutate()}
+            disabled={!bulkMessage.trim() || sendBulkMutation.isPending || recipientCount === 0}
+            className="gap-1.5"
+            size="lg"
+          >
+            {sendBulkMutation.isPending ? (
+              <><Loader2 className="h-4 w-4 animate-spin" /> Sending...</>
+            ) : (
+              <><Send className="h-4 w-4" /> Confirm &amp; Send Bulk SMS</>
+            )}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Campaign History */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Clock className="h-5 w-5" /> Bulk SMS Campaign History
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {historyLoading ? (
+            <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin" /></div>
+          ) : !campaignHistory?.length ? (
+            <p className="text-center text-muted-foreground py-8">No bulk SMS campaigns sent yet.</p>
+          ) : (
+            <div className="space-y-3">
+              {campaignHistory.map(c => (
+                <div key={c.name} className="border rounded-lg p-3 space-y-2">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">{c.name}</p>
+                      <p className="text-xs text-muted-foreground line-clamp-1">{c.message}</p>
+                    </div>
+                    <p className="text-xs text-muted-foreground shrink-0">
+                      {format(new Date(c.date), "d MMM yyyy HH:mm")}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <Badge variant="outline" className="gap-1 text-xs bg-green-50 text-green-700 border-green-200">
+                      <CheckCircle2 className="h-3 w-3" /> {c.sent} sent
+                    </Badge>
+                    {c.failed > 0 && (
+                      <Badge variant="outline" className="gap-1 text-xs bg-red-50 text-red-700 border-red-200">
+                        <XCircle className="h-3 w-3" /> {c.failed} failed
+                      </Badge>
+                    )}
+                    {c.skipped > 0 && (
+                      <Badge variant="outline" className="gap-1 text-xs bg-muted">
+                        {c.skipped} skipped
+                      </Badge>
+                    )}
+                    {c.failed > 0 && (
+                      <>
+                        <Button variant="ghost" size="sm" className="text-xs h-6 text-red-600" onClick={() => setViewFailedCampaign(c.name)}>
+                          View Failed
+                        </Button>
+                        <Button variant="outline" size="sm" className="text-xs h-6 gap-1" onClick={() => retryMutation.mutate(c.name)} disabled={retryMutation.isPending}>
+                          {retryMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
+                          Retry Failed
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* View Failed Dialog */}
+      <Dialog open={!!viewFailedCampaign} onOpenChange={() => setViewFailedCampaign(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Failed SMS Sends</DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="max-h-[50vh]">
+            <div className="space-y-2 pr-3">
+              {failedCampaignEntries.map((f, i) => (
+                <div key={i} className="border rounded-md p-3 space-y-1">
+                  <p className="text-sm font-medium">{f.phone}</p>
+                  <p className="text-xs text-muted-foreground">{f.error}</p>
+                </div>
+              ))}
+              {!failedCampaignEntries.length && (
+                <p className="text-muted-foreground text-center py-6">No failed sends found.</p>
+              )}
+            </div>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+function normalizePhone(raw: string): string | null {
+  if (!raw) return null;
+  let phone = raw.trim().replace(/\s+/g, "").replace(/-/g, "");
+  if (phone.startsWith("07")) phone = "+44" + phone.slice(1);
+  else if (phone.startsWith("447")) phone = "+" + phone;
+  else if (!phone.startsWith("+447")) return null;
+  if (!/^\+44\d{10}$/.test(phone)) return null;
+  if (!phone.startsWith("+447")) return null;
+  return phone;
+}
+
+// ─── AUTOMATED REMINDERS LOG ────────────────────────────
 function SmsRemindersLog() {
   const { data: reminderMessages, isLoading } = useQuery({
     queryKey: ["sms-reminder-logs"],
@@ -151,7 +464,6 @@ function SmsRemindersLog() {
         .order("created_at", { ascending: false })
         .limit(100);
       if (error) throw error;
-      // Filter to only reminder-type messages (linked to bookings OR containing reminder keywords)
       return (data || []).filter(m =>
         m.booking_id != null ||
         m.body.toLowerCase().includes("reminder") ||
@@ -160,12 +472,10 @@ function SmsRemindersLog() {
     },
   });
 
-  // Separate automated reminders from manual SMS (reminders contain "reminder" in body)
   const reminders = reminderMessages?.filter(m =>
     m.body.toLowerCase().includes("reminder") || m.body.toLowerCase().includes("upcoming") || m.body.toLowerCase().includes("appt at fluff")
   ) || [];
 
-  // Count stats
   const sent24h = reminders.filter(m => m.body.toLowerCase().includes("tomorrow") || m.body.toLowerCase().includes("appt at fluff")).length;
   const sent2h = reminders.filter(m => m.body.toLowerCase().includes("2 hours")).length;
 
@@ -177,7 +487,6 @@ function SmsRemindersLog() {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Stats */}
         <div className="grid grid-cols-3 gap-3">
           <div className="border rounded-lg p-3 text-center">
             <p className="text-2xl font-bold">{reminders.length}</p>
