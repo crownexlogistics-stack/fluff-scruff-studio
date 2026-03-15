@@ -123,7 +123,7 @@ serve(async (req) => {
     const { data: { user }, error: userErr } = await supabase.auth.getUser(token);
     if (userErr || !user) throw new Error("Not authenticated");
 
-    const { message, campaignName, filter, retryFailed, existingCampaignName } = await req.json();
+    const { message, campaignName, filter, retryFailed, existingCampaignName, manualNumbers } = await req.json();
     if (!message) throw new Error("message is required");
 
     const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`;
