@@ -172,6 +172,21 @@ serve(async (req) => {
 
     const skippedCount = recipientEmails.length - validEmails.length;
 
+    // Resume logic: skip emails already processed for this campaign
+    let emailsToSend = validEmails;
+    if (campaignId) {
+      const { data: alreadyProcessed } = await supabase
+        .from("campaign_send_log")
+        .select("email")
+        .eq("campaign_id", campaignId)
+        .in("status", ["sent", "skipped"]);
+      if (alreadyProcessed && alreadyProcessed.length > 0) {
+        const processedSet = new Set(alreadyProcessed.map((r: any) => r.email.toLowerCase().trim()));
+        emailsToSend = validEmails.filter((e: string) => !processedSet.has(e.toLowerCase().trim()));
+        console.log(`Resume: ${alreadyProcessed.length} already processed, ${emailsToSend.length} remaining`);
+      }
+    }
+
     // A/B test logic
     const isABTest = variantBSubject && abTestPercentage && abTestPercentage > 0;
     let groupA: string[] = validEmails;
