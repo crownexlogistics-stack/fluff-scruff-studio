@@ -86,6 +86,9 @@ export function EmailMarketingSection() {
   // Delete dialog
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
+  // Edit mode state
+  const [editingCampaignId, setEditingCampaignId] = useState<string | null>(null);
+
   // Test email state
   const [testEmail, setTestEmail] = useState("");
   const [showTestEmail, setShowTestEmail] = useState(false);
