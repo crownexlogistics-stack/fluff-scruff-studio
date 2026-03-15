@@ -49,6 +49,7 @@ export default function CouponsPage() {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyCoupon);
 
   const { data: coupons, isLoading } = useQuery({
