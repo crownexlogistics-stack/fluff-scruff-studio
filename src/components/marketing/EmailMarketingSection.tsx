@@ -1160,10 +1160,6 @@ export function EmailMarketingSection() {
           <AutomationsSection />
         </TabsContent>
 
-        {/* ── SMS TAB ─────────────────── */}
-        <TabsContent value="sms">
-          <SMSSection />
-        </TabsContent>
       </Tabs>
 
       {/* Delete confirmation dialog */}
