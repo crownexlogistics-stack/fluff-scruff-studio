@@ -35,10 +35,21 @@ function getTwilioConfig(): TwilioConfig {
   };
 }
 
-async function verifyTwilioCredentials(accountSid: string, authHeader: string): Promise<void> {
-  const verifyUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}.json`;
+type TwilioSendMode = "messaging_service" | "from_number";
 
-  const res = await fetch(verifyUrl, {
+function getTwilioFromNumber(): string | null {
+  const from = Deno.env.get("TWILIO_PHONE_NUMBER")?.trim();
+  return from && from.startsWith("+") ? from : null;
+}
+
+async function resolveTwilioSendMode(
+  accountSid: string,
+  authHeader: string,
+  twilioFromNumber: string | null,
+): Promise<TwilioSendMode> {
+  const serviceCheckUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messaging/Services/${MESSAGING_SERVICE_SID}.json`;
+
+  const res = await fetch(serviceCheckUrl, {
     method: "GET",
     headers: {
       Authorization: `Basic ${authHeader}`,
@@ -47,24 +58,30 @@ async function verifyTwilioCredentials(accountSid: string, authHeader: string): 
 
   if (res.ok) {
     await res.text();
-    return;
+    return "messaging_service";
   }
 
   const raw = await res.text();
-
-  if (res.status === 401) {
-    throw new Error("Twilio authentication failed (20003). Update TWILIO_ACCOUNT_SID/TWILIO_AUTH_TOKEN.");
-  }
-
+  let code: string | undefined;
   let details = raw.slice(0, 300);
   try {
     const parsed = JSON.parse(raw);
+    code = parsed?.code ? String(parsed.code) : undefined;
     details = parsed?.message || parsed?.detail || details;
   } catch {
     // keep raw details
   }
 
-  throw new Error(`Twilio auth precheck failed (HTTP ${res.status}): ${details}`);
+  if ((res.status === 401 || code === "20003") && twilioFromNumber) {
+    console.warn("Messaging Service auth failed; falling back to TWILIO_PHONE_NUMBER sender");
+    return "from_number";
+  }
+
+  if ((res.status === 401 || code === "20003") && !twilioFromNumber) {
+    throw new Error("Twilio Messaging Service auth failed (20003) and TWILIO_PHONE_NUMBER is missing/invalid.");
+  }
+
+  throw new Error(`Twilio sender precheck failed (HTTP ${res.status}): ${details}`);
 }
 
 function delay(ms: number) {
