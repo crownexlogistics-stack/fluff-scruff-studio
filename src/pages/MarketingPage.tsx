@@ -19,7 +19,7 @@ export default function MarketingPage() {
           <Route path="customers" element={<CustomersSection />} />
           <Route path="analytics" element={<BookingAnalyticsSection />} />
           <Route path="email" element={<EmailMarketingSection />} />
-          <Route path="sms" element={<SMSSection />} />
+          <Route path="sms/*" element={<SMSSection />} />
         </Routes>
       </div>
     </AppLayout>
