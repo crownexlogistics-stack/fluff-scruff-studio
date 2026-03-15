@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, Target, PoundSterling, BarChart3, MousePointerClick, Clock, MailOpen, Link2 } from "lucide-react";
+import { TrendingUp, Target, PoundSterling, BarChart3, MousePointerClick, Clock, MailOpen, Link2, Tag } from "lucide-react";
 import { format } from "date-fns";
 
 interface CampaignWithStats {
@@ -21,6 +21,8 @@ interface CampaignWithStats {
   conversionRate: number;
   openRate: number;
   clickRate: number;
+  clickAttributed: number;
+  couponAttributed: number;
 }
 
 export function CampaignROIDashboard() {
@@ -44,7 +46,7 @@ export function CampaignROIDashboard() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("bookings")
-        .select("id, attributed_campaign_id, total_price, status")
+        .select("id, attributed_campaign_id, total_price, status, attribution_source")
         .not("attributed_campaign_id", "is", null)
         .in("status", ["Pending", "Confirmed", "Completed"]);
       if (error) throw error;
@@ -59,6 +61,8 @@ export function CampaignROIDashboard() {
     const conversionRate = c.emails_sent > 0 ? (attributedCount / c.emails_sent) * 100 : 0;
     const openRate = c.emails_sent > 0 ? ((c.unique_opens || 0) / c.emails_sent) * 100 : 0;
     const clickRate = c.emails_sent > 0 ? ((c.unique_clicks || 0) / c.emails_sent) * 100 : 0;
+    const clickAttributed = bookings.filter(b => b.attribution_source === 'click').length;
+    const couponAttributed = bookings.filter(b => b.attribution_source === 'coupon').length;
 
     return {
       ...c,
@@ -67,6 +71,8 @@ export function CampaignROIDashboard() {
       conversionRate,
       openRate,
       clickRate,
+      clickAttributed,
+      couponAttributed,
     };
   });
 
@@ -199,6 +205,18 @@ export function CampaignROIDashboard() {
                       <MousePointerClick className="h-3 w-3" />
                       {c.attributedBookings} attributed
                     </Badge>
+                    {c.clickAttributed > 0 && (
+                      <Badge variant="default" className="gap-1 text-xs">
+                        <Link2 className="h-3 w-3" />
+                        {c.clickAttributed} via click
+                      </Badge>
+                    )}
+                    {c.couponAttributed > 0 && (
+                      <Badge variant="secondary" className="gap-1 text-xs">
+                        <Tag className="h-3 w-3" />
+                        {c.couponAttributed} via coupon
+                      </Badge>
+                    )}
                     <Badge variant={c.conversionRate > 5 ? "default" : "secondary"} className="text-xs">
                       {c.conversionRate.toFixed(1)}% conversion
                     </Badge>

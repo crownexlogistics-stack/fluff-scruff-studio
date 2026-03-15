@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { MessageSquare, Target, PoundSterling, TrendingUp, CheckCircle2, MousePointerClick, BarChart3 } from "lucide-react";
+import { MessageSquare, Target, PoundSterling, TrendingUp, CheckCircle2, MousePointerClick, BarChart3, Link2, Tag } from "lucide-react";
 
 interface SmsCampaignROI {
   name: string;
@@ -13,6 +13,8 @@ interface SmsCampaignROI {
   attributedRevenue: number;
   conversionRate: number;
   deliveryRate: number;
+  clickAttributed: number;
+  couponAttributed: number;
 }
 
 export function SmsROIDashboard() {
@@ -52,7 +54,7 @@ export function SmsROIDashboard() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("bookings")
-        .select("id, attributed_sms_campaign, total_price, status")
+        .select("id, attributed_sms_campaign, total_price, status, attribution_source")
         .not("attributed_sms_campaign", "is", null)
         .in("status", ["Pending", "Confirmed", "Completed"]);
       if (error) throw error;
@@ -77,6 +79,8 @@ export function SmsROIDashboard() {
     const attributedRevenue = bookings.reduce((sum, b) => sum + Number(b.total_price), 0);
     const conversionRate = stats.sent > 0 ? (attributedCount / stats.sent) * 100 : 0;
     const deliveryRate = stats.sent > 0 ? (stats.delivered / stats.sent) * 100 : 0;
+    const clickAttributed = bookings.filter(b => b.attribution_source === 'click').length;
+    const couponAttributed = bookings.filter(b => b.attribution_source === 'coupon').length;
 
     return {
       name,
@@ -87,6 +91,8 @@ export function SmsROIDashboard() {
       attributedRevenue,
       conversionRate,
       deliveryRate,
+      clickAttributed,
+      couponAttributed,
     };
   });
 
@@ -238,6 +244,18 @@ export function SmsROIDashboard() {
                       <Target className="h-3 w-3" />
                       {c.attributedBookings} attributed
                     </Badge>
+                    {c.clickAttributed > 0 && (
+                      <Badge variant="default" className="gap-1 text-xs">
+                        <Link2 className="h-3 w-3" />
+                        {c.clickAttributed} via click
+                      </Badge>
+                    )}
+                    {c.couponAttributed > 0 && (
+                      <Badge variant="secondary" className="gap-1 text-xs">
+                        <Tag className="h-3 w-3" />
+                        {c.couponAttributed} via coupon
+                      </Badge>
+                    )}
                     <Badge variant={c.conversionRate > 5 ? "default" : "secondary"} className="text-xs">
                       {c.conversionRate.toFixed(1)}% conversion
                     </Badge>

@@ -383,6 +383,7 @@ export type Database = {
           anomaly_type: string | null
           attributed_campaign_id: string | null
           attributed_sms_campaign: string | null
+          attribution_source: string | null
           booking_date: string
           booking_source: string | null
           booking_time: string
@@ -416,6 +417,7 @@ export type Database = {
           anomaly_type?: string | null
           attributed_campaign_id?: string | null
           attributed_sms_campaign?: string | null
+          attribution_source?: string | null
           booking_date: string
           booking_source?: string | null
           booking_time: string
@@ -449,6 +451,7 @@ export type Database = {
           anomaly_type?: string | null
           attributed_campaign_id?: string | null
           attributed_sms_campaign?: string | null
+          attribution_source?: string | null
           booking_date?: string
           booking_source?: string | null
           booking_time?: string
