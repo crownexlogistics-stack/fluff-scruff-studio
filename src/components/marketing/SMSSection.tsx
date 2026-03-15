@@ -371,6 +371,8 @@ function BulkSmsCampaign() {
       queryClient.invalidateQueries({ queryKey: ["bulk-sms-history"] });
       if (data.noFailedToRetry) {
         toast.info("No failed SMS to retry — all were successful!");
+      } else if (data.background) {
+        toast.success(`Retry started! ${data.totalQueued} messages queued for background processing. Refresh in a few minutes to see results.`);
       } else {
         toast.success(`Retry complete! ${data.sent} sent, ${data.failed || 0} still failed.`);
       }
