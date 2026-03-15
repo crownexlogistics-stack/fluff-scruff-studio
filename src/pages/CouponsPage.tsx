@@ -195,21 +195,23 @@ export default function CouponsPage() {
             </TableHeader>
             <TableBody>
               {coupons.map((coupon) => (
-                <TableRow key={coupon.id}>
+                <>
+                <TableRow key={coupon.id} className="cursor-pointer" onClick={() => setExpandedId(expandedId === coupon.id ? null : coupon.id)}>
                   <TableCell>
                     <div className="flex items-center gap-2">
+                      {expandedId === coupon.id ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
                       <code className="font-mono font-semibold text-foreground bg-muted px-2 py-0.5 rounded text-sm">
                         {coupon.code}
                       </code>
                       <button
-                        onClick={() => { navigator.clipboard.writeText(coupon.code); toast.success("Copied!"); }}
+                        onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(coupon.code); toast.success("Copied!"); }}
                         className="text-muted-foreground hover:text-foreground"
                       >
                         <Copy className="h-3.5 w-3.5" />
                       </button>
                     </div>
                     {coupon.description && (
-                      <p className="text-xs text-muted-foreground mt-0.5">{coupon.description}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5 ml-5">{coupon.description}</p>
                     )}
                   </TableCell>
                   <TableCell>
@@ -241,7 +243,7 @@ export default function CouponsPage() {
                           : "Ongoing"}
                   </TableCell>
                   <TableCell>
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                       <Switch
                         checked={coupon.is_active}
                         onCheckedChange={(checked) => toggleActive.mutate({ id: coupon.id, active: checked })}
@@ -258,6 +260,15 @@ export default function CouponsPage() {
                     </div>
                   </TableCell>
                 </TableRow>
+                {expandedId === coupon.id && (
+                  <TableRow key={`${coupon.id}-usage`}>
+                    <TableCell colSpan={6} className="bg-muted/30 p-4">
+                      <h4 className="text-sm font-semibold mb-2">Usage History</h4>
+                      <CouponUsageHistory couponId={coupon.id} couponCode={coupon.code} />
+                    </TableCell>
+                  </TableRow>
+                )}
+                </>
               ))}
             </TableBody>
           </Table>
