@@ -306,8 +306,12 @@ function BulkSmsCampaign() {
 
   const sendBulkMutation = useMutation({
     mutationFn: async () => {
+      const payload: Record<string, unknown> = { message: bulkMessage, filter };
+      if (filter === "manual") {
+        payload.manualNumbers = manualNumberList;
+      }
       const { data, error } = await supabase.functions.invoke("send-bulk-sms", {
-        body: { message: bulkMessage, filter },
+        body: payload,
       });
       if (error) throw error;
       if (data.error) throw new Error(data.error);
