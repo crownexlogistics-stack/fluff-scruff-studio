@@ -259,7 +259,7 @@ serve(async (req) => {
     for (let i = 0; i < recipients.length; i += BATCH_SIZE) {
       const batch = recipients.slice(i, i + BATCH_SIZE);
       for (const recipient of batch) {
-        const trackableMsg = await makeTrackableMessage(message, cName, recipient.phone);
+        const trackableMsg = await makeTrackableMessage(fullMessage, cName, recipient.phone);
         const result = await sendOneSms(recipient.phone, trackableMsg, twilioUrl, twilioAuth, statusCallbackUrl);
         const status = result.ok ? "sent" : "failed";
         await supabase.from("bulk_sms_log").insert({
