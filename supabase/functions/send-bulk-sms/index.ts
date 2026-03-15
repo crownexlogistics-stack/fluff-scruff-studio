@@ -258,8 +258,6 @@ async function processBulkSend(
   fullMessage: string,
   campaignName: string,
   message: string,
-  twilioUrl: string,
-  twilioAuth: string,
   statusCallbackUrl: string,
   sendMode: TwilioSendMode,
   twilioFromNumber: string | null,
@@ -269,6 +267,10 @@ async function processBulkSend(
 
   for (let i = 0; i < recipients.length; i += BATCH_SIZE) {
     const batch = recipients.slice(i, i + BATCH_SIZE);
+
+    // Re-read Twilio credentials fresh for each batch in background execution
+    const { twilioUrl, authHeader: twilioAuth } = getTwilioConfig();
+
     for (const recipient of batch) {
       const trackableMsg = await makeTrackableMessage(fullMessage, campaignName, recipient.phone);
       const result = await sendOneSms(
