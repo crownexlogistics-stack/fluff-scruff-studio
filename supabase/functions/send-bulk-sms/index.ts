@@ -190,11 +190,11 @@ serve(async (req) => {
       // Exclude sms_unreachable customers
       const { data: migratedCustomers } = await supabase
         .from("migrated_customers")
-        .select("phone, full_name, sms_unreachable")
+        .select("phone, full_name, sms_unreachable, sms_opt_out")
         .not("phone", "is", null);
 
       for (const mc of (migratedCustomers || [])) {
-        if (!mc.phone || mc.sms_unreachable) continue;
+        if (!mc.phone || mc.sms_unreachable || mc.sms_opt_out) continue;
         const normalized = normalizeUkMobile(mc.phone);
         if (normalized && !phoneMap.has(normalized)) {
           phoneMap.set(normalized, { phone: normalized, name: mc.full_name || "Customer" });
