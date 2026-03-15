@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ScrollHintWrapper } from "@/components/ui/scroll-hint-wrapper";
 import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -138,6 +139,7 @@ export function BookingPopoverCard({
   }
 
   return (
+    <ScrollHintWrapper className="max-h-[75dvh]">
     <div className="p-4 space-y-3">
       {/* Top: Customer info */}
       <div className="flex items-center gap-3">
@@ -513,5 +515,6 @@ export function BookingPopoverCard({
         )}
       </div>
     </div>
+    </ScrollHintWrapper>
   );
 }
