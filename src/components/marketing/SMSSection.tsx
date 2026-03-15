@@ -14,7 +14,7 @@ import { format } from "date-fns";
 import {
   MessageSquare, Send, Loader2, Phone, ArrowUpRight, ArrowDownLeft,
   Bell, CheckCircle2, AlertTriangle, Clock, Users, XCircle, Megaphone,
-  Link as LinkIcon, TrendingUp, BarChart3, Eye
+  Link as LinkIcon, TrendingUp, BarChart3, Eye, Target
 } from "lucide-react";
 
 export function SMSSection() {
