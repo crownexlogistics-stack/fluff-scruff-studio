@@ -264,9 +264,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const TWILIO_ACCOUNT_SID = Deno.env.get("TWILIO_ACCOUNT_SID");
-    const TWILIO_AUTH_TOKEN = Deno.env.get("TWILIO_AUTH_TOKEN");
-    if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN) throw new Error("Twilio credentials not configured");
+    const { accountSid, twilioUrl, authHeader: twilioAuth } = getTwilioConfig();
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -286,8 +284,9 @@ Deno.serve(async (req) => {
     const STOP_SUFFIX = " Reply STOP to unsubscribe.";
     const fullMessage = message.endsWith(STOP_SUFFIX) ? message : message + STOP_SUFFIX;
 
-    const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`;
-    const twilioAuth = btoa(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`);
+    // Validate credentials once up front so we fail fast instead of logging hundreds of auth failures.
+    await verifyTwilioCredentials(accountSid, twilioAuth);
+
     const statusCallbackUrl = `${supabaseUrl}/functions/v1/twilio-sms-status`;
 
     // Retry failed mode — use background processing
