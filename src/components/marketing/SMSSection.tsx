@@ -173,7 +173,8 @@ interface CampaignData {
 function BulkSmsCampaign() {
   const queryClient = useQueryClient();
   const [bulkMessage, setBulkMessage] = useState("");
-  const [filter, setFilter] = useState<"all" | "has_upcoming" | "no_upcoming">("all");
+  const [filter, setFilter] = useState<"all" | "has_upcoming" | "no_upcoming" | "manual">("all");
+  const [manualNumbers, setManualNumbers] = useState("");
   const [viewFailedCampaign, setViewFailedCampaign] = useState<string | null>(null);
   const [viewDetailsCampaign, setViewDetailsCampaign] = useState<string | null>(null);
 
