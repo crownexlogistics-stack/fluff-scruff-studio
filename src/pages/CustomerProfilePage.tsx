@@ -832,10 +832,15 @@ export default function CustomerProfilePage() {
                     <Badge className="bg-accent/15 text-accent border-accent/30"><UserCheck className="h-3 w-3 mr-1" />Own Customer</Badge>
                   )}
                   {unsubRecord ? (
-                    <Badge variant="outline" className="text-muted-foreground"><MailX className="h-3 w-3 mr-1" />Unsubscribed</Badge>
+                    <Badge variant="outline" className="text-muted-foreground"><MailX className="h-3 w-3 mr-1" />Email: Unsubscribed</Badge>
                   ) : (
-                    <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"><MailCheck className="h-3 w-3 mr-1" />Marketing: Subscribed</Badge>
+                    <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"><MailCheck className="h-3 w-3 mr-1" />Email: Subscribed</Badge>
                   )}
+                  {migratedCustomer?.sms_opt_out ? (
+                    <Badge variant="outline" className="text-muted-foreground"><MessageSquareDashed className="h-3 w-3 mr-1" />SMS: Opted out</Badge>
+                  ) : migratedCustomer?.phone ? (
+                    <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"><MessageSquare className="h-3 w-3 mr-1" />SMS: Subscribed</Badge>
+                  ) : null}
                 </div>
               </div>
             </div>
