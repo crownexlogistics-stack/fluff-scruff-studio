@@ -319,8 +319,8 @@ Deno.serve(async (req) => {
     const STOP_SUFFIX = " Reply STOP to unsubscribe.";
     const fullMessage = message.endsWith(STOP_SUFFIX) ? message : message + STOP_SUFFIX;
 
-    // Validate credentials once up front so we fail fast instead of logging hundreds of auth failures.
-    await verifyTwilioCredentials(accountSid, twilioAuth);
+    const twilioFromNumber = getTwilioFromNumber();
+    const sendMode = await resolveTwilioSendMode(accountSid, twilioAuth, twilioFromNumber);
 
     const statusCallbackUrl = `${supabaseUrl}/functions/v1/twilio-sms-status`;
 
