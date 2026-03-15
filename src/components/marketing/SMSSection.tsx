@@ -373,11 +373,13 @@ function BulkSmsCampaign() {
         </CardHeader>
         <CardContent className="space-y-5">
           {/* Unreachable warning */}
-          {unreachableCount > 0 && (
+          {(unreachableCount > 0 || optOutCount > 0) && (
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-center gap-2">
               <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
               <p className="text-xs text-amber-700">
-                <span className="font-medium">{unreachableCount} numbers flagged as unreachable</span> — these will be excluded from bulk sends automatically.
+                {unreachableCount > 0 && <><span className="font-medium">{unreachableCount} unreachable</span> · </>}
+                {optOutCount > 0 && <><span className="font-medium">{optOutCount} opted out (STOP)</span> · </>}
+                These are excluded from bulk sends automatically.
               </p>
             </div>
           )}

@@ -131,3 +131,6 @@ verify_jwt = false
 
 [functions.health-ai-analyst]
 verify_jwt = false
+
+[functions.twilio-sms-incoming]
+verify_jwt = false
