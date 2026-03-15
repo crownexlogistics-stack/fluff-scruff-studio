@@ -1,54 +1,51 @@
 
 
-## Booking Flow UI Overhaul — Pet-Themed Animations
+# Why Only 592 of 816 Emails Were Sent
 
-This plan adds playful, on-brand animations to the booking flow while preserving all existing logic (Stripe, puppy auto-switch, back navigation).
+## Root Cause
 
----
+The `send-campaign` edge function **timed out** before processing all 816 emails. Edge functions have a maximum execution time (~60 seconds), and with rate-limiting delays (1 second between batches of 2), sending 816 emails would take ~7+ minutes — far exceeding the timeout.
 
-### 1. Walking Paw Progress Bar
+The campaign was invoked multiple times (logs show sends from 11:05 to 14:00), accumulating 592 successful sends. But ~224 emails were **never attempted** — they aren't logged as "sent" or "failed", they simply weren't reached before each timeout.
 
-- Add a **paw-print step indicator** at the top of the BookingFlow, below the header.
-- Define the steps as an ordered array (e.g. `["sub-service", "breed", "calendar", "addons", "guest-details"]`), filtered based on whether the flow needs breed/addons.
-- Render a row of `PawPrint` icons — completed steps use the brand accent color, current step is highlighted, future steps are greyed out (`text-muted-foreground/30`).
-- Use `framer-motion`'s `layoutId` on a small underline/highlight element that animates smoothly between paw positions as the step changes, creating the "walking" effect.
-- Each paw tilts slightly (`rotate: -15deg` → `15deg`) using a short spring animation on the active paw.
+The "Retry Failed" button can't help because these emails were never logged as "failed" — they just weren't processed at all.
 
-### 2. Tail Wag Loading Animation
+## Fix: Chunked Sending with Progress Tracking
 
-- Create a small `TailWagSpinner` component using an inline SVG of a simplified dog tail.
-- Animate with `framer-motion` using a repeating `rotate` keyframe (`[-20, 20, -20]` on loop) with `duration: 0.4s`.
-- Replace the existing CSS spinner (line 825: `animate-spin h-8 w-8 border-4...`) and the "Processing..." text in submit buttons with this component.
+### Changes
 
-### 3. Bouncy Page Transitions (Framer Motion)
+1. **`send-campaign` edge function** — Before sending, check which emails already have a `sent` log entry for this campaign and skip them. This way, each re-invocation picks up where the last one left off instead of re-starting from the beginning.
 
-- Wrap each step's content block in a `<motion.div>` with `AnimatePresence` and keyed by `step`.
-- Entry: `initial={{ x: 80, opacity: 0 }}`, `animate={{ x: 0, opacity: 1 }}` with `type: "spring", stiffness: 300, damping: 25`.
-- Exit: `exit={{ x: -80, opacity: 0 }}` with a fast tween.
-- Track navigation direction (forward/back) to reverse the slide direction when going back (slide in from left instead of right).
+2. **Frontend `EmailMarketingSection.tsx`** — After a send completes, check if all recipients were processed. If not (due to timeout), automatically show a "Continue Sending" option or auto-retry the remaining unsent emails.
 
-### 4. Back Button & Puppy Logic
+3. **Add a "not_attempted" awareness** — When the function finishes (or times out), the frontend can compare `sent + failed + skipped` vs `total` to detect incomplete sends and surface a "X emails remaining" indicator.
 
-- The existing `goBack` function already resets state per step — no changes needed there.
-- For the **Puppy Special "pop" effect**: when `showPuppyPopup` closes and the calendar step appears, add a `motion.div` around the "Puppy Special" service name in the calendar's summary card with `animate={{ scale: [1, 1.15, 1] }}` and a sparkle keyframe, triggered when `puppySwitched` is true.
+### Technical Detail
 
-### 5. Styling Constraints
+**Edge function change** (most impactful):
+```
+// Before sending, get already-sent emails for this campaign
+const { data: alreadySent } = await supabase
+  .from("campaign_send_log")
+  .select("email")
+  .eq("campaign_id", campaignId)
+  .in("status", ["sent", "skipped"]);
 
-- All animations use `duration: 0.3–0.5s` max.
-- Spring transitions use high stiffness (300+) and moderate damping (25+) for snappy feel.
-- No layout shifts — all animated elements have fixed dimensions or use `layout` prop.
+const alreadySentSet = new Set(
+  (alreadySent || []).map(r => r.email.toLowerCase())
+);
 
----
+// Filter out already-processed emails
+const remainingEmails = validEmails.filter(
+  e => !alreadySentSet.has(e.toLowerCase())
+);
+```
 
-### Files to Edit
+**Frontend change**: After send mutation succeeds, compare `result.sent + result.skipped + result.failed` against `effectiveList.length`. If there's a gap, show a toast with a "Continue Sending" button that re-invokes the same campaign. This creates an automatic resume loop until all emails are processed.
 
-| File | Change |
-|------|--------|
-| `src/components/BookingFlow.tsx` | Add `AnimatePresence`, `motion.div` wrappers per step, paw progress bar component, tail wag spinner, direction tracking for transitions, sparkle effect on puppy switch |
-
-### Technical Notes
-
-- `framer-motion` is already installed.
-- The `TailWagSpinner` and `PawProgressBar` will be inline components within `BookingFlow.tsx` to keep changes contained.
-- No database or edge function changes needed.
+### Result
+- Each invocation resumes from where the last left off
+- No duplicate sends
+- Full 816 emails will be delivered across multiple automatic retries
+- Clear UI feedback on progress
 
