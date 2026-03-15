@@ -437,7 +437,11 @@ export function EmailMarketingSection() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["email-campaigns"] });
       queryClient.invalidateQueries({ queryKey: ["campaign-send-logs"] });
-      toast.success(`Retry complete! ${data.sent} sent, ${data.failed || 0} still failed.`);
+      if (data.noFailedToRetry) {
+        toast.info("No failed emails to retry — all sends were successful!");
+      } else {
+        toast.success(`Retry complete! ${data.sent} sent, ${data.failed || 0} still failed.`);
+      }
     },
     onError: (err: Error) => toast.error(err.message),
   });
