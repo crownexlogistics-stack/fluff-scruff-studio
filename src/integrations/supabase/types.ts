@@ -566,6 +566,39 @@ export type Database = {
         }
         Relationships: []
       }
+      bulk_sms_log: {
+        Row: {
+          campaign_name: string | null
+          customer_name: string | null
+          error_message: string | null
+          id: string
+          message: string
+          phone: string
+          sent_at: string | null
+          status: string
+        }
+        Insert: {
+          campaign_name?: string | null
+          customer_name?: string | null
+          error_message?: string | null
+          id?: string
+          message: string
+          phone: string
+          sent_at?: string | null
+          status?: string
+        }
+        Update: {
+          campaign_name?: string | null
+          customer_name?: string | null
+          error_message?: string | null
+          id?: string
+          message?: string
+          phone?: string
+          sent_at?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
       campaign_attributions: {
         Row: {
           attribution_type: string
