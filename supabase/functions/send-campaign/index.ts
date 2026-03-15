@@ -291,6 +291,7 @@ serve(async (req) => {
       failed: failedCount,
       skipped: skippedCount,
       total: recipientEmails.length,
+      remaining: emailsToSend.length - (totalSent + failedCount),
       abTest: isABTest ? { sentA, sentB, remainder: groupRemainder.length } : undefined,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
