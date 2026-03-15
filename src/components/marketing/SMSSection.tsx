@@ -458,6 +458,11 @@ function BulkSmsCampaign() {
                 This will send {bulkSmsCount} SMS × {recipientCount} customers = ~{recipientCount * bulkSmsCount} messages
               </span>
             </div>
+            {filter !== "manual" && (optOutCount > 0 || unreachableCount > 0) && (
+              <p className="text-xs text-muted-foreground">
+                {recipientCount} recipients — {optOutCount > 0 && `${optOutCount} excluded (SMS opt-out)`}{optOutCount > 0 && unreachableCount > 0 && ", "}{unreachableCount > 0 && `${unreachableCount} excluded (unreachable)`}
+              </p>
+            )}
             <p className="text-xs text-muted-foreground">
               Estimated cost: £{estimatedCost} (at £0.04 per SMS segment)
             </p>
