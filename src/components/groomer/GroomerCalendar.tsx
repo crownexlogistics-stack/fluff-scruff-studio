@@ -427,6 +427,8 @@ export function GroomerCalendar({ currentDate, daysToShow, staff, bookings, curr
                     const rawHeight = isGhost ? 20 : durationHours * SLOT_HEIGHT;
                     const height = Math.max(rawHeight, isGhost ? 20 : 60);
                     const endTimeStr = getEndTimeStr(booking);
+                    // Shorter appointments render on top
+                    const zIdx = Math.max(10, 50 - Math.floor(durationHours * 5));
 
                     // Off-day
                     if (booking.is_off_day) {
