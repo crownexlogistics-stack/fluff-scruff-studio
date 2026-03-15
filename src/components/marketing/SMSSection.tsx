@@ -153,11 +153,28 @@ export function SMSSection() {
 }
 
 // ─── BULK SMS CAMPAIGN ──────────────────────────────────
+
+interface CampaignData {
+  name: string;
+  message: string;
+  sent: number;
+  failed: number;
+  skipped: number;
+  delivered: number;
+  undelivered: number;
+  date: string;
+  failedEntries: { phone: string; error: string }[];
+  undeliveredEntries: { phone: string; errorCode: string }[];
+  clicks: number;
+  hasLink: boolean;
+}
+
 function BulkSmsCampaign() {
   const queryClient = useQueryClient();
   const [bulkMessage, setBulkMessage] = useState("");
   const [filter, setFilter] = useState<"all" | "has_upcoming" | "no_upcoming">("all");
   const [viewFailedCampaign, setViewFailedCampaign] = useState<string | null>(null);
+  const [viewDetailsCampaign, setViewDetailsCampaign] = useState<string | null>(null);
 
   const TEMPLATES = [
     { label: "Appointment Reminder", text: "Hi! Reminder: Your dog's grooming appointment at Fluff & Scruff Studio is tomorrow. Please arrive 5 minutes early. Call 01708 606655 if you need to reschedule. See you soon! 🐾" },
@@ -165,17 +182,21 @@ function BulkSmsCampaign() {
     { label: "Follow Up", text: "Hi! Thank you for visiting Fluff & Scruff Studio. We hope your pup is looking fabulous! Ready to rebook? Call 01708 606655 or visit fluffandscruff.co.uk/book 🐾" },
   ];
 
-  // Fetch customer phone numbers for count
-  const { data: customerCount } = useQuery({
-    queryKey: ["bulk-sms-customer-count"],
+  // Fetch customer phone numbers for count + unreachable count
+  const { data: customerStats } = useQuery({
+    queryKey: ["bulk-sms-customer-stats"],
     queryFn: async () => {
       const phoneSet = new Set<string>();
+      let unreachableCount = 0;
 
-      const { data: mc } = await supabase.from("migrated_customers").select("phone").not("phone", "is", null);
+      const { data: mc } = await supabase.from("migrated_customers").select("phone, sms_unreachable").not("phone", "is", null);
       for (const c of (mc || [])) {
         if (c.phone) {
           const n = normalizePhone(c.phone);
-          if (n) phoneSet.add(n);
+          if (n) {
+            phoneSet.add(n);
+            if (c.sms_unreachable) unreachableCount++;
+          }
         }
       }
 
@@ -187,42 +208,89 @@ function BulkSmsCampaign() {
         }
       }
 
-      return phoneSet.size;
+      return { total: phoneSet.size, unreachable: unreachableCount };
     },
   });
 
-  // Fetch campaign history
+  // Fetch click data
+  const { data: clickData } = useQuery({
+    queryKey: ["sms-link-clicks"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("sms_link_clicks")
+        .select("campaign_name, phone_hash, clicked_at");
+      if (error) throw error;
+      // Group by campaign
+      const clickMap = new Map<string, number>();
+      for (const click of (data || [])) {
+        const key = click.campaign_name || "";
+        clickMap.set(key, (clickMap.get(key) || 0) + 1);
+      }
+      return clickMap;
+    },
+  });
+
+  // Fetch campaign history with delivery status
   const { data: campaignHistory, isLoading: historyLoading } = useQuery({
     queryKey: ["bulk-sms-history"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("bulk_sms_log")
-        .select("campaign_name, message, status, sent_at, phone, error_message")
+        .select("campaign_name, message, status, delivery_status, sent_at, phone, error_message, error_code")
         .order("sent_at", { ascending: false });
       if (error) throw error;
 
-      // Group by campaign_name
-      const campaigns = new Map<string, { name: string; message: string; sent: number; failed: number; skipped: number; date: string; failedEntries: { phone: string; error: string }[] }>();
+      const campaigns = new Map<string, CampaignData>();
       for (const log of (data || [])) {
         const key = log.campaign_name || "Unknown";
         if (!campaigns.has(key)) {
-          campaigns.set(key, { name: key, message: log.message, sent: 0, failed: 0, skipped: 0, date: log.sent_at, failedEntries: [] });
+          campaigns.set(key, {
+            name: key, message: log.message, sent: 0, failed: 0, skipped: 0,
+            delivered: 0, undelivered: 0, date: log.sent_at,
+            failedEntries: [], undeliveredEntries: [],
+            clicks: clickData?.get(key) || 0,
+            hasLink: /https?:\/\//.test(log.message),
+          });
         }
         const c = campaigns.get(key)!;
+
+        // Count by initial send status
         if (log.status === "sent") c.sent++;
         else if (log.status === "failed") {
           c.failed++;
           c.failedEntries.push({ phone: log.phone, error: log.error_message || "Unknown" });
+        } else c.skipped++;
+
+        // Count by delivery status (from webhook)
+        if (log.delivery_status === "delivered") c.delivered++;
+        else if (log.delivery_status === "undelivered") {
+          c.undelivered++;
+          c.undeliveredEntries.push({ phone: log.phone, errorCode: log.error_code || "" });
+        } else if (log.delivery_status === "failed") {
+          // Already counted in send failures
         }
-        else c.skipped++;
       }
       return Array.from(campaigns.values());
     },
+    enabled: clickData !== undefined,
   });
+
+  // Best performing campaign
+  const bestCampaign = useMemo(() => {
+    if (!campaignHistory?.length) return null;
+    const withDelivery = campaignHistory.filter(c => c.delivered > 0);
+    if (!withDelivery.length) return null;
+    return withDelivery.reduce((best, c) => {
+      const rate = c.sent > 0 ? c.delivered / c.sent : 0;
+      const bestRate = best.sent > 0 ? best.delivered / best.sent : 0;
+      return rate > bestRate ? c : best;
+    });
+  }, [campaignHistory]);
 
   const bulkCharCount = bulkMessage.length;
   const bulkSmsCount = Math.ceil(bulkCharCount / 160) || 1;
-  const recipientCount = customerCount || 0;
+  const recipientCount = customerStats?.total || 0;
+  const unreachableCount = customerStats?.unreachable || 0;
   const estimatedCost = (recipientCount * bulkSmsCount * 0.04).toFixed(2);
 
   const sendBulkMutation = useMutation({
@@ -237,7 +305,7 @@ function BulkSmsCampaign() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["bulk-sms-history"] });
       if (data.remaining > 0) {
-        toast.info(`Sent ${data.sent} so far — ${data.remaining} remaining. Function timed out. Click "Continue Sending" to resume.`);
+        toast.info(`Sent ${data.sent} so far — ${data.remaining} remaining. Click "Continue Sending" to resume.`);
       } else {
         toast.success(`Bulk SMS complete! ${data.sent} sent, ${data.failed || 0} failed.`);
       }
@@ -266,6 +334,10 @@ function BulkSmsCampaign() {
     onError: (err: Error) => toast.error(err.message),
   });
 
+  const detailsCampaign = viewDetailsCampaign
+    ? campaignHistory?.find(c => c.name === viewDetailsCampaign)
+    : null;
+
   const failedCampaignEntries = viewFailedCampaign
     ? campaignHistory?.find(c => c.name === viewFailedCampaign)?.failedEntries || []
     : [];
@@ -280,6 +352,16 @@ function BulkSmsCampaign() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-5">
+          {/* Unreachable warning */}
+          {unreachableCount > 0 && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+              <p className="text-xs text-amber-700">
+                <span className="font-medium">{unreachableCount} numbers flagged as unreachable</span> — these will be excluded from bulk sends automatically.
+              </p>
+            </div>
+          )}
+
           {/* Quick Templates */}
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-2 block">Quick Templates</label>
@@ -341,6 +423,11 @@ function BulkSmsCampaign() {
             <p className="text-xs text-muted-foreground">
               Estimated cost: £{estimatedCost} (at £0.04 per SMS segment)
             </p>
+            {/https?:\/\//.test(bulkMessage) && (
+              <p className="text-xs text-blue-600 flex items-center gap-1 mt-1">
+                <LinkIcon className="h-3 w-3" /> Links will be tracked automatically
+              </p>
+            )}
           </div>
 
           {/* Send */}
@@ -359,11 +446,25 @@ function BulkSmsCampaign() {
         </CardContent>
       </Card>
 
+      {/* Best Campaign */}
+      {bestCampaign && (
+        <div className="bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 rounded-lg p-4">
+          <p className="text-sm font-medium text-primary flex items-center gap-2">
+            <TrendingUp className="h-4 w-4" />
+            Best performing campaign: <span className="font-bold">{bestCampaign.name}</span>
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            {bestCampaign.sent > 0 ? Math.round((bestCampaign.delivered / bestCampaign.sent) * 100) : 0}% delivery rate
+            {bestCampaign.hasLink && bestCampaign.delivered > 0 && ` · ${Math.round((bestCampaign.clicks / bestCampaign.delivered) * 100)}% click rate`}
+          </p>
+        </div>
+      )}
+
       {/* Campaign History */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-lg flex items-center gap-2">
-            <Clock className="h-5 w-5" /> Bulk SMS Campaign History
+            <BarChart3 className="h-5 w-5" /> Bulk SMS Campaign Analytics
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -373,49 +474,152 @@ function BulkSmsCampaign() {
             <p className="text-center text-muted-foreground py-8">No bulk SMS campaigns sent yet.</p>
           ) : (
             <div className="space-y-3">
-              {campaignHistory.map(c => (
-                <div key={c.name} className="border rounded-lg p-3 space-y-2">
-                  <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">{c.name}</p>
-                      <p className="text-xs text-muted-foreground line-clamp-1">{c.message}</p>
+              {campaignHistory.map(c => {
+                const deliveryRate = c.sent > 0 ? Math.round((c.delivered / c.sent) * 100) : null;
+                const clickRate = c.delivered > 0 && c.hasLink ? Math.round((c.clicks / c.delivered) * 100) : null;
+
+                return (
+                  <div key={c.name} className="border rounded-lg p-3 space-y-2">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{c.name}</p>
+                        <p className="text-xs text-muted-foreground line-clamp-1">{c.message}</p>
+                      </div>
+                      <p className="text-xs text-muted-foreground shrink-0">
+                        {format(new Date(c.date), "d MMM yyyy HH:mm")}
+                      </p>
                     </div>
-                    <p className="text-xs text-muted-foreground shrink-0">
-                      {format(new Date(c.date), "d MMM yyyy HH:mm")}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <Badge variant="outline" className="gap-1 text-xs bg-green-50 text-green-700 border-green-200">
-                      <CheckCircle2 className="h-3 w-3" /> {c.sent} sent
-                    </Badge>
-                    {c.failed > 0 && (
-                      <Badge variant="outline" className="gap-1 text-xs bg-red-50 text-red-700 border-red-200">
-                        <XCircle className="h-3 w-3" /> {c.failed} failed
+
+                    {/* Stats badges */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Badge variant="outline" className="gap-1 text-xs bg-green-50 text-green-700 border-green-200">
+                        <CheckCircle2 className="h-3 w-3" /> {c.sent} sent
                       </Badge>
+                      {c.delivered > 0 && (
+                        <Badge variant="outline" className="gap-1 text-xs bg-emerald-50 text-emerald-700 border-emerald-200">
+                          <CheckCircle2 className="h-3 w-3" /> {c.delivered} delivered
+                        </Badge>
+                      )}
+                      {c.undelivered > 0 && (
+                        <Badge variant="outline" className="gap-1 text-xs bg-amber-50 text-amber-700 border-amber-200">
+                          <AlertTriangle className="h-3 w-3" /> {c.undelivered} undelivered
+                        </Badge>
+                      )}
+                      {c.failed > 0 && (
+                        <Badge variant="outline" className="gap-1 text-xs bg-red-50 text-red-700 border-red-200">
+                          <XCircle className="h-3 w-3" /> {c.failed} failed
+                        </Badge>
+                      )}
+                      {c.hasLink && (
+                        <Badge variant="outline" className="gap-1 text-xs bg-blue-50 text-blue-700 border-blue-200">
+                          <LinkIcon className="h-3 w-3" /> {c.clicks} clicks
+                        </Badge>
+                      )}
+                    </div>
+
+                    {/* Rate indicators */}
+                    {(deliveryRate !== null || clickRate !== null) && (
+                      <div className="flex gap-4 text-xs text-muted-foreground">
+                        {deliveryRate !== null && (
+                          <span>Delivery: <span className={`font-medium ${deliveryRate >= 90 ? "text-green-600" : deliveryRate >= 70 ? "text-amber-600" : "text-red-600"}`}>{deliveryRate}%</span></span>
+                        )}
+                        {clickRate !== null && (
+                          <span>Click rate: <span className="font-medium text-blue-600">{clickRate}%</span></span>
+                        )}
+                      </div>
                     )}
-                    {c.skipped > 0 && (
-                      <Badge variant="outline" className="gap-1 text-xs bg-muted">
-                        {c.skipped} skipped
-                      </Badge>
-                    )}
-                    {c.failed > 0 && (
-                      <>
-                        <Button variant="ghost" size="sm" className="text-xs h-6 text-red-600" onClick={() => setViewFailedCampaign(c.name)}>
-                          View Failed
-                        </Button>
-                        <Button variant="outline" size="sm" className="text-xs h-6 gap-1" onClick={() => retryMutation.mutate(c.name)} disabled={retryMutation.isPending}>
-                          {retryMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
-                          Retry Failed
-                        </Button>
-                      </>
-                    )}
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Button variant="outline" size="sm" className="text-xs h-6 gap-1" onClick={() => setViewDetailsCampaign(c.name)}>
+                        <Eye className="h-3 w-3" /> View Details
+                      </Button>
+                      {c.failed > 0 && (
+                        <>
+                          <Button variant="ghost" size="sm" className="text-xs h-6 text-red-600" onClick={() => setViewFailedCampaign(c.name)}>
+                            View Failed
+                          </Button>
+                          <Button variant="outline" size="sm" className="text-xs h-6 gap-1" onClick={() => retryMutation.mutate(c.name)} disabled={retryMutation.isPending}>
+                            {retryMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
+                            Retry Failed
+                          </Button>
+                        </>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </CardContent>
       </Card>
+
+      {/* Campaign Details Dialog */}
+      <Dialog open={!!viewDetailsCampaign} onOpenChange={() => setViewDetailsCampaign(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Campaign Details</DialogTitle>
+          </DialogHeader>
+          {detailsCampaign && (
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm font-medium">{detailsCampaign.name}</p>
+                <p className="text-xs text-muted-foreground mt-1">{detailsCampaign.message}</p>
+              </div>
+
+              {/* Stats grid */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="border rounded-lg p-3 text-center">
+                  <p className="text-xl font-bold text-green-600">{detailsCampaign.sent}</p>
+                  <p className="text-[10px] text-muted-foreground">Sent</p>
+                </div>
+                <div className="border rounded-lg p-3 text-center">
+                  <p className="text-xl font-bold text-emerald-600">{detailsCampaign.delivered}</p>
+                  <p className="text-[10px] text-muted-foreground">Delivered</p>
+                </div>
+                <div className="border rounded-lg p-3 text-center">
+                  <p className="text-xl font-bold text-primary">
+                    {detailsCampaign.sent > 0 ? Math.round((detailsCampaign.delivered / detailsCampaign.sent) * 100) : 0}%
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">Delivery Rate</p>
+                </div>
+              </div>
+
+              {detailsCampaign.hasLink && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="border rounded-lg p-3 text-center">
+                    <p className="text-xl font-bold text-blue-600">{detailsCampaign.clicks}</p>
+                    <p className="text-[10px] text-muted-foreground">Link Clicks</p>
+                  </div>
+                  <div className="border rounded-lg p-3 text-center">
+                    <p className="text-xl font-bold text-blue-600">
+                      {detailsCampaign.delivered > 0 ? Math.round((detailsCampaign.clicks / detailsCampaign.delivered) * 100) : 0}%
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">Click Rate</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Undelivered numbers */}
+              {detailsCampaign.undeliveredEntries.length > 0 && (
+                <div>
+                  <p className="text-xs font-medium mb-2 text-amber-700">Undelivered Numbers ({detailsCampaign.undeliveredEntries.length})</p>
+                  <ScrollArea className="max-h-[200px]">
+                    <div className="space-y-1">
+                      {detailsCampaign.undeliveredEntries.map((e, i) => (
+                        <div key={i} className="text-xs flex justify-between border rounded px-2 py-1.5">
+                          <span className="font-mono">{e.phone}</span>
+                          {e.errorCode && <span className="text-muted-foreground">Error: {e.errorCode}</span>}
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* View Failed Dialog */}
       <Dialog open={!!viewFailedCampaign} onOpenChange={() => setViewFailedCampaign(null)}>
