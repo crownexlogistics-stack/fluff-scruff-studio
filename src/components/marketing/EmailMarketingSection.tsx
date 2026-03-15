@@ -386,7 +386,7 @@ export function EmailMarketingSection() {
     onError: (err: Error) => toast.error(err.message),
   });
 
-  // Schedule campaign
+  // Schedule campaign (or update if editing)
   const scheduleMutation = useMutation({
     mutationFn: async () => {
       if (!scheduleDate) throw new Error("Please select a date");
@@ -395,19 +395,47 @@ export function EmailMarketingSection() {
       scheduledAt.setHours(hours, mins, 0, 0);
       if (scheduledAt <= new Date()) throw new Error("Scheduled time must be in the future");
 
-      const { error } = await supabase.from("email_campaigns").insert({
-        subject: generatedSubject, html_body: generatedHtml, prompt, segment: selectedSegment,
-        status: "scheduled", created_by: user!.id, scheduled_at: scheduledAt.toISOString(),
-      });
-      if (error) throw error;
+      if (editingCampaignId) {
+        const { error } = await supabase.from("email_campaigns").update({
+          subject: generatedSubject, html_body: generatedHtml, prompt, segment: selectedSegment,
+          scheduled_at: scheduledAt.toISOString(),
+        }).eq("id", editingCampaignId);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("email_campaigns").insert({
+          subject: generatedSubject, html_body: generatedHtml, prompt, segment: selectedSegment,
+          status: "scheduled", created_by: user!.id, scheduled_at: scheduledAt.toISOString(),
+        });
+        if (error) throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["email-campaigns"] });
       setShowScheduler(false);
       setScheduleDate(undefined);
-      toast.success("Campaign scheduled!");
+      const wasEditing = !!editingCampaignId;
+      setEditingCampaignId(null);
+      toast.success(wasEditing ? "Campaign updated!" : "Campaign scheduled!");
       setActiveTab("campaigns");
       setActiveFolder("scheduled");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  // Update existing campaign (save changes without sending)
+  const updateCampaignMutation = useMutation({
+    mutationFn: async () => {
+      if (!editingCampaignId) throw new Error("No campaign selected for editing");
+      const { error } = await supabase.from("email_campaigns").update({
+        subject: generatedSubject, html_body: generatedHtml, prompt, segment: selectedSegment,
+      }).eq("id", editingCampaignId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["email-campaigns"] });
+      toast.success("Campaign updated!");
+      setEditingCampaignId(null);
+      setActiveTab("campaigns");
     },
     onError: (err: Error) => toast.error(err.message),
   });
