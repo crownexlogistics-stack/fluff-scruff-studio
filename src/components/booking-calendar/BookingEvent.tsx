@@ -295,7 +295,7 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
                 color.bg, color.text,
                 isGhost && "line-through opacity-30"
               )}
-              style={{ ...overlapStyle, height: `${height}px`, minHeight: isGhost ? "16px" : "48px" }}
+              style={{ ...overlapStyle, height: heightCalc, minHeight: isGhost ? "16px" : "48px" }}
             >
               {isGhost ? (
                 <p className="font-medium truncate text-[10px]">
