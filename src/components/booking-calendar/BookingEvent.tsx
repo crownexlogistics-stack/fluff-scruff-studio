@@ -58,6 +58,7 @@ interface BookingEventProps {
   durationHours?: number;
   overlapColumn?: number;
   overlapTotalColumns?: number;
+  slotHeight?: string;
   privacyMasked?: boolean;
   onEditBlock?: (booking: BookingData) => void;
   onCancelBlock?: (booking: BookingData) => void;
