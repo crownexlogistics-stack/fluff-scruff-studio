@@ -20,7 +20,7 @@ import {
   Loader2, Mail, FileText, CheckCircle2, Wand2, Paperclip, X,
   Copy, Trash2, Clock, CalendarIcon, FolderOpen, Inbox, BookTemplate,
   MoreHorizontal, AlertCircle, Palette, ImagePlus, Zap, MessageSquare,
-  FlaskConical, Search, XCircle, Upload
+  FlaskConical, Search, XCircle, Upload, Pencil
 } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger
