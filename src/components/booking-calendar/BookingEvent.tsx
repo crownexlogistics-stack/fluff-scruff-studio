@@ -130,6 +130,9 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
 
   // No Show: shrink to thin strip; minimum 30px for real bookings
   const heightCalc = isGhost ? "16px" : `max(calc(${sh} * ${calculatedDuration}), 30px)`;
+  // Approximate numeric height for visibility logic (assume ~46px per slot as fallback)
+  const numericSlotH = 46;
+  const height = isGhost ? 16 : Math.max(calculatedDuration * numericSlotH, 30);
 
   // Overlap layout: side-by-side columns
   const colWidthPercent = 100 / overlapTotalColumns;
