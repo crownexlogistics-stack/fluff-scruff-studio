@@ -70,6 +70,7 @@ import DuplicateReportPage from "./pages/DuplicateReportPage";
 import AcademyPage from "./pages/AcademyPage";
 import PurchaseOrdersPage from "./pages/PurchaseOrdersPage";
 import UnsubscribePage from "./pages/UnsubscribePage";
+import SmsTrackPage from "./pages/SmsTrackPage";
 
 const queryClient = new QueryClient();
 
