@@ -32,7 +32,7 @@ import {
 import { CampaignROIDashboard } from "./CampaignROIDashboard";
 import { SmsROIDashboard } from "./SmsROIDashboard";
 import { AutomationsSection } from "./AutomationsSection";
-import { SMSSection } from "./SMSSection";
+
 
 type Segment = "all" | "one-timers" | "lost-regulars" | "vips";
 type CampaignFolder = "sent" | "drafts" | "templates" | "scheduled";
