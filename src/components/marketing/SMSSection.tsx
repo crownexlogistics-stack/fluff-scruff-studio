@@ -291,7 +291,16 @@ function BulkSmsCampaign() {
 
   const bulkCharCount = bulkMessage.length;
   const bulkSmsCount = Math.ceil(bulkCharCount / 160) || 1;
-  const recipientCount = customerStats?.total || 0;
+
+  const manualNumberList = useMemo(() => {
+    if (filter !== "manual") return [];
+    return manualNumbers
+      .split(/[\n,;]+/)
+      .map(n => n.trim())
+      .filter(n => n.length > 0);
+  }, [manualNumbers, filter]);
+
+  const recipientCount = filter === "manual" ? manualNumberList.length : (customerStats?.total || 0);
   const unreachableCount = customerStats?.unreachable || 0;
   const estimatedCost = (recipientCount * bulkSmsCount * 0.04).toFixed(2);
 
