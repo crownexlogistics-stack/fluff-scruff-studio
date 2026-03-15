@@ -41,10 +41,13 @@ serve(async (req) => {
     const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`;
     const authHeader = btoa(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`);
 
+    const statusCallbackUrl = `${supabaseUrl}/functions/v1/twilio-sms-status`;
+
     const params = new URLSearchParams();
     params.append("To", phone);
     params.append("MessagingServiceSid", MESSAGING_SERVICE_SID);
     params.append("Body", body);
+    params.append("StatusCallback", statusCallbackUrl);
 
     const res = await fetch(twilioUrl, {
       method: "POST",
