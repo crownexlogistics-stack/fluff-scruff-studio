@@ -825,6 +825,8 @@ export type Database = {
       }
       coupons: {
         Row: {
+          attributed_campaign_id: string | null
+          attributed_sms_campaign: string | null
           code: string
           created_at: string
           description: string | null
@@ -841,6 +843,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          attributed_campaign_id?: string | null
+          attributed_sms_campaign?: string | null
           code: string
           created_at?: string
           description?: string | null
@@ -857,6 +861,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          attributed_campaign_id?: string | null
+          attributed_sms_campaign?: string | null
           code?: string
           created_at?: string
           description?: string | null
@@ -872,7 +878,15 @@ export type Database = {
           times_used?: number
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "coupons_attributed_campaign_id_fkey"
+            columns: ["attributed_campaign_id"]
+            isOneToOne: false
+            referencedRelation: "email_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       customer_communications: {
         Row: {
