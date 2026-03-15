@@ -62,6 +62,7 @@ const marketingSubItems = [
   { title: "Booking Analytics", url: "/marketing/analytics", icon: BarChart3 },
   { title: "Coupons", url: "/admin/coupons", icon: Ticket },
   { title: "Email Marketing", url: "/marketing/email", icon: Mail },
+  { title: "SMS Marketing", url: "/marketing/sms", icon: MessageSquare },
 ];
 
 const scruffSubItems = [

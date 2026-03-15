@@ -32,7 +32,7 @@ import {
 import { CampaignROIDashboard } from "./CampaignROIDashboard";
 import { SmsROIDashboard } from "./SmsROIDashboard";
 import { AutomationsSection } from "./AutomationsSection";
-import { SMSSection } from "./SMSSection";
+
 
 type Segment = "all" | "one-timers" | "lost-regulars" | "vips";
 type CampaignFolder = "sent" | "drafts" | "templates" | "scheduled";
@@ -666,7 +666,6 @@ export function EmailMarketingSection() {
           <TabsTrigger value="campaigns" className="gap-1.5"><FolderOpen className="h-3.5 w-3.5" /> Library</TabsTrigger>
           <TabsTrigger value="roi" className="gap-1.5"><Mail className="h-3.5 w-3.5" /> ROI</TabsTrigger>
           <TabsTrigger value="automations" className="gap-1.5"><Zap className="h-3.5 w-3.5" /> Automations</TabsTrigger>
-          <TabsTrigger value="sms" className="gap-1.5"><MessageSquare className="h-3.5 w-3.5" /> SMS</TabsTrigger>
         </TabsList>
 
         {/* ── CREATE TAB ─────────────────────────────── */}
@@ -1160,10 +1159,6 @@ export function EmailMarketingSection() {
           <AutomationsSection />
         </TabsContent>
 
-        {/* ── SMS TAB ─────────────────── */}
-        <TabsContent value="sms">
-          <SMSSection />
-        </TabsContent>
       </Tabs>
 
       {/* Delete confirmation dialog */}
