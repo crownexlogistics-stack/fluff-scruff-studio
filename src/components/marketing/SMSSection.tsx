@@ -291,8 +291,10 @@ function BulkSmsCampaign() {
     });
   }, [campaignHistory]);
 
+  const STOP_SUFFIX = " Reply STOP to unsubscribe.";
+  const fullMessageLength = bulkMessage.length + STOP_SUFFIX.length;
   const bulkCharCount = bulkMessage.length;
-  const bulkSmsCount = Math.ceil(bulkCharCount / 160) || 1;
+  const bulkSmsCount = Math.ceil(fullMessageLength / 160) || 1;
 
   const manualNumberList = useMemo(() => {
     if (filter !== "manual") return [];
@@ -304,6 +306,7 @@ function BulkSmsCampaign() {
 
   const recipientCount = filter === "manual" ? manualNumberList.length : (customerStats?.total || 0);
   const unreachableCount = customerStats?.unreachable || 0;
+  const optOutCount = customerStats?.optOut || 0;
   const estimatedCost = (recipientCount * bulkSmsCount * 0.04).toFixed(2);
 
   const sendBulkMutation = useMutation({
