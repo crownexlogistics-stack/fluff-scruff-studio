@@ -190,14 +190,16 @@ function BulkSmsCampaign() {
     queryFn: async () => {
       const phoneSet = new Set<string>();
       let unreachableCount = 0;
+      let optOutCount = 0;
 
-      const { data: mc } = await supabase.from("migrated_customers").select("phone, sms_unreachable").not("phone", "is", null);
+      const { data: mc } = await supabase.from("migrated_customers").select("phone, sms_unreachable, sms_opt_out").not("phone", "is", null);
       for (const c of (mc || [])) {
         if (c.phone) {
           const n = normalizePhone(c.phone);
           if (n) {
+            if (c.sms_opt_out) { optOutCount++; continue; }
+            if (c.sms_unreachable) { unreachableCount++; continue; }
             phoneSet.add(n);
-            if (c.sms_unreachable) unreachableCount++;
           }
         }
       }
@@ -210,7 +212,7 @@ function BulkSmsCampaign() {
         }
       }
 
-      return { total: phoneSet.size, unreachable: unreachableCount };
+      return { total: phoneSet.size, unreachable: unreachableCount, optOut: optOutCount };
     },
   });
 
@@ -289,8 +291,10 @@ function BulkSmsCampaign() {
     });
   }, [campaignHistory]);
 
+  const STOP_SUFFIX = " Reply STOP to unsubscribe.";
+  const fullMessageLength = bulkMessage.length + STOP_SUFFIX.length;
   const bulkCharCount = bulkMessage.length;
-  const bulkSmsCount = Math.ceil(bulkCharCount / 160) || 1;
+  const bulkSmsCount = Math.ceil(fullMessageLength / 160) || 1;
 
   const manualNumberList = useMemo(() => {
     if (filter !== "manual") return [];
@@ -302,6 +306,7 @@ function BulkSmsCampaign() {
 
   const recipientCount = filter === "manual" ? manualNumberList.length : (customerStats?.total || 0);
   const unreachableCount = customerStats?.unreachable || 0;
+  const optOutCount = customerStats?.optOut || 0;
   const estimatedCost = (recipientCount * bulkSmsCount * 0.04).toFixed(2);
 
   const sendBulkMutation = useMutation({
@@ -368,11 +373,13 @@ function BulkSmsCampaign() {
         </CardHeader>
         <CardContent className="space-y-5">
           {/* Unreachable warning */}
-          {unreachableCount > 0 && (
+          {(unreachableCount > 0 || optOutCount > 0) && (
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-center gap-2">
               <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
               <p className="text-xs text-amber-700">
-                <span className="font-medium">{unreachableCount} numbers flagged as unreachable</span> — these will be excluded from bulk sends automatically.
+                {unreachableCount > 0 && <><span className="font-medium">{unreachableCount} unreachable</span> · </>}
+                {optOutCount > 0 && <><span className="font-medium">{optOutCount} opted out (STOP)</span> · </>}
+                These are excluded from bulk sends automatically.
               </p>
             </div>
           )}
@@ -390,19 +397,21 @@ function BulkSmsCampaign() {
             </div>
           </div>
 
-          {/* Message */}
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground flex items-center justify-between">
               <span>Message</span>
-              <span>{bulkCharCount}/160 ({bulkSmsCount} SMS per recipient)</span>
+              <span>{fullMessageLength}/160 ({bulkSmsCount} SMS per recipient)</span>
             </label>
             <Textarea
               value={bulkMessage}
               onChange={e => setBulkMessage(e.target.value)}
               placeholder="Type your bulk SMS message..."
               className="min-h-[100px] resize-none"
-              maxLength={480}
+              maxLength={480 - STOP_SUFFIX.length}
             />
+            <p className="text-[10px] text-muted-foreground italic">
+              "Reply STOP to unsubscribe." will be added automatically
+            </p>
           </div>
 
           {/* Filter */}
@@ -449,6 +458,11 @@ function BulkSmsCampaign() {
                 This will send {bulkSmsCount} SMS × {recipientCount} customers = ~{recipientCount * bulkSmsCount} messages
               </span>
             </div>
+            {filter !== "manual" && (optOutCount > 0 || unreachableCount > 0) && (
+              <p className="text-xs text-muted-foreground">
+                {recipientCount} recipients — {optOutCount > 0 && `${optOutCount} excluded (SMS opt-out)`}{optOutCount > 0 && unreachableCount > 0 && ", "}{unreachableCount > 0 && `${unreachableCount} excluded (unreachable)`}
+              </p>
+            )}
             <p className="text-xs text-muted-foreground">
               Estimated cost: £{estimatedCost} (at £0.04 per SMS segment)
             </p>

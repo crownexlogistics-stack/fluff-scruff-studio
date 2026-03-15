@@ -26,7 +26,7 @@ import {
   ArrowLeft, Mail, Phone, Dog, Calendar, Send,
   Pencil, Check, X, MessageSquare, MailOpen, Ban, CalendarPlus, UserCheck, ChevronDown, ChevronUp,
   CreditCard, RefreshCw, ExternalLink, Smartphone, Sparkles, RotateCcw, PenLine, Loader2, Plus, ChevronsUpDown,
-  MailX, MailCheck,
+  MailX, MailCheck, MessageSquareDashed,
 } from "lucide-react";
 import { AdminPetTools } from "@/components/customer-profile/AdminPetTools";
 import { format, parseISO } from "date-fns";
@@ -124,7 +124,7 @@ export default function CustomerProfilePage() {
     queryFn: async () => {
       const { data } = await supabase
         .from("migrated_customers")
-        .select("id, full_name, phone, email")
+        .select("id, full_name, phone, email, sms_opt_out, sms_opt_out_at")
         .ilike("email", decodedEmail)
         .limit(1);
       return data?.[0] || null;
@@ -832,10 +832,15 @@ export default function CustomerProfilePage() {
                     <Badge className="bg-accent/15 text-accent border-accent/30"><UserCheck className="h-3 w-3 mr-1" />Own Customer</Badge>
                   )}
                   {unsubRecord ? (
-                    <Badge variant="outline" className="text-muted-foreground"><MailX className="h-3 w-3 mr-1" />Unsubscribed</Badge>
+                    <Badge variant="outline" className="text-muted-foreground"><MailX className="h-3 w-3 mr-1" />Email: Unsubscribed</Badge>
                   ) : (
-                    <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"><MailCheck className="h-3 w-3 mr-1" />Marketing: Subscribed</Badge>
+                    <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"><MailCheck className="h-3 w-3 mr-1" />Email: Subscribed</Badge>
                   )}
+                  {migratedCustomer?.sms_opt_out ? (
+                    <Badge variant="outline" className="text-muted-foreground"><MessageSquareDashed className="h-3 w-3 mr-1" />SMS: Opted out</Badge>
+                  ) : migratedCustomer?.phone ? (
+                    <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"><MessageSquare className="h-3 w-3 mr-1" />SMS: Subscribed</Badge>
+                  ) : null}
                 </div>
               </div>
             </div>
@@ -933,6 +938,45 @@ export default function CustomerProfilePage() {
                     checked={!unsubRecord}
                     onCheckedChange={(checked) => toggleMarketingOptOut.mutate(!checked)}
                     disabled={toggleMarketingOptOut.isPending}
+                  />
+                </CardContent>
+              </Card>
+            )}
+
+            {/* SMS Preference */}
+            {canManageCustomer && !isGroomer && migratedCustomer && (
+              <Card>
+                <CardContent className="p-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    {migratedCustomer.sms_opt_out ? (
+                      <MessageSquareDashed className="h-5 w-5 text-muted-foreground" />
+                    ) : (
+                      <MessageSquare className="h-5 w-5 text-emerald-500" />
+                    )}
+                    <div>
+                      <p className="text-sm font-semibold">SMS Marketing</p>
+                      {migratedCustomer.sms_opt_out ? (
+                        <p className="text-xs text-muted-foreground">
+                          Opted out {migratedCustomer.sms_opt_out_at ? `on ${format(new Date(migratedCustomer.sms_opt_out_at), "dd MMM yyyy")}` : ""}
+                        </p>
+                      ) : (
+                        <p className="text-xs text-emerald-600">Subscribed — will receive SMS campaigns</p>
+                      )}
+                    </div>
+                  </div>
+                  <Switch
+                    checked={!migratedCustomer.sms_opt_out}
+                    onCheckedChange={async (checked) => {
+                      await supabase
+                        .from("migrated_customers")
+                        .update({
+                          sms_opt_out: !checked,
+                          sms_opt_out_at: !checked ? new Date().toISOString() : null,
+                        })
+                        .eq("id", migratedCustomer.id);
+                      queryClient.invalidateQueries({ queryKey: ["migrated-customer-record", decodedEmail] });
+                      toast({ title: checked ? "Customer resubscribed to SMS" : "Customer opted out of SMS" });
+                    }}
                   />
                 </CardContent>
               </Card>

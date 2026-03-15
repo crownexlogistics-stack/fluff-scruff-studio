@@ -126,6 +126,10 @@ serve(async (req) => {
     const { message, campaignName, filter, retryFailed, existingCampaignName, manualNumbers } = await req.json();
     if (!message) throw new Error("message is required");
 
+    // Auto-append STOP instruction
+    const STOP_SUFFIX = " Reply STOP to unsubscribe.";
+    const fullMessage = message.endsWith(STOP_SUFFIX) ? message : message + STOP_SUFFIX;
+
     const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`;
     const twilioAuth = btoa(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`);
     const statusCallbackUrl = `${supabaseUrl}/functions/v1/twilio-sms-status`;
@@ -152,7 +156,7 @@ serve(async (req) => {
       for (let i = 0; i < failedLogs.length; i += BATCH_SIZE) {
         const batch = failedLogs.slice(i, i + BATCH_SIZE);
         for (const entry of batch) {
-          const trackableMsg = await makeTrackableMessage(message, existingCampaignName, entry.phone);
+          const trackableMsg = await makeTrackableMessage(fullMessage, existingCampaignName, entry.phone);
           const result = await sendOneSms(entry.phone, trackableMsg, twilioUrl, twilioAuth, statusCallbackUrl);
           const status = result.ok ? "sent" : "failed";
           await supabase.from("bulk_sms_log").insert({
@@ -186,11 +190,11 @@ serve(async (req) => {
       // Exclude sms_unreachable customers
       const { data: migratedCustomers } = await supabase
         .from("migrated_customers")
-        .select("phone, full_name, sms_unreachable")
+        .select("phone, full_name, sms_unreachable, sms_opt_out")
         .not("phone", "is", null);
 
       for (const mc of (migratedCustomers || [])) {
-        if (!mc.phone || mc.sms_unreachable) continue;
+        if (!mc.phone || mc.sms_unreachable || mc.sms_opt_out) continue;
         const normalized = normalizeUkMobile(mc.phone);
         if (normalized && !phoneMap.has(normalized)) {
           phoneMap.set(normalized, { phone: normalized, name: mc.full_name || "Customer" });
@@ -255,7 +259,7 @@ serve(async (req) => {
     for (let i = 0; i < recipients.length; i += BATCH_SIZE) {
       const batch = recipients.slice(i, i + BATCH_SIZE);
       for (const recipient of batch) {
-        const trackableMsg = await makeTrackableMessage(message, cName, recipient.phone);
+        const trackableMsg = await makeTrackableMessage(fullMessage, cName, recipient.phone);
         const result = await sendOneSms(recipient.phone, trackableMsg, twilioUrl, twilioAuth, statusCallbackUrl);
         const status = result.ok ? "sent" : "failed";
         await supabase.from("bulk_sms_log").insert({
