@@ -32,6 +32,17 @@ async function sendOneEmail(
   const unsubUrl = `${supabaseUrl}/functions/v1/handle-unsubscribe?email=${encodeURIComponent(email)}`;
   let personalizedHtml = htmlBody.replace(/\{\{UNSUBSCRIBE_URL\}\}/g, unsubUrl);
   if (campaignId) {
+    // Wrap all links for click tracking
+    personalizedHtml = personalizedHtml.replace(
+      /href="(https?:\/\/[^"]+)"/g,
+      (_match: string, url: string) => {
+        // Don't wrap unsubscribe links or tracking pixels
+        if (url.includes("handle-unsubscribe") || url.includes("email-track")) return _match;
+        const trackUrl = `${supabaseUrl}/functions/v1/email-track?t=click&c=${encodeURIComponent(campaignId)}&e=${encodeURIComponent(email)}&url=${encodeURIComponent(url)}`;
+        return `href="${trackUrl}"`;
+      }
+    );
+    // Add UTM params to booking links (in the destination, not the wrapper)
     personalizedHtml = personalizedHtml.replace(
       /(https?:\/\/[^"']*\/book)(?:\?([^"']*))?/g,
       (_match: string, base: string, existing: string) => {
@@ -39,6 +50,9 @@ async function sendOneEmail(
         return `${sep}utm_campaign=${campaignId}`;
       }
     );
+    // Add tracking pixel for opens
+    const trackPixel = `<img src="${supabaseUrl}/functions/v1/email-track?t=open&c=${encodeURIComponent(campaignId)}&e=${encodeURIComponent(email)}" width="1" height="1" style="display:none" alt="" />`;
+    personalizedHtml += trackPixel;
   }
   personalizedHtml += makeUnsubFooter(email);
 
@@ -261,11 +275,18 @@ serve(async (req) => {
 
     const totalSent = sentA + sentB;
 
-    // Update campaign record
+    // Update campaign record — use actual totals from send log
     if (campaignId) {
+      // Count actual sent from campaign_send_log for accuracy across resumed batches
+      const { count: actualSentCount } = await supabase
+        .from("campaign_send_log")
+        .select("*", { count: "exact", head: true })
+        .eq("campaign_id", campaignId)
+        .eq("status", "sent");
+
       const updateData: any = {
         status: isABTest && groupRemainder.length > 0 ? "ab_testing" : "sent",
-        emails_sent: totalSent,
+        emails_sent: actualSentCount || totalSent,
         sent_at: new Date().toISOString(),
         variant_a_sent: sentA,
         variant_b_sent: sentB,

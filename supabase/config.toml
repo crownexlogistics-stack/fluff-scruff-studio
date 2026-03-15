@@ -137,3 +137,6 @@ verify_jwt = false
 
 [functions.sms-track]
 verify_jwt = false
+
+[functions.email-track]
+verify_jwt = false
