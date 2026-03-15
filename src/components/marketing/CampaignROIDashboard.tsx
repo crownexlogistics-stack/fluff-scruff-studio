@@ -5,14 +5,6 @@ import { Badge } from "@/components/ui/badge";
 import { TrendingUp, Target, PoundSterling, BarChart3, MousePointerClick, Clock, MailOpen, Link2 } from "lucide-react";
 import { format } from "date-fns";
 
-interface Attribution {
-  campaign_id: string;
-  booking_id: string;
-  attribution_type: string;
-  revenue: number;
-  created_at: string;
-}
-
 interface CampaignWithStats {
   id: string;
   subject: string;
@@ -24,11 +16,9 @@ interface CampaignWithStats {
   unique_opens: number;
   clicks: number;
   unique_clicks: number;
-  directBookings: number;
-  windowBookings: number;
-  totalBookings: number;
-  totalRevenue: number;
-  roi: number;
+  attributedBookings: number;
+  attributedRevenue: number;
+  conversionRate: number;
   openRate: number;
   clickRate: number;
 }
@@ -48,44 +38,43 @@ export function CampaignROIDashboard() {
     },
   });
 
-  const { data: attributions } = useQuery({
-    queryKey: ["campaign-attributions"],
+  // Fetch bookings that have been attributed to campaigns
+  const { data: attributedBookings } = useQuery({
+    queryKey: ["attributed-bookings"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("campaign_attributions")
-        .select("campaign_id, booking_id, attribution_type, revenue, created_at");
+        .from("bookings")
+        .select("id, attributed_campaign_id, total_price, status")
+        .not("attributed_campaign_id", "is", null)
+        .in("status", ["Pending", "Confirmed", "Completed"]);
       if (error) throw error;
-      return data as Attribution[];
+      return data;
     },
-  });
-
-  const { refetch: refreshAttribution } = useQuery({
-    queryKey: ["trigger-attribution"],
-    queryFn: async () => {
-      await supabase.functions.invoke("attribute-campaign-bookings");
-      return true;
-    },
-    enabled: false,
   });
 
   const campaignStats: CampaignWithStats[] = (campaigns || []).map(c => {
-    const attrs = (attributions || []).filter(a => a.campaign_id === c.id);
-    const directBookings = attrs.filter(a => a.attribution_type === "direct").length;
-    const windowBookings = attrs.filter(a => a.attribution_type === "time_window").length;
-    const totalBookings = attrs.length;
-    const totalRevenue = attrs.reduce((sum, a) => sum + Number(a.revenue), 0);
-    const roi = c.emails_sent > 0 ? (totalBookings / c.emails_sent) * 100 : 0;
+    const bookings = (attributedBookings || []).filter(b => b.attributed_campaign_id === c.id);
+    const attributedCount = bookings.length;
+    const attributedRevenue = bookings.reduce((sum, b) => sum + Number(b.total_price), 0);
+    const conversionRate = c.emails_sent > 0 ? (attributedCount / c.emails_sent) * 100 : 0;
     const openRate = c.emails_sent > 0 ? ((c.unique_opens || 0) / c.emails_sent) * 100 : 0;
     const clickRate = c.emails_sent > 0 ? ((c.unique_clicks || 0) / c.emails_sent) * 100 : 0;
 
-    return { ...c, directBookings, windowBookings, totalBookings, totalRevenue, roi, openRate, clickRate };
+    return {
+      ...c,
+      attributedBookings: attributedCount,
+      attributedRevenue,
+      conversionRate,
+      openRate,
+      clickRate,
+    };
   });
 
   const totals = campaignStats.reduce(
     (acc, c) => ({
       campaigns: acc.campaigns + 1,
-      bookings: acc.bookings + c.totalBookings,
-      revenue: acc.revenue + c.totalRevenue,
+      bookings: acc.bookings + c.attributedBookings,
+      revenue: acc.revenue + c.attributedRevenue,
       emailsSent: acc.emailsSent + c.emails_sent,
       totalOpens: acc.totalOpens + (c.unique_opens || 0),
       totalClicks: acc.totalClicks + (c.unique_clicks || 0),
@@ -171,17 +160,9 @@ export function CampaignROIDashboard() {
       {/* Per-campaign breakdown */}
       <Card>
         <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <TrendingUp className="h-5 w-5" /> Campaign Performance
-            </CardTitle>
-            <button
-              onClick={() => refreshAttribution()}
-              className="text-xs text-muted-foreground hover:text-foreground transition-colors underline"
-            >
-              Refresh attributions
-            </button>
-          </div>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <TrendingUp className="h-5 w-5" /> Campaign Performance
+          </CardTitle>
         </CardHeader>
         <CardContent>
           {campaignStats.length === 0 ? (
@@ -200,8 +181,8 @@ export function CampaignROIDashboard() {
                       </div>
                     </div>
                     <div className="text-right shrink-0">
-                      <p className="text-lg font-bold font-heading">£{c.totalRevenue.toFixed(2)}</p>
-                      <p className="text-xs text-muted-foreground">{c.totalBookings} booking{c.totalBookings !== 1 ? "s" : ""}</p>
+                      <p className="text-lg font-bold font-heading">£{c.attributedRevenue.toFixed(2)}</p>
+                      <p className="text-xs text-muted-foreground">{c.attributedBookings} booking{c.attributedBookings !== 1 ? "s" : ""}</p>
                     </div>
                   </div>
 
@@ -216,14 +197,10 @@ export function CampaignROIDashboard() {
                     </Badge>
                     <Badge variant="outline" className="gap-1 text-xs">
                       <MousePointerClick className="h-3 w-3" />
-                      {c.directBookings} direct
+                      {c.attributedBookings} attributed
                     </Badge>
-                    <Badge variant="outline" className="gap-1 text-xs">
-                      <Clock className="h-3 w-3" />
-                      {c.windowBookings} within 7 days
-                    </Badge>
-                    <Badge variant={c.roi > 5 ? "default" : "secondary"} className="text-xs">
-                      {c.roi.toFixed(1)}% conversion
+                    <Badge variant={c.conversionRate > 5 ? "default" : "secondary"} className="text-xs">
+                      {c.conversionRate.toFixed(1)}% conversion
                     </Badge>
                   </div>
                 </div>
