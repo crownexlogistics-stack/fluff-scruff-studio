@@ -71,7 +71,7 @@ interface BookingEventProps {
   onCheckout?: (booking: BookingData) => void;
 }
 
-export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1, overlapColumn = 0, overlapTotalColumns = 1, privacyMasked, onEditBlock, onCancelBlock, onEditOvertime, onCancelOvertime, onViewOrder, onEditAppointment, onCancelBooking, onBookAgain, onCheckout }: BookingEventProps) {
+export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1, overlapColumn = 0, overlapTotalColumns = 1, slotHeight, privacyMasked, onEditBlock, onCancelBlock, onEditOvertime, onCancelOvertime, onViewOrder, onEditAppointment, onCancelBooking, onBookAgain, onCheckout }: BookingEventProps) {
   const navigate = useNavigate();
   const [requestingDeposit, setRequestingDeposit] = useState(false);
   const [paymentLinkOpen, setPaymentLinkOpen] = useState(false);
