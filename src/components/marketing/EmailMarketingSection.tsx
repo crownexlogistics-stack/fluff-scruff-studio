@@ -983,6 +983,11 @@ export function EmailMarketingSection() {
                         <Eye className="h-3.5 w-3.5 mr-1" /> View
                       </Button>
                       {(c.status === "draft" || c.status === "scheduled") && (
+                        <Button variant="outline" size="sm" onClick={() => startEditing(c)}>
+                          <Pencil className="h-3.5 w-3.5 mr-1" /> Edit
+                        </Button>
+                      )}
+                      {(c.status === "draft" || c.status === "scheduled") && (
                         <Button size="sm" onClick={() => {
                           setGeneratedSubject(c.subject);
                           setGeneratedHtml(c.html_body);
