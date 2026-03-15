@@ -124,7 +124,7 @@ export default function CustomerProfilePage() {
     queryFn: async () => {
       const { data } = await supabase
         .from("migrated_customers")
-        .select("id, full_name, phone, email")
+        .select("id, full_name, phone, email, sms_opt_out, sms_opt_out_at")
         .ilike("email", decodedEmail)
         .limit(1);
       return data?.[0] || null;
