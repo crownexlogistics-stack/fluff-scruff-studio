@@ -10,6 +10,63 @@ const DELAY_MS = 1000;
 const MAX_RETRIES = 3;
 const MESSAGING_SERVICE_SID = "MG3c95c22cb05574f545cc1b32d9db4600";
 
+type TwilioConfig = {
+  accountSid: string;
+  twilioUrl: string;
+  authHeader: string;
+};
+
+function getTwilioConfig(): TwilioConfig {
+  const accountSid = Deno.env.get("TWILIO_ACCOUNT_SID")?.trim();
+  const authToken = Deno.env.get("TWILIO_AUTH_TOKEN")?.trim();
+
+  if (!accountSid || !authToken) {
+    throw new Error("Twilio credentials not configured");
+  }
+
+  if (!accountSid.startsWith("AC")) {
+    throw new Error("Twilio Account SID is invalid (must start with AC)");
+  }
+
+  return {
+    accountSid,
+    twilioUrl: `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
+    authHeader: btoa(`${accountSid}:${authToken}`),
+  };
+}
+
+async function verifyTwilioCredentials(accountSid: string, authHeader: string): Promise<void> {
+  const verifyUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}.json`;
+
+  const res = await fetch(verifyUrl, {
+    method: "GET",
+    headers: {
+      Authorization: `Basic ${authHeader}`,
+    },
+  });
+
+  if (res.ok) {
+    await res.text();
+    return;
+  }
+
+  const raw = await res.text();
+
+  if (res.status === 401) {
+    throw new Error("Twilio authentication failed (20003). Update TWILIO_ACCOUNT_SID/TWILIO_AUTH_TOKEN.");
+  }
+
+  let details = raw.slice(0, 300);
+  try {
+    const parsed = JSON.parse(raw);
+    details = parsed?.message || parsed?.detail || details;
+  } catch {
+    // keep raw details
+  }
+
+  throw new Error(`Twilio auth precheck failed (HTTP ${res.status}): ${details}`);
+}
+
 function delay(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
