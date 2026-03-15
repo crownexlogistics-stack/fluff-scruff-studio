@@ -134,13 +134,17 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
   const numericSlotH = 46;
   const height = isGhost ? 16 : Math.max(calculatedDuration * numericSlotH, 30);
 
+  // Shorter appointments get higher z-index so they're never hidden behind longer ones
+  const zIndex = Math.max(10, 50 - Math.floor(calculatedDuration * 5));
+
   // Overlap layout: side-by-side columns
   const colWidthPercent = 100 / overlapTotalColumns;
   const leftPercent = overlapColumn * colWidthPercent;
-  const overlapStyle = {
+  const overlapStyle: React.CSSProperties = {
     top: topOffset,
     left: `calc(${leftPercent}% + 2px)`,
     width: `calc(${colWidthPercent}% - 4px)`,
+    zIndex,
   };
 
   if (booking.is_block) {
