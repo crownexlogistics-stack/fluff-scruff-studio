@@ -291,7 +291,7 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
           <TooltipTrigger asChild>
             <div
               className={cn(
-                "absolute rounded-md px-2 py-1 text-xs z-10 overflow-hidden opacity-70",
+                "absolute rounded-md px-2 py-1 text-xs z-10 overflow-hidden opacity-70 border-2 border-background shadow-sm",
                 color.bg, color.text,
                 isGhost && "line-through opacity-30"
               )}
