@@ -49,9 +49,10 @@ async function makeTrackableMessage(
   const phoneHash = await hashPhone(phone);
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   return body.replace(
-    /(https?:\/\/[^\s]+)/g,
+    /(?:https?:\/\/[^\s]+|(?<![\/\w@])(?:[a-zA-Z0-9-]+\.)+(?:co\.uk|com|org|net|io|app|dev|uk|me|info|biz|shop|store)(?:\/[^\s]*)?)/g,
     (url: string) => {
-      return `${supabaseUrl}/functions/v1/sms-track?c=${encodeURIComponent(campaignName)}&p=${phoneHash}&url=${encodeURIComponent(url)}`;
+      const fullUrl = url.startsWith("http") ? url : `https://${url}`;
+      return `${supabaseUrl}/functions/v1/sms-track?c=${encodeURIComponent(campaignName)}&p=${phoneHash}&url=${encodeURIComponent(fullUrl)}`;
     }
   );
 }
