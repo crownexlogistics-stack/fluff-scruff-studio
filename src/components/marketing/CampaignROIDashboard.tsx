@@ -21,6 +21,8 @@ interface CampaignWithStats {
   conversionRate: number;
   openRate: number;
   clickRate: number;
+  clickAttributed: number;
+  couponAttributed: number;
 }
 
 export function CampaignROIDashboard() {
