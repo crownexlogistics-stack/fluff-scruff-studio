@@ -1,0 +1,1 @@
+UPDATE email_campaigns SET emails_sent = 819 WHERE id = '79135210-85e9-425b-8065-d41061ebeca9';
