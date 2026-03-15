@@ -73,11 +73,12 @@ interface GroomerCalendarProps {
   onCheckout?: (booking: GroomerCalendarBooking) => void;
 }
 
-const START_HOUR = 8;
-const END_HOUR = 19;
-const HOURS = Array.from({ length: END_HOUR - START_HOUR }, (_, i) => START_HOUR + i);
+const START_HOUR = 9;
+const END_HOUR = 18;
+const HOURS = Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, i) => START_HOUR + i);
+const TOTAL_SLOTS = HOURS.length;
 const FOCUS_HOUR = 9;
-const SLOT_HEIGHT = 64;
+const SLOT_HEIGHT = 64; // kept for narrow columns; main grid uses CSS calc
 
 function SlotAction({ date, hour, staffId, staffName, canBlock, onBook, onBlock, onOvertime }: {
   date: Date; hour: number; staffId: string; staffName: string; canBlock: boolean;
@@ -289,7 +290,7 @@ export function GroomerCalendar({ currentDate, daysToShow, staff, bookings, curr
 
   useEffect(() => {
     if (scrollRef.current) {
-      scrollRef.current.scrollTop = (FOCUS_HOUR - START_HOUR) * SLOT_HEIGHT;
+      scrollRef.current.scrollTop = 0; // Already starts at 9am
     }
   }, [currentDate, daysToShow]);
 

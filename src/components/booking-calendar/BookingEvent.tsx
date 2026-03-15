@@ -58,6 +58,7 @@ interface BookingEventProps {
   durationHours?: number;
   overlapColumn?: number;
   overlapTotalColumns?: number;
+  slotHeight?: string;
   privacyMasked?: boolean;
   onEditBlock?: (booking: BookingData) => void;
   onCancelBlock?: (booking: BookingData) => void;
@@ -70,7 +71,7 @@ interface BookingEventProps {
   onCheckout?: (booking: BookingData) => void;
 }
 
-export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1, overlapColumn = 0, overlapTotalColumns = 1, privacyMasked, onEditBlock, onCancelBlock, onEditOvertime, onCancelOvertime, onViewOrder, onEditAppointment, onCancelBooking, onBookAgain, onCheckout }: BookingEventProps) {
+export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1, overlapColumn = 0, overlapTotalColumns = 1, slotHeight, privacyMasked, onEditBlock, onCancelBlock, onEditOvertime, onCancelOvertime, onViewOrder, onEditAppointment, onCancelBooking, onBookAgain, onCheckout }: BookingEventProps) {
   const navigate = useNavigate();
   const [requestingDeposit, setRequestingDeposit] = useState(false);
   const [paymentLinkOpen, setPaymentLinkOpen] = useState(false);
@@ -111,7 +112,10 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
   const timeParts = booking.booking_time.split(":");
   const hour = parseInt(timeParts[0]);
   const minutes = parseInt(timeParts[1] || "0");
-  const topOffset = (hour - startHour + minutes / 60) * 64;
+  // Use CSS calc with slotHeight for responsive positioning
+  const sh = slotHeight || "64px";
+  const timeOffset = hour - startHour + minutes / 60;
+  const topOffset = `calc(${sh} * ${timeOffset})`;
 
   let calculatedDuration = durationHours;
   if (booking.end_time) {
@@ -125,21 +129,24 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
   }
 
   // No Show: shrink to thin strip; minimum 30px for real bookings
-  const rawHeight = isGhost ? 16 : calculatedDuration * 64;
-  const height = isGhost ? 16 : Math.max(rawHeight, 30);
+  const heightCalc = isGhost ? "16px" : `max(calc(${sh} * ${calculatedDuration}), 30px)`;
+  // Approximate numeric height for visibility logic (assume ~46px per slot as fallback)
+  const numericSlotH = 46;
+  const height = isGhost ? 16 : Math.max(calculatedDuration * numericSlotH, 30);
 
   // Overlap layout: side-by-side columns
   const colWidthPercent = 100 / overlapTotalColumns;
   const leftPercent = overlapColumn * colWidthPercent;
   const overlapStyle = {
-    top: `${topOffset}px`,
+    top: topOffset,
     left: `calc(${leftPercent}% + 2px)`,
     width: `calc(${colWidthPercent}% - 4px)`,
   };
 
   if (booking.is_block) {
     const isFullDayOff = booking.notes === "Not working today" || (!booking.end_time && !booking.booking_time);
-    const blockHeight = Math.max(calculatedDuration * 64, 30);
+    const blockHeightCalc = `max(calc(${sh} * ${calculatedDuration}), 30px)`;
+    const blockHeight = Math.max(calculatedDuration * numericSlotH, 30);
     const blockTimeLabel = isFullDayOff
       ? `${booking.staff_name} — Not working today`
       : `${booking.booking_time.slice(0, 5)} — ${booking.end_time?.slice(0, 5) || "Unknown"}`;
@@ -148,7 +155,7 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
         <PopoverTrigger asChild>
           <div
             className={cn("absolute rounded-md px-2 py-1 text-xs font-medium cursor-pointer z-10 hover:opacity-90 transition-opacity overflow-hidden", color.bg, color.text)}
-            style={{ ...overlapStyle, height: `${blockHeight}px`, minHeight: "28px" }}
+            style={{ ...overlapStyle, height: blockHeightCalc, minHeight: "28px" }}
           >
             {blockHeight >= 80 ? (
               <>
@@ -215,7 +222,7 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
         <PopoverTrigger asChild>
           <div
             className="absolute rounded-md px-2 py-1 text-xs font-medium cursor-pointer z-10 hover:opacity-90 transition-opacity bg-emerald-100 text-emerald-900 border border-emerald-300 overflow-hidden"
-            style={{ ...overlapStyle, height: `${calculatedDuration * 64}px`, minHeight: "28px" }}
+            style={{ ...overlapStyle, height: `max(calc(${sh} * ${calculatedDuration}), 28px)`, minHeight: "28px" }}
           >
             <p className="font-bold flex items-center gap-1"><Clock className="h-3 w-3" /> Overtime</p>
             <p className="opacity-80">{booking.staff_name}</p>
@@ -288,7 +295,7 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
                 color.bg, color.text,
                 isGhost && "line-through opacity-30"
               )}
-              style={{ ...overlapStyle, height: `${height}px`, minHeight: isGhost ? "16px" : "48px" }}
+              style={{ ...overlapStyle, height: heightCalc, minHeight: isGhost ? "16px" : "48px" }}
             >
               {isGhost ? (
                 <p className="font-medium truncate text-[10px]">
@@ -330,7 +337,7 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
             color.bg, color.text,
             isGhost && "line-through opacity-50"
           )}
-          style={{ ...overlapStyle, height: `${height}px`, minHeight: isGhost ? "16px" : "48px" }}
+          style={{ ...overlapStyle, height: heightCalc, minHeight: isGhost ? "16px" : "48px" }}
         >
           {isGhost ? (
             <p className="font-medium truncate text-[10px]">
