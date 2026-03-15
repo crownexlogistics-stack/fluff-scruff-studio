@@ -30,7 +30,6 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle
 } from "@/components/ui/alert-dialog";
 import { CampaignROIDashboard } from "./CampaignROIDashboard";
-import { SmsROIDashboard } from "./SmsROIDashboard";
 import { AutomationsSection } from "./AutomationsSection";
 
 
@@ -1010,7 +1009,6 @@ export function EmailMarketingSection() {
         {/* ── ROI & ATTRIBUTION TAB ─────────────────── */}
         <TabsContent value="roi" className="space-y-10">
           <CampaignROIDashboard />
-          <SmsROIDashboard />
         </TabsContent>
 
         {/* ── CAMPAIGN LIBRARY TAB ─────────────────────── */}

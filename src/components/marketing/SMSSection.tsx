@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
+import { SmsROIDashboard } from "./SmsROIDashboard";
 import { format } from "date-fns";
 import {
   MessageSquare, Send, Loader2, Phone, ArrowUpRight, ArrowDownLeft,
@@ -110,6 +111,11 @@ export function SMSSection() {
 
       {/* Automated SMS Reminders Log */}
       <SmsRemindersLog />
+
+      <Separator className="my-8" />
+
+      {/* SMS Campaign ROI */}
+      <SmsROIDashboard />
 
       <Separator className="my-8" />
 
