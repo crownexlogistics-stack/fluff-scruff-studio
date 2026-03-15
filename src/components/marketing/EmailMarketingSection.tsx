@@ -526,6 +526,30 @@ export function EmailMarketingSection() {
     setActiveTab("create");
   };
 
+  const startEditing = (c: any) => {
+    loadCampaignToEditor(c);
+    setEditingCampaignId(c.id);
+    if (c.scheduled_at) {
+      const d = new Date(c.scheduled_at);
+      setScheduleDate(d);
+      setScheduleTime(format(d, "HH:mm"));
+      setShowScheduler(true);
+    } else {
+      setShowScheduler(false);
+      setScheduleDate(undefined);
+    }
+  };
+
+  const cancelEditing = () => {
+    setEditingCampaignId(null);
+    setShowPreview(false);
+    setGeneratedSubject("");
+    setGeneratedHtml("");
+    setPrompt("");
+    setShowScheduler(false);
+    setScheduleDate(undefined);
+  };
+
   const segmentCards: { key: Segment; label: string; desc: string; icon: React.ElementType; color: string }[] = [
     { key: "all", label: "Full List", desc: "Every customer email", icon: Users, color: "text-primary" },
     { key: "one-timers", label: "One-Timers", desc: "1 completed appointment only", icon: UserMinus, color: "text-orange-500" },
