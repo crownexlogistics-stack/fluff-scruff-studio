@@ -566,7 +566,7 @@ export function EmailMarketingSection() {
 
   return (
     <>
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+      <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); if (v !== "create") { setEditingCampaignId(null); } }} className="space-y-6">
         <TabsList className="flex-wrap">
           <TabsTrigger value="create" className="gap-1.5"><Sparkles className="h-3.5 w-3.5" /> Create</TabsTrigger>
           <TabsTrigger value="campaigns" className="gap-1.5"><FolderOpen className="h-3.5 w-3.5" /> Library</TabsTrigger>
