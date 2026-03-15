@@ -233,6 +233,7 @@ export function ViewOrderDialog({ open, onOpenChange, booking, userRole, onRefun
             </Button>
           )}
         </div>
+        </ScrollHintWrapper>
       </DialogContent>
     </Dialog>
   );
