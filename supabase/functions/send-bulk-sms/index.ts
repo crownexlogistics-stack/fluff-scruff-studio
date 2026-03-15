@@ -1,4 +1,3 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -18,20 +17,16 @@ function delay(ms: number) {
 function normalizeUkMobile(raw: string): string | null {
   if (!raw) return null;
   let phone = raw.trim().replace(/\s+/g, "").replace(/-/g, "").replace(/\(/g, "").replace(/\)/g, "");
-  // Handle +440 prefix (double zero, e.g. +4407...)
   if (phone.startsWith("+440")) phone = "+44" + phone.slice(4);
-  // Standard conversions
   if (phone.startsWith("07")) phone = "+44" + phone.slice(1);
   else if (phone.startsWith("7") && phone.length === 10) phone = "+44" + phone;
   else if (phone.startsWith("447") && !phone.startsWith("+")) phone = "+" + phone;
   else if (phone.startsWith("+447")) { /* already correct */ }
-  // Skip landlines (01, 02, 03) and non-UK numbers
   else return null;
   if (!/^\+447\d{9}$/.test(phone)) return null;
   return phone;
 }
 
-// Simple hash for phone privacy in link tracking
 async function hashPhone(phone: string): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(phone + "fluffscruff_salt");
@@ -40,7 +35,6 @@ async function hashPhone(phone: string): Promise<string> {
   return hashArray.slice(0, 8).map(b => b.toString(16).padStart(2, "0")).join("");
 }
 
-// Replace URLs in message body with trackable redirects
 async function makeTrackableMessage(
   body: string,
   campaignName: string,
@@ -63,7 +57,7 @@ async function sendOneSms(
   twilioUrl: string,
   authHeader: string,
   statusCallbackUrl: string,
-): Promise<{ ok: boolean; error?: string; sid?: string }> {
+): Promise<{ ok: boolean; error?: string; sid?: string; errorCode?: string }> {
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     try {
       const params = new URLSearchParams();
@@ -93,7 +87,13 @@ async function sendOneSms(
       }
 
       const errText = await res.text();
-      return { ok: false, error: `HTTP ${res.status}: ${errText.substring(0, 300)}` };
+      // Try to extract error code from Twilio response
+      let errorCode: string | undefined;
+      try {
+        const errJson = JSON.parse(errText);
+        if (errJson.code) errorCode = String(errJson.code);
+      } catch { /* not JSON */ }
+      return { ok: false, error: `HTTP ${res.status}: ${errText.substring(0, 300)}`, errorCode };
     } catch (err) {
       if (attempt === MAX_RETRIES - 1) {
         return { ok: false, error: String(err).substring(0, 300) };
@@ -104,7 +104,106 @@ async function sendOneSms(
   return { ok: false, error: `rate_limit_exceeded after ${MAX_RETRIES} retries` };
 }
 
-serve(async (req) => {
+// Auto-flag 30005 (unknown destination) numbers as sms_unreachable
+async function flagUnreachableNumbers(supabase: any, campaignName: string) {
+  try {
+    const { data: unreachable } = await supabase
+      .from("bulk_sms_log")
+      .select("phone, customer_name")
+      .eq("campaign_name", campaignName)
+      .eq("status", "failed")
+      .like("error_message", "%30005%");
+
+    if (!unreachable?.length) return;
+
+    console.log(`Flagging ${unreachable.length} numbers as sms_unreachable`);
+
+    for (const entry of unreachable) {
+      // Flag in migrated_customers
+      await supabase
+        .from("migrated_customers")
+        .update({ sms_unreachable: true })
+        .eq("phone", entry.phone);
+
+      // Also try matching by normalized phone variants
+      const rawPhone = entry.phone.replace("+44", "0");
+      await supabase
+        .from("migrated_customers")
+        .update({ sms_unreachable: true })
+        .eq("phone", rawPhone);
+
+      // Find customer email to add a note
+      const { data: customers } = await supabase
+        .from("migrated_customers")
+        .select("email")
+        .or(`phone.eq.${entry.phone},phone.eq.${rawPhone}`)
+        .limit(1);
+
+      if (customers?.[0]?.email) {
+        await supabase.from("customer_notes").insert({
+          customer_email: customers[0].email,
+          note: `⚠️ Check number — SMS to ${entry.phone} failed (invalid/disconnected number, error 30005). Please verify phone number at next visit.`,
+          created_by: "00000000-0000-0000-0000-000000000000",
+        });
+      }
+
+      // Also check bookings for matching phone
+      const { data: bookingCustomers } = await supabase
+        .from("bookings")
+        .select("customer_email")
+        .eq("customer_phone", entry.phone)
+        .not("customer_email", "is", null)
+        .limit(1);
+
+      if (bookingCustomers?.[0]?.customer_email && (!customers?.[0]?.email || bookingCustomers[0].customer_email !== customers[0].email)) {
+        await supabase.from("customer_notes").insert({
+          customer_email: bookingCustomers[0].customer_email,
+          note: `⚠️ Check number — SMS to ${entry.phone} failed (invalid/disconnected number, error 30005). Please verify phone number at next visit.`,
+          created_by: "00000000-0000-0000-0000-000000000000",
+        });
+      }
+    }
+  } catch (err) {
+    console.error("Error flagging unreachable numbers:", err);
+  }
+}
+
+// Background processing function for bulk sends
+async function processBulkSend(
+  recipients: { phone: string; name: string }[],
+  fullMessage: string,
+  campaignName: string,
+  message: string,
+  twilioUrl: string,
+  twilioAuth: string,
+  statusCallbackUrl: string,
+  supabase: any,
+) {
+  let sent = 0, failed = 0;
+
+  for (let i = 0; i < recipients.length; i += BATCH_SIZE) {
+    const batch = recipients.slice(i, i + BATCH_SIZE);
+    for (const recipient of batch) {
+      const trackableMsg = await makeTrackableMessage(fullMessage, campaignName, recipient.phone);
+      const result = await sendOneSms(recipient.phone, trackableMsg, twilioUrl, twilioAuth, statusCallbackUrl);
+      const status = result.ok ? "sent" : "failed";
+      await supabase.from("bulk_sms_log").insert({
+        campaign_name: campaignName, message, phone: recipient.phone,
+        customer_name: recipient.name, status, error_message: result.error || null,
+        twilio_message_sid: result.sid || null,
+      });
+      if (result.ok) sent++; else failed++;
+    }
+    if (i + BATCH_SIZE < recipients.length) await delay(DELAY_MS);
+  }
+
+  console.log(`Bulk send complete: ${sent} sent, ${failed} failed out of ${recipients.length}`);
+
+  // Auto-flag unreachable numbers after sending
+  await flagUnreachableNumbers(supabase, campaignName);
+}
+
+Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
@@ -134,7 +233,7 @@ serve(async (req) => {
     const twilioAuth = btoa(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`);
     const statusCallbackUrl = `${supabaseUrl}/functions/v1/twilio-sms-status`;
 
-    // Retry failed mode
+    // Retry failed mode — use background processing
     if (retryFailed && existingCampaignName) {
       const { data: failedLogs } = await supabase
         .from("bulk_sms_log")
@@ -148,28 +247,24 @@ serve(async (req) => {
         });
       }
 
+      // Delete failed records before re-sending
       await supabase.from("bulk_sms_log").delete()
         .eq("campaign_name", existingCampaignName)
         .eq("status", "failed");
 
-      let sent = 0, failed = 0;
-      for (let i = 0; i < failedLogs.length; i += BATCH_SIZE) {
-        const batch = failedLogs.slice(i, i + BATCH_SIZE);
-        for (const entry of batch) {
-          const trackableMsg = await makeTrackableMessage(fullMessage, existingCampaignName, entry.phone);
-          const result = await sendOneSms(entry.phone, trackableMsg, twilioUrl, twilioAuth, statusCallbackUrl);
-          const status = result.ok ? "sent" : "failed";
-          await supabase.from("bulk_sms_log").insert({
-            campaign_name: existingCampaignName, message, phone: entry.phone,
-            customer_name: entry.customer_name, status, error_message: result.error || null,
-            twilio_message_sid: result.sid || null,
-          });
-          if (result.ok) sent++; else failed++;
-        }
-        if (i + BATCH_SIZE < failedLogs.length) await delay(DELAY_MS);
-      }
+      const retryRecipients = failedLogs.map((entry: any) => ({ phone: entry.phone, name: entry.customer_name || "Customer" }));
 
-      return new Response(JSON.stringify({ success: true, sent, failed, skipped: 0 }), {
+      // Process in background — return immediately
+      EdgeRuntime.waitUntil(
+        processBulkSend(retryRecipients, fullMessage, existingCampaignName, message, twilioUrl, twilioAuth, statusCallbackUrl, supabase)
+          .catch(err => console.error("Background retry error:", err))
+      );
+
+      return new Response(JSON.stringify({
+        success: true, sent: 0, failed: 0, skipped: 0,
+        background: true, totalQueued: retryRecipients.length,
+        campaignName: existingCampaignName,
+      }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -178,7 +273,6 @@ serve(async (req) => {
     const phoneMap = new Map<string, { phone: string; name: string }>();
 
     if (filter === "manual" && Array.isArray(manualNumbers)) {
-      // Manual mode: only use the provided numbers
       for (const raw of manualNumbers) {
         const normalized = normalizeUkMobile(raw);
         if (normalized && !phoneMap.has(normalized)) {
@@ -186,8 +280,6 @@ serve(async (req) => {
         }
       }
     } else {
-      // Database mode: pull from migrated_customers + bookings
-      // Exclude sms_unreachable customers
       const { data: migratedCustomers } = await supabase
         .from("migrated_customers")
         .select("phone, full_name, sms_unreachable, sms_opt_out")
@@ -254,6 +346,23 @@ serve(async (req) => {
       });
     }
 
+    // For large sends (>50 recipients), use background processing
+    if (recipients.length > 50) {
+      EdgeRuntime.waitUntil(
+        processBulkSend(recipients, fullMessage, cName, message, twilioUrl, twilioAuth, statusCallbackUrl, supabase)
+          .catch(err => console.error("Background send error:", err))
+      );
+
+      return new Response(JSON.stringify({
+        success: true, sent: 0, failed: 0, skipped: 0,
+        background: true, totalQueued: recipients.length,
+        total: phoneMap.size, campaignName: cName,
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Small sends — process inline
     let sent = 0, failed = 0;
 
     for (let i = 0; i < recipients.length; i += BATCH_SIZE) {
@@ -271,6 +380,9 @@ serve(async (req) => {
       }
       if (i + BATCH_SIZE < recipients.length) await delay(DELAY_MS);
     }
+
+    // Flag unreachable numbers for inline sends too
+    await flagUnreachableNumbers(supabase, cName);
 
     return new Response(JSON.stringify({
       success: true, sent, failed, skipped: 0,
