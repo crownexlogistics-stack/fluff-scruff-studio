@@ -190,14 +190,16 @@ function BulkSmsCampaign() {
     queryFn: async () => {
       const phoneSet = new Set<string>();
       let unreachableCount = 0;
+      let optOutCount = 0;
 
-      const { data: mc } = await supabase.from("migrated_customers").select("phone, sms_unreachable").not("phone", "is", null);
+      const { data: mc } = await supabase.from("migrated_customers").select("phone, sms_unreachable, sms_opt_out").not("phone", "is", null);
       for (const c of (mc || [])) {
         if (c.phone) {
           const n = normalizePhone(c.phone);
           if (n) {
+            if (c.sms_opt_out) { optOutCount++; continue; }
+            if (c.sms_unreachable) { unreachableCount++; continue; }
             phoneSet.add(n);
-            if (c.sms_unreachable) unreachableCount++;
           }
         }
       }
@@ -210,7 +212,7 @@ function BulkSmsCampaign() {
         }
       }
 
-      return { total: phoneSet.size, unreachable: unreachableCount };
+      return { total: phoneSet.size, unreachable: unreachableCount, optOut: optOutCount };
     },
   });
 
