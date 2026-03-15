@@ -154,7 +154,7 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
       <Popover>
         <PopoverTrigger asChild>
           <div
-            className={cn("absolute rounded-md px-2 py-1 text-xs font-medium cursor-pointer z-10 hover:opacity-90 transition-opacity overflow-hidden", color.bg, color.text)}
+            className={cn("absolute rounded-md px-2 py-1 text-xs font-medium cursor-pointer z-10 hover:opacity-90 transition-opacity overflow-hidden border-2 border-background shadow-sm", color.bg, color.text)}
             style={{ ...overlapStyle, height: blockHeightCalc, minHeight: "28px" }}
           >
             {blockHeight >= 80 ? (
