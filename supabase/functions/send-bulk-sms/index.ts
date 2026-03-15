@@ -72,13 +72,15 @@ async function resolveTwilioSendMode(
     // keep raw details
   }
 
-  if ((res.status === 401 || code === "20003") && twilioFromNumber) {
-    console.warn("Messaging Service auth failed; falling back to TWILIO_PHONE_NUMBER sender");
+  const serviceUnavailable = res.status === 401 || res.status === 404 || code === "20003" || code === "20404";
+
+  if (serviceUnavailable && twilioFromNumber) {
+    console.warn("Messaging Service unavailable; falling back to TWILIO_PHONE_NUMBER sender");
     return "from_number";
   }
 
-  if ((res.status === 401 || code === "20003") && !twilioFromNumber) {
-    throw new Error("Twilio Messaging Service auth failed (20003) and TWILIO_PHONE_NUMBER is missing/invalid.");
+  if (serviceUnavailable && !twilioFromNumber) {
+    throw new Error("Twilio Messaging Service is unavailable and TWILIO_PHONE_NUMBER is missing/invalid.");
   }
 
   throw new Error(`Twilio sender precheck failed (HTTP ${res.status}): ${details}`);
