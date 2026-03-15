@@ -420,7 +420,28 @@ export function EmailMarketingSection() {
     onError: (err: Error) => toast.error(err.message),
   });
 
-  // Schedule campaign (or update if editing)
+  // Retry failed sends for a campaign
+  const retryMutation = useMutation({
+    mutationFn: async (campaignId: string) => {
+      const campaign = campaigns?.find(c => c.id === campaignId);
+      if (!campaign) throw new Error("Campaign not found");
+      const { data, error } = await supabase.functions.invoke("send-campaign", {
+        body: {
+          campaignId, subject: campaign.subject, htmlBody: campaign.html_body, retryFailed: true,
+        },
+      });
+      if (error) throw error;
+      if (data.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["email-campaigns"] });
+      queryClient.invalidateQueries({ queryKey: ["campaign-send-logs"] });
+      toast.success(`Retry complete! ${data.sent} sent, ${data.failed || 0} still failed.`);
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
   const scheduleMutation = useMutation({
     mutationFn: async () => {
       if (!scheduleDate) throw new Error("Please select a date");
