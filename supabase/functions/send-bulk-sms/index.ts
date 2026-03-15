@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 const BATCH_SIZE = 5;
-const DELAY_MS = 500;
+const DELAY_MS = 1000;
 const MAX_RETRIES = 3;
 const MESSAGING_SERVICE_SID = "MG3c95c22cb05574f545cc1b32d9db4600";
 
