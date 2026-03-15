@@ -641,12 +641,21 @@ export function EmailMarketingSection() {
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2 text-lg"><Eye className="h-5 w-5" /> Live Preview & Editor</CardTitle>
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={() => saveDraftMutation.mutate()} disabled={saveDraftMutation.isPending}>
-                      <Save className="h-3.5 w-3.5 mr-1" /> Save Draft
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => saveTemplateMutation.mutate()} disabled={saveTemplateMutation.isPending}>
-                      <BookTemplate className="h-3.5 w-3.5 mr-1" /> Save as Template
-                    </Button>
+                    {editingCampaignId && (
+                      <Button size="sm" onClick={() => updateCampaignMutation.mutate()} disabled={updateCampaignMutation.isPending} className="gap-1.5">
+                        {updateCampaignMutation.isPending ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Saving...</> : <><Save className="h-3.5 w-3.5" /> Save Changes</>}
+                      </Button>
+                    )}
+                    {!editingCampaignId && (
+                      <>
+                        <Button variant="outline" size="sm" onClick={() => saveDraftMutation.mutate()} disabled={saveDraftMutation.isPending}>
+                          <Save className="h-3.5 w-3.5 mr-1" /> Save Draft
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => saveTemplateMutation.mutate()} disabled={saveTemplateMutation.isPending}>
+                          <BookTemplate className="h-3.5 w-3.5 mr-1" /> Save as Template
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </div>
               </CardHeader>
