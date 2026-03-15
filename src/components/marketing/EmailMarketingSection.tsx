@@ -20,7 +20,7 @@ import {
   Loader2, Mail, FileText, CheckCircle2, Wand2, Paperclip, X,
   Copy, Trash2, Clock, CalendarIcon, FolderOpen, Inbox, BookTemplate,
   MoreHorizontal, AlertCircle, Palette, ImagePlus, Zap, MessageSquare,
-  FlaskConical, Search, XCircle, Upload
+  FlaskConical, Search, XCircle, Upload, Pencil
 } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger
@@ -85,6 +85,9 @@ export function EmailMarketingSection() {
 
   // Delete dialog
   const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  // Edit mode state
+  const [editingCampaignId, setEditingCampaignId] = useState<string | null>(null);
 
   // Test email state
   const [testEmail, setTestEmail] = useState("");
@@ -383,7 +386,7 @@ export function EmailMarketingSection() {
     onError: (err: Error) => toast.error(err.message),
   });
 
-  // Schedule campaign
+  // Schedule campaign (or update if editing)
   const scheduleMutation = useMutation({
     mutationFn: async () => {
       if (!scheduleDate) throw new Error("Please select a date");
@@ -392,19 +395,47 @@ export function EmailMarketingSection() {
       scheduledAt.setHours(hours, mins, 0, 0);
       if (scheduledAt <= new Date()) throw new Error("Scheduled time must be in the future");
 
-      const { error } = await supabase.from("email_campaigns").insert({
-        subject: generatedSubject, html_body: generatedHtml, prompt, segment: selectedSegment,
-        status: "scheduled", created_by: user!.id, scheduled_at: scheduledAt.toISOString(),
-      });
-      if (error) throw error;
+      if (editingCampaignId) {
+        const { error } = await supabase.from("email_campaigns").update({
+          subject: generatedSubject, html_body: generatedHtml, prompt, segment: selectedSegment,
+          scheduled_at: scheduledAt.toISOString(),
+        }).eq("id", editingCampaignId);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("email_campaigns").insert({
+          subject: generatedSubject, html_body: generatedHtml, prompt, segment: selectedSegment,
+          status: "scheduled", created_by: user!.id, scheduled_at: scheduledAt.toISOString(),
+        });
+        if (error) throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["email-campaigns"] });
       setShowScheduler(false);
       setScheduleDate(undefined);
-      toast.success("Campaign scheduled!");
+      const wasEditing = !!editingCampaignId;
+      setEditingCampaignId(null);
+      toast.success(wasEditing ? "Campaign updated!" : "Campaign scheduled!");
       setActiveTab("campaigns");
       setActiveFolder("scheduled");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  // Update existing campaign (save changes without sending)
+  const updateCampaignMutation = useMutation({
+    mutationFn: async () => {
+      if (!editingCampaignId) throw new Error("No campaign selected for editing");
+      const { error } = await supabase.from("email_campaigns").update({
+        subject: generatedSubject, html_body: generatedHtml, prompt, segment: selectedSegment,
+      }).eq("id", editingCampaignId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["email-campaigns"] });
+      toast.success("Campaign updated!");
+      setEditingCampaignId(null);
+      setActiveTab("campaigns");
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -495,6 +526,30 @@ export function EmailMarketingSection() {
     setActiveTab("create");
   };
 
+  const startEditing = (c: any) => {
+    loadCampaignToEditor(c);
+    setEditingCampaignId(c.id);
+    if (c.scheduled_at) {
+      const d = new Date(c.scheduled_at);
+      setScheduleDate(d);
+      setScheduleTime(format(d, "HH:mm"));
+      setShowScheduler(true);
+    } else {
+      setShowScheduler(false);
+      setScheduleDate(undefined);
+    }
+  };
+
+  const cancelEditing = () => {
+    setEditingCampaignId(null);
+    setShowPreview(false);
+    setGeneratedSubject("");
+    setGeneratedHtml("");
+    setPrompt("");
+    setShowScheduler(false);
+    setScheduleDate(undefined);
+  };
+
   const segmentCards: { key: Segment; label: string; desc: string; icon: React.ElementType; color: string }[] = [
     { key: "all", label: "Full List", desc: "Every customer email", icon: Users, color: "text-primary" },
     { key: "one-timers", label: "One-Timers", desc: "1 completed appointment only", icon: UserMinus, color: "text-orange-500" },
@@ -511,7 +566,7 @@ export function EmailMarketingSection() {
 
   return (
     <>
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+      <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); if (v !== "create") { setEditingCampaignId(null); } }} className="space-y-6">
         <TabsList className="flex-wrap">
           <TabsTrigger value="create" className="gap-1.5"><Sparkles className="h-3.5 w-3.5" /> Create</TabsTrigger>
           <TabsTrigger value="campaigns" className="gap-1.5"><FolderOpen className="h-3.5 w-3.5" /> Library</TabsTrigger>
@@ -522,6 +577,18 @@ export function EmailMarketingSection() {
 
         {/* ── CREATE TAB ─────────────────────────────── */}
         <TabsContent value="create" className="space-y-6">
+          {/* Editing banner */}
+          {editingCampaignId && (
+            <div className="flex items-center justify-between bg-primary/10 border border-primary/20 rounded-lg px-4 py-3">
+              <div className="flex items-center gap-2">
+                <Pencil className="h-4 w-4 text-primary" />
+                <span className="text-sm font-medium">Editing: <strong>{generatedSubject || "Untitled"}</strong></span>
+              </div>
+              <Button variant="ghost" size="sm" onClick={cancelEditing} className="gap-1 text-xs">
+                <X className="h-3.5 w-3.5" /> Cancel Edit
+              </Button>
+            </div>
+          )}
           {/* AI Prompt Section */}
           <Card>
             <CardHeader className="pb-3">
@@ -574,12 +641,21 @@ export function EmailMarketingSection() {
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2 text-lg"><Eye className="h-5 w-5" /> Live Preview & Editor</CardTitle>
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={() => saveDraftMutation.mutate()} disabled={saveDraftMutation.isPending}>
-                      <Save className="h-3.5 w-3.5 mr-1" /> Save Draft
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => saveTemplateMutation.mutate()} disabled={saveTemplateMutation.isPending}>
-                      <BookTemplate className="h-3.5 w-3.5 mr-1" /> Save as Template
-                    </Button>
+                    {editingCampaignId && (
+                      <Button size="sm" onClick={() => updateCampaignMutation.mutate()} disabled={updateCampaignMutation.isPending} className="gap-1.5">
+                        {updateCampaignMutation.isPending ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Saving...</> : <><Save className="h-3.5 w-3.5" /> Save Changes</>}
+                      </Button>
+                    )}
+                    {!editingCampaignId && (
+                      <>
+                        <Button variant="outline" size="sm" onClick={() => saveDraftMutation.mutate()} disabled={saveDraftMutation.isPending}>
+                          <Save className="h-3.5 w-3.5 mr-1" /> Save Draft
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => saveTemplateMutation.mutate()} disabled={saveTemplateMutation.isPending}>
+                          <BookTemplate className="h-3.5 w-3.5 mr-1" /> Save as Template
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </div>
               </CardHeader>
@@ -906,6 +982,11 @@ export function EmailMarketingSection() {
                       <Button variant="outline" size="sm" onClick={() => loadCampaignToEditor(c)}>
                         <Eye className="h-3.5 w-3.5 mr-1" /> View
                       </Button>
+                      {(c.status === "draft" || c.status === "scheduled") && (
+                        <Button variant="outline" size="sm" onClick={() => startEditing(c)}>
+                          <Pencil className="h-3.5 w-3.5 mr-1" /> Edit
+                        </Button>
+                      )}
                       {(c.status === "draft" || c.status === "scheduled") && (
                         <Button size="sm" onClick={() => {
                           setGeneratedSubject(c.subject);
