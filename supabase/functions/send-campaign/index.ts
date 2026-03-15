@@ -275,11 +275,18 @@ serve(async (req) => {
 
     const totalSent = sentA + sentB;
 
-    // Update campaign record
+    // Update campaign record — use actual totals from send log
     if (campaignId) {
+      // Count actual sent from campaign_send_log for accuracy across resumed batches
+      const { count: actualSentCount } = await supabase
+        .from("campaign_send_log")
+        .select("*", { count: "exact", head: true })
+        .eq("campaign_id", campaignId)
+        .eq("status", "sent");
+
       const updateData: any = {
         status: isABTest && groupRemainder.length > 0 ? "ab_testing" : "sent",
-        emails_sent: totalSent,
+        emails_sent: actualSentCount || totalSent,
         sent_at: new Date().toISOString(),
         variant_a_sent: sentA,
         variant_b_sent: sentB,
