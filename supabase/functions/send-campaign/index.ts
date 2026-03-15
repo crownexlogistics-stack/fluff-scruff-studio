@@ -157,7 +157,11 @@ serve(async (req) => {
       throw new Error("No recipients specified");
     }
 
-    if (recipientEmails.length === 0) throw new Error("No recipients to send to");
+    if (recipientEmails.length === 0) {
+      return new Response(JSON.stringify({ success: true, sent: 0, failed: 0, skipped: 0, total: 0, noFailedToRetry: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // Filter out unsubscribed and invalid emails
     const emailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
