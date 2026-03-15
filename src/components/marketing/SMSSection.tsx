@@ -348,7 +348,9 @@ function BulkSmsCampaign() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["bulk-sms-history"] });
-      if (data.remaining > 0) {
+      if (data.background) {
+        toast.success(`Campaign queued! ${data.totalQueued} messages processing in background. Refresh in a few minutes to see results.`);
+      } else if (data.remaining > 0) {
         toast.info(`Sent ${data.sent} so far — ${data.remaining} remaining. Click "Continue Sending" to resume.`);
       } else {
         toast.success(`Bulk SMS complete! ${data.sent} sent, ${data.failed || 0} failed.`);
@@ -371,6 +373,8 @@ function BulkSmsCampaign() {
       queryClient.invalidateQueries({ queryKey: ["bulk-sms-history"] });
       if (data.noFailedToRetry) {
         toast.info("No failed SMS to retry — all were successful!");
+      } else if (data.background) {
+        toast.success(`Retry started! ${data.totalQueued} messages queued for background processing. Refresh in a few minutes to see results.`);
       } else {
         toast.success(`Retry complete! ${data.sent} sent, ${data.failed || 0} still failed.`);
       }
