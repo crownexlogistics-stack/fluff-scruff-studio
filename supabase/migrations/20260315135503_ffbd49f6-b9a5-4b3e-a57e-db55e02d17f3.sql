@@ -1,0 +1,1 @@
+DELETE FROM email_unsubscribes WHERE email = 'sevakkhudaverdyan@gmail.com';
