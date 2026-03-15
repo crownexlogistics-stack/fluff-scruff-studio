@@ -6,6 +6,13 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const BATCH_SIZE = 10;
+const DELAY_MS = 1000;
+
+function delay(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -24,21 +31,45 @@ serve(async (req) => {
     const { data: { user }, error: userErr } = await supabase.auth.getUser(token);
     if (userErr || !user) throw new Error("Not authenticated");
 
-    const { campaignId, emails, subject, htmlBody, variantBSubject, abTestPercentage } = await req.json();
-    if (!emails?.length || !subject || !htmlBody) {
-      return new Response(JSON.stringify({ error: "emails, subject, and htmlBody required" }), {
+    const { campaignId, emails, subject, htmlBody, variantBSubject, abTestPercentage, retryFailed } = await req.json();
+    if (!subject || !htmlBody) {
+      return new Response(JSON.stringify({ error: "subject and htmlBody required" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     // Get unsubscribed emails
     const { data: unsubs } = await supabase.from("email_unsubscribes").select("email");
-    const unsubSet = new Set((unsubs || []).map(u => u.email.toLowerCase()));
+    const unsubSet = new Set((unsubs || []).map((u: any) => u.email.toLowerCase()));
 
-    // Filter out unsubscribed
-    const validEmails = emails.filter((e: string) => !unsubSet.has(e.toLowerCase()));
+    // Build recipient list
+    let recipientEmails: string[];
 
-    const unsubscribeBaseUrl = `${supabaseUrl}/functions/v1/handle-unsubscribe`;
+    if (retryFailed && campaignId) {
+      // Retry mode: only get failed emails from the send log
+      const { data: failedLogs } = await supabase
+        .from("campaign_send_log")
+        .select("email")
+        .eq("campaign_id", campaignId)
+        .eq("status", "failed");
+      recipientEmails = (failedLogs || []).map((l: any) => l.email);
+    } else if (emails?.length) {
+      // Emails passed directly from frontend
+      recipientEmails = emails;
+    } else {
+      throw new Error("No recipients specified");
+    }
+
+    if (recipientEmails.length === 0) throw new Error("No recipients to send to");
+
+    // Filter out unsubscribed and invalid emails
+    const emailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+    const validEmails = recipientEmails.filter((e: string) => {
+      const lower = e.toLowerCase().trim();
+      return emailRegex.test(lower) && !unsubSet.has(lower) && !lower.includes("test");
+    });
+
+    const skippedCount = recipientEmails.length - validEmails.length;
 
     // A/B test logic
     const isABTest = variantBSubject && abTestPercentage && abTestPercentage > 0;
@@ -56,7 +87,7 @@ serve(async (req) => {
 
     let sentA = 0;
     let sentB = 0;
-    const batchSize = 20;
+    let failedCount = 0;
 
     // Unsubscribe footer template
     const makeUnsubFooter = (email: string) => {
@@ -64,13 +95,13 @@ serve(async (req) => {
       return `<div style="border-top:1px solid #e0e0e0;margin-top:32px;padding-top:20px;text-align:center;font-family:Arial,sans-serif;"><p style="font-size:12px;color:#999;line-height:1.6;margin:0;">You are receiving this email because you are part of the Fluff &amp; Scruff family.<br/>To unsubscribe from future marketing emails, <a href="${unsubUrl}" style="color:#999;text-decoration:underline;">click here</a>.</p></div>`;
     };
 
-    // Send function
+    // Send function with rate limiting and logging
     const sendBatch = async (emailList: string[], subjectLine: string, _variant: string) => {
       let count = 0;
-      for (let i = 0; i < emailList.length; i += batchSize) {
-        const batch = emailList.slice(i, i + batchSize);
+      for (let i = 0; i < emailList.length; i += BATCH_SIZE) {
+        const batch = emailList.slice(i, i + BATCH_SIZE);
         const promises = batch.map(async (email: string) => {
-          const unsubUrl = `${unsubscribeBaseUrl}?email=${encodeURIComponent(email)}`;
+          const unsubUrl = `${supabaseUrl}/functions/v1/handle-unsubscribe?email=${encodeURIComponent(email)}`;
           let personalizedHtml = htmlBody.replace(/\{\{UNSUBSCRIBE_URL\}\}/g, unsubUrl);
           if (campaignId) {
             personalizedHtml = personalizedHtml.replace(
@@ -81,32 +112,88 @@ serve(async (req) => {
               }
             );
           }
-
-          // Auto-append the GDPR unsubscribe footer
           personalizedHtml += makeUnsubFooter(email);
 
-          const res = await fetch("https://api.resend.com/emails", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${RESEND_API_KEY}`,
-            },
-            body: JSON.stringify({
-              from: "Fluff & Scruff Studio <info@fluffandscruff.co.uk>",
-              to: [email],
-              reply_to: "info@fluffandscruff.co.uk",
-              subject: subjectLine,
-              html: personalizedHtml,
-            }),
-          });
+          try {
+            const res = await fetch("https://api.resend.com/emails", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${RESEND_API_KEY}`,
+              },
+              body: JSON.stringify({
+                from: "Fluff & Scruff Studio <info@fluffandscruff.co.uk>",
+                to: [email],
+                reply_to: "info@fluffandscruff.co.uk",
+                subject: subjectLine,
+                html: personalizedHtml,
+              }),
+            });
 
-          if (res.ok) count++;
-          else console.error(`Failed to send to ${email}:`, await res.text());
+            if (res.ok) {
+              count++;
+              // Log success
+              if (campaignId) {
+                await supabase.from("campaign_send_log").insert({
+                  campaign_id: campaignId, email, status: "sent",
+                });
+              }
+            } else {
+              const errText = await res.text();
+              console.error(`Failed to send to ${email}:`, errText);
+              failedCount++;
+              // Log failure
+              if (campaignId) {
+                await supabase.from("campaign_send_log").insert({
+                  campaign_id: campaignId, email, status: "failed",
+                  error_message: errText.substring(0, 500),
+                });
+              }
+            }
+          } catch (err) {
+            console.error(`Exception sending to ${email}:`, err);
+            failedCount++;
+            if (campaignId) {
+              await supabase.from("campaign_send_log").insert({
+                campaign_id: campaignId, email, status: "failed",
+                error_message: String(err).substring(0, 500),
+              });
+            }
+          }
         });
         await Promise.all(promises);
+
+        // Rate limit: wait between batches
+        if (i + BATCH_SIZE < emailList.length) {
+          await delay(DELAY_MS);
+        }
       }
       return count;
     };
+
+    // If retrying, clear old failed logs for this campaign first
+    if (retryFailed && campaignId) {
+      await supabase.from("campaign_send_log").delete()
+        .eq("campaign_id", campaignId)
+        .eq("status", "failed");
+    }
+
+    // Log skipped emails
+    if (campaignId) {
+      const skippedEmails = recipientEmails.filter((e: string) => {
+        const lower = e.toLowerCase().trim();
+        return !emailRegex.test(lower) || unsubSet.has(lower) || lower.includes("test");
+      });
+      if (skippedEmails.length > 0) {
+        const skippedLogs = skippedEmails.map((email: string) => ({
+          campaign_id: campaignId,
+          email,
+          status: "skipped",
+          error_message: unsubSet.has(email.toLowerCase()) ? "Unsubscribed" : "Invalid email",
+        }));
+        await supabase.from("campaign_send_log").insert(skippedLogs);
+      }
+    }
 
     // Send to group A
     sentA = await sendBatch(groupA, subject, "A");
@@ -143,7 +230,11 @@ serve(async (req) => {
     }
 
     return new Response(JSON.stringify({
-      success: true, sent: totalSent, skipped: emails.length - validEmails.length,
+      success: true,
+      sent: totalSent,
+      failed: failedCount,
+      skipped: skippedCount,
+      total: recipientEmails.length,
       abTest: isABTest ? { sentA, sentB, remainder: groupRemainder.length } : undefined,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
