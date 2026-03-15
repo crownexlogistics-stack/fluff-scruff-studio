@@ -236,6 +236,20 @@ function BulkSmsCampaign() {
     },
   });
 
+  // Fetch attributed bookings for SMS campaigns
+  const { data: smsAttributedBookings } = useQuery({
+    queryKey: ["sms-attributed-bookings-detail"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("bookings")
+        .select("id, attributed_sms_campaign, total_price, status")
+        .not("attributed_sms_campaign", "is", null)
+        .in("status", ["Pending", "Confirmed", "Completed"]);
+      if (error) throw error;
+      return data;
+    },
+  });
+
   // Fetch campaign history with delivery status
   const { data: campaignHistory, isLoading: historyLoading } = useQuery({
     queryKey: ["bulk-sms-history"],
@@ -250,12 +264,15 @@ function BulkSmsCampaign() {
       for (const log of (data || [])) {
         const key = log.campaign_name || "Unknown";
         if (!campaigns.has(key)) {
+          const bookings = (smsAttributedBookings || []).filter(b => b.attributed_sms_campaign === key);
           campaigns.set(key, {
             name: key, message: log.message, sent: 0, failed: 0, skipped: 0,
             delivered: 0, undelivered: 0, date: log.sent_at,
             failedEntries: [], undeliveredEntries: [],
             clicks: clickData?.get(key) || 0,
             hasLink: /https?:\/\//.test(log.message),
+            attributedBookings: bookings.length,
+            attributedRevenue: bookings.reduce((sum, b) => sum + Number(b.total_price), 0),
           });
         }
         const c = campaigns.get(key)!;
@@ -278,7 +295,7 @@ function BulkSmsCampaign() {
       }
       return Array.from(campaigns.values());
     },
-    enabled: clickData !== undefined,
+    enabled: clickData !== undefined && smsAttributedBookings !== undefined,
   });
 
   // Best performing campaign
