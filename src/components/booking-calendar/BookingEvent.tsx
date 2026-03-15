@@ -145,7 +145,8 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
 
   if (booking.is_block) {
     const isFullDayOff = booking.notes === "Not working today" || (!booking.end_time && !booking.booking_time);
-    const blockHeight = Math.max(calculatedDuration * 64, 30);
+    const blockHeightCalc = `max(calc(${sh} * ${calculatedDuration}), 30px)`;
+    const blockHeight = Math.max(calculatedDuration * numericSlotH, 30);
     const blockTimeLabel = isFullDayOff
       ? `${booking.staff_name} — Not working today`
       : `${booking.booking_time.slice(0, 5)} — ${booking.end_time?.slice(0, 5) || "Unknown"}`;
@@ -154,7 +155,7 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
         <PopoverTrigger asChild>
           <div
             className={cn("absolute rounded-md px-2 py-1 text-xs font-medium cursor-pointer z-10 hover:opacity-90 transition-opacity overflow-hidden", color.bg, color.text)}
-            style={{ ...overlapStyle, height: `${blockHeight}px`, minHeight: "28px" }}
+            style={{ ...overlapStyle, height: blockHeightCalc, minHeight: "28px" }}
           >
             {blockHeight >= 80 ? (
               <>
