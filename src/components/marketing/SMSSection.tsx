@@ -168,6 +168,8 @@ interface CampaignData {
   undeliveredEntries: { phone: string; errorCode: string }[];
   clicks: number;
   hasLink: boolean;
+  attributedBookings: number;
+  attributedRevenue: number;
 }
 
 function BulkSmsCampaign() {
