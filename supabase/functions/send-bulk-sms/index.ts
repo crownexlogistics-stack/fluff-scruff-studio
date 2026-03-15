@@ -458,8 +458,6 @@ Deno.serve(async (req) => {
           fullMessage,
           cName,
           message,
-          twilioUrl,
-          twilioAuth,
           statusCallbackUrl,
           sendMode,
           twilioFromNumber,
