@@ -154,7 +154,7 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
       <Popover>
         <PopoverTrigger asChild>
           <div
-            className={cn("absolute rounded-md px-2 py-1 text-xs font-medium cursor-pointer z-10 hover:opacity-90 transition-opacity overflow-hidden", color.bg, color.text)}
+            className={cn("absolute rounded-md px-2 py-1 text-xs font-medium cursor-pointer z-10 hover:opacity-90 transition-opacity overflow-hidden border-2 border-background shadow-sm", color.bg, color.text)}
             style={{ ...overlapStyle, height: blockHeightCalc, minHeight: "28px" }}
           >
             {blockHeight >= 80 ? (
@@ -221,7 +221,7 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
       <Popover>
         <PopoverTrigger asChild>
           <div
-            className="absolute rounded-md px-2 py-1 text-xs font-medium cursor-pointer z-10 hover:opacity-90 transition-opacity bg-emerald-100 text-emerald-900 border border-emerald-300 overflow-hidden"
+            className="absolute rounded-md px-2 py-1 text-xs font-medium cursor-pointer z-10 hover:opacity-90 transition-opacity bg-emerald-100 text-emerald-900 border-2 border-background shadow-sm overflow-hidden"
             style={{ ...overlapStyle, height: `max(calc(${sh} * ${calculatedDuration}), 28px)`, minHeight: "28px" }}
           >
             <p className="font-bold flex items-center gap-1"><Clock className="h-3 w-3" /> Overtime</p>
@@ -291,7 +291,7 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
           <TooltipTrigger asChild>
             <div
               className={cn(
-                "absolute rounded-md px-2 py-1 text-xs z-10 overflow-hidden opacity-70",
+                "absolute rounded-md px-2 py-1 text-xs z-10 overflow-hidden opacity-70 border-2 border-background shadow-sm",
                 color.bg, color.text,
                 isGhost && "line-through opacity-30"
               )}
@@ -333,7 +333,7 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
         <div
           title={tooltipSummary}
           className={cn(
-            "absolute rounded-md px-2 py-1 text-xs cursor-pointer z-10 overflow-hidden transition-opacity hover:opacity-90",
+            "absolute rounded-md px-2 py-1 text-xs cursor-pointer z-10 overflow-hidden transition-opacity hover:opacity-90 border-2 border-background shadow-sm",
             color.bg, color.text,
             isGhost && "line-through opacity-50"
           )}

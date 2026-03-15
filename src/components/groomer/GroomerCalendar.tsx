@@ -521,7 +521,7 @@ export function GroomerCalendar({ currentDate, daysToShow, staff, bookings, curr
                         <PopoverTrigger asChild>
                           <div
                             className={cn(
-                              "absolute left-1 right-1 rounded-lg px-3 py-2 cursor-pointer z-10 hover:shadow-md transition-shadow overflow-hidden border",
+                              "absolute left-1 right-1 rounded-lg px-3 py-2 cursor-pointer z-10 hover:shadow-md transition-shadow overflow-hidden border-2 border-background shadow-sm",
                               myColor.bg, myColor.text,
                               isGhost && "line-through opacity-40"
                             )}
