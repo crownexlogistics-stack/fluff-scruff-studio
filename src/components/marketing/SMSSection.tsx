@@ -662,6 +662,24 @@ function BulkSmsCampaign() {
                 </div>
               )}
 
+              {/* Booking Attribution */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="border rounded-lg p-3 text-center">
+                  <p className="text-xl font-bold text-primary">{detailsCampaign.attributedBookings}</p>
+                  <p className="text-[10px] text-muted-foreground">Bookings Attributed</p>
+                </div>
+                <div className="border rounded-lg p-3 text-center">
+                  <p className="text-xl font-bold text-primary">£{detailsCampaign.attributedRevenue.toFixed(2)}</p>
+                  <p className="text-[10px] text-muted-foreground">Revenue Attributed</p>
+                </div>
+                <div className="border rounded-lg p-3 text-center">
+                  <p className="text-xl font-bold text-primary">
+                    {detailsCampaign.sent > 0 ? ((detailsCampaign.attributedBookings / detailsCampaign.sent) * 100).toFixed(1) : 0}%
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">Conversion Rate</p>
+                </div>
+              </div>
+
               {/* Undelivered numbers */}
               {detailsCampaign.undeliveredEntries.length > 0 && (
                 <div>
