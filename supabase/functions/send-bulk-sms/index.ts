@@ -228,6 +228,8 @@ serve(async (req) => {
       }
     }
 
+    let recipients = Array.from(phoneMap.values());
+
     // Resume logic
     const cName = campaignName || `Bulk SMS ${new Date().toISOString().slice(0, 16)}`;
     const { data: alreadyProcessed } = await supabase
