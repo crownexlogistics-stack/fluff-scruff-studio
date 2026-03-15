@@ -44,7 +44,7 @@ export function CampaignROIDashboard() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("bookings")
-        .select("id, attributed_campaign_id, total_price, status")
+        .select("id, attributed_campaign_id, total_price, status, attribution_source")
         .not("attributed_campaign_id", "is", null)
         .in("status", ["Pending", "Confirmed", "Completed"]);
       if (error) throw error;
