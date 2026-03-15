@@ -131,12 +131,20 @@ async function sendOneSms(
   twilioUrl: string,
   authHeader: string,
   statusCallbackUrl: string,
+  sendMode: TwilioSendMode,
+  twilioFromNumber: string | null,
 ): Promise<{ ok: boolean; error?: string; sid?: string; errorCode?: string }> {
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     try {
       const params = new URLSearchParams();
       params.append("To", phone);
-      params.append("MessagingServiceSid", MESSAGING_SERVICE_SID);
+      if (sendMode === "messaging_service") {
+        params.append("MessagingServiceSid", MESSAGING_SERVICE_SID);
+      } else if (twilioFromNumber) {
+        params.append("From", twilioFromNumber);
+      } else {
+        return { ok: false, error: "No valid Twilio sender available" };
+      }
       params.append("Body", body);
       params.append("StatusCallback", statusCallbackUrl);
 
