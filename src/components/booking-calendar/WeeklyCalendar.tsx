@@ -3,7 +3,6 @@ import { format, addDays, isToday } from "date-fns";
 import { cn } from "@/lib/utils";
 import { BookingEvent, BookingData } from "./BookingEvent";
 import { EmptySlotAction } from "./EmptySlotAction";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface StaffMember {
   id: string;
