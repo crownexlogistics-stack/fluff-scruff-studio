@@ -102,7 +102,7 @@ export function ViewOrderDialog({ open, onOpenChange, booking, userRole, onRefun
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Booking Details</DialogTitle>
         </DialogHeader>
