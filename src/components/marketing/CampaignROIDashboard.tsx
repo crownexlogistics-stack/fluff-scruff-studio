@@ -59,6 +59,8 @@ export function CampaignROIDashboard() {
     const conversionRate = c.emails_sent > 0 ? (attributedCount / c.emails_sent) * 100 : 0;
     const openRate = c.emails_sent > 0 ? ((c.unique_opens || 0) / c.emails_sent) * 100 : 0;
     const clickRate = c.emails_sent > 0 ? ((c.unique_clicks || 0) / c.emails_sent) * 100 : 0;
+    const clickAttributed = bookings.filter(b => b.attribution_source === 'click').length;
+    const couponAttributed = bookings.filter(b => b.attribution_source === 'coupon').length;
 
     return {
       ...c,
@@ -67,6 +69,8 @@ export function CampaignROIDashboard() {
       conversionRate,
       openRate,
       clickRate,
+      clickAttributed,
+      couponAttributed,
     };
   });
 
