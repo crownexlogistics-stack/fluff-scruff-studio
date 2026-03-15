@@ -69,6 +69,21 @@ export function BookingPopoverCard({
     enabled: !booking.is_block,
   });
 
+  // Fetch coupon usage for this booking
+  const { data: couponUsage } = useQuery({
+    queryKey: ["booking-coupon", booking.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("coupon_usages")
+        .select("*, coupons(code, discount_type, discount_value)")
+        .eq("booking_id", booking.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data as any;
+    },
+    enabled: !booking.is_block,
+  });
+
   const handleRefund = async () => {
     if (!confirm(`Are you sure you want to refund this booking for ${booking.customer_name}? This will process a refund through Stripe.`)) return;
     setProcessingRefund(true);
