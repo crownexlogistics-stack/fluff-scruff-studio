@@ -13,7 +13,8 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import {
   MessageSquare, Send, Loader2, Phone, ArrowUpRight, ArrowDownLeft,
-  Bell, CheckCircle2, AlertTriangle, Clock, Users, XCircle, Megaphone
+  Bell, CheckCircle2, AlertTriangle, Clock, Users, XCircle, Megaphone,
+  Link as LinkIcon, TrendingUp, BarChart3, Eye
 } from "lucide-react";
 
 export function SMSSection() {
