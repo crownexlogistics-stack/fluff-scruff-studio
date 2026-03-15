@@ -79,6 +79,8 @@ export function SmsROIDashboard() {
     const attributedRevenue = bookings.reduce((sum, b) => sum + Number(b.total_price), 0);
     const conversionRate = stats.sent > 0 ? (attributedCount / stats.sent) * 100 : 0;
     const deliveryRate = stats.sent > 0 ? (stats.delivered / stats.sent) * 100 : 0;
+    const clickAttributed = bookings.filter(b => b.attribution_source === 'click').length;
+    const couponAttributed = bookings.filter(b => b.attribution_source === 'coupon').length;
 
     return {
       name,
@@ -89,6 +91,8 @@ export function SmsROIDashboard() {
       attributedRevenue,
       conversionRate,
       deliveryRate,
+      clickAttributed,
+      couponAttributed,
     };
   });
 
