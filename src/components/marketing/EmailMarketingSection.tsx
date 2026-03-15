@@ -146,6 +146,39 @@ export function EmailMarketingSection() {
     },
   });
 
+  // Fetch campaign send logs for sent campaigns
+  const { data: sendLogs } = useQuery({
+    queryKey: ["campaign-send-logs"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("campaign_send_log")
+        .select("campaign_id, email, status, error_message, sent_at")
+        .order("sent_at", { ascending: false });
+      if (error) throw error;
+      return data as { campaign_id: string; email: string; status: string; error_message: string | null; sent_at: string }[];
+    },
+  });
+
+  // Send log stats per campaign
+  const sendLogStats = useMemo(() => {
+    const map = new Map<string, { sent: number; failed: number; skipped: number; failedEmails: { email: string; error: string }[] }>();
+    for (const log of (sendLogs || [])) {
+      if (!log.campaign_id) continue;
+      const existing = map.get(log.campaign_id) || { sent: 0, failed: 0, skipped: 0, failedEmails: [] };
+      if (log.status === "sent") existing.sent++;
+      else if (log.status === "failed") {
+        existing.failed++;
+        existing.failedEmails.push({ email: log.email, error: log.error_message || "Unknown error" });
+      }
+      else if (log.status === "skipped") existing.skipped++;
+      map.set(log.campaign_id, existing);
+    }
+    return map;
+  }, [sendLogs]);
+
+  // View failed dialog state
+  const [viewFailedCampaignId, setViewFailedCampaignId] = useState<string | null>(null);
+
   const unsubSet = useMemo(() => {
     return new Set((unsubscribes || []).map(u => u.email.toLowerCase()));
   }, [unsubscribes]);
