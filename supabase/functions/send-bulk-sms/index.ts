@@ -259,6 +259,8 @@ async function processBulkSend(
   twilioUrl: string,
   twilioAuth: string,
   statusCallbackUrl: string,
+  sendMode: TwilioSendMode,
+  twilioFromNumber: string | null,
   supabase: any,
 ) {
   let sent = 0, failed = 0;
