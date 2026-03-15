@@ -333,7 +333,7 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
         <div
           title={tooltipSummary}
           className={cn(
-            "absolute rounded-md px-2 py-1 text-xs cursor-pointer z-10 overflow-hidden transition-opacity hover:opacity-90",
+            "absolute rounded-md px-2 py-1 text-xs cursor-pointer z-10 overflow-hidden transition-opacity hover:opacity-90 border-2 border-background shadow-sm",
             color.bg, color.text,
             isGhost && "line-through opacity-50"
           )}
