@@ -382,6 +382,7 @@ export type Database = {
           anomaly_reviewed: boolean | null
           anomaly_type: string | null
           attributed_campaign_id: string | null
+          attributed_sms_campaign: string | null
           booking_date: string
           booking_source: string | null
           booking_time: string
@@ -414,6 +415,7 @@ export type Database = {
           anomaly_reviewed?: boolean | null
           anomaly_type?: string | null
           attributed_campaign_id?: string | null
+          attributed_sms_campaign?: string | null
           booking_date: string
           booking_source?: string | null
           booking_time: string
@@ -446,6 +448,7 @@ export type Database = {
           anomaly_reviewed?: boolean | null
           anomaly_type?: string | null
           attributed_campaign_id?: string | null
+          attributed_sms_campaign?: string | null
           booking_date?: string
           booking_source?: string | null
           booking_time?: string
@@ -2847,6 +2850,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      hash_phone_for_sms: { Args: { phone: string }; Returns: string }
     }
     Enums: {
       app_role:
