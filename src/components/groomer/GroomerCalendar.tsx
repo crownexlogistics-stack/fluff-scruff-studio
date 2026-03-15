@@ -290,7 +290,7 @@ export function GroomerCalendar({ currentDate, daysToShow, staff, bookings, curr
 
   useEffect(() => {
     if (scrollRef.current) {
-      scrollRef.current.scrollTop = (FOCUS_HOUR - START_HOUR) * SLOT_HEIGHT;
+      scrollRef.current.scrollTop = 0; // Already starts at 9am
     }
   }, [currentDate, daysToShow]);
 
