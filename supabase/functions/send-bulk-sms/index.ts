@@ -460,7 +460,15 @@ Deno.serve(async (req) => {
       const batch = recipients.slice(i, i + BATCH_SIZE);
       for (const recipient of batch) {
         const trackableMsg = await makeTrackableMessage(fullMessage, cName, recipient.phone);
-        const result = await sendOneSms(recipient.phone, trackableMsg, twilioUrl, twilioAuth, statusCallbackUrl);
+        const result = await sendOneSms(
+          recipient.phone,
+          trackableMsg,
+          twilioUrl,
+          twilioAuth,
+          statusCallbackUrl,
+          sendMode,
+          twilioFromNumber,
+        );
         const status = result.ok ? "sent" : "failed";
         await supabase.from("bulk_sms_log").insert({
           campaign_name: cName, message, phone: recipient.phone,
