@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ScrollHintWrapper } from "@/components/ui/scroll-hint-wrapper";
 import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
