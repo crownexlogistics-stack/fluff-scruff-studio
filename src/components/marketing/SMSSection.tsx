@@ -14,7 +14,7 @@ import { format } from "date-fns";
 import {
   MessageSquare, Send, Loader2, Phone, ArrowUpRight, ArrowDownLeft,
   Bell, CheckCircle2, AlertTriangle, Clock, Users, XCircle, Megaphone,
-  Link as LinkIcon, TrendingUp, BarChart3, Eye
+  Link as LinkIcon, TrendingUp, BarChart3, Eye, Target
 } from "lucide-react";
 
 export function SMSSection() {
@@ -168,6 +168,8 @@ interface CampaignData {
   undeliveredEntries: { phone: string; errorCode: string }[];
   clicks: number;
   hasLink: boolean;
+  attributedBookings: number;
+  attributedRevenue: number;
 }
 
 function BulkSmsCampaign() {
@@ -234,6 +236,20 @@ function BulkSmsCampaign() {
     },
   });
 
+  // Fetch attributed bookings for SMS campaigns
+  const { data: smsAttributedBookings } = useQuery({
+    queryKey: ["sms-attributed-bookings-detail"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("bookings")
+        .select("id, attributed_sms_campaign, total_price, status")
+        .not("attributed_sms_campaign", "is", null)
+        .in("status", ["Pending", "Confirmed", "Completed"]);
+      if (error) throw error;
+      return data;
+    },
+  });
+
   // Fetch campaign history with delivery status
   const { data: campaignHistory, isLoading: historyLoading } = useQuery({
     queryKey: ["bulk-sms-history"],
@@ -248,12 +264,15 @@ function BulkSmsCampaign() {
       for (const log of (data || [])) {
         const key = log.campaign_name || "Unknown";
         if (!campaigns.has(key)) {
+          const bookings = (smsAttributedBookings || []).filter(b => b.attributed_sms_campaign === key);
           campaigns.set(key, {
             name: key, message: log.message, sent: 0, failed: 0, skipped: 0,
             delivered: 0, undelivered: 0, date: log.sent_at,
             failedEntries: [], undeliveredEntries: [],
             clicks: clickData?.get(key) || 0,
             hasLink: /https?:\/\//.test(log.message),
+            attributedBookings: bookings.length,
+            attributedRevenue: bookings.reduce((sum, b) => sum + Number(b.total_price), 0),
           });
         }
         const c = campaigns.get(key)!;
@@ -276,7 +295,7 @@ function BulkSmsCampaign() {
       }
       return Array.from(campaigns.values());
     },
-    enabled: clickData !== undefined,
+    enabled: clickData !== undefined && smsAttributedBookings !== undefined,
   });
 
   // Best performing campaign
@@ -558,6 +577,11 @@ function BulkSmsCampaign() {
                           <LinkIcon className="h-3 w-3" /> {c.clicks} clicks
                         </Badge>
                       )}
+                      {c.attributedBookings > 0 && (
+                        <Badge variant="outline" className="gap-1 text-xs bg-purple-50 text-purple-700 border-purple-200">
+                          <Target className="h-3 w-3" /> {c.attributedBookings} bookings · £{c.attributedRevenue.toFixed(0)}
+                        </Badge>
+                      )}
                     </div>
 
                     {/* Rate indicators */}
@@ -642,6 +666,24 @@ function BulkSmsCampaign() {
                   </div>
                 </div>
               )}
+
+              {/* Booking Attribution */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="border rounded-lg p-3 text-center">
+                  <p className="text-xl font-bold text-primary">{detailsCampaign.attributedBookings}</p>
+                  <p className="text-[10px] text-muted-foreground">Bookings Attributed</p>
+                </div>
+                <div className="border rounded-lg p-3 text-center">
+                  <p className="text-xl font-bold text-primary">£{detailsCampaign.attributedRevenue.toFixed(2)}</p>
+                  <p className="text-[10px] text-muted-foreground">Revenue Attributed</p>
+                </div>
+                <div className="border rounded-lg p-3 text-center">
+                  <p className="text-xl font-bold text-primary">
+                    {detailsCampaign.sent > 0 ? ((detailsCampaign.attributedBookings / detailsCampaign.sent) * 100).toFixed(1) : 0}%
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">Conversion Rate</p>
+                </div>
+              </div>
 
               {/* Undelivered numbers */}
               {detailsCampaign.undeliveredEntries.length > 0 && (
