@@ -3,10 +3,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
-import { CheckCircle2, RotateCcw, Send } from "lucide-react";
+import { CheckCircle2, RotateCcw, Send, Ticket } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { logAudit } from "@/lib/auditLog";
+import { useQuery } from "@tanstack/react-query";
 import type { BookingData } from "./BookingEvent";
 
 interface ViewOrderDialogProps {
