@@ -8,17 +8,38 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { SmsROIDashboard } from "./SmsROIDashboard";
 import { format } from "date-fns";
 import {
   MessageSquare, Send, Loader2, Phone, ArrowUpRight, ArrowDownLeft,
   Bell, CheckCircle2, AlertTriangle, Clock, Users, XCircle, Megaphone,
-  Link as LinkIcon, TrendingUp, BarChart3, Eye, Target
+  Link as LinkIcon, TrendingUp, BarChart3, Eye, Target, UserX, RotateCcw
 } from "lucide-react";
 
 export function SMSSection() {
+  return (
+    <Tabs defaultValue="send" className="space-y-6">
+      <TabsList className="flex-wrap">
+        <TabsTrigger value="send" className="gap-1.5"><Send className="h-3.5 w-3.5" /> Send SMS</TabsTrigger>
+        <TabsTrigger value="reminders" className="gap-1.5"><Bell className="h-3.5 w-3.5" /> Automated Reminders</TabsTrigger>
+        <TabsTrigger value="bulk" className="gap-1.5"><Megaphone className="h-3.5 w-3.5" /> Bulk Campaign</TabsTrigger>
+        <TabsTrigger value="analytics" className="gap-1.5"><BarChart3 className="h-3.5 w-3.5" /> Analytics</TabsTrigger>
+        <TabsTrigger value="optouts" className="gap-1.5"><UserX className="h-3.5 w-3.5" /> Opt-outs</TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="send"><SendSmsTab /></TabsContent>
+      <TabsContent value="reminders"><SmsRemindersLog /></TabsContent>
+      <TabsContent value="bulk"><BulkSmsCampaign /></TabsContent>
+      <TabsContent value="analytics" className="space-y-6"><SmsROIDashboard /></TabsContent>
+      <TabsContent value="optouts"><SmsOptOuts /></TabsContent>
+    </Tabs>
+  );
+}
+
+// ─── TAB 1: SEND SMS ────────────────────────────────────
+function SendSmsTab() {
   const queryClient = useQueryClient();
   const [phone, setPhone] = useState("");
   const [body, setBody] = useState("");
@@ -109,19 +130,6 @@ export function SMSSection() {
         </CardContent>
       </Card>
 
-      {/* Automated SMS Reminders Log */}
-      <SmsRemindersLog />
-
-      <Separator className="my-8" />
-
-      {/* SMS Campaign ROI */}
-      <SmsROIDashboard />
-
-      <Separator className="my-8" />
-
-      {/* Bulk SMS Campaign */}
-      <BulkSmsCampaign />
-
       {/* SMS History */}
       <Card>
         <CardHeader className="pb-3">
@@ -159,7 +167,7 @@ export function SMSSection() {
   );
 }
 
-// ─── BULK SMS CAMPAIGN ──────────────────────────────────
+// ─── TAB 3: BULK SMS CAMPAIGN ───────────────────────────
 
 interface CampaignData {
   name: string;
@@ -192,7 +200,6 @@ function BulkSmsCampaign() {
     { label: "Follow Up", text: "Hi! Thank you for visiting Fluff & Scruff Studio. We hope your pup is looking fabulous! Ready to rebook? Call 01708 606655 or visit fluffandscruff.co.uk/book 🐾" },
   ];
 
-  // Fetch customer phone numbers for count + unreachable count
   const { data: customerStats } = useQuery({
     queryKey: ["bulk-sms-customer-stats"],
     queryFn: async () => {
@@ -224,7 +231,6 @@ function BulkSmsCampaign() {
     },
   });
 
-  // Fetch click data
   const { data: clickData } = useQuery({
     queryKey: ["sms-link-clicks"],
     queryFn: async () => {
@@ -232,7 +238,6 @@ function BulkSmsCampaign() {
         .from("sms_link_clicks")
         .select("campaign_name, phone_hash, clicked_at");
       if (error) throw error;
-      // Group by campaign
       const clickMap = new Map<string, number>();
       for (const click of (data || [])) {
         const key = click.campaign_name || "";
@@ -242,7 +247,6 @@ function BulkSmsCampaign() {
     },
   });
 
-  // Fetch attributed bookings for SMS campaigns
   const { data: smsAttributedBookings } = useQuery({
     queryKey: ["sms-attributed-bookings-detail"],
     queryFn: async () => {
@@ -256,7 +260,6 @@ function BulkSmsCampaign() {
     },
   });
 
-  // Fetch campaign history with delivery status
   const { data: campaignHistory, isLoading: historyLoading } = useQuery({
     queryKey: ["bulk-sms-history"],
     queryFn: async () => {
@@ -283,20 +286,16 @@ function BulkSmsCampaign() {
         }
         const c = campaigns.get(key)!;
 
-        // Count by initial send status
         if (log.status === "sent") c.sent++;
         else if (log.status === "failed") {
           c.failed++;
           c.failedEntries.push({ phone: log.phone, error: log.error_message || "Unknown" });
         } else c.skipped++;
 
-        // Count by delivery status (from webhook)
         if (log.delivery_status === "delivered") c.delivered++;
         else if (log.delivery_status === "undelivered") {
           c.undelivered++;
           c.undeliveredEntries.push({ phone: log.phone, errorCode: log.error_code || "" });
-        } else if (log.delivery_status === "failed") {
-          // Already counted in send failures
         }
       }
       return Array.from(campaigns.values());
@@ -304,7 +303,6 @@ function BulkSmsCampaign() {
     enabled: clickData !== undefined && smsAttributedBookings !== undefined,
   });
 
-  // Best performing campaign
   const bestCampaign = useMemo(() => {
     if (!campaignHistory?.length) return null;
     const withDelivery = campaignHistory.filter(c => c.delivered > 0);
@@ -318,7 +316,6 @@ function BulkSmsCampaign() {
 
   const STOP_SUFFIX = " Reply STOP to unsubscribe.";
   const fullMessageLength = bulkMessage.length + STOP_SUFFIX.length;
-  const bulkCharCount = bulkMessage.length;
   const bulkSmsCount = Math.ceil(fullMessageLength / 160) || 1;
 
   const manualNumberList = useMemo(() => {
@@ -388,7 +385,7 @@ function BulkSmsCampaign() {
     : [];
 
   return (
-    <>
+    <div className="space-y-6">
       <Card className="border-2 border-dashed border-primary/30">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-lg">
@@ -397,7 +394,6 @@ function BulkSmsCampaign() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-5">
-          {/* Unreachable warning */}
           {(unreachableCount > 0 || optOutCount > 0) && (
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-center gap-2">
               <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
@@ -409,7 +405,6 @@ function BulkSmsCampaign() {
             </div>
           )}
 
-          {/* Quick Templates */}
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-2 block">Quick Templates</label>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
@@ -439,7 +434,6 @@ function BulkSmsCampaign() {
             </p>
           </div>
 
-          {/* Filter */}
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">Recipients</label>
             <div className="flex flex-wrap gap-2">
@@ -475,7 +469,6 @@ function BulkSmsCampaign() {
             )}
           </div>
 
-          {/* Preview */}
           <div className="bg-muted/50 border rounded-lg p-4 space-y-1">
             <div className="flex items-center gap-2 text-sm">
               <Users className="h-4 w-4 text-muted-foreground" />
@@ -498,7 +491,6 @@ function BulkSmsCampaign() {
             )}
           </div>
 
-          {/* Send */}
           <Button
             onClick={() => sendBulkMutation.mutate()}
             disabled={!bulkMessage.trim() || sendBulkMutation.isPending || recipientCount === 0}
@@ -558,7 +550,6 @@ function BulkSmsCampaign() {
                       </p>
                     </div>
 
-                    {/* Stats badges */}
                     <div className="flex items-center gap-2 flex-wrap">
                       <Badge variant="outline" className="gap-1 text-xs bg-green-50 text-green-700 border-green-200">
                         <CheckCircle2 className="h-3 w-3" /> {c.sent} sent
@@ -590,7 +581,6 @@ function BulkSmsCampaign() {
                       )}
                     </div>
 
-                    {/* Rate indicators */}
                     {(deliveryRate !== null || clickRate !== null) && (
                       <div className="flex gap-4 text-xs text-muted-foreground">
                         {deliveryRate !== null && (
@@ -602,7 +592,6 @@ function BulkSmsCampaign() {
                       </div>
                     )}
 
-                    {/* Actions */}
                     <div className="flex items-center gap-2 flex-wrap">
                       <Button variant="outline" size="sm" className="text-xs h-6 gap-1" onClick={() => setViewDetailsCampaign(c.name)}>
                         <Eye className="h-3 w-3" /> View Details
@@ -640,7 +629,6 @@ function BulkSmsCampaign() {
                 <p className="text-xs text-muted-foreground mt-1">{detailsCampaign.message}</p>
               </div>
 
-              {/* Stats grid */}
               <div className="grid grid-cols-3 gap-3">
                 <div className="border rounded-lg p-3 text-center">
                   <p className="text-xl font-bold text-green-600">{detailsCampaign.sent}</p>
@@ -673,7 +661,6 @@ function BulkSmsCampaign() {
                 </div>
               )}
 
-              {/* Booking Attribution */}
               <div className="grid grid-cols-3 gap-3">
                 <div className="border rounded-lg p-3 text-center">
                   <p className="text-xl font-bold text-primary">{detailsCampaign.attributedBookings}</p>
@@ -691,7 +678,6 @@ function BulkSmsCampaign() {
                 </div>
               </div>
 
-              {/* Undelivered numbers */}
               {detailsCampaign.undeliveredEntries.length > 0 && (
                 <div>
                   <p className="text-xs font-medium mb-2 text-amber-700">Undelivered Numbers ({detailsCampaign.undeliveredEntries.length})</p>
@@ -733,7 +719,7 @@ function BulkSmsCampaign() {
           </ScrollArea>
         </DialogContent>
       </Dialog>
-    </>
+    </div>
   );
 }
 
@@ -748,7 +734,7 @@ function normalizePhone(raw: string): string | null {
   return phone;
 }
 
-// ─── AUTOMATED REMINDERS LOG ────────────────────────────
+// ─── TAB 2: AUTOMATED REMINDERS LOG ────────────────────────────
 function SmsRemindersLog() {
   const { data: reminderMessages, isLoading } = useQuery({
     queryKey: ["sms-reminder-logs"],
@@ -836,6 +822,85 @@ function SmsRemindersLog() {
                 </div>
               );
             })}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── TAB 5: OPT-OUTS ───────────────────────────────────
+function SmsOptOuts() {
+  const queryClient = useQueryClient();
+
+  const { data: optedOut, isLoading } = useQuery({
+    queryKey: ["sms-opt-outs"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("migrated_customers")
+        .select("id, full_name, phone, email, sms_opt_out_at")
+        .eq("sms_opt_out", true)
+        .order("sms_opt_out_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const resubscribeMutation = useMutation({
+    mutationFn: async (customerId: string) => {
+      const { error } = await supabase
+        .from("migrated_customers")
+        .update({ sms_opt_out: false, sms_opt_out_at: null })
+        .eq("id", customerId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["sms-opt-outs"] });
+      queryClient.invalidateQueries({ queryKey: ["bulk-sms-customer-stats"] });
+      toast.success("Customer re-subscribed to SMS");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-lg flex items-center gap-2">
+          <UserX className="h-5 w-5 text-red-500" /> SMS Opt-outs
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="border rounded-lg p-4 text-center">
+          <p className="text-3xl font-bold">{optedOut?.length ?? 0}</p>
+          <p className="text-sm text-muted-foreground">Customers opted out of SMS</p>
+        </div>
+
+        {isLoading ? (
+          <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin" /></div>
+        ) : !optedOut?.length ? (
+          <p className="text-center text-muted-foreground py-8">No customers have opted out of SMS yet.</p>
+        ) : (
+          <div className="space-y-2 max-h-[500px] overflow-y-auto">
+            {optedOut.map(c => (
+              <div key={c.id} className="flex items-center justify-between border rounded-lg p-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium">{c.full_name || "Unknown"}</p>
+                  <p className="text-xs text-muted-foreground font-mono">{c.phone}</p>
+                  {c.sms_opt_out_at && (
+                    <p className="text-xs text-muted-foreground">Opted out: {format(new Date(c.sms_opt_out_at), "d MMM yyyy HH:mm")}</p>
+                  )}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 text-xs shrink-0"
+                  onClick={() => resubscribeMutation.mutate(c.id)}
+                  disabled={resubscribeMutation.isPending}
+                >
+                  <RotateCcw className="h-3 w-3" /> Re-subscribe
+                </Button>
+              </div>
+            ))}
           </div>
         )}
       </CardContent>
