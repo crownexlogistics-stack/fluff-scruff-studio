@@ -3,10 +3,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
-import { CheckCircle2, RotateCcw, Send } from "lucide-react";
+import { CheckCircle2, RotateCcw, Send, Ticket } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { logAudit } from "@/lib/auditLog";
+import { useQuery } from "@tanstack/react-query";
 import type { BookingData } from "./BookingEvent";
 
 interface ViewOrderDialogProps {
@@ -30,6 +31,21 @@ function Row({ label, value, bold, highlight }: { label: string; value: string |
 export function ViewOrderDialog({ open, onOpenChange, booking, userRole, onRefundComplete }: ViewOrderDialogProps) {
   const [processingRefund, setProcessingRefund] = useState(false);
   const [requestingDeposit, setRequestingDeposit] = useState(false);
+
+  // Fetch coupon usage for this booking
+  const { data: couponUsage } = useQuery({
+    queryKey: ["booking-coupon", booking?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("coupon_usages")
+        .select("*, coupons(code, discount_type, discount_value)")
+        .eq("booking_id", booking!.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data as any;
+    },
+    enabled: !!booking,
+  });
 
   if (!booking) return null;
 
@@ -113,6 +129,39 @@ export function ViewOrderDialog({ open, onOpenChange, booking, userRole, onRefun
             <Row label="Time" value={booking.booking_time.slice(0, 5)} />
             <Row label="Groomer" value={booking.staff_name} />
           </div>
+
+          {/* Coupon Indicator */}
+          {couponUsage?.coupons && (
+            <div className="rounded-lg border border-purple-200 bg-purple-50 p-3 space-y-1">
+              <div className="flex items-center gap-1.5 text-sm font-semibold text-purple-800">
+                <Ticket className="h-3.5 w-3.5" />
+                <span>Coupon Applied: <code className="font-mono bg-purple-100 px-1 rounded text-xs">{couponUsage.coupons.code}</code></span>
+              </div>
+              <div className="flex justify-between text-sm text-purple-700">
+                <span>Discount</span>
+                <span className="font-medium">
+                  {couponUsage.coupons.discount_type === "percentage"
+                    ? `${couponUsage.coupons.discount_value}% off`
+                    : `£${Number(couponUsage.coupons.discount_value).toFixed(2)} off`}
+                </span>
+              </div>
+              {(() => {
+                const discountVal = Number(couponUsage.coupons.discount_value);
+                const originalPrice = couponUsage.coupons.discount_type === "percentage"
+                  ? total / (1 - discountVal / 100)
+                  : total + discountVal;
+                return (
+                  <div className="flex justify-between text-sm text-purple-700 border-t border-purple-200 pt-1">
+                    <span>Original Price</span>
+                    <span className="font-medium line-through">£{originalPrice.toFixed(2)}</span>
+                  </div>
+                );
+              })()}
+              {couponUsage.applied_by_staff_name && (
+                <p className="text-xs text-purple-600">Applied by {couponUsage.applied_by_staff_name}</p>
+              )}
+            </div>
+          )}
 
           {/* Financial Breakdown */}
           <div className="rounded-lg border p-3 space-y-1">
