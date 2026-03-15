@@ -1002,73 +1002,108 @@ export function EmailMarketingSection() {
             </Card>
           ) : (
             <div className="space-y-3">
-              {folderCampaigns.map(c => (
+              {folderCampaigns.map(c => {
+                const stats = sendLogStats.get(c.id);
+                return (
                 <Card key={c.id} className="hover:shadow-sm transition-shadow">
-                  <CardContent className="p-4 flex items-center justify-between gap-4">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <p className="font-medium text-sm truncate">{c.subject}</p>
-                        <Badge variant={c.status === "sent" ? "default" : c.status === "scheduled" ? "secondary" : "outline"} className="shrink-0 text-[10px]">
-                          {c.status === "sent" && <CheckCircle2 className="h-3 w-3 mr-1" />}
-                          {c.status === "scheduled" && <Clock className="h-3 w-3 mr-1" />}
-                          {c.status}
+                  <CardContent className="p-4 space-y-3">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="font-medium text-sm truncate">{c.subject}</p>
+                          <Badge variant={c.status === "sent" ? "default" : c.status === "scheduled" ? "secondary" : "outline"} className="shrink-0 text-[10px]">
+                            {c.status === "sent" && <CheckCircle2 className="h-3 w-3 mr-1" />}
+                            {c.status === "scheduled" && <Clock className="h-3 w-3 mr-1" />}
+                            {c.status}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
+                          {c.prompt && <span className="truncate max-w-[200px]">Prompt: {c.prompt}</span>}
+                          <span>Segment: {c.segment}</span>
+                          {c.status === "sent" && <span>{c.emails_sent} sent</span>}
+                          {c.status === "sent" && (c as any).unique_opens > 0 && (
+                            <span>{(((c as any).unique_opens / c.emails_sent) * 100).toFixed(1)}% opened</span>
+                          )}
+                          {c.status === "sent" && (c as any).unique_clicks > 0 && (
+                            <span>{(((c as any).unique_clicks / c.emails_sent) * 100).toFixed(1)}% clicked</span>
+                          )}
+                          {c.status === "scheduled" && c.scheduled_at && (
+                            <span className="flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              {format(new Date(c.scheduled_at), "d MMM yyyy, HH:mm")}
+                            </span>
+                          )}
+                          <span>{new Date(c.created_at).toLocaleDateString()}</span>
+                        </div>
+                      </div>
+                      <div className="flex gap-2 shrink-0 items-center">
+                        <Button variant="outline" size="sm" onClick={() => loadCampaignToEditor(c)}>
+                          <Eye className="h-3.5 w-3.5 mr-1" /> View
+                        </Button>
+                        {(c.status === "draft" || c.status === "scheduled") && (
+                          <Button variant="outline" size="sm" onClick={() => startEditing(c)}>
+                            <Pencil className="h-3.5 w-3.5 mr-1" /> Edit
+                          </Button>
+                        )}
+                        {(c.status === "draft" || c.status === "scheduled") && (
+                          <Button size="sm" onClick={() => {
+                            setGeneratedSubject(c.subject);
+                            setGeneratedHtml(c.html_body);
+                            setSelectedSegment(c.segment as Segment);
+                            sendMutation.mutate({ campaignId: c.id, fromDraft: true });
+                          }} disabled={sendMutation.isPending}>
+                            <Send className="h-3.5 w-3.5 mr-1" /> Send
+                          </Button>
+                        )}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0"><MoreHorizontal className="h-4 w-4" /></Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => duplicateMutation.mutate(c.id)}>
+                              <Copy className="h-3.5 w-3.5 mr-2" /> Duplicate
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setDeleteId(c.id)} className="text-destructive focus:text-destructive">
+                              <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </div>
+
+                    {/* Send Results Strip */}
+                    {c.status === "sent" && stats && (stats.sent > 0 || stats.failed > 0 || stats.skipped > 0) && (
+                      <div className="flex items-center gap-3 flex-wrap pt-2 border-t">
+                        <Badge variant="outline" className="gap-1 text-xs bg-green-50 text-green-700 border-green-200">
+                          <CheckCircle2 className="h-3 w-3" /> {stats.sent} sent
                         </Badge>
+                        {stats.failed > 0 && (
+                          <Badge variant="outline" className="gap-1 text-xs bg-red-50 text-red-700 border-red-200">
+                            <XCircle className="h-3 w-3" /> {stats.failed} failed
+                          </Badge>
+                        )}
+                        {stats.skipped > 0 && (
+                          <Badge variant="outline" className="gap-1 text-xs bg-muted">
+                            {stats.skipped} skipped
+                          </Badge>
+                        )}
+                        {stats.failed > 0 && (
+                          <>
+                            <Button variant="ghost" size="sm" className="text-xs h-6 text-red-600" onClick={() => setViewFailedCampaignId(c.id)}>
+                              View Failed
+                            </Button>
+                            <Button variant="outline" size="sm" className="text-xs h-6 gap-1" onClick={() => retryMutation.mutate(c.id)} disabled={retryMutation.isPending}>
+                              {retryMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
+                              Retry Failed
+                            </Button>
+                          </>
+                        )}
                       </div>
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
-                        {c.prompt && <span className="truncate max-w-[200px]">Prompt: {c.prompt}</span>}
-                        <span>Segment: {c.segment}</span>
-                        {c.status === "sent" && <span>{c.emails_sent} sent</span>}
-                        {c.status === "sent" && (c as any).unique_opens > 0 && (
-                          <span>{(((c as any).unique_opens / c.emails_sent) * 100).toFixed(1)}% opened</span>
-                        )}
-                        {c.status === "sent" && (c as any).unique_clicks > 0 && (
-                          <span>{(((c as any).unique_clicks / c.emails_sent) * 100).toFixed(1)}% clicked</span>
-                        )}
-                        {c.status === "scheduled" && c.scheduled_at && (
-                          <span className="flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            {format(new Date(c.scheduled_at), "d MMM yyyy, HH:mm")}
-                          </span>
-                        )}
-                        <span>{new Date(c.created_at).toLocaleDateString()}</span>
-                      </div>
-                    </div>
-                    <div className="flex gap-2 shrink-0 items-center">
-                      <Button variant="outline" size="sm" onClick={() => loadCampaignToEditor(c)}>
-                        <Eye className="h-3.5 w-3.5 mr-1" /> View
-                      </Button>
-                      {(c.status === "draft" || c.status === "scheduled") && (
-                        <Button variant="outline" size="sm" onClick={() => startEditing(c)}>
-                          <Pencil className="h-3.5 w-3.5 mr-1" /> Edit
-                        </Button>
-                      )}
-                      {(c.status === "draft" || c.status === "scheduled") && (
-                        <Button size="sm" onClick={() => {
-                          setGeneratedSubject(c.subject);
-                          setGeneratedHtml(c.html_body);
-                          setSelectedSegment(c.segment as Segment);
-                          sendMutation.mutate({ campaignId: c.id, fromDraft: true });
-                        }} disabled={sendMutation.isPending}>
-                          <Send className="h-3.5 w-3.5 mr-1" /> Send
-                        </Button>
-                      )}
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0"><MoreHorizontal className="h-4 w-4" /></Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => duplicateMutation.mutate(c.id)}>
-                            <Copy className="h-3.5 w-3.5 mr-2" /> Duplicate
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => setDeleteId(c.id)} className="text-destructive focus:text-destructive">
-                            <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
+                    )}
                   </CardContent>
                 </Card>
-              ))}
+                );
+              })}
             </div>
           )}
         </TabsContent>
