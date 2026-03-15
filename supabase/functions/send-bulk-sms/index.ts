@@ -170,49 +170,62 @@ serve(async (req) => {
       });
     }
 
-    // Build recipient list from migrated_customers + bookings
+    // Build recipient list
     const phoneMap = new Map<string, { phone: string; name: string }>();
 
-    // Exclude sms_unreachable customers
-    const { data: migratedCustomers } = await supabase
-      .from("migrated_customers")
-      .select("phone, full_name, sms_unreachable")
-      .not("phone", "is", null);
-
-    for (const mc of (migratedCustomers || [])) {
-      if (!mc.phone || mc.sms_unreachable) continue;
-      const normalized = normalizeUkMobile(mc.phone);
-      if (normalized && !phoneMap.has(normalized)) {
-        phoneMap.set(normalized, { phone: normalized, name: mc.full_name || "Customer" });
+    if (filter === "manual" && Array.isArray(manualNumbers)) {
+      // Manual mode: only use the provided numbers
+      for (const raw of manualNumbers) {
+        const normalized = normalizeUkMobile(raw);
+        if (normalized && !phoneMap.has(normalized)) {
+          phoneMap.set(normalized, { phone: normalized, name: "Manual" });
+        }
       }
-    }
+    } else {
+      // Database mode: pull from migrated_customers + bookings
+      // Exclude sms_unreachable customers
+      const { data: migratedCustomers } = await supabase
+        .from("migrated_customers")
+        .select("phone, full_name, sms_unreachable")
+        .not("phone", "is", null);
 
-    const { data: bookings } = await supabase
-      .from("bookings")
-      .select("customer_phone, customer_name, booking_date, status")
-      .not("customer_phone", "is", null);
-
-    const today = new Date().toISOString().slice(0, 10);
-    const hasUpcoming = new Set<string>();
-
-    for (const b of (bookings || [])) {
-      if (!b.customer_phone) continue;
-      const normalized = normalizeUkMobile(b.customer_phone);
-      if (!normalized) continue;
-      if (!phoneMap.has(normalized)) {
-        phoneMap.set(normalized, { phone: normalized, name: b.customer_name || "Customer" });
+      for (const mc of (migratedCustomers || [])) {
+        if (!mc.phone || mc.sms_unreachable) continue;
+        const normalized = normalizeUkMobile(mc.phone);
+        if (normalized && !phoneMap.has(normalized)) {
+          phoneMap.set(normalized, { phone: normalized, name: mc.full_name || "Customer" });
+        }
       }
-      if (b.booking_date >= today && (b.status === "Pending" || b.status === "Confirmed")) {
-        hasUpcoming.add(normalized);
+
+      const { data: bookings } = await supabase
+        .from("bookings")
+        .select("customer_phone, customer_name, booking_date, status")
+        .not("customer_phone", "is", null);
+
+      const today = new Date().toISOString().slice(0, 10);
+      const hasUpcoming = new Set<string>();
+
+      for (const b of (bookings || [])) {
+        if (!b.customer_phone) continue;
+        const normalized = normalizeUkMobile(b.customer_phone);
+        if (!normalized) continue;
+        if (!phoneMap.has(normalized)) {
+          phoneMap.set(normalized, { phone: normalized, name: b.customer_name || "Customer" });
+        }
+        if (b.booking_date >= today && (b.status === "Pending" || b.status === "Confirmed")) {
+          hasUpcoming.add(normalized);
+        }
       }
-    }
 
-    let recipients = Array.from(phoneMap.values());
-
-    if (filter === "has_upcoming") {
-      recipients = recipients.filter(r => hasUpcoming.has(r.phone));
-    } else if (filter === "no_upcoming") {
-      recipients = recipients.filter(r => !hasUpcoming.has(r.phone));
+      if (filter === "has_upcoming") {
+        for (const [key] of phoneMap) {
+          if (!hasUpcoming.has(key)) phoneMap.delete(key);
+        }
+      } else if (filter === "no_upcoming") {
+        for (const [key] of phoneMap) {
+          if (hasUpcoming.has(key)) phoneMap.delete(key);
+        }
+      }
     }
 
     // Resume logic
