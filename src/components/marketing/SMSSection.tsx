@@ -577,6 +577,11 @@ function BulkSmsCampaign() {
                           <LinkIcon className="h-3 w-3" /> {c.clicks} clicks
                         </Badge>
                       )}
+                      {c.attributedBookings > 0 && (
+                        <Badge variant="outline" className="gap-1 text-xs bg-purple-50 text-purple-700 border-purple-200">
+                          <Target className="h-3 w-3" /> {c.attributedBookings} bookings · £{c.attributedRevenue.toFixed(0)}
+                        </Badge>
+                      )}
                     </div>
 
                     {/* Rate indicators */}
