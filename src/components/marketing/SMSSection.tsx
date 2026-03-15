@@ -113,6 +113,11 @@ export function SMSSection() {
 
       <Separator className="my-8" />
 
+      {/* SMS Campaign ROI */}
+      <SmsROIDashboard />
+
+      <Separator className="my-8" />
+
       {/* Bulk SMS Campaign */}
       <BulkSmsCampaign />
 

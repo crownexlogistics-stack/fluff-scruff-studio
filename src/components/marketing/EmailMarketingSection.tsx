@@ -1010,7 +1010,6 @@ export function EmailMarketingSection() {
         {/* ── ROI & ATTRIBUTION TAB ─────────────────── */}
         <TabsContent value="roi" className="space-y-10">
           <CampaignROIDashboard />
-          <SmsROIDashboard />
         </TabsContent>
 
         {/* ── CAMPAIGN LIBRARY TAB ─────────────────────── */}
