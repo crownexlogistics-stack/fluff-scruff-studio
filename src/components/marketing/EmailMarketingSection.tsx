@@ -453,6 +453,33 @@ export function EmailMarketingSection() {
     onError: (err: Error) => toast.error(err.message),
   });
 
+  // Continue sending (resume after timeout)
+  const continueMutation = useMutation({
+    mutationFn: async (campaignId: string) => {
+      const campaign = campaigns?.find(c => c.id === campaignId);
+      if (!campaign) throw new Error("Campaign not found");
+      const targetEmails = effectiveList.map(c => c.email);
+      const { data, error } = await supabase.functions.invoke("send-campaign", {
+        body: {
+          campaignId, emails: targetEmails, subject: campaign.subject, htmlBody: campaign.html_body,
+        },
+      });
+      if (error) throw error;
+      if (data.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["email-campaigns"] });
+      queryClient.invalidateQueries({ queryKey: ["campaign-send-logs"] });
+      if (data.remaining > 0) {
+        toast.info(`Sent ${data.sent} more — ${data.remaining} still remaining. Click "Continue Sending" again.`);
+      } else {
+        toast.success(`All done! ${data.sent} sent this round. Campaign fully delivered.`);
+      }
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
   const scheduleMutation = useMutation({
     mutationFn: async () => {
       if (!scheduleDate) throw new Error("Please select a date");
