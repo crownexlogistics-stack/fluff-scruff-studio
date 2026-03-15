@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, Target, PoundSterling, BarChart3, MousePointerClick, Clock, MailOpen, Link2 } from "lucide-react";
+import { TrendingUp, Target, PoundSterling, BarChart3, MousePointerClick, Clock, MailOpen, Link2, Tag } from "lucide-react";
 import { format } from "date-fns";
 
 interface CampaignWithStats {
