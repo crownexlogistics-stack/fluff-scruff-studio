@@ -773,6 +773,8 @@ export type Database = {
       }
       coupon_usages: {
         Row: {
+          applied_by_staff_id: string | null
+          applied_by_staff_name: string | null
           booking_id: string | null
           coupon_id: string
           customer_email: string
@@ -780,6 +782,8 @@ export type Database = {
           used_at: string
         }
         Insert: {
+          applied_by_staff_id?: string | null
+          applied_by_staff_name?: string | null
           booking_id?: string | null
           coupon_id: string
           customer_email: string
@@ -787,6 +791,8 @@ export type Database = {
           used_at?: string
         }
         Update: {
+          applied_by_staff_id?: string | null
+          applied_by_staff_name?: string | null
           booking_id?: string | null
           coupon_id?: string
           customer_email?: string
@@ -794,6 +800,13 @@ export type Database = {
           used_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "coupon_usages_applied_by_staff_id_fkey"
+            columns: ["applied_by_staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "coupon_usages_booking_id_fkey"
             columns: ["booking_id"]
