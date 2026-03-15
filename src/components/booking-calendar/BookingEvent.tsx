@@ -222,7 +222,7 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
         <PopoverTrigger asChild>
           <div
             className="absolute rounded-md px-2 py-1 text-xs font-medium cursor-pointer z-10 hover:opacity-90 transition-opacity bg-emerald-100 text-emerald-900 border border-emerald-300 overflow-hidden"
-            style={{ ...overlapStyle, height: `${calculatedDuration * 64}px`, minHeight: "28px" }}
+            style={{ ...overlapStyle, height: `max(calc(${sh} * ${calculatedDuration}), 28px)`, minHeight: "28px" }}
           >
             <p className="font-bold flex items-center gap-1"><Clock className="h-3 w-3" /> Overtime</p>
             <p className="opacity-80">{booking.staff_name}</p>
