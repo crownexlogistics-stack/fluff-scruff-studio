@@ -103,11 +103,14 @@ export function ViewOrderDialog({ open, onOpenChange, booking, userRole, onRefun
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md max-h-[90dvh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Booking Details</DialogTitle>
-        </DialogHeader>
+      <DialogContent className="max-w-md p-0 overflow-hidden">
+        <div className="px-6 pt-6 pb-2">
+          <DialogHeader>
+            <DialogTitle>Booking Details</DialogTitle>
+          </DialogHeader>
+        </div>
 
+        <ScrollHintWrapper className="max-h-[75dvh] px-6 pb-6">
         <div className="space-y-4">
           <div className="flex flex-wrap gap-2">
             <Badge variant={booking.status === "Confirmed" ? "default" : booking.status === "Cancelled" || booking.status === "No Show" || booking.status === "Refunded" ? "destructive" : "secondary"}>
