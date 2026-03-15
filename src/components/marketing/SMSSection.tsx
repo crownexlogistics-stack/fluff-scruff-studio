@@ -395,19 +395,21 @@ function BulkSmsCampaign() {
             </div>
           </div>
 
-          {/* Message */}
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground flex items-center justify-between">
               <span>Message</span>
-              <span>{bulkCharCount}/160 ({bulkSmsCount} SMS per recipient)</span>
+              <span>{fullMessageLength}/160 ({bulkSmsCount} SMS per recipient)</span>
             </label>
             <Textarea
               value={bulkMessage}
               onChange={e => setBulkMessage(e.target.value)}
               placeholder="Type your bulk SMS message..."
               className="min-h-[100px] resize-none"
-              maxLength={480}
+              maxLength={480 - STOP_SUFFIX.length}
             />
+            <p className="text-[10px] text-muted-foreground italic">
+              "Reply STOP to unsubscribe." will be added automatically
+            </p>
           </div>
 
           {/* Filter */}
