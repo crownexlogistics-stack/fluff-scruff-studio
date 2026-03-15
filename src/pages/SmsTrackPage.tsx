@@ -20,8 +20,7 @@ export default function SmsTrackPage() {
         phone_hash: phoneHash,
         destination_url: destination,
       })
-      .then(() => {})
-      .catch(() => {});
+      .then(() => {});
 
     // Redirect immediately
     window.location.href = destination;
