@@ -244,6 +244,18 @@ export function SmsROIDashboard() {
                       <Target className="h-3 w-3" />
                       {c.attributedBookings} attributed
                     </Badge>
+                    {c.clickAttributed > 0 && (
+                      <Badge variant="default" className="gap-1 text-xs">
+                        <Link2 className="h-3 w-3" />
+                        {c.clickAttributed} via click
+                      </Badge>
+                    )}
+                    {c.couponAttributed > 0 && (
+                      <Badge variant="secondary" className="gap-1 text-xs">
+                        <Tag className="h-3 w-3" />
+                        {c.couponAttributed} via coupon
+                      </Badge>
+                    )}
                     <Badge variant={c.conversionRate > 5 ? "default" : "secondary"} className="text-xs">
                       {c.conversionRate.toFixed(1)}% conversion
                     </Badge>
