@@ -684,7 +684,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
         setGuestForm(prev => ({ ...prev, dogName: "Not specified" }));
       }
       if (!guestForm.phone.trim() || !guestForm.name.trim()) {
-        toast({ title: "Please confirm your phone number and details when you arrive at the salon", variant: "default" });
+        toast.info("Please confirm your phone number and details when you arrive at the salon");
       }
     }
     if (!acceptedTerms) {
