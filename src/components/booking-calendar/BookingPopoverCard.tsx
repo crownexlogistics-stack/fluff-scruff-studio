@@ -453,6 +453,9 @@ export function BookingPopoverCard({
                 cancelled: "#e53935",
                 status_changed: "#9e9e9e",
                 checked_in: "#43a047",
+                coupon_applied: "#7c3aed",
+                coupon_refund: "#e53935",
+                coupon_removed: "#f97316",
               };
               const dotColor = dotColors[entry.event_type] || "#9e9e9e";
 
@@ -463,6 +466,9 @@ export function BookingPopoverCard({
               else if (entry.event_type === "cancelled") text = `Cancelled by ${entry.performed_by || "staff"}`;
               else if (entry.event_type === "checked_in") text = `Checked in by ${entry.performed_by || "staff"}`;
               else if (entry.event_type === "status_changed") text = entry.note || "Status changed";
+              else if (entry.event_type === "coupon_applied") text = entry.note || `Coupon applied by ${entry.performed_by || "staff"}`;
+              else if (entry.event_type === "coupon_refund") text = entry.note || `Coupon refund processed by ${entry.performed_by || "staff"}`;
+              else if (entry.event_type === "coupon_removed") text = entry.note || `Coupon removed by ${entry.performed_by || "staff"}`;
 
               return (
                 <div key={i} className="flex items-start gap-2">

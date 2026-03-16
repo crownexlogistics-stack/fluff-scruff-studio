@@ -45,7 +45,7 @@ serve(async (req) => {
 
     if (!roleData) throw new Error("Only directors can process refunds");
 
-    const { booking_id } = await req.json();
+    const { booking_id, partial_amount } = await req.json();
     if (!booking_id) throw new Error("Missing booking_id");
 
     // Get the booking
@@ -67,11 +67,17 @@ serve(async (req) => {
 
     let refund: Stripe.Refund;
 
+    // Build refund params — support partial refunds (amount in pence)
+    const refundParams: Stripe.RefundCreateParams = {
+      payment_intent: booking.stripe_payment_id,
+    };
+    if (partial_amount && typeof partial_amount === "number" && partial_amount > 0) {
+      refundParams.amount = partial_amount;
+    }
+
     // Process refund via Stripe (idempotent fallback for already-refunded intents)
     try {
-      refund = await stripe.refunds.create({
-        payment_intent: booking.stripe_payment_id,
-      });
+      refund = await stripe.refunds.create(refundParams);
     } catch (stripeError: any) {
       const message = String(stripeError?.message || "").toLowerCase();
       const alreadyRefunded =
@@ -94,15 +100,29 @@ serve(async (req) => {
     }
 
     const refundAmount = refund.amount / 100;
+    const isPartialRefund = partial_amount && partial_amount > 0;
 
-    // Update booking status (must succeed)
-    const { error: updateError } = await supabaseAdmin
-      .from("bookings")
-      .update({ status: "Refunded" })
-      .eq("id", booking_id);
+    // Update booking status (only set to "Refunded" for full refunds)
+    if (!isPartialRefund) {
+      const { error: updateError } = await supabaseAdmin
+        .from("bookings")
+        .update({ status: "Refunded" })
+        .eq("id", booking_id);
 
-    if (updateError) {
-      throw new Error(`Refunded in Stripe but failed to update booking status: ${updateError.message}`);
+      if (updateError) {
+        throw new Error(`Refunded in Stripe but failed to update booking status: ${updateError.message}`);
+      }
+    } else {
+      // For partial refunds (coupon), update deposit_paid to reflect the refund
+      const newDepositPaid = Math.max(0, Number(booking.deposit_paid) - refundAmount);
+      const { error: updateError } = await supabaseAdmin
+        .from("bookings")
+        .update({ deposit_paid: newDepositPaid })
+        .eq("id", booking_id);
+
+      if (updateError) {
+        throw new Error(`Refunded in Stripe but failed to update deposit: ${updateError.message}`);
+      }
     }
 
     // Log audit trail

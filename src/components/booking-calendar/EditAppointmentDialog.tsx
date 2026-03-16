@@ -13,6 +13,8 @@ import { toast } from "sonner";
 import { logAudit } from "@/lib/auditLog";
 import { Mail, Sparkles } from "lucide-react";
 import type { BookingData } from "./BookingEvent";
+import { CouponApplySection } from "./CouponApplySection";
+import { CouponRefundFlow } from "./CouponRefundFlow";
 
 interface EditAppointmentDialogProps {
   open: boolean;
@@ -37,6 +39,9 @@ export function EditAppointmentDialog({ open, onOpenChange, booking }: EditAppoi
 
   const [selectedAddonIds, setSelectedAddonIds] = useState<string[]>([]);
   const [initialAddonIds, setInitialAddonIds] = useState<string[]>([]);
+  const [couponApplied, setCouponApplied] = useState(false);
+  const [refundFlowOpen, setRefundFlowOpen] = useState(false);
+  const [pendingCouponData, setPendingCouponData] = useState<{ newTotal: number; code: string; label: string } | null>(null);
 
   // Fetch existing booking add-ons when dialog opens
   const { data: existingAddons } = useQuery({
@@ -51,6 +56,22 @@ export function EditAppointmentDialog({ open, onOpenChange, booking }: EditAppoi
       return (data as any[])?.map((r: any) => r.addon_id as string) || [];
     },
     enabled: open && !!booking,
+  });
+
+  // Fetch existing coupon usage for this booking
+  const { data: existingCoupon } = useQuery({
+    queryKey: ["booking-coupon-edit", booking?.id],
+    queryFn: async () => {
+      if (!booking) return null;
+      const { data, error } = await supabase
+        .from("coupon_usages")
+        .select("*, coupons(code, discount_type, discount_value)")
+        .eq("booking_id", booking.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data?.coupons ? { code: data.coupons.code, discount_type: data.coupons.discount_type, discount_value: data.coupons.discount_value } : null;
+    },
+    enabled: open && !!booking && !booking.is_migrated,
   });
 
   useEffect(() => {
@@ -248,6 +269,7 @@ export function EditAppointmentDialog({ open, onOpenChange, booking }: EditAppoi
   if (!booking) return null;
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
@@ -353,6 +375,30 @@ export function EditAppointmentDialog({ open, onOpenChange, booking }: EditAppoi
             )}
           </div>
 
+          {/* Coupon / Discount Section — staff only, not for migrated bookings */}
+          {!booking.is_migrated && (
+            <CouponApplySection
+              bookingId={booking.id}
+              currentTotal={form.total_price}
+              depositPaid={form.deposit_paid}
+              existingCoupon={couponApplied ? undefined : (existingCoupon as any)}
+              staffName={staff?.find(s => s.id === form.staff_id)?.name || "Staff"}
+              customerEmail={booking.customer_email}
+              onCouponApplied={(newTotal, code, label) => {
+                const deposit = form.deposit_paid;
+                // If customer already paid more than new total, need refund
+                if (deposit > newTotal && deposit > 0 && (booking as any).stripe_payment_id) {
+                  setPendingCouponData({ newTotal, code, label });
+                  setRefundFlowOpen(true);
+                }
+                setForm(prev => ({ ...prev, total_price: newTotal }));
+                setCouponApplied(true);
+                queryClient.invalidateQueries({ queryKey: ["booking-coupon-edit", booking.id] });
+                queryClient.invalidateQueries({ queryKey: ["booking-coupon", booking.id] });
+              }}
+            />
+          )}
+
           <div className="space-y-1">
             <Label>Notes</Label>
             <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} />
@@ -376,5 +422,24 @@ export function EditAppointmentDialog({ open, onOpenChange, booking }: EditAppoi
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    {/* Coupon refund flow */}
+    {pendingCouponData && (
+      <CouponRefundFlow
+        open={refundFlowOpen}
+        onOpenChange={setRefundFlowOpen}
+        bookingId={booking.id}
+        customerName={booking.customer_name}
+        amountAlreadyPaid={form.deposit_paid}
+        newTotalAfterDiscount={pendingCouponData.newTotal}
+        staffName={staff?.find(s => s.id === form.staff_id)?.name || "Staff"}
+        couponCode={pendingCouponData.code}
+        onComplete={() => {
+          setPendingCouponData(null);
+          queryClient.invalidateQueries({ queryKey: ["bookings"] });
+        }}
+      />
+    )}
+  </>
   );
 }

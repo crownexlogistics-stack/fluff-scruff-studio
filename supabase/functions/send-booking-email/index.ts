@@ -60,6 +60,39 @@ serve(async (req) => {
       });
     }
 
+    // Fetch coupon usage for discount display (never show code to customer)
+    const { data: couponUsage } = await supabase
+      .from("coupon_usages")
+      .select("*, coupons(discount_type, discount_value)")
+      .eq("booking_id", booking_id)
+      .maybeSingle();
+
+    let discountHtml = "";
+    if (couponUsage?.coupons) {
+      const discountType = couponUsage.coupons.discount_type;
+      const discountValue = Number(couponUsage.coupons.discount_value);
+      const total = Number(booking.total_price);
+      let originalPrice: number;
+      let discountAmount: number;
+      let discountLabel: string;
+
+      if (discountType === "percentage") {
+        originalPrice = total / (1 - discountValue / 100);
+        discountAmount = originalPrice - total;
+        discountLabel = `${discountValue}% off`;
+      } else {
+        originalPrice = total + discountValue;
+        discountAmount = discountValue;
+        discountLabel = `£${discountValue.toFixed(2)} off`;
+      }
+
+      discountHtml = `
+        <tr><td style="padding: 8px 0; color: #666;">Service Price</td><td style="padding: 8px 0; font-weight: bold;">£${originalPrice.toFixed(2)}</td></tr>
+        <tr><td style="padding: 8px 0; color: #27ae60;">Discount (${discountLabel})</td><td style="padding: 8px 0; font-weight: bold; color: #27ae60;">-£${discountAmount.toFixed(2)}</td></tr>
+        <tr><td style="padding: 8px 0; color: #666;">Total</td><td style="padding: 8px 0; font-weight: bold;">£${total.toFixed(2)}</td></tr>
+      `;
+    }
+
     const serviceName = booking.services?.name || "Grooming";
     const breedName = booking.breeds?.name || "";
     const dateFormatted = new Date(booking.booking_date + "T00:00:00").toLocaleDateString("en-GB", {
@@ -82,7 +115,7 @@ serve(async (req) => {
             <tr><td style="padding: 8px 0; color: #666;">Service</td><td style="padding: 8px 0; font-weight: bold;">${serviceName}</td></tr>
             <tr><td style="padding: 8px 0; color: #666;">Date</td><td style="padding: 8px 0; font-weight: bold;">${dateFormatted}</td></tr>
             <tr><td style="padding: 8px 0; color: #666;">Time</td><td style="padding: 8px 0; font-weight: bold;">${timeFormatted}</td></tr>
-            <tr><td style="padding: 8px 0; color: #666;">Price</td><td style="padding: 8px 0; font-weight: bold;">£${Number(booking.total_price).toFixed(2)}</td></tr>
+            ${discountHtml || `<tr><td style="padding: 8px 0; color: #666;">Price</td><td style="padding: 8px 0; font-weight: bold;">£${Number(booking.total_price).toFixed(2)}</td></tr>`}
           </table>
           <p style="background: #f8f8f8; padding: 16px; border-radius: 8px; margin: 16px 0;">
             📍 <strong>Fluff & Scruff Studio</strong><br/>
@@ -144,7 +177,7 @@ serve(async (req) => {
             <tr><td style="padding: 8px 0; color: #666;">Service</td><td style="padding: 8px 0; font-weight: bold;">${serviceName}</td></tr>
             <tr><td style="padding: 8px 0; color: #666;">Date</td><td style="padding: 8px 0; font-weight: bold;">${dateFormatted}</td></tr>
             <tr><td style="padding: 8px 0; color: #666;">Time</td><td style="padding: 8px 0; font-weight: bold;">${timeFormatted}</td></tr>
-            <tr><td style="padding: 8px 0; color: #666;">Price</td><td style="padding: 8px 0; font-weight: bold;">£${Number(booking.total_price).toFixed(2)}</td></tr>
+            ${discountHtml || `<tr><td style="padding: 8px 0; color: #666;">Price</td><td style="padding: 8px 0; font-weight: bold;">£${Number(booking.total_price).toFixed(2)}</td></tr>`}
           </table>
           <p style="background: #f8f8f8; padding: 16px; border-radius: 8px; margin: 16px 0;">
             📍 <strong>Fluff & Scruff Studio</strong><br/>
