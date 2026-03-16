@@ -24,6 +24,7 @@ interface CouponApplySectionProps {
 
 export function CouponApplySection({
   bookingId,
+  isMigrated = false,
   currentTotal,
   depositPaid,
   onCouponApplied,

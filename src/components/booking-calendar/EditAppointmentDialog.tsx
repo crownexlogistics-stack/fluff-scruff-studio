@@ -376,29 +376,28 @@ export function EditAppointmentDialog({ open, onOpenChange, booking }: EditAppoi
             )}
           </div>
 
-          {/* Coupon / Discount Section — staff only, not for migrated bookings */}
-          {!booking.is_migrated && (
-            <CouponApplySection
-              bookingId={booking.id}
-              currentTotal={form.total_price}
-              depositPaid={form.deposit_paid}
-              existingCoupon={couponApplied ? undefined : (existingCoupon as any)}
-              staffName={staff?.find(s => s.id === form.staff_id)?.name || "Staff"}
-              customerEmail={booking.customer_email}
-              onCouponApplied={(newTotal, code, label) => {
-                const deposit = form.deposit_paid;
-                // If customer already paid more than new total, need refund
-                if (deposit > newTotal && deposit > 0 && (booking as any).stripe_payment_id) {
-                  setPendingCouponData({ newTotal, code, label });
-                  setRefundFlowOpen(true);
-                }
-                setForm(prev => ({ ...prev, total_price: newTotal }));
-                setCouponApplied(true);
-                queryClient.invalidateQueries({ queryKey: ["booking-coupon-edit", booking.id] });
-                queryClient.invalidateQueries({ queryKey: ["booking-coupon", booking.id] });
-              }}
-            />
-          )}
+          {/* Coupon / Discount Section — staff only, works for both regular and migrated bookings */}
+          <CouponApplySection
+            bookingId={booking.id}
+            isMigrated={!!booking.is_migrated}
+            currentTotal={form.total_price}
+            depositPaid={form.deposit_paid}
+            existingCoupon={couponApplied ? undefined : (existingCoupon as any)}
+            staffName={staff?.find(s => s.id === form.staff_id)?.name || "Staff"}
+            customerEmail={booking.customer_email}
+            onCouponApplied={(newTotal, code, label) => {
+              const deposit = form.deposit_paid;
+              // If customer already paid more than new total, need refund (only for non-migrated with Stripe)
+              if (!booking.is_migrated && deposit > newTotal && deposit > 0 && (booking as any).stripe_payment_id) {
+                setPendingCouponData({ newTotal, code, label });
+                setRefundFlowOpen(true);
+              }
+              setForm(prev => ({ ...prev, total_price: newTotal }));
+              setCouponApplied(true);
+              queryClient.invalidateQueries({ queryKey: ["booking-coupon-edit", booking.id] });
+              queryClient.invalidateQueries({ queryKey: ["booking-coupon", booking.id] });
+            }}
+          />
 
           <div className="space-y-1">
             <Label>Notes</Label>
