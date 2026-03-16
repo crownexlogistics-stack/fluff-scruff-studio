@@ -705,11 +705,11 @@ export default function CustomerProfilePage() {
 
   const getStaffName = (userId: string) => staffProfiles?.find((p) => p.id === userId)?.full_name || "Unknown";
 
-  const startEditing = () => { setEditName(customerName); setEditEmail(decodedEmail); setEditPhone(customerPhone); setIsEditing(true); };
+  const startEditing = () => { setEditName(customerName); setEditEmail(decodedEmail); setEditPhone(customerPhone); setEditSecondaryPhone(migratedCustomer?.secondary_phone || ""); setIsEditing(true); };
 
   const saveEdits = () => {
     if (!editName.trim() || !editEmail.trim()) { toast({ title: "Name and email are required", variant: "destructive" }); return; }
-    updateCustomerMutation.mutate({ name: editName.trim(), email: editEmail.trim(), phone: editPhone.trim() });
+    updateCustomerMutation.mutate({ name: editName.trim(), email: editEmail.trim(), phone: editPhone.trim(), secondary_phone: editSecondaryPhone.trim() });
   };
 
   const openPetEdit = (pet: any) => {
