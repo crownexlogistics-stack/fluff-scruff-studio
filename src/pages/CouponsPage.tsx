@@ -41,7 +41,7 @@ const emptyCoupon = {
   start_date: "",
   end_date: "",
   max_uses: "",
-  max_uses_per_customer: "1",
+  max_uses_per_customer: "",
   min_order_amount: "0",
 };
 
