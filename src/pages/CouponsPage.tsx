@@ -41,7 +41,7 @@ const emptyCoupon = {
   start_date: "",
   end_date: "",
   max_uses: "",
-  max_uses_per_customer: "1",
+  max_uses_per_customer: "",
   min_order_amount: "0",
 };
 
@@ -70,6 +70,9 @@ export default function CouponsPage() {
       if (form.discount_value <= 0) throw new Error("Discount must be greater than 0");
       if (form.discount_type === "percentage" && form.discount_value > 100) throw new Error("Percentage can't exceed 100");
 
+      const parsedMaxUses = form.max_uses === "" ? null : Number(form.max_uses) || null;
+      const parsedPerCustomer = form.max_uses_per_customer === "" ? null : Number(form.max_uses_per_customer) || null;
+
       const payload = {
         code: form.code.trim().toUpperCase(),
         description: form.description || null,
@@ -78,8 +81,8 @@ export default function CouponsPage() {
         is_active: form.is_active,
         start_date: form.start_date || null,
         end_date: form.end_date || null,
-        max_uses: form.max_uses ? Number(form.max_uses) : null,
-        max_uses_per_customer: form.max_uses_per_customer ? Number(form.max_uses_per_customer) : null,
+        max_uses: parsedMaxUses,
+        max_uses_per_customer: parsedPerCustomer,
         min_order_amount: Number(form.min_order_amount) || 0,
       };
 
@@ -227,11 +230,11 @@ export default function CouponsPage() {
                   <TableCell>{getStatusBadge(coupon)}</TableCell>
                   <TableCell>
                     <span className="text-sm">
-                      {coupon.times_used}{coupon.max_uses ? ` / ${coupon.max_uses}` : ""}
+                      {coupon.times_used}{coupon.max_uses ? ` / ${coupon.max_uses}` : " / ∞"}
                     </span>
-                    {coupon.max_uses_per_customer && (
-                      <p className="text-xs text-muted-foreground">{coupon.max_uses_per_customer}x per customer</p>
-                    )}
+                    <p className="text-xs text-muted-foreground">
+                      {coupon.max_uses_per_customer ? `${coupon.max_uses_per_customer}x per customer` : "Unlimited per customer"}
+                    </p>
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {coupon.start_date && coupon.end_date
@@ -358,21 +361,27 @@ export default function CouponsPage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label>Total Uses Limit</Label>
-                <NumericInput
+                <Input
                   value={form.max_uses}
-                  onValueChange={(v) => setForm({ ...form, max_uses: String(v) })}
-                  allowDecimals={false}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    if (raw === "" || /^[0-9]+$/.test(raw)) setForm({ ...form, max_uses: raw });
+                  }}
                   placeholder="Unlimited"
                 />
+                <p className="text-xs text-muted-foreground">Leave blank for unlimited</p>
               </div>
               <div className="space-y-1.5">
                 <Label>Per Customer Limit</Label>
-                <NumericInput
+                <Input
                   value={form.max_uses_per_customer}
-                  onValueChange={(v) => setForm({ ...form, max_uses_per_customer: String(v) })}
-                  allowDecimals={false}
-                  placeholder="1"
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    if (raw === "" || /^[0-9]+$/.test(raw)) setForm({ ...form, max_uses_per_customer: raw });
+                  }}
+                  placeholder="Unlimited"
                 />
+                <p className="text-xs text-muted-foreground">Leave blank for unlimited</p>
               </div>
             </div>
 
