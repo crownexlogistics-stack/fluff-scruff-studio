@@ -70,6 +70,9 @@ export default function CouponsPage() {
       if (form.discount_value <= 0) throw new Error("Discount must be greater than 0");
       if (form.discount_type === "percentage" && form.discount_value > 100) throw new Error("Percentage can't exceed 100");
 
+      const parsedMaxUses = form.max_uses === "" ? null : Number(form.max_uses) || null;
+      const parsedPerCustomer = form.max_uses_per_customer === "" ? null : Number(form.max_uses_per_customer) || null;
+
       const payload = {
         code: form.code.trim().toUpperCase(),
         description: form.description || null,
@@ -78,8 +81,8 @@ export default function CouponsPage() {
         is_active: form.is_active,
         start_date: form.start_date || null,
         end_date: form.end_date || null,
-        max_uses: form.max_uses ? Number(form.max_uses) : null,
-        max_uses_per_customer: form.max_uses_per_customer ? Number(form.max_uses_per_customer) : null,
+        max_uses: parsedMaxUses,
+        max_uses_per_customer: parsedPerCustomer,
         min_order_amount: Number(form.min_order_amount) || 0,
       };
 
