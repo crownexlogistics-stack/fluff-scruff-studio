@@ -115,7 +115,7 @@ serve(async (req) => {
             <tr><td style="padding: 8px 0; color: #666;">Service</td><td style="padding: 8px 0; font-weight: bold;">${serviceName}</td></tr>
             <tr><td style="padding: 8px 0; color: #666;">Date</td><td style="padding: 8px 0; font-weight: bold;">${dateFormatted}</td></tr>
             <tr><td style="padding: 8px 0; color: #666;">Time</td><td style="padding: 8px 0; font-weight: bold;">${timeFormatted}</td></tr>
-            <tr><td style="padding: 8px 0; color: #666;">Price</td><td style="padding: 8px 0; font-weight: bold;">£${Number(booking.total_price).toFixed(2)}</td></tr>
+            ${discountHtml || `<tr><td style="padding: 8px 0; color: #666;">Price</td><td style="padding: 8px 0; font-weight: bold;">£${Number(booking.total_price).toFixed(2)}</td></tr>`}
           </table>
           <p style="background: #f8f8f8; padding: 16px; border-radius: 8px; margin: 16px 0;">
             📍 <strong>Fluff & Scruff Studio</strong><br/>
