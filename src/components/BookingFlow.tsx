@@ -672,9 +672,20 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
   };
 
   const handleGuestSubmit = async (selectedPaymentType: "deposit" | "full" = "full") => {
-    if (!guestForm.name.trim() || !guestForm.dogName.trim() || !guestForm.phone.trim()) {
+    // For new/guest customers, hard-block on missing required fields
+    if (!isExistingCustomer && (!guestForm.name.trim() || !guestForm.dogName.trim() || !guestForm.phone.trim())) {
       setAlertMessage("Please fill in your name, phone number and dog's name");
       return;
+    }
+
+    // For existing customers, auto-fill missing values with fallbacks — warn but don't block
+    if (isExistingCustomer) {
+      if (!guestForm.dogName.trim()) {
+        setGuestForm(prev => ({ ...prev, dogName: "Not specified" }));
+      }
+      if (!guestForm.phone.trim() || !guestForm.name.trim()) {
+        toast({ title: "Please confirm your phone number and details when you arrive at the salon", variant: "default" });
+      }
     }
     if (!acceptedTerms) {
       setAlertMessage("Please accept the Terms & Conditions to continue");

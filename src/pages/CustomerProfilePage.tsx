@@ -488,11 +488,31 @@ export default function CustomerProfilePage() {
 
   const updateCustomerMutation = useMutation({
     mutationFn: async (updates: { name: string; email: string; phone: string }) => {
-      const { error } = await supabase
+      // Update bookings table (may match 0 rows for migrated-only customers — that's fine)
+      await supabase
         .from("bookings")
         .update({ customer_name: updates.name, customer_email: updates.email, customer_phone: updates.phone })
         .eq("customer_email", decodedEmail);
-      if (error) throw error;
+
+      // Update migrated_customers table
+      await supabase
+        .from("migrated_customers")
+        .update({ full_name: updates.name, phone: updates.phone, email: updates.email })
+        .ilike("email", decodedEmail);
+
+      // Update profiles table via migrated_customers link
+      const { data: mc } = await supabase
+        .from("migrated_customers")
+        .select("profile_id")
+        .ilike("email", updates.email)
+        .maybeSingle();
+      if (mc?.profile_id) {
+        await supabase
+          .from("profiles")
+          .update({ full_name: updates.name })
+          .eq("id", mc.profile_id);
+      }
+
       if (updates.email !== decodedEmail) {
         await supabase.from("customer_notes").update({ customer_email: updates.email }).eq("customer_email", decodedEmail);
         await supabase.from("customer_communications").update({ customer_email: updates.email }).eq("customer_email", decodedEmail);
