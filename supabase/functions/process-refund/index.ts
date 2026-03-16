@@ -45,7 +45,7 @@ serve(async (req) => {
 
     if (!roleData) throw new Error("Only directors can process refunds");
 
-    const { booking_id } = await req.json();
+    const { booking_id, partial_amount } = await req.json();
     if (!booking_id) throw new Error("Missing booking_id");
 
     // Get the booking
