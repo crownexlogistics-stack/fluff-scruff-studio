@@ -267,13 +267,70 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
   useEffect(() => {
     if (isExistingCustomer && user) {
       const meta = user.user_metadata;
+      const metaPhone = meta?.phone || "";
+      const metaName = meta?.full_name || "";
+      const email = user.email || "";
+
       setGuestForm(prev => ({
         ...prev,
-        name: meta?.full_name || prev.name,
-        email: user.email || prev.email,
-        phone: meta?.phone || prev.phone,
+        name: metaName || prev.name,
+        email: email || prev.email,
+        phone: metaPhone || prev.phone,
         dogName: preselectedPetName || prev.dogName,
       }));
+
+      // If phone or dogName still missing, fetch from DB
+      const needsPhone = !metaPhone;
+      const needsDog = !preselectedPetName;
+
+      if ((needsPhone || needsDog) && email) {
+        (async () => {
+          let fallbackPhone = "";
+          let fallbackDog = "";
+
+          if (needsPhone) {
+            // Try bookings first
+            const { data: booking } = await supabase
+              .from("bookings")
+              .select("customer_phone")
+              .ilike("customer_email", email)
+              .not("customer_phone", "is", null)
+              .limit(1)
+              .maybeSingle();
+            if (booking?.customer_phone) {
+              fallbackPhone = booking.customer_phone;
+            } else {
+              // Try migrated_customers
+              const { data: mc } = await supabase
+                .from("migrated_customers")
+                .select("phone")
+                .ilike("email", email)
+                .not("phone", "is", null)
+                .limit(1)
+                .maybeSingle();
+              if (mc?.phone) fallbackPhone = mc.phone;
+            }
+          }
+
+          if (needsDog) {
+            const { data: pet } = await supabase
+              .from("customer_pets")
+              .select("pet_name")
+              .eq("user_id", user.id)
+              .limit(1)
+              .maybeSingle();
+            if (pet?.pet_name) fallbackDog = pet.pet_name;
+          }
+
+          if (fallbackPhone || fallbackDog) {
+            setGuestForm(prev => ({
+              ...prev,
+              phone: prev.phone || fallbackPhone,
+              dogName: prev.dogName || fallbackDog,
+            }));
+          }
+        })();
+      }
     }
   }, [isExistingCustomer, user, preselectedPetName]);
 
@@ -615,9 +672,20 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
   };
 
   const handleGuestSubmit = async (selectedPaymentType: "deposit" | "full" = "full") => {
-    if (!guestForm.name.trim() || !guestForm.dogName.trim() || !guestForm.phone.trim()) {
+    // For new/guest customers, hard-block on missing required fields
+    if (!isExistingCustomer && (!guestForm.name.trim() || !guestForm.dogName.trim() || !guestForm.phone.trim())) {
       setAlertMessage("Please fill in your name, phone number and dog's name");
       return;
+    }
+
+    // For existing customers, auto-fill missing values with fallbacks — warn but don't block
+    if (isExistingCustomer) {
+      if (!guestForm.dogName.trim()) {
+        setGuestForm(prev => ({ ...prev, dogName: "Not specified" }));
+      }
+      if (!guestForm.phone.trim() || !guestForm.name.trim()) {
+        toast.info("Please confirm your phone number and details when you arrive at the salon");
+      }
     }
     if (!acceptedTerms) {
       setAlertMessage("Please accept the Terms & Conditions to continue");

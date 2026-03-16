@@ -1,59 +1,54 @@
 
 
-## Investigation Summary
+## Booking Flow UI Overhaul — Pet-Themed Animations
 
-### Issue 1: Customer Details Edit "Bounces Back"
-
-**Root cause**: The `updateCustomerMutation` in `CustomerProfilePage.tsx` (line 491-494) only updates the `bookings` table:
-
-```sql
-UPDATE bookings SET customer_name=..., customer_email=..., customer_phone=... 
-WHERE customer_email = 'als1966@hotmail.co.uk'
-```
-
-Andrea Stephenson has **zero records** in the `bookings` table (only migrated bookings from Wix). The update matches 0 rows, "succeeds" silently, and the UI refetches the same old data from `migrated_customers`.
-
-**Fix**: The mutation must also update `migrated_customers` (name, phone) and `profiles` (full_name) when those records exist. Also update `customer_pets` if the user has a registered account.
+This plan adds playful, on-brand animations to the booking flow while preserving all existing logic (Stripe, puppy auto-switch, back navigation).
 
 ---
 
-### Issue 2: Booking Flow Blocks Existing Customers
+### 1. Walking Paw Progress Bar
 
-**Root cause**: Line 618 in `BookingFlow.tsx` validates:
+- Add a **paw-print step indicator** at the top of the BookingFlow, below the header.
+- Define the steps as an ordered array (e.g. `["sub-service", "breed", "calendar", "addons", "guest-details"]`), filtered based on whether the flow needs breed/addons.
+- Render a row of `PawPrint` icons — completed steps use the brand accent color, current step is highlighted, future steps are greyed out (`text-muted-foreground/30`).
+- Use `framer-motion`'s `layoutId` on a small underline/highlight element that animates smoothly between paw positions as the step changes, creating the "walking" effect.
+- Each paw tilts slightly (`rotate: -15deg` → `15deg`) using a short spring animation on the active paw.
 
-```typescript
-if (!guestForm.name.trim() || !guestForm.dogName.trim() || !guestForm.phone.trim()) {
-  setAlertMessage("Please fill in your name, phone number and dog's name");
-  return;
-}
-```
+### 2. Tail Wag Loading Animation
 
-But for existing customers (`isExistingCustomer = true`), the name/dogName/phone input fields are **hidden** (line 1686: `{!isExistingCustomer && ...}`). The form relies on:
-- `guestForm.phone` from `user.user_metadata.phone` -- often empty/null
-- `guestForm.dogName` from `preselectedPetName` -- requires the customer to have selected a specific pet before entering the booking flow
+- Create a small `TailWagSpinner` component using an inline SVG of a simplified dog tail.
+- Animate with `framer-motion` using a repeating `rotate` keyframe (`[-20, 20, -20]` on loop) with `duration: 0.4s`.
+- Replace the existing CSS spinner (line 825: `animate-spin h-8 w-8 border-4...`) and the "Processing..." text in submit buttons with this component.
 
-If either is missing, the customer sees "Please fill in your name, phone number and dog's name" with no way to fix it -- the fields don't exist on screen.
+### 3. Bouncy Page Transitions (Framer Motion)
 
-**How many customers affected**: Any existing logged-in customer who either (a) doesn't have a phone number stored in their auth metadata, or (b) navigated to the booking flow without selecting a specific pet first. This is potentially all migrated customers since phone numbers are stored in `migrated_customers`, not in auth metadata.
+- Wrap each step's content block in a `<motion.div>` with `AnimatePresence` and keyed by `step`.
+- Entry: `initial={{ x: 80, opacity: 0 }}`, `animate={{ x: 0, opacity: 1 }}` with `type: "spring", stiffness: 300, damping: 25`.
+- Exit: `exit={{ x: -80, opacity: 0 }}` with a fast tween.
+- Track navigation direction (forward/back) to reverse the slide direction when going back (slide in from left instead of right).
+
+### 4. Back Button & Puppy Logic
+
+- The existing `goBack` function already resets state per step — no changes needed there.
+- For the **Puppy Special "pop" effect**: when `showPuppyPopup` closes and the calendar step appears, add a `motion.div` around the "Puppy Special" service name in the calendar's summary card with `animate={{ scale: [1, 1.15, 1] }}` and a sparkle keyframe, triggered when `puppySwitched` is true.
+
+### 5. Styling Constraints
+
+- All animations use `duration: 0.3–0.5s` max.
+- Spring transitions use high stiffness (300+) and moderate damping (25+) for snappy feel.
+- No layout shifts — all animated elements have fixed dimensions or use `layout` prop.
 
 ---
 
-### Plan
+### Files to Edit
 
-**1. Fix customer edit mutation** (`CustomerProfilePage.tsx`)
-- Update `migrated_customers` table (full_name, phone) when a migrated record exists
-- Update `profiles` table (full_name) when a profile record exists
-- Keep existing bookings update for customers who DO have bookings
+| File | Change |
+|------|--------|
+| `src/components/BookingFlow.tsx` | Add `AnimatePresence`, `motion.div` wrappers per step, paw progress bar component, tail wag spinner, direction tracking for transitions, sparkle effect on puppy switch |
 
-**2. Fix booking validation** (`BookingFlow.tsx`)
-- For existing customers: auto-populate phone from bookings table or migrated_customers if auth metadata is empty
-- For existing customers: auto-populate dogName from their registered pets if not preselected
-- Change the hard block to a **warning only** -- show a toast/banner advising them to confirm details at the salon, but **allow the booking to proceed**
-- If dogName is still empty, fall back to "Not specified" rather than blocking
+### Technical Notes
 
-**3. Auto-populate missing phone for existing customers** (`BookingFlow.tsx`)
-- Add a query to fetch the customer's phone from `bookings` or `migrated_customers` as a fallback when `user_metadata.phone` is empty
-- Fetch the customer's first pet name from `customer_pets` as fallback when no pet was preselected
-
-These changes ensure no customer is ever blocked from completing a booking due to missing profile data that the system should already know about.
+- `framer-motion` is already installed.
+- The `TailWagSpinner` and `PawProgressBar` will be inline components within `BookingFlow.tsx` to keep changes contained.
+- No database or edge function changes needed.
 
