@@ -13,6 +13,8 @@ import { toast } from "sonner";
 import { logAudit } from "@/lib/auditLog";
 import { Mail, Sparkles } from "lucide-react";
 import type { BookingData } from "./BookingEvent";
+import { CouponApplySection } from "./CouponApplySection";
+import { CouponRefundFlow } from "./CouponRefundFlow";
 
 interface EditAppointmentDialogProps {
   open: boolean;
