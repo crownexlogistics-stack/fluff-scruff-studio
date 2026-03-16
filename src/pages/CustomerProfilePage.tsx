@@ -499,7 +499,7 @@ export default function CustomerProfilePage() {
       // Update migrated_customers table
       const { error: migratedUpdateError } = await supabase
         .from("migrated_customers")
-        .update({ full_name: updates.name, phone: updates.phone, email: updates.email })
+        .update({ full_name: updates.name, phone: updates.phone, email: updates.email, secondary_phone: updates.secondary_phone || null })
         .ilike("email", decodedEmail);
       if (migratedUpdateError) throw migratedUpdateError;
 
