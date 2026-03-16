@@ -230,11 +230,11 @@ export default function CouponsPage() {
                   <TableCell>{getStatusBadge(coupon)}</TableCell>
                   <TableCell>
                     <span className="text-sm">
-                      {coupon.times_used}{coupon.max_uses ? ` / ${coupon.max_uses}` : ""}
+                      {coupon.times_used}{coupon.max_uses ? ` / ${coupon.max_uses}` : " / ∞"}
                     </span>
-                    {coupon.max_uses_per_customer && (
-                      <p className="text-xs text-muted-foreground">{coupon.max_uses_per_customer}x per customer</p>
-                    )}
+                    <p className="text-xs text-muted-foreground">
+                      {coupon.max_uses_per_customer ? `${coupon.max_uses_per_customer}x per customer` : "Unlimited per customer"}
+                    </p>
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {coupon.start_date && coupon.end_date
