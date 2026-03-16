@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { format, parseISO, differenceInHours, isPast, isToday, differenceInDays } from "date-fns";
-import { CalendarCheck, Clock, RotateCcw, XCircle, AlertTriangle, Ban, ChevronRight, DollarSign } from "lucide-react";
+import { CalendarCheck, Clock, RotateCcw, XCircle, AlertTriangle, Ban, ChevronRight, DollarSign, Tag } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
