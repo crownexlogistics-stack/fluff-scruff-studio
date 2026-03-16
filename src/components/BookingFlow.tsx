@@ -678,13 +678,16 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
       return;
     }
 
-    // For existing customers, auto-fill missing values with fallbacks — warn but don't block
+    // For existing customers, use local variables for immediate access (setState is async)
+    // Auto-fill missing values with fallbacks — warn but NEVER block payment
+    const submitName = guestForm.name.trim() || user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Customer";
+    const submitDogName = guestForm.dogName.trim() || "Not specified";
+    const submitPhone = guestForm.phone.trim() || "";
+    const submitEmail = guestForm.email.trim() || user?.email || "";
+
     if (isExistingCustomer) {
-      if (!guestForm.dogName.trim()) {
-        setGuestForm(prev => ({ ...prev, dogName: "Not specified" }));
-      }
-      if (!guestForm.phone.trim() || !guestForm.name.trim()) {
-        toast.info("Please confirm your phone number and details when you arrive at the salon");
+      if (!guestForm.dogName.trim() || !guestForm.phone.trim() || !guestForm.name.trim()) {
+        toast.info("Please confirm your details when you arrive at the salon");
       }
     }
     if (!acceptedTerms) {
