@@ -361,21 +361,27 @@ export default function CouponsPage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label>Total Uses Limit</Label>
-                <NumericInput
+                <Input
                   value={form.max_uses}
-                  onValueChange={(v) => setForm({ ...form, max_uses: String(v) })}
-                  allowDecimals={false}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    if (raw === "" || /^[0-9]+$/.test(raw)) setForm({ ...form, max_uses: raw });
+                  }}
                   placeholder="Unlimited"
                 />
+                <p className="text-xs text-muted-foreground">Leave blank for unlimited</p>
               </div>
               <div className="space-y-1.5">
                 <Label>Per Customer Limit</Label>
-                <NumericInput
+                <Input
                   value={form.max_uses_per_customer}
-                  onValueChange={(v) => setForm({ ...form, max_uses_per_customer: String(v) })}
-                  allowDecimals={false}
-                  placeholder="1"
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    if (raw === "" || /^[0-9]+$/.test(raw)) setForm({ ...form, max_uses_per_customer: raw });
+                  }}
+                  placeholder="Unlimited"
                 />
+                <p className="text-xs text-muted-foreground">Leave blank for unlimited</p>
               </div>
             </div>
 
