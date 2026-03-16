@@ -56,24 +56,47 @@ async function fetchAllWixContacts(apiKey: string, siteId: string): Promise<WixC
 }
 
 async function fetchContactNotes(contactId: string, apiKey: string, siteId: string): Promise<WixNote[]> {
-  const res = await fetch(
-    `https://www.wixapis.com/contacts/v4/contacts/${contactId}/notes`,
-    {
-      headers: {
-        Authorization: apiKey,
-        "wix-site-id": siteId,
-      },
-    },
-  );
+  const allNotes: WixNote[] = [];
+  let cursor: string | undefined;
 
-  if (!res.ok) {
-    const text = await res.text();
-    console.error(`Failed to fetch notes for ${contactId}: ${res.status} ${text}`);
-    return [];
+  while (true) {
+    const body: any = {
+      filter: { contactId: { "$eq": contactId } },
+      paging: { limit: 100 },
+    };
+    if (cursor) body.paging.cursor = cursor;
+
+    const res = await fetch(
+      "https://www.wixapis.com/crm/notes/v2/notes/query",
+      {
+        method: "POST",
+        headers: {
+          Authorization: apiKey,
+          "wix-site-id": siteId,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      },
+    );
+
+    if (!res.ok) {
+      const text = await res.text();
+      console.error(`Failed to fetch notes for ${contactId}: ${res.status} ${text}`);
+      return allNotes;
+    }
+
+    const data = await res.json();
+    const notes: WixNote[] = (data.notes || []).map((n: any) => ({
+      content: n.content || n.text || "",
+      createdDate: n._createdDate || n.createdDate || null,
+    }));
+    allNotes.push(...notes);
+
+    cursor = data.pagingMetadata?.cursors?.next;
+    if (!cursor || notes.length === 0) break;
   }
 
-  const data = await res.json();
-  return data.notes || [];
+  return allNotes;
 }
 
 Deno.serve(async (req) => {
