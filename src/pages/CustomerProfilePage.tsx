@@ -51,6 +51,7 @@ export default function CustomerProfilePage() {
   const [editName, setEditName] = useState("");
   const [editEmail, setEditEmail] = useState("");
   const [editPhone, setEditPhone] = useState("");
+  const [editSecondaryPhone, setEditSecondaryPhone] = useState("");
   const [bookingTab, setBookingTab] = useState("upcoming");
   const [newApptOpen, setNewApptOpen] = useState(false);
   const [newMessage, setNewMessage] = useState("");
