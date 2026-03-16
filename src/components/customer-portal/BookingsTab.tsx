@@ -328,8 +328,8 @@ export function BookingsTab({ bookings, userEmail }: BookingsTabProps) {
         </div>
       )}
 
-      {/* Booking Detail Dialog */}
-      <BookingDetailDialog
+      {/* Booking Detail Dialog with discount display */}
+      <CustomerBookingDetailDialog
         booking={selectedBooking}
         onClose={() => setSelectedBooking(null)}
         getStatusBadge={getStatusBadge}
