@@ -269,6 +269,7 @@ export function EditAppointmentDialog({ open, onOpenChange, booking }: EditAppoi
   if (!booking) return null;
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
