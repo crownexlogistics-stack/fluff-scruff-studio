@@ -140,3 +140,6 @@ verify_jwt = false
 
 [functions.email-track]
 verify_jwt = false
+
+[functions.migrate-wix-notes]
+verify_jwt = false
