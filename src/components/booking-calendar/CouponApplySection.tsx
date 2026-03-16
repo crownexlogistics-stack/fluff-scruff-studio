@@ -9,6 +9,7 @@ import { toast } from "sonner";
 
 interface CouponApplySectionProps {
   bookingId: string;
+  isMigrated?: boolean;
   currentTotal: number;
   depositPaid: number;
   onCouponApplied: (newTotal: number, couponCode: string, discountLabel: string) => void;
