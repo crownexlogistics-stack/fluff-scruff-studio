@@ -489,42 +489,74 @@ export default function CustomerProfilePage() {
   const updateCustomerMutation = useMutation({
     mutationFn: async (updates: { name: string; email: string; phone: string }) => {
       // Update bookings table (may match 0 rows for migrated-only customers — that's fine)
-      await supabase
+      const { error: bookingsUpdateError } = await supabase
         .from("bookings")
         .update({ customer_name: updates.name, customer_email: updates.email, customer_phone: updates.phone })
         .eq("customer_email", decodedEmail);
+      if (bookingsUpdateError) throw bookingsUpdateError;
 
       // Update migrated_customers table
-      await supabase
+      const { error: migratedUpdateError } = await supabase
         .from("migrated_customers")
         .update({ full_name: updates.name, phone: updates.phone, email: updates.email })
         .ilike("email", decodedEmail);
+      if (migratedUpdateError) throw migratedUpdateError;
 
       // Update profiles table via migrated_customers link
-      const { data: mc } = await supabase
+      const { data: mc, error: mcLookupError } = await supabase
         .from("migrated_customers")
         .select("profile_id")
         .ilike("email", updates.email)
         .maybeSingle();
+      if (mcLookupError) throw mcLookupError;
+
       if (mc?.profile_id) {
-        await supabase
+        const { error: profileUpdateError } = await supabase
           .from("profiles")
           .update({ full_name: updates.name })
           .eq("id", mc.profile_id);
+        if (profileUpdateError) throw profileUpdateError;
       }
 
       if (updates.email !== decodedEmail) {
-        await supabase.from("customer_notes").update({ customer_email: updates.email }).eq("customer_email", decodedEmail);
-        await supabase.from("customer_communications").update({ customer_email: updates.email }).eq("customer_email", decodedEmail);
+        const { error: notesEmailUpdateError } = await supabase
+          .from("customer_notes")
+          .update({ customer_email: updates.email })
+          .eq("customer_email", decodedEmail);
+        if (notesEmailUpdateError) throw notesEmailUpdateError;
+
+        const { error: commsEmailUpdateError } = await supabase
+          .from("customer_communications")
+          .update({ customer_email: updates.email })
+          .eq("customer_email", decodedEmail);
+        if (commsEmailUpdateError) throw commsEmailUpdateError;
       }
     },
     onSuccess: (_, variables) => {
+      queryClient.setQueryData(["migrated-customer-record", decodedEmail], (prev: any) => (
+        prev
+          ? {
+              ...prev,
+              full_name: variables.name,
+              email: variables.email,
+              phone: variables.phone,
+            }
+          : prev
+      ));
+
       setIsEditing(false);
       toast({ title: "Customer details updated" });
+
+      queryClient.invalidateQueries({ queryKey: ["customer-profile-bookings", decodedEmail] });
+      queryClient.invalidateQueries({ queryKey: ["migrated-customer-record", decodedEmail] });
+      queryClient.invalidateQueries({ queryKey: ["customer-user-id", decodedEmail] });
+
       if (variables.email !== decodedEmail) {
+        queryClient.invalidateQueries({ queryKey: ["customer-profile-bookings", variables.email] });
+        queryClient.invalidateQueries({ queryKey: ["migrated-customer-record", variables.email] });
+        queryClient.invalidateQueries({ queryKey: ["customer-user-id", variables.email] });
         navigate(`/admin/customers/${encodeURIComponent(variables.email)}`, { replace: true });
       }
-      queryClient.invalidateQueries({ queryKey: ["customer-profile-bookings"] });
     },
     onError: () => toast({ title: "Failed to update", variant: "destructive" }),
   });
