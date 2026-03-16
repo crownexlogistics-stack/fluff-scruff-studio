@@ -67,11 +67,17 @@ serve(async (req) => {
 
     let refund: Stripe.Refund;
 
+    // Build refund params — support partial refunds (amount in pence)
+    const refundParams: Stripe.RefundCreateParams = {
+      payment_intent: booking.stripe_payment_id,
+    };
+    if (partial_amount && typeof partial_amount === "number" && partial_amount > 0) {
+      refundParams.amount = partial_amount;
+    }
+
     // Process refund via Stripe (idempotent fallback for already-refunded intents)
     try {
-      refund = await stripe.refunds.create({
-        payment_intent: booking.stripe_payment_id,
-      });
+      refund = await stripe.refunds.create(refundParams);
     } catch (stripeError: any) {
       const message = String(stripeError?.message || "").toLowerCase();
       const alreadyRefunded =
