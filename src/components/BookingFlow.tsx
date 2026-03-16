@@ -909,7 +909,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
       try {
         await supabase.from("coupon_usages").insert({
           coupon_id: appliedCoupon.id,
-          customer_email: (guestForm.email || "guest").toLowerCase(),
+          customer_email: (submitEmail || "guest").toLowerCase(),
           booking_id: insertedBooking.id,
         });
         const { data: couponData } = await supabase.from("coupons").select("times_used").eq("id", appliedCoupon.id).single();
