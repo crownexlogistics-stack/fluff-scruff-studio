@@ -58,6 +58,22 @@ export function EditAppointmentDialog({ open, onOpenChange, booking }: EditAppoi
     enabled: open && !!booking,
   });
 
+  // Fetch existing coupon usage for this booking
+  const { data: existingCoupon } = useQuery({
+    queryKey: ["booking-coupon-edit", booking?.id],
+    queryFn: async () => {
+      if (!booking) return null;
+      const { data, error } = await supabase
+        .from("coupon_usages")
+        .select("*, coupons(code, discount_type, discount_value)")
+        .eq("booking_id", booking.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data?.coupons ? { code: data.coupons.code, discount_type: data.coupons.discount_type, discount_value: data.coupons.discount_value } : null;
+    },
+    enabled: open && !!booking && !booking.is_migrated,
+  });
+
   useEffect(() => {
     if (open && booking) {
       setForm({
