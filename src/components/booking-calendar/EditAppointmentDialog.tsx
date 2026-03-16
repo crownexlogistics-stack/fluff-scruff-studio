@@ -58,20 +58,21 @@ export function EditAppointmentDialog({ open, onOpenChange, booking }: EditAppoi
     enabled: open && !!booking,
   });
 
-  // Fetch existing coupon usage for this booking
+  // Fetch existing coupon usage for this booking (supports both regular and migrated)
   const { data: existingCoupon } = useQuery({
     queryKey: ["booking-coupon-edit", booking?.id],
     queryFn: async () => {
       if (!booking) return null;
+      const column = booking.is_migrated ? "migrated_booking_id" : "booking_id";
       const { data, error } = await supabase
         .from("coupon_usages")
         .select("*, coupons(code, discount_type, discount_value)")
-        .eq("booking_id", booking.id)
+        .eq(column, booking.id)
         .maybeSingle();
       if (error) throw error;
       return data?.coupons ? { code: data.coupons.code, discount_type: data.coupons.discount_type, discount_value: data.coupons.discount_value } : null;
     },
-    enabled: open && !!booking && !booking.is_migrated,
+    enabled: open && !!booking,
   });
 
   useEffect(() => {
@@ -375,29 +376,28 @@ export function EditAppointmentDialog({ open, onOpenChange, booking }: EditAppoi
             )}
           </div>
 
-          {/* Coupon / Discount Section — staff only, not for migrated bookings */}
-          {!booking.is_migrated && (
-            <CouponApplySection
-              bookingId={booking.id}
-              currentTotal={form.total_price}
-              depositPaid={form.deposit_paid}
-              existingCoupon={couponApplied ? undefined : (existingCoupon as any)}
-              staffName={staff?.find(s => s.id === form.staff_id)?.name || "Staff"}
-              customerEmail={booking.customer_email}
-              onCouponApplied={(newTotal, code, label) => {
-                const deposit = form.deposit_paid;
-                // If customer already paid more than new total, need refund
-                if (deposit > newTotal && deposit > 0 && (booking as any).stripe_payment_id) {
-                  setPendingCouponData({ newTotal, code, label });
-                  setRefundFlowOpen(true);
-                }
-                setForm(prev => ({ ...prev, total_price: newTotal }));
-                setCouponApplied(true);
-                queryClient.invalidateQueries({ queryKey: ["booking-coupon-edit", booking.id] });
-                queryClient.invalidateQueries({ queryKey: ["booking-coupon", booking.id] });
-              }}
-            />
-          )}
+          {/* Coupon / Discount Section — staff only, works for both regular and migrated bookings */}
+          <CouponApplySection
+            bookingId={booking.id}
+            isMigrated={!!booking.is_migrated}
+            currentTotal={form.total_price}
+            depositPaid={form.deposit_paid}
+            existingCoupon={couponApplied ? undefined : (existingCoupon as any)}
+            staffName={staff?.find(s => s.id === form.staff_id)?.name || "Staff"}
+            customerEmail={booking.customer_email}
+            onCouponApplied={(newTotal, code, label) => {
+              const deposit = form.deposit_paid;
+              // If customer already paid more than new total, need refund (only for non-migrated with Stripe)
+              if (!booking.is_migrated && deposit > newTotal && deposit > 0 && (booking as any).stripe_payment_id) {
+                setPendingCouponData({ newTotal, code, label });
+                setRefundFlowOpen(true);
+              }
+              setForm(prev => ({ ...prev, total_price: newTotal }));
+              setCouponApplied(true);
+              queryClient.invalidateQueries({ queryKey: ["booking-coupon-edit", booking.id] });
+              queryClient.invalidateQueries({ queryKey: ["booking-coupon", booking.id] });
+            }}
+          />
 
           <div className="space-y-1">
             <Label>Notes</Label>

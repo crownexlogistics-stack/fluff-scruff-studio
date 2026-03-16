@@ -782,6 +782,7 @@ export type Database = {
           coupon_id: string
           customer_email: string
           id: string
+          migrated_booking_id: string | null
           used_at: string
         }
         Insert: {
@@ -791,6 +792,7 @@ export type Database = {
           coupon_id: string
           customer_email: string
           id?: string
+          migrated_booking_id?: string | null
           used_at?: string
         }
         Update: {
@@ -800,6 +802,7 @@ export type Database = {
           coupon_id?: string
           customer_email?: string
           id?: string
+          migrated_booking_id?: string | null
           used_at?: string
         }
         Relationships: [
@@ -822,6 +825,13 @@ export type Database = {
             columns: ["coupon_id"]
             isOneToOne: false
             referencedRelation: "coupons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coupon_usages_migrated_booking_id_fkey"
+            columns: ["migrated_booking_id"]
+            isOneToOne: false
+            referencedRelation: "migrated_bookings"
             referencedColumns: ["id"]
           },
         ]
