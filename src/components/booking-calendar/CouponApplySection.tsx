@@ -136,13 +136,18 @@ export function CouponApplySection({
       const { data: { user } } = await supabase.auth.getUser();
 
       // Record coupon usage
-      await (supabase.from("coupon_usages") as any).insert({
+      const usageRecord: any = {
         coupon_id: coupon.id,
-        booking_id: bookingId,
         customer_email: customerEmail?.toLowerCase() || "unknown",
         applied_by_staff_id: user?.id || null,
         applied_by_staff_name: staffName,
-      });
+      };
+      if (isMigrated) {
+        usageRecord.migrated_booking_id = bookingId;
+      } else {
+        usageRecord.booking_id = bookingId;
+      }
+      await (supabase.from("coupon_usages") as any).insert(usageRecord);
 
       // Increment times_used
       await supabase
