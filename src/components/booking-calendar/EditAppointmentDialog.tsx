@@ -39,6 +39,9 @@ export function EditAppointmentDialog({ open, onOpenChange, booking }: EditAppoi
 
   const [selectedAddonIds, setSelectedAddonIds] = useState<string[]>([]);
   const [initialAddonIds, setInitialAddonIds] = useState<string[]>([]);
+  const [couponApplied, setCouponApplied] = useState(false);
+  const [refundFlowOpen, setRefundFlowOpen] = useState(false);
+  const [pendingCouponData, setPendingCouponData] = useState<{ newTotal: number; code: string; label: string } | null>(null);
 
   // Fetch existing booking add-ons when dialog opens
   const { data: existingAddons } = useQuery({
