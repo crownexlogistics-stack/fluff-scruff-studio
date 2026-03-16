@@ -871,10 +871,10 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
     }
 
     const { data: insertedBooking, error } = await supabase.from("bookings").insert({
-      customer_name: guestForm.name,
-      customer_phone: guestForm.phone || null,
-      customer_email: guestForm.email || null,
-      dog_name: guestForm.dogName,
+      customer_name: submitName,
+      customer_phone: submitPhone || null,
+      customer_email: submitEmail || null,
+      dog_name: submitDogName,
       breed_id: selectedBreed?.id ?? null,
       service_id: dbService?.id ?? null,
       staff_id: assignedStaffId,
