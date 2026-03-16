@@ -488,7 +488,7 @@ export default function CustomerProfilePage() {
   });
 
   const updateCustomerMutation = useMutation({
-    mutationFn: async (updates: { name: string; email: string; phone: string }) => {
+    mutationFn: async (updates: { name: string; email: string; phone: string; secondary_phone: string }) => {
       // Update bookings table (may match 0 rows for migrated-only customers — that's fine)
       const { error: bookingsUpdateError } = await supabase
         .from("bookings")
