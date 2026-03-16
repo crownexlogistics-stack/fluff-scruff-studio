@@ -51,6 +51,7 @@ export default function CustomerProfilePage() {
   const [editName, setEditName] = useState("");
   const [editEmail, setEditEmail] = useState("");
   const [editPhone, setEditPhone] = useState("");
+  const [editSecondaryPhone, setEditSecondaryPhone] = useState("");
   const [bookingTab, setBookingTab] = useState("upcoming");
   const [newApptOpen, setNewApptOpen] = useState(false);
   const [newMessage, setNewMessage] = useState("");
@@ -124,7 +125,7 @@ export default function CustomerProfilePage() {
     queryFn: async () => {
       const { data } = await supabase
         .from("migrated_customers")
-        .select("id, full_name, phone, email, sms_opt_out, sms_opt_out_at")
+        .select("id, full_name, phone, secondary_phone, email, sms_opt_out, sms_opt_out_at")
         .ilike("email", decodedEmail)
         .limit(1);
       return data?.[0] || null;
@@ -487,7 +488,7 @@ export default function CustomerProfilePage() {
   });
 
   const updateCustomerMutation = useMutation({
-    mutationFn: async (updates: { name: string; email: string; phone: string }) => {
+    mutationFn: async (updates: { name: string; email: string; phone: string; secondary_phone: string }) => {
       // Update bookings table (may match 0 rows for migrated-only customers — that's fine)
       const { error: bookingsUpdateError } = await supabase
         .from("bookings")
@@ -498,7 +499,7 @@ export default function CustomerProfilePage() {
       // Update migrated_customers table
       const { error: migratedUpdateError } = await supabase
         .from("migrated_customers")
-        .update({ full_name: updates.name, phone: updates.phone, email: updates.email })
+        .update({ full_name: updates.name, phone: updates.phone, email: updates.email, secondary_phone: updates.secondary_phone || null })
         .ilike("email", decodedEmail);
       if (migratedUpdateError) throw migratedUpdateError;
 
@@ -540,6 +541,7 @@ export default function CustomerProfilePage() {
               full_name: variables.name,
               email: variables.email,
               phone: variables.phone,
+              secondary_phone: variables.secondary_phone,
             }
           : prev
       ));
@@ -703,11 +705,11 @@ export default function CustomerProfilePage() {
 
   const getStaffName = (userId: string) => staffProfiles?.find((p) => p.id === userId)?.full_name || "Unknown";
 
-  const startEditing = () => { setEditName(customerName); setEditEmail(decodedEmail); setEditPhone(customerPhone); setIsEditing(true); };
+  const startEditing = () => { setEditName(customerName); setEditEmail(decodedEmail); setEditPhone(customerPhone); setEditSecondaryPhone(migratedCustomer?.secondary_phone || ""); setIsEditing(true); };
 
   const saveEdits = () => {
     if (!editName.trim() || !editEmail.trim()) { toast({ title: "Name and email are required", variant: "destructive" }); return; }
-    updateCustomerMutation.mutate({ name: editName.trim(), email: editEmail.trim(), phone: editPhone.trim() });
+    updateCustomerMutation.mutate({ name: editName.trim(), email: editEmail.trim(), phone: editPhone.trim(), secondary_phone: editSecondaryPhone.trim() });
   };
 
   const openPetEdit = (pet: any) => {
@@ -905,6 +907,10 @@ export default function CustomerProfilePage() {
               <div>
                 <p className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1"><Phone className="h-3 w-3" /> Primary phone</p>
                 {isEditing ? <Input value={editPhone} onChange={(e) => setEditPhone(e.target.value)} className="h-8 text-sm" placeholder="+44 ..." /> : <p className="text-sm font-medium">{customerPhone || "—"}</p>}
+              </div>
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1"><Phone className="h-3 w-3" /> Secondary phone</p>
+                {isEditing ? <Input value={editSecondaryPhone} onChange={(e) => setEditSecondaryPhone(e.target.value)} className="h-8 text-sm" placeholder="+44 ..." /> : <p className="text-sm font-medium">{migratedCustomer?.secondary_phone || "—"}</p>}
               </div>
               <div>
                 <p className="text-xs font-medium text-muted-foreground mb-1">Total spend</p>

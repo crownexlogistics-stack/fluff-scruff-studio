@@ -1,0 +1,1 @@
+ALTER TABLE public.migrated_customers ADD COLUMN IF NOT EXISTS secondary_phone text;

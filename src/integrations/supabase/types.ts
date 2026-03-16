@@ -1764,6 +1764,7 @@ export type Database = {
           invited_at: string | null
           phone: string | null
           profile_id: string | null
+          secondary_phone: string | null
           sms_opt_out: boolean | null
           sms_opt_out_at: string | null
           sms_unreachable: boolean | null
@@ -1779,6 +1780,7 @@ export type Database = {
           invited_at?: string | null
           phone?: string | null
           profile_id?: string | null
+          secondary_phone?: string | null
           sms_opt_out?: boolean | null
           sms_opt_out_at?: string | null
           sms_unreachable?: boolean | null
@@ -1794,6 +1796,7 @@ export type Database = {
           invited_at?: string | null
           phone?: string | null
           profile_id?: string | null
+          secondary_phone?: string | null
           sms_opt_out?: boolean | null
           sms_opt_out_at?: string | null
           sms_unreachable?: boolean | null
