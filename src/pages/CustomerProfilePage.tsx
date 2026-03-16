@@ -909,6 +909,10 @@ export default function CustomerProfilePage() {
                 {isEditing ? <Input value={editPhone} onChange={(e) => setEditPhone(e.target.value)} className="h-8 text-sm" placeholder="+44 ..." /> : <p className="text-sm font-medium">{customerPhone || "—"}</p>}
               </div>
               <div>
+                <p className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1"><Phone className="h-3 w-3" /> Secondary phone</p>
+                {isEditing ? <Input value={editSecondaryPhone} onChange={(e) => setEditSecondaryPhone(e.target.value)} className="h-8 text-sm" placeholder="+44 ..." /> : <p className="text-sm font-medium">{migratedCustomer?.secondary_phone || "—"}</p>}
+              </div>
+              <div>
                 <p className="text-xs font-medium text-muted-foreground mb-1">Total spend</p>
                 <p className="text-sm font-medium">£{((bookings?.reduce((sum, b) => sum + Number(b.total_price), 0) || 0) + (migratedBookings?.reduce((sum, b: any) => sum + Number(b.total_price || 0), 0) || 0)).toFixed(2)}</p>
               </div>
