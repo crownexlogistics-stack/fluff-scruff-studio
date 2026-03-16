@@ -678,13 +678,16 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
       return;
     }
 
-    // For existing customers, auto-fill missing values with fallbacks — warn but don't block
+    // For existing customers, use local variables for immediate access (setState is async)
+    // Auto-fill missing values with fallbacks — warn but NEVER block payment
+    const submitName = guestForm.name.trim() || user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Customer";
+    const submitDogName = guestForm.dogName.trim() || "Not specified";
+    const submitPhone = guestForm.phone.trim() || "";
+    const submitEmail = guestForm.email.trim() || user?.email || "";
+
     if (isExistingCustomer) {
-      if (!guestForm.dogName.trim()) {
-        setGuestForm(prev => ({ ...prev, dogName: "Not specified" }));
-      }
-      if (!guestForm.phone.trim() || !guestForm.name.trim()) {
-        toast.info("Please confirm your phone number and details when you arrive at the salon");
+      if (!guestForm.dogName.trim() || !guestForm.phone.trim() || !guestForm.name.trim()) {
+        toast.info("Please confirm your details when you arrive at the salon");
       }
     }
     if (!acceptedTerms) {
@@ -868,10 +871,10 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
     }
 
     const { data: insertedBooking, error } = await supabase.from("bookings").insert({
-      customer_name: guestForm.name,
-      customer_phone: guestForm.phone || null,
-      customer_email: guestForm.email || null,
-      dog_name: guestForm.dogName,
+      customer_name: submitName,
+      customer_phone: submitPhone || null,
+      customer_email: submitEmail || null,
+      dog_name: submitDogName,
       breed_id: selectedBreed?.id ?? null,
       service_id: dbService?.id ?? null,
       staff_id: assignedStaffId,
@@ -906,7 +909,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
       try {
         await supabase.from("coupon_usages").insert({
           coupon_id: appliedCoupon.id,
-          customer_email: (guestForm.email || "guest").toLowerCase(),
+          customer_email: (submitEmail || "guest").toLowerCase(),
           booking_id: insertedBooking.id,
         });
         const { data: couponData } = await supabase.from("coupons").select("times_used").eq("id", appliedCoupon.id).single();
@@ -923,9 +926,9 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
 
       const { data: checkoutData, error: checkoutError } = await supabase.functions.invoke("create-deposit-checkout", {
         body: {
-          customer_name: guestForm.name,
-          customer_email: guestForm.email || null,
-          dog_name: guestForm.dogName,
+          customer_name: submitName,
+          customer_email: submitEmail || null,
+          dog_name: submitDogName,
           service_name: serviceType,
           total_price: totalPrice,
           booking_id: insertedBooking.id,
