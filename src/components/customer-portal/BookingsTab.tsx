@@ -329,40 +329,11 @@ export function BookingsTab({ bookings, userEmail }: BookingsTabProps) {
       )}
 
       {/* Booking Detail Dialog */}
-      <Dialog open={!!selectedBooking} onOpenChange={(open) => !open && setSelectedBooking(null)}>
-        {selectedBooking && (
-          <DialogContent className="max-w-sm">
-            <DialogHeader>
-              <DialogTitle className="font-heading">
-                {(selectedBooking.services as any)?.name || "Grooming"}
-              </DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between"><span className="text-muted-foreground">Dog</span><span>{selectedBooking.dog_name}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Date</span><span>{format(new Date(selectedBooking.booking_date), "EEE d MMM yyyy")}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Time</span><span>{selectedBooking.booking_time?.slice(0, 5)}</span></div>
-                {(selectedBooking.staff as any)?.name && (
-                  <div className="flex justify-between"><span className="text-muted-foreground">Groomer</span><span>{(selectedBooking.staff as any).name}</span></div>
-                )}
-                <div className="flex justify-between"><span className="text-muted-foreground">Status</span>{getStatusBadge(selectedBooking)}</div>
-              </div>
-
-              <Separator />
-
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between"><span className="text-muted-foreground">Total Price</span><span className="font-semibold">£{Number(selectedBooking.total_price).toFixed(2)}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Deposit Paid</span><span className="text-green-600 font-medium">£{Number(selectedBooking.deposit_paid).toFixed(2)}</span></div>
-                {Number(selectedBooking.total_price) - Number(selectedBooking.deposit_paid) > 0 && (
-                  <div className="flex justify-between"><span className="text-muted-foreground">Balance Due</span><span className="text-accent font-semibold">£{(Number(selectedBooking.total_price) - Number(selectedBooking.deposit_paid)).toFixed(2)}</span></div>
-                )}
-              </div>
-
-              {/* Notes hidden from customer view — internal groomer notes only */}
-            </div>
-          </DialogContent>
-        )}
-      </Dialog>
+      <BookingDetailDialog
+        booking={selectedBooking}
+        onClose={() => setSelectedBooking(null)}
+        getStatusBadge={getStatusBadge}
+      />
 
       {/* Migrated Booking Detail Dialog */}
       <Dialog open={!!selectedMigrated} onOpenChange={(open) => !open && setSelectedMigrated(null)}>
