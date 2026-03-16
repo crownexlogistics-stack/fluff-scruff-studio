@@ -926,9 +926,9 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
 
       const { data: checkoutData, error: checkoutError } = await supabase.functions.invoke("create-deposit-checkout", {
         body: {
-          customer_name: guestForm.name,
-          customer_email: guestForm.email || null,
-          dog_name: guestForm.dogName,
+          customer_name: submitName,
+          customer_email: submitEmail || null,
+          dog_name: submitDogName,
           service_name: serviceType,
           total_price: totalPrice,
           booking_id: insertedBooking.id,
