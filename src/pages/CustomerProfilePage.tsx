@@ -541,6 +541,7 @@ export default function CustomerProfilePage() {
               full_name: variables.name,
               email: variables.email,
               phone: variables.phone,
+              secondary_phone: variables.secondary_phone,
             }
           : prev
       ));
