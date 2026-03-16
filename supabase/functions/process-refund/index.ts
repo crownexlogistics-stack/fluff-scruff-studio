@@ -100,15 +100,29 @@ serve(async (req) => {
     }
 
     const refundAmount = refund.amount / 100;
+    const isPartialRefund = partial_amount && partial_amount > 0;
 
-    // Update booking status (must succeed)
-    const { error: updateError } = await supabaseAdmin
-      .from("bookings")
-      .update({ status: "Refunded" })
-      .eq("id", booking_id);
+    // Update booking status (only set to "Refunded" for full refunds)
+    if (!isPartialRefund) {
+      const { error: updateError } = await supabaseAdmin
+        .from("bookings")
+        .update({ status: "Refunded" })
+        .eq("id", booking_id);
 
-    if (updateError) {
-      throw new Error(`Refunded in Stripe but failed to update booking status: ${updateError.message}`);
+      if (updateError) {
+        throw new Error(`Refunded in Stripe but failed to update booking status: ${updateError.message}`);
+      }
+    } else {
+      // For partial refunds (coupon), update deposit_paid to reflect the refund
+      const newDepositPaid = Math.max(0, Number(booking.deposit_paid) - refundAmount);
+      const { error: updateError } = await supabaseAdmin
+        .from("bookings")
+        .update({ deposit_paid: newDepositPaid })
+        .eq("id", booking_id);
+
+      if (updateError) {
+        throw new Error(`Refunded in Stripe but failed to update deposit: ${updateError.message}`);
+      }
     }
 
     // Log audit trail
