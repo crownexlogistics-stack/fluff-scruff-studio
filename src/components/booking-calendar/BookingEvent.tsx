@@ -329,7 +329,7 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
     );
   }
 
-  const tooltipSummary = `${booking.service_name || "Appointment"} · ${booking.customer_name} · ${booking.dog_name}${booking.breed_name ? ` (${booking.breed_name})` : ""} · ${booking.booking_time.slice(0, 5)} · ${booking.staff_name || ""}`;
+  const tooltipSummary = `${booking.service_name || "Grooming"} · ${booking.customer_name} · ${booking.dog_name}${booking.breed_name ? ` (${booking.breed_name})` : ""} · ${booking.booking_time.slice(0, 5)} · ${booking.staff_name || ""}`;
 
   return (
     <Popover>
@@ -362,8 +362,8 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
               ) : (
                 <>
                   <p className="text-[10px] opacity-70">{booking.booking_time.slice(0, 5)}</p>
-                  <p className="font-bold truncate">{booking.service_name || "Appointment"}</p>
-                  <p className="truncate">{booking.breed_name || booking.dog_name}</p>
+                  <p className="font-bold truncate">{booking.service_name || "Grooming"}</p>
+                  <p className="truncate">{booking.dog_name}{booking.breed_name ? ` (${booking.breed_name})` : ""}</p>
                   <p className="truncate">{booking.customer_name}</p>
                   <p className="opacity-80 truncate text-[10px]">With: {booking.staff_name}</p>
                 </>
@@ -501,7 +501,10 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
           </div>
 
           <div className="border-t pt-3">
-            <p className="font-medium">{booking.service_name || "Service"} — {booking.breed_name || booking.dog_name}</p>
+            <p className="font-medium">
+              {booking.service_name || "Grooming"} — {booking.dog_name}
+              {booking.breed_name ? ` (${booking.breed_name})` : ""}
+            </p>
             <p className="text-sm text-muted-foreground">with {booking.staff_name}</p>
             {/* Add-ons */}
             {bookingAddons && bookingAddons.length > 0 && (

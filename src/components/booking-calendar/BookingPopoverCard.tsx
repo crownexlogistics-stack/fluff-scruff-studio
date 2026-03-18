@@ -7,7 +7,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { getStaffColor } from "./staffColors";
-import { Pencil, Trash2, MoreHorizontal, Eye, PenLine, XCircle, Send, CheckCircle2, RotateCcw, MessageSquare, Ticket } from "lucide-react";
+import { Pencil, Trash2, MoreHorizontal, Eye, PenLine, XCircle, Send, CheckCircle2, RotateCcw, MessageSquare, Ticket, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { logAudit } from "@/lib/auditLog";
@@ -66,6 +66,20 @@ export function BookingPopoverCard({
         .order("performed_at", { ascending: true });
       if (error) throw error;
       return data as any[];
+    },
+    enabled: !booking.is_block,
+  });
+
+  // Fetch add-ons for this booking
+  const { data: popoverAddons } = useQuery({
+    queryKey: ["booking-addons-popover", booking.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("booking_addons" as any)
+        .select("addon_id, add_ons(name, price)")
+        .eq("booking_id", booking.id);
+      if (error) return [];
+      return (data as any[]) || [];
     },
     enabled: !booking.is_block,
   });
@@ -259,8 +273,22 @@ export function BookingPopoverCard({
       </div>
 
       <div className="border-t pt-3">
-        <p className="font-medium">{booking.service_name || "Service"} — {booking.breed_name || booking.dog_name}</p>
+        <p className="font-medium">
+          {booking.service_name || "Grooming"} — {booking.dog_name}
+          {booking.breed_name ? ` (${booking.breed_name})` : ""}
+        </p>
         <p className="text-sm text-muted-foreground">with {booking.staff_name}</p>
+        {/* Add-ons */}
+        {popoverAddons && popoverAddons.length > 0 && (
+          <div className="mt-1.5 flex flex-wrap gap-1">
+            {popoverAddons.map((ba: any) => (
+              <Badge key={ba.addon_id} variant="secondary" className="text-[10px] gap-1">
+                <Sparkles className="h-2.5 w-2.5" />
+                {ba.add_ons?.name} · £{Number(ba.add_ons?.price || 0).toFixed(2)}
+              </Badge>
+            ))}
+          </div>
+        )}
         <p className="text-sm font-medium mt-1">£{total.toFixed(2)}</p>
         {(booking as any).is_groomers_own_customer && (
           <Badge className="mt-1 text-xs bg-violet-100 text-violet-700 hover:bg-violet-100 dark:bg-violet-900/30 dark:text-violet-400">Own Customer • 50%</Badge>
