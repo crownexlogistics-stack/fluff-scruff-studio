@@ -876,7 +876,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
       customer_email: submitEmail || null,
       dog_name: submitDogName,
       breed_id: selectedBreed?.id ?? null,
-      service_id: dbService?.id ?? null,
+      service_id: currentServiceRecord?.id ?? dbService?.id ?? null,
       staff_id: assignedStaffId,
       booking_date: selectedDate!,
       booking_time: selectedTime!,
