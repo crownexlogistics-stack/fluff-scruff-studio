@@ -329,7 +329,7 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
     );
   }
 
-  const tooltipSummary = `${booking.service_name || "Appointment"} · ${booking.customer_name} · ${booking.dog_name}${booking.breed_name ? ` (${booking.breed_name})` : ""} · ${booking.booking_time.slice(0, 5)} · ${booking.staff_name || ""}`;
+  const tooltipSummary = `${booking.service_name || "Grooming"} · ${booking.customer_name} · ${booking.dog_name}${booking.breed_name ? ` (${booking.breed_name})` : ""} · ${booking.booking_time.slice(0, 5)} · ${booking.staff_name || ""}`;
 
   return (
     <Popover>
