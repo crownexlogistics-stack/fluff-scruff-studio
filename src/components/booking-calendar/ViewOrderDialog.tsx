@@ -242,7 +242,7 @@ export function ViewOrderDialog({ open, onOpenChange, booking, userRole, onRefun
               <span className="font-medium">£{servicePrice.toFixed(2)}</span>
             </div>
 
-            {/* Add-ons */}
+            {/* Explicit add-ons */}
             {(bookingAddons || []).map((ba: any) => (
               <div key={ba.id} className="flex justify-between text-sm">
                 <span className="text-muted-foreground flex items-center gap-1">
@@ -253,8 +253,29 @@ export function ViewOrderDialog({ open, onOpenChange, booking, userRole, onRefun
               </div>
             ))}
 
+            {/* Inferred add-ons for legacy bookings */}
+            {inferredPackageAmount > 0 && inferredAddOns.length > 0 && inferredAddOns.map((addon, i) => (
+              <div key={`inferred-${i}`} className="flex justify-between text-sm">
+                <span className="text-muted-foreground flex items-center gap-1">
+                  <Sparkles className="h-3 w-3 text-amber-500" />
+                  {addon.name}
+                </span>
+                <span className="font-medium">£{addon.price.toFixed(2)}</span>
+              </div>
+            ))}
+
+            {inferredPackageAmount > 0 && inferredAddOns.length === 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground flex items-center gap-1">
+                  <Sparkles className="h-3 w-3 text-amber-500" />
+                  Additional add-ons
+                </span>
+                <span className="font-medium">£{inferredPackageAmount.toFixed(2)}</span>
+              </div>
+            )}
+
             {/* Subtotal (only if there are add-ons or coupon) */}
-            {(addonsTotal > 0 || hasCoupon) && (
+            {(addonsTotal > 0 || hasCoupon || inferredPackageAmount > 0) && (
               <div className="flex justify-between text-sm border-t pt-1.5 mt-1.5">
                 <span className="text-muted-foreground">Subtotal</span>
                 <span className="font-medium">£{subtotalBeforeDiscount.toFixed(2)}</span>
