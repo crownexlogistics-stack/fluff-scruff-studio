@@ -563,20 +563,83 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
               {booking.breed_name ? ` (${booking.breed_name})` : ""}
             </p>
             <p className="text-sm text-muted-foreground">with {booking.staff_name}</p>
-            {/* Add-ons */}
-            {bookingAddons && bookingAddons.length > 0 && (
-              <div className="mt-1.5 flex flex-wrap gap-1">
-                {bookingAddons.map((ba: any) => (
-                  <Badge key={ba.addon_id} variant="secondary" className="text-[10px] gap-1">
-                    <Sparkles className="h-2.5 w-2.5" />
-                    {ba.add_ons?.name} · £{Number(ba.add_ons?.price || 0).toFixed(2)}
-                  </Badge>
-                ))}
-              </div>
-            )}
-            <p className="text-sm font-medium mt-1">£{Number(booking.total_price).toFixed(2)}</p>
             {booking.is_groomers_own_customer && (
               <Badge className="mt-1 text-xs bg-violet-100 text-violet-700 hover:bg-violet-100 dark:bg-violet-900/30 dark:text-violet-400">Own Customer • 50%</Badge>
+            )}
+          </div>
+
+          <div className="bg-muted/40 border rounded-md px-3 py-2 text-xs space-y-1">
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Price Breakdown</p>
+
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">{booking.service_name || "Service"}</span>
+              <span className="font-medium">£{servicePrice.toFixed(2)}</span>
+            </div>
+
+            {(bookingAddons || []).map((ba: any) => (
+              <div key={ba.addon_id} className="flex justify-between">
+                <span className="text-muted-foreground flex items-center gap-1">
+                  <Sparkles className="h-2.5 w-2.5" />
+                  {ba.add_ons?.name || "Add-on"}
+                </span>
+                <span className="font-medium">£{Number(ba.add_ons?.price || 0).toFixed(2)}</span>
+              </div>
+            ))}
+
+            {inferredPackageAmount > 0 && (
+              <>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground flex items-center gap-1">
+                    <Sparkles className="h-2.5 w-2.5" />
+                    {inferredPackageLabel}
+                  </span>
+                  <span className="font-medium">£{inferredPackageAmount.toFixed(2)}</span>
+                </div>
+                <p className="text-[10px] text-muted-foreground pl-4">Item details were not saved on this older booking, amount inferred from pricing.</p>
+              </>
+            )}
+
+            {(addonsTotal > 0 || hasCoupon || inferredPackageAmount > 0) && (
+              <div className="flex justify-between border-t pt-1 mt-1">
+                <span className="text-muted-foreground">Subtotal</span>
+                <span className="font-medium">£{subtotalBeforeDiscount.toFixed(2)}</span>
+              </div>
+            )}
+
+            {hasCoupon && (
+              <div className="flex justify-between text-purple-700">
+                <span className="flex items-center gap-1">
+                  <Ticket className="h-3 w-3" />
+                  <code className="font-mono bg-purple-100 px-1 rounded text-[10px]">{eventCouponUsage?.coupons?.code}</code>
+                  <span>{discountType === "percentage" ? `(${discountValue}%)` : `(£${discountValue.toFixed(2)})`}</span>
+                </span>
+                <span className="font-semibold">−£{discountAmount.toFixed(2)}</span>
+              </div>
+            )}
+
+            {hasCoupon && eventCouponUsage?.applied_by_staff_name && (
+              <p className="text-[10px] text-purple-600 pl-4">Applied by {eventCouponUsage.applied_by_staff_name}</p>
+            )}
+
+            <div className="flex justify-between border-t pt-1 mt-1">
+              <span className="font-semibold">Total</span>
+              <span className="font-bold text-primary">£{total.toFixed(2)}</span>
+            </div>
+
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Deposit Paid</span>
+              <span className={cn("font-medium", deposit > 0 ? "text-emerald-600" : "text-destructive")}>
+                £{deposit.toFixed(2)}
+              </span>
+            </div>
+
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Balance Due</span>
+              <span className="font-semibold">£{balanceDue.toFixed(2)}</span>
+            </div>
+
+            {balanceDue > 0 && booking.status !== "Refunded" && booking.status !== "Cancelled" && booking.status !== "No Show" && (
+              <p className="text-[10px] text-muted-foreground">Due at the salon after the appointment.</p>
             )}
           </div>
 
