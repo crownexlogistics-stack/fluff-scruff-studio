@@ -369,6 +369,12 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
               {booking.is_migrated && (
                 <span className="absolute top-0.5 right-0.5 bg-amber-500 text-white text-[8px] font-bold rounded px-0.5 leading-tight z-20">W</span>
               )}
+              {hasCoupon && !booking.is_migrated && (
+                <span className="absolute top-0.5 right-0.5 bg-purple-600 text-white text-[8px] font-bold rounded px-0.5 leading-tight z-20">🏷</span>
+              )}
+              {hasCoupon && booking.is_migrated && (
+                <span className="absolute top-0.5 right-4 bg-purple-600 text-white text-[8px] font-bold rounded px-0.5 leading-tight z-20">🏷</span>
+              )}
               {height < 50 ? (
                 <p className="text-[10px] font-bold truncate">{booking.booking_time.slice(0, 5)}</p>
               ) : height < 80 ? (
