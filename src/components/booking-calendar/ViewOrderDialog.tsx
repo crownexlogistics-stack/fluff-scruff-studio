@@ -4,7 +4,7 @@ import { ScrollHintWrapper } from "@/components/ui/scroll-hint-wrapper";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
-import { CheckCircle2, RotateCcw, Send, Ticket } from "lucide-react";
+import { CheckCircle2, RotateCcw, Send, Sparkles, Ticket } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { logAudit } from "@/lib/auditLog";
@@ -48,6 +48,20 @@ export function ViewOrderDialog({ open, onOpenChange, booking, userRole, onRefun
     enabled: !!booking,
   });
 
+  // Fetch add-ons for this booking
+  const { data: bookingAddons } = useQuery({
+    queryKey: ["booking-addons-dialog", booking?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("booking_addons")
+        .select("*, add_ons(name, price)")
+        .eq("booking_id", booking!.id);
+      if (error) throw error;
+      return data as any[];
+    },
+    enabled: !!booking,
+  });
+
   if (!booking) return null;
 
   const total = Number(booking.total_price);
@@ -56,6 +70,19 @@ export function ViewOrderDialog({ open, onOpenChange, booking, userRole, onRefun
   const isFullyPaid = deposit >= total && total > 0;
   const isDepositPaid = deposit > 0 && deposit < total;
   const isDirector = userRole === "director";
+
+  // Calculate itemized breakdown
+  const addonsTotal = (bookingAddons || []).reduce((sum: number, ba: any) => sum + Number(ba.add_ons?.price || 0), 0);
+  const hasCoupon = !!couponUsage?.coupons;
+  const discountType = couponUsage?.coupons?.discount_type;
+  const discountVal = Number(couponUsage?.coupons?.discount_value || 0);
+
+  // Work backwards: if coupon applied, calculate pre-discount subtotal
+  const subtotalBeforeDiscount = hasCoupon
+    ? (discountType === "percentage" ? total / (1 - discountVal / 100) : total + discountVal)
+    : total;
+  const servicePrice = Math.max(0, subtotalBeforeDiscount - addonsTotal);
+  const discountAmount = hasCoupon ? subtotalBeforeDiscount - total : 0;
 
   const getPaymentBadge = () => {
     if (booking.status === "Refunded") return <Badge variant="outline">Refunded</Badge>;
@@ -134,56 +161,70 @@ export function ViewOrderDialog({ open, onOpenChange, booking, userRole, onRefun
             <Row label="Groomer" value={booking.staff_name} />
           </div>
 
-          {/* Coupon Indicator */}
-          {couponUsage?.coupons && (
-            <div className="rounded-lg border border-purple-200 bg-purple-50 p-3 space-y-1">
-              <div className="flex items-center gap-1.5 text-sm font-semibold text-purple-800">
-                <Ticket className="h-3.5 w-3.5" />
-                <span>Coupon Applied: <code className="font-mono bg-purple-100 px-1 rounded text-xs">{couponUsage.coupons.code}</code></span>
-              </div>
-              <div className="flex justify-between text-sm text-purple-700">
-                <span>Discount</span>
-                <span className="font-medium">
-                  {couponUsage.coupons.discount_type === "percentage"
-                    ? `${couponUsage.coupons.discount_value}% off`
-                    : `£${Number(couponUsage.coupons.discount_value).toFixed(2)} off`}
-                </span>
-              </div>
-              {(() => {
-                const discountVal = Number(couponUsage.coupons.discount_value);
-                const originalPrice = couponUsage.coupons.discount_type === "percentage"
-                  ? total / (1 - discountVal / 100)
-                  : total + discountVal;
-                return (
-                  <div className="flex justify-between text-sm text-purple-700 border-t border-purple-200 pt-1">
-                    <span>Original Price</span>
-                    <span className="font-medium line-through">£{originalPrice.toFixed(2)}</span>
-                  </div>
-                );
-              })()}
-              {couponUsage.applied_by_staff_name && (
-                <p className="text-xs text-purple-600">Applied by {couponUsage.applied_by_staff_name}</p>
-              )}
-            </div>
-          )}
-
-          {/* Financial Breakdown */}
+          {/* Itemized Price Breakdown */}
           <div className="rounded-lg border p-3 space-y-1">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Financial Summary</p>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Price Breakdown</p>
+
+            {/* Service base price */}
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Total Price</span>
-              <span className="font-medium">£{total.toFixed(2)}</span>
+              <span className="text-muted-foreground">{booking.service_name || "Service"}</span>
+              <span className="font-medium">£{servicePrice.toFixed(2)}</span>
             </div>
-            <div className="flex justify-between text-sm">
+
+            {/* Add-ons */}
+            {(bookingAddons || []).map((ba: any) => (
+              <div key={ba.id} className="flex justify-between text-sm">
+                <span className="text-muted-foreground flex items-center gap-1">
+                  <Sparkles className="h-3 w-3 text-amber-500" />
+                  {ba.add_ons?.name || "Add-on"}
+                </span>
+                <span className="font-medium">£{Number(ba.add_ons?.price || 0).toFixed(2)}</span>
+              </div>
+            ))}
+
+            {/* Subtotal (only if there are add-ons or coupon) */}
+            {(addonsTotal > 0 || hasCoupon) && (
+              <div className="flex justify-between text-sm border-t pt-1.5 mt-1.5">
+                <span className="text-muted-foreground">Subtotal</span>
+                <span className="font-medium">£{subtotalBeforeDiscount.toFixed(2)}</span>
+              </div>
+            )}
+
+            {/* Coupon discount */}
+            {hasCoupon && (
+              <div className="flex justify-between text-sm text-purple-700">
+                <span className="flex items-center gap-1">
+                  <Ticket className="h-3 w-3" />
+                  <code className="font-mono bg-purple-100 px-1 rounded text-xs">{couponUsage.coupons.code}</code>
+                  <span className="text-xs">
+                    ({discountType === "percentage" ? `${discountVal}%` : `£${discountVal.toFixed(2)}`})
+                  </span>
+                </span>
+                <span className="font-medium">−£{discountAmount.toFixed(2)}</span>
+              </div>
+            )}
+            {hasCoupon && couponUsage.applied_by_staff_name && (
+              <p className="text-xs text-purple-600 pl-5">Applied by {couponUsage.applied_by_staff_name}</p>
+            )}
+
+            {/* Total */}
+            <div className="flex justify-between text-sm border-t pt-1.5 mt-1.5">
+              <span className="font-semibold">Total</span>
+              <span className="font-bold text-primary">£{total.toFixed(2)}</span>
+            </div>
+
+            {/* Deposit & Balance */}
+            <div className="flex justify-between text-sm mt-1">
               <span className="text-muted-foreground">Deposit Paid</span>
               <span className={`font-medium ${deposit > 0 ? "text-emerald-600" : "text-destructive"}`}>
                 £{deposit.toFixed(2)}
               </span>
             </div>
-            <div className="flex justify-between text-sm border-t pt-1.5 mt-1.5">
-              <span className="font-semibold">Balance Due</span>
-              <span className="font-bold text-primary">£{balanceDue.toFixed(2)}</span>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Balance Due</span>
+              <span className="font-semibold">£{balanceDue.toFixed(2)}</span>
             </div>
+
             {isFullyPaid && booking.status !== "Refunded" && (
               <p className="text-xs text-emerald-600 mt-1">✓ Nothing to charge on the day</p>
             )}
@@ -205,15 +246,9 @@ export function ViewOrderDialog({ open, onOpenChange, booking, userRole, onRefun
             </div>
           )}
 
-          {/* Request Deposit - show when no deposit paid */}
+          {/* Request Deposit */}
           {deposit === 0 && booking.customer_email && booking.status !== "Cancelled" && booking.status !== "No Show" && booking.status !== "Refunded" && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full"
-              disabled={requestingDeposit}
-              onClick={handleRequestDeposit}
-            >
+            <Button variant="outline" size="sm" className="w-full" disabled={requestingDeposit} onClick={handleRequestDeposit}>
               <Send className="h-4 w-4 mr-1" />
               {requestingDeposit ? "Sending…" : "Request Deposit Payment"}
             </Button>
@@ -221,13 +256,7 @@ export function ViewOrderDialog({ open, onOpenChange, booking, userRole, onRefun
 
           {/* Director-only Refund button */}
           {isDirector && deposit > 0 && booking.status !== "Refunded" && (
-            <Button
-              variant="destructive"
-              size="sm"
-              className="w-full"
-              disabled={processingRefund}
-              onClick={handleRefund}
-            >
+            <Button variant="destructive" size="sm" className="w-full" disabled={processingRefund} onClick={handleRefund}>
               <RotateCcw className="h-4 w-4 mr-1" />
               {processingRefund ? "Processing…" : `Refund Deposit (£${deposit.toFixed(2)})`}
             </Button>
