@@ -114,6 +114,22 @@ export function BookingPopoverCard({
     enabled: !booking.is_block && !!booking.breed_id,
   });
 
+  // Fetch all known add-ons to reverse-match legacy bookings
+  const { data: allAddOns } = useQuery({
+    queryKey: ["all-add-ons"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("add_ons")
+        .select("id, name, price")
+        .eq("is_active", true)
+        .order("price", { ascending: false });
+      if (error) return [];
+      return (data || []) as { id: string; name: string; price: number }[];
+    },
+    staleTime: 5 * 60 * 1000,
+    enabled: !booking.is_block,
+  });
+
   const addonsTotal = (popoverAddons || []).reduce((sum: number, ba: any) => sum + Number(ba.add_ons?.price || 0), 0);
   const hasCoupon = !!couponUsage?.coupons;
   const discountType = couponUsage?.coupons?.discount_type as string | undefined;
@@ -142,9 +158,31 @@ export function BookingPopoverCard({
       ? subtotalBeforeDiscount - inferredBaseServicePrice
       : 0;
 
-  const inferredPackageLabel = booking.notes?.toLowerCase().includes("ultimate")
-    ? "Ultimate Package"
-    : "Additional package / add-ons";
+  // Try to match inferred amount to a known add-on by exact price
+  const inferredAddOns: { name: string; price: number }[] = [];
+  if (inferredPackageAmount > 0 && allAddOns && allAddOns.length > 0) {
+    // First check single add-on exact match
+    const exactMatch = allAddOns.find(a => Math.abs(Number(a.price) - inferredPackageAmount) < 0.01);
+    if (exactMatch) {
+      inferredAddOns.push({ name: exactMatch.name, price: Number(exactMatch.price) });
+    } else {
+      // Try greedy combination match
+      let remainder = inferredPackageAmount;
+      const sorted = [...allAddOns].sort((a, b) => Number(b.price) - Number(a.price));
+      for (const addon of sorted) {
+        const p = Number(addon.price);
+        if (p <= remainder + 0.01 && p > 0) {
+          inferredAddOns.push({ name: addon.name, price: p });
+          remainder -= p;
+          if (remainder < 0.01) break;
+        }
+      }
+      // If we couldn't match exactly, fall back to single generic line
+      if (remainder > 0.01) {
+        inferredAddOns.length = 0;
+      }
+    }
+  }
 
   const servicePrice = Math.max(0, subtotalBeforeDiscount - addonsTotal - inferredPackageAmount);
   const discountAmount = hasCoupon ? subtotalBeforeDiscount - total : 0;
@@ -349,11 +387,20 @@ export function BookingPopoverCard({
           </div>
         ))}
 
-        {inferredPackageAmount > 0 && (
+        {inferredPackageAmount > 0 && inferredAddOns.length > 0 && inferredAddOns.map((addon, i) => (
+          <div key={i} className="flex justify-between">
+            <span className="text-muted-foreground flex items-center gap-1">
+              <Sparkles className="h-2.5 w-2.5" /> {addon.name}
+            </span>
+            <span className="font-medium">£{addon.price.toFixed(2)}</span>
+          </div>
+        ))}
+
+        {inferredPackageAmount > 0 && inferredAddOns.length === 0 && (
           <>
             <div className="flex justify-between">
               <span className="text-muted-foreground flex items-center gap-1">
-                <Sparkles className="h-2.5 w-2.5" /> {inferredPackageLabel}
+                <Sparkles className="h-2.5 w-2.5" /> Additional add-ons
               </span>
               <span className="font-medium">£{inferredPackageAmount.toFixed(2)}</span>
             </div>
