@@ -119,6 +119,20 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
     enabled: !booking.is_block && !booking.is_overtime && !!booking.breed_id,
   });
 
+  // Known add-ons catalogue for reverse-matching legacy bookings
+  const { data: allAddOns } = useQuery({
+    queryKey: ["all-add-ons-event"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("add_ons")
+        .select("id, name, price")
+        .order("price", { ascending: false });
+      if (error) return [];
+      return (data || []) as { id: string; name: string; price: number }[];
+    },
+    enabled: !booking.is_block && !booking.is_overtime,
+  });
+
   const hasCoupon = !!eventCouponUsage?.coupons;
 
   // Fetch audit log for this booking
@@ -166,9 +180,35 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
       ? subtotalBeforeDiscount - inferredBaseServicePrice
       : 0;
 
-  const inferredPackageLabel = booking.notes?.toLowerCase().includes("ultimate")
-    ? "Ultimate Package"
-    : "Additional package / add-ons";
+  // Try to match inferred amount to known add-ons using pence math
+  const toCents = (value: number) => Math.round(Number(value || 0) * 100);
+  const inferredAddOns: { name: string; price: number }[] = [];
+  if (inferredPackageAmount > 0 && allAddOns && allAddOns.length > 0) {
+    const inferredCents = toCents(inferredPackageAmount);
+    const sortedAddOns = [...allAddOns]
+      .map((a) => ({ ...a, cents: toCents(Number(a.price)) }))
+      .filter((a) => a.cents > 0)
+      .sort((a, b) => b.cents - a.cents);
+
+    const nearestSingle = [...sortedAddOns].sort(
+      (a, b) => Math.abs(a.cents - inferredCents) - Math.abs(b.cents - inferredCents)
+    )[0];
+
+    // Accept near-single match within 50p tolerance for legacy rounding differences
+    if (nearestSingle && Math.abs(nearestSingle.cents - inferredCents) <= 50) {
+      inferredAddOns.push({ name: nearestSingle.name, price: nearestSingle.cents / 100 });
+    } else {
+      let remainderCents = inferredCents;
+      for (const addon of sortedAddOns) {
+        if (addon.cents <= remainderCents + 1) {
+          inferredAddOns.push({ name: addon.name, price: addon.cents / 100 });
+          remainderCents -= addon.cents;
+          if (remainderCents <= 50) break;
+        }
+      }
+      if (remainderCents > 50) inferredAddOns.length = 0;
+    }
+  }
 
   const servicePrice = Math.max(0, subtotalBeforeDiscount - addonsTotal - inferredPackageAmount);
   const discountAmount = hasCoupon ? subtotalBeforeDiscount - total : 0;
