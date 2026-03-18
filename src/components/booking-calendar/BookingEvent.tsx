@@ -89,22 +89,37 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
     },
   });
 
-  // Fetch coupon usage for calendar card indicator
+  // Fetch coupon usage for full price breakdown
   const { data: eventCouponUsage } = useQuery({
     queryKey: ["booking-coupon-event", booking.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("coupon_usages")
-        .select("id")
+        .select("applied_by_staff_name, coupons(code, discount_type, discount_value)")
         .eq("booking_id", booking.id)
         .maybeSingle();
       if (error) return null;
-      return data;
+      return data as any;
     },
     enabled: !booking.is_block && !booking.is_overtime,
   });
 
-  const hasCoupon = !!eventCouponUsage;
+  // Fallback breed pricing helps explain older bookings with missing booking_addons rows
+  const { data: breedPricing } = useQuery({
+    queryKey: ["booking-breed-pricing", booking.breed_id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("breeds")
+        .select("price_full_groom, price_bath_brush")
+        .eq("id", booking.breed_id as string)
+        .maybeSingle();
+      if (error) return null;
+      return data as { price_full_groom: number; price_bath_brush: number } | null;
+    },
+    enabled: !booking.is_block && !booking.is_overtime && !!booking.breed_id,
+  });
+
+  const hasCoupon = !!eventCouponUsage?.coupons;
 
   // Fetch audit log for this booking
   const { data: auditLog } = useQuery({
