@@ -99,6 +99,56 @@ export function BookingPopoverCard({
     enabled: !booking.is_block,
   });
 
+  // Fallback breed pricing helps explain older bookings with missing booking_addons rows
+  const { data: breedPricing } = useQuery({
+    queryKey: ["booking-breed-pricing-popover", booking.breed_id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("breeds")
+        .select("price_full_groom, price_bath_brush")
+        .eq("id", booking.breed_id as string)
+        .maybeSingle();
+      if (error) return null;
+      return data as { price_full_groom: number; price_bath_brush: number } | null;
+    },
+    enabled: !booking.is_block && !!booking.breed_id,
+  });
+
+  const addonsTotal = (popoverAddons || []).reduce((sum: number, ba: any) => sum + Number(ba.add_ons?.price || 0), 0);
+  const hasCoupon = !!couponUsage?.coupons;
+  const discountType = couponUsage?.coupons?.discount_type as string | undefined;
+  const discountVal = Number(couponUsage?.coupons?.discount_value || 0);
+
+  const subtotalBeforeDiscount = hasCoupon
+    ? discountType === "percentage" && discountVal < 100
+      ? total / (1 - discountVal / 100)
+      : total + discountVal
+    : total;
+
+  const normalizedServiceName = (booking.service_name || "").toLowerCase();
+  const inferredBaseServicePrice = !breedPricing
+    ? null
+    : normalizedServiceName.includes("full groom")
+      ? Number(breedPricing.price_full_groom || 0)
+      : normalizedServiceName.includes("bath")
+        ? Number(breedPricing.price_bath_brush || 0)
+        : null;
+
+  const inferredPackageAmount =
+    addonsTotal === 0 &&
+    inferredBaseServicePrice !== null &&
+    inferredBaseServicePrice > 0 &&
+    subtotalBeforeDiscount > inferredBaseServicePrice + 0.01
+      ? subtotalBeforeDiscount - inferredBaseServicePrice
+      : 0;
+
+  const inferredPackageLabel = booking.notes?.toLowerCase().includes("ultimate")
+    ? "Ultimate Package"
+    : "Additional package / add-ons";
+
+  const servicePrice = Math.max(0, subtotalBeforeDiscount - addonsTotal - inferredPackageAmount);
+  const discountAmount = hasCoupon ? subtotalBeforeDiscount - total : 0;
+
   const handleRefund = async () => {
     if (!confirm(`Are you sure you want to refund this booking for ${booking.customer_name}? This will process a refund through Stripe.`)) return;
     setProcessingRefund(true);
@@ -285,58 +335,70 @@ export function BookingPopoverCard({
 
       {/* Full Price Breakdown */}
       <div className="bg-muted/40 border rounded-md px-3 py-2 text-xs space-y-1">
-        {(() => {
-          const addonsTotal = (popoverAddons || []).reduce((sum: number, ba: any) => sum + Number(ba.add_ons?.price || 0), 0);
-          const hasCoupon = !!couponUsage?.coupons;
-          const discountVal = hasCoupon ? Number(couponUsage.coupons.discount_value) : 0;
-          const discountType = hasCoupon ? couponUsage.coupons.discount_type : null;
-          // Original price before coupon
-          const originalTotal = hasCoupon
-            ? (discountType === "percentage" ? total / (1 - discountVal / 100) : total + discountVal)
-            : total;
-          const servicePrice = originalTotal - addonsTotal;
-          const discountAmount = originalTotal - total;
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">{booking.service_name || "Grooming"}</span>
+          <span className="font-medium">£{servicePrice.toFixed(2)}</span>
+        </div>
 
-          return (
-            <>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">{booking.service_name || "Grooming"}</span>
-                <span className="font-medium">£{servicePrice.toFixed(2)}</span>
-              </div>
-              {(popoverAddons || []).map((ba: any) => (
-                <div key={ba.addon_id} className="flex justify-between">
-                  <span className="text-muted-foreground flex items-center gap-1">
-                    <Sparkles className="h-2.5 w-2.5" /> {ba.add_ons?.name}
-                  </span>
-                  <span className="font-medium">£{Number(ba.add_ons?.price || 0).toFixed(2)}</span>
-                </div>
-              ))}
-              {hasCoupon && (
-                <>
-                  <div className="flex justify-between border-t pt-1 mt-1">
-                    <span className="text-muted-foreground">Subtotal</span>
-                    <span className="font-medium">£{originalTotal.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between text-purple-700">
-                    <span className="flex items-center gap-1">
-                      <Ticket className="h-3 w-3" />
-                      Coupon <code className="font-mono bg-purple-100 px-1 rounded text-[10px]">{couponUsage.coupons.code}</code>
-                      {discountType === "percentage" ? ` (${discountVal}%)` : ""}
-                    </span>
-                    <span className="font-semibold">-£{discountAmount.toFixed(2)}</span>
-                  </div>
-                  {couponUsage.applied_by_staff_name && (
-                    <p className="text-[10px] text-purple-600">Applied by {couponUsage.applied_by_staff_name}</p>
-                  )}
-                </>
-              )}
-              <div className="flex justify-between border-t pt-1 mt-1 font-bold">
-                <span>Total</span>
-                <span>£{total.toFixed(2)}</span>
-              </div>
-            </>
-          );
-        })()}
+        {(popoverAddons || []).map((ba: any) => (
+          <div key={ba.addon_id} className="flex justify-between">
+            <span className="text-muted-foreground flex items-center gap-1">
+              <Sparkles className="h-2.5 w-2.5" /> {ba.add_ons?.name}
+            </span>
+            <span className="font-medium">£{Number(ba.add_ons?.price || 0).toFixed(2)}</span>
+          </div>
+        ))}
+
+        {inferredPackageAmount > 0 && (
+          <>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground flex items-center gap-1">
+                <Sparkles className="h-2.5 w-2.5" /> {inferredPackageLabel}
+              </span>
+              <span className="font-medium">£{inferredPackageAmount.toFixed(2)}</span>
+            </div>
+            <p className="text-[10px] text-muted-foreground pl-4">Item details were not saved on this older booking, amount inferred from pricing.</p>
+          </>
+        )}
+
+        {(addonsTotal > 0 || hasCoupon || inferredPackageAmount > 0) && (
+          <div className="flex justify-between border-t pt-1 mt-1">
+            <span className="text-muted-foreground">Subtotal</span>
+            <span className="font-medium">£{subtotalBeforeDiscount.toFixed(2)}</span>
+          </div>
+        )}
+
+        {hasCoupon && (
+          <div className="flex justify-between text-purple-700">
+            <span className="flex items-center gap-1">
+              <Ticket className="h-3 w-3" />
+              <code className="font-mono bg-purple-100 px-1 rounded text-[10px]">{couponUsage?.coupons?.code}</code>
+              <span>{discountType === "percentage" ? `(${discountVal}%)` : `(£${discountVal.toFixed(2)})`}</span>
+            </span>
+            <span className="font-semibold">−£{discountAmount.toFixed(2)}</span>
+          </div>
+        )}
+
+        {hasCoupon && couponUsage?.applied_by_staff_name && (
+          <p className="text-[10px] text-purple-600">Applied by {couponUsage.applied_by_staff_name}</p>
+        )}
+
+        <div className="flex justify-between border-t pt-1 mt-1 font-bold">
+          <span>Total</span>
+          <span>£{total.toFixed(2)}</span>
+        </div>
+
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">Deposit Paid</span>
+          <span className={cn("font-medium", deposit > 0 ? "text-emerald-600" : "text-destructive")}>
+            £{deposit.toFixed(2)}
+          </span>
+        </div>
+
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">Balance Due</span>
+          <span className="font-semibold">£{remaining.toFixed(2)}</span>
+        </div>
       </div>
 
       {/* Migrated booking payment info */}

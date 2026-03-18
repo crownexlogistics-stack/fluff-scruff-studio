@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { format } from "date-fns";
 import { getStaffColor } from "./staffColors";
-import { Pencil, Trash2, MoreHorizontal, Eye, PenLine, XCircle, Send, CheckCircle2, Clock, MessageSquare, CreditCard, Sparkles } from "lucide-react";
+import { Pencil, Trash2, MoreHorizontal, Eye, PenLine, XCircle, Send, CheckCircle2, Clock, MessageSquare, CreditCard, Sparkles, Ticket } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { logAudit } from "@/lib/auditLog";
@@ -89,22 +89,37 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
     },
   });
 
-  // Fetch coupon usage for calendar card indicator
+  // Fetch coupon usage for full price breakdown
   const { data: eventCouponUsage } = useQuery({
     queryKey: ["booking-coupon-event", booking.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("coupon_usages")
-        .select("id")
+        .select("applied_by_staff_name, coupons(code, discount_type, discount_value)")
         .eq("booking_id", booking.id)
         .maybeSingle();
       if (error) return null;
-      return data;
+      return data as any;
     },
     enabled: !booking.is_block && !booking.is_overtime,
   });
 
-  const hasCoupon = !!eventCouponUsage;
+  // Fallback breed pricing helps explain older bookings with missing booking_addons rows
+  const { data: breedPricing } = useQuery({
+    queryKey: ["booking-breed-pricing", booking.breed_id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("breeds")
+        .select("price_full_groom, price_bath_brush")
+        .eq("id", booking.breed_id as string)
+        .maybeSingle();
+      if (error) return null;
+      return data as { price_full_groom: number; price_bath_brush: number } | null;
+    },
+    enabled: !booking.is_block && !booking.is_overtime && !!booking.breed_id,
+  });
+
+  const hasCoupon = !!eventCouponUsage?.coupons;
 
   // Fetch audit log for this booking
   const { data: auditLog } = useQuery({
@@ -120,6 +135,43 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
     },
     enabled: !booking.is_block && !booking.is_overtime,
   });
+
+  const total = Number(booking.total_price || 0);
+  const deposit = Number(booking.deposit_paid || 0);
+  const balanceDue = Math.max(0, total - deposit);
+  const addonsTotal = (bookingAddons || []).reduce((sum: number, addon: any) => sum + Number(addon.add_ons?.price || 0), 0);
+  const discountType = eventCouponUsage?.coupons?.discount_type as string | undefined;
+  const discountValue = Number(eventCouponUsage?.coupons?.discount_value || 0);
+
+  const subtotalBeforeDiscount = hasCoupon
+    ? discountType === "percentage" && discountValue < 100
+      ? total / (1 - discountValue / 100)
+      : total + discountValue
+    : total;
+
+  const normalizedServiceName = (booking.service_name || "").toLowerCase();
+  const inferredBaseServicePrice = !breedPricing
+    ? null
+    : normalizedServiceName.includes("full groom")
+      ? Number(breedPricing.price_full_groom || 0)
+      : normalizedServiceName.includes("bath")
+        ? Number(breedPricing.price_bath_brush || 0)
+        : null;
+
+  const inferredPackageAmount =
+    addonsTotal === 0 &&
+    inferredBaseServicePrice !== null &&
+    inferredBaseServicePrice > 0 &&
+    subtotalBeforeDiscount > inferredBaseServicePrice + 0.01
+      ? subtotalBeforeDiscount - inferredBaseServicePrice
+      : 0;
+
+  const inferredPackageLabel = booking.notes?.toLowerCase().includes("ultimate")
+    ? "Ultimate Package"
+    : "Additional package / add-ons";
+
+  const servicePrice = Math.max(0, subtotalBeforeDiscount - addonsTotal - inferredPackageAmount);
+  const discountAmount = hasCoupon ? subtotalBeforeDiscount - total : 0;
 
   const isCancelled = booking.status === "Cancelled";
   const isNoShow = booking.status === "No Show";
@@ -473,24 +525,6 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
         </div>
       )}
 
-      {/* Deposit paid — financial breakdown */}
-      {Number(booking.deposit_paid) > 0 && Number(booking.deposit_paid) < Number(booking.total_price) && booking.status !== "Refunded" && (
-        <div className="bg-amber-50 border border-amber-200 rounded-md px-3 py-2 text-xs text-amber-800 space-y-1">
-          <div className="flex justify-between">
-            <span>Total Cost</span>
-            <span className="font-semibold">£{Number(booking.total_price).toFixed(2)}</span>
-          </div>
-          <div className="flex justify-between">
-            <span>Deposit Paid</span>
-            <span className="font-semibold">£{Number(booking.deposit_paid).toFixed(2)}</span>
-          </div>
-          <div className="flex justify-between border-t border-amber-300 pt-1 mt-1">
-            <span className="font-medium">Remaining Balance</span>
-            <span className="font-bold">£{(Number(booking.total_price) - Number(booking.deposit_paid)).toFixed(2)}</span>
-          </div>
-          <p className="text-[10px] text-amber-600 mt-1">Due at the salon on the day of appointment.</p>
-        </div>
-      )}
 
       {/* Stripe Transaction ID */}
       {booking.stripe_payment_id && (
@@ -529,20 +563,83 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
               {booking.breed_name ? ` (${booking.breed_name})` : ""}
             </p>
             <p className="text-sm text-muted-foreground">with {booking.staff_name}</p>
-            {/* Add-ons */}
-            {bookingAddons && bookingAddons.length > 0 && (
-              <div className="mt-1.5 flex flex-wrap gap-1">
-                {bookingAddons.map((ba: any) => (
-                  <Badge key={ba.addon_id} variant="secondary" className="text-[10px] gap-1">
-                    <Sparkles className="h-2.5 w-2.5" />
-                    {ba.add_ons?.name} · £{Number(ba.add_ons?.price || 0).toFixed(2)}
-                  </Badge>
-                ))}
-              </div>
-            )}
-            <p className="text-sm font-medium mt-1">£{Number(booking.total_price).toFixed(2)}</p>
             {booking.is_groomers_own_customer && (
               <Badge className="mt-1 text-xs bg-violet-100 text-violet-700 hover:bg-violet-100 dark:bg-violet-900/30 dark:text-violet-400">Own Customer • 50%</Badge>
+            )}
+          </div>
+
+          <div className="bg-muted/40 border rounded-md px-3 py-2 text-xs space-y-1">
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Price Breakdown</p>
+
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">{booking.service_name || "Service"}</span>
+              <span className="font-medium">£{servicePrice.toFixed(2)}</span>
+            </div>
+
+            {(bookingAddons || []).map((ba: any) => (
+              <div key={ba.addon_id} className="flex justify-between">
+                <span className="text-muted-foreground flex items-center gap-1">
+                  <Sparkles className="h-2.5 w-2.5" />
+                  {ba.add_ons?.name || "Add-on"}
+                </span>
+                <span className="font-medium">£{Number(ba.add_ons?.price || 0).toFixed(2)}</span>
+              </div>
+            ))}
+
+            {inferredPackageAmount > 0 && (
+              <>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground flex items-center gap-1">
+                    <Sparkles className="h-2.5 w-2.5" />
+                    {inferredPackageLabel}
+                  </span>
+                  <span className="font-medium">£{inferredPackageAmount.toFixed(2)}</span>
+                </div>
+                <p className="text-[10px] text-muted-foreground pl-4">Item details were not saved on this older booking, amount inferred from pricing.</p>
+              </>
+            )}
+
+            {(addonsTotal > 0 || hasCoupon || inferredPackageAmount > 0) && (
+              <div className="flex justify-between border-t pt-1 mt-1">
+                <span className="text-muted-foreground">Subtotal</span>
+                <span className="font-medium">£{subtotalBeforeDiscount.toFixed(2)}</span>
+              </div>
+            )}
+
+            {hasCoupon && (
+              <div className="flex justify-between text-purple-700">
+                <span className="flex items-center gap-1">
+                  <Ticket className="h-3 w-3" />
+                  <code className="font-mono bg-purple-100 px-1 rounded text-[10px]">{eventCouponUsage?.coupons?.code}</code>
+                  <span>{discountType === "percentage" ? `(${discountValue}%)` : `(£${discountValue.toFixed(2)})`}</span>
+                </span>
+                <span className="font-semibold">−£{discountAmount.toFixed(2)}</span>
+              </div>
+            )}
+
+            {hasCoupon && eventCouponUsage?.applied_by_staff_name && (
+              <p className="text-[10px] text-purple-600 pl-4">Applied by {eventCouponUsage.applied_by_staff_name}</p>
+            )}
+
+            <div className="flex justify-between border-t pt-1 mt-1">
+              <span className="font-semibold">Total</span>
+              <span className="font-bold text-primary">£{total.toFixed(2)}</span>
+            </div>
+
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Deposit Paid</span>
+              <span className={cn("font-medium", deposit > 0 ? "text-emerald-600" : "text-destructive")}>
+                £{deposit.toFixed(2)}
+              </span>
+            </div>
+
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Balance Due</span>
+              <span className="font-semibold">£{balanceDue.toFixed(2)}</span>
+            </div>
+
+            {balanceDue > 0 && booking.status !== "Refunded" && booking.status !== "Cancelled" && booking.status !== "No Show" && (
+              <p className="text-[10px] text-muted-foreground">Due at the salon after the appointment.</p>
             )}
           </div>
 
