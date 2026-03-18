@@ -89,6 +89,23 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
     },
   });
 
+  // Fetch coupon usage for calendar card indicator
+  const { data: eventCouponUsage } = useQuery({
+    queryKey: ["booking-coupon-event", booking.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("coupon_usages")
+        .select("id")
+        .eq("booking_id", booking.id)
+        .maybeSingle();
+      if (error) return null;
+      return data;
+    },
+    enabled: !booking.is_block && !booking.is_overtime,
+  });
+
+  const hasCoupon = !!eventCouponUsage;
+
   // Fetch audit log for this booking
   const { data: auditLog } = useQuery({
     queryKey: ["booking-audit-log", booking.id],
@@ -351,6 +368,12 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
             <>
               {booking.is_migrated && (
                 <span className="absolute top-0.5 right-0.5 bg-amber-500 text-white text-[8px] font-bold rounded px-0.5 leading-tight z-20">W</span>
+              )}
+              {hasCoupon && !booking.is_migrated && (
+                <span className="absolute top-0.5 right-0.5 bg-purple-600 text-white text-[8px] font-bold rounded px-0.5 leading-tight z-20">🏷</span>
+              )}
+              {hasCoupon && booking.is_migrated && (
+                <span className="absolute top-0.5 right-4 bg-purple-600 text-white text-[8px] font-bold rounded px-0.5 leading-tight z-20">🏷</span>
               )}
               {height < 50 ? (
                 <p className="text-[10px] font-bold truncate">{booking.booking_time.slice(0, 5)}</p>
