@@ -70,6 +70,20 @@ export function BookingPopoverCard({
     enabled: !booking.is_block,
   });
 
+  // Fetch add-ons for this booking
+  const { data: popoverAddons } = useQuery({
+    queryKey: ["booking-addons-popover", booking.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("booking_addons" as any)
+        .select("addon_id, add_ons(name, price)")
+        .eq("booking_id", booking.id);
+      if (error) return [];
+      return (data as any[]) || [];
+    },
+    enabled: !booking.is_block,
+  });
+
   // Fetch coupon usage for this booking
   const { data: couponUsage } = useQuery({
     queryKey: ["booking-coupon", booking.id],
