@@ -99,6 +99,56 @@ export function BookingPopoverCard({
     enabled: !booking.is_block,
   });
 
+  // Fallback breed pricing helps explain older bookings with missing booking_addons rows
+  const { data: breedPricing } = useQuery({
+    queryKey: ["booking-breed-pricing-popover", booking.breed_id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("breeds")
+        .select("price_full_groom, price_bath_brush")
+        .eq("id", booking.breed_id as string)
+        .maybeSingle();
+      if (error) return null;
+      return data as { price_full_groom: number; price_bath_brush: number } | null;
+    },
+    enabled: !booking.is_block && !!booking.breed_id,
+  });
+
+  const addonsTotal = (popoverAddons || []).reduce((sum: number, ba: any) => sum + Number(ba.add_ons?.price || 0), 0);
+  const hasCoupon = !!couponUsage?.coupons;
+  const discountType = couponUsage?.coupons?.discount_type as string | undefined;
+  const discountVal = Number(couponUsage?.coupons?.discount_value || 0);
+
+  const subtotalBeforeDiscount = hasCoupon
+    ? discountType === "percentage" && discountVal < 100
+      ? total / (1 - discountVal / 100)
+      : total + discountVal
+    : total;
+
+  const normalizedServiceName = (booking.service_name || "").toLowerCase();
+  const inferredBaseServicePrice = !breedPricing
+    ? null
+    : normalizedServiceName.includes("full groom")
+      ? Number(breedPricing.price_full_groom || 0)
+      : normalizedServiceName.includes("bath")
+        ? Number(breedPricing.price_bath_brush || 0)
+        : null;
+
+  const inferredPackageAmount =
+    addonsTotal === 0 &&
+    inferredBaseServicePrice !== null &&
+    inferredBaseServicePrice > 0 &&
+    subtotalBeforeDiscount > inferredBaseServicePrice + 0.01
+      ? subtotalBeforeDiscount - inferredBaseServicePrice
+      : 0;
+
+  const inferredPackageLabel = booking.notes?.toLowerCase().includes("ultimate")
+    ? "Ultimate Package"
+    : "Additional package / add-ons";
+
+  const servicePrice = Math.max(0, subtotalBeforeDiscount - addonsTotal - inferredPackageAmount);
+  const discountAmount = hasCoupon ? subtotalBeforeDiscount - total : 0;
+
   const handleRefund = async () => {
     if (!confirm(`Are you sure you want to refund this booking for ${booking.customer_name}? This will process a refund through Stripe.`)) return;
     setProcessingRefund(true);
