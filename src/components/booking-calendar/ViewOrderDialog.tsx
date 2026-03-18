@@ -62,6 +62,37 @@ export function ViewOrderDialog({ open, onOpenChange, booking, userRole, onRefun
     enabled: !!booking,
   });
 
+  // Fallback breed pricing for legacy bookings
+  const { data: breedPricing } = useQuery({
+    queryKey: ["booking-breed-pricing-dialog", booking?.breed_id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("breeds")
+        .select("price_full_groom, price_bath_brush")
+        .eq("id", booking!.breed_id as string)
+        .maybeSingle();
+      if (error) return null;
+      return data as { price_full_groom: number; price_bath_brush: number } | null;
+    },
+    enabled: !!booking && !!booking.breed_id,
+  });
+
+  // Known add-ons for reverse-matching legacy bookings
+  const { data: allAddOns } = useQuery({
+    queryKey: ["all-add-ons"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("add_ons")
+        .select("id, name, price")
+        .eq("is_active", true)
+        .order("price", { ascending: false });
+      if (error) return [];
+      return (data || []) as { id: string; name: string; price: number }[];
+    },
+    staleTime: 5 * 60 * 1000,
+    enabled: !!booking,
+  });
+
   if (!booking) return null;
 
   const total = Number(booking.total_price);
@@ -81,7 +112,47 @@ export function ViewOrderDialog({ open, onOpenChange, booking, userRole, onRefun
   const subtotalBeforeDiscount = hasCoupon
     ? (discountType === "percentage" ? total / (1 - discountVal / 100) : total + discountVal)
     : total;
-  const servicePrice = Math.max(0, subtotalBeforeDiscount - addonsTotal);
+
+  // Infer legacy add-on amount from breed pricing
+  const normalizedServiceName = (booking.service_name || "").toLowerCase();
+  const inferredBaseServicePrice = !breedPricing
+    ? null
+    : normalizedServiceName.includes("full groom")
+      ? Number(breedPricing.price_full_groom || 0)
+      : normalizedServiceName.includes("bath")
+        ? Number(breedPricing.price_bath_brush || 0)
+        : null;
+
+  const inferredPackageAmount =
+    addonsTotal === 0 &&
+    inferredBaseServicePrice !== null &&
+    inferredBaseServicePrice > 0 &&
+    subtotalBeforeDiscount > inferredBaseServicePrice + 0.01
+      ? subtotalBeforeDiscount - inferredBaseServicePrice
+      : 0;
+
+  // Try to match inferred amount to known add-ons by price
+  const inferredAddOns: { name: string; price: number }[] = [];
+  if (inferredPackageAmount > 0 && allAddOns && allAddOns.length > 0) {
+    const exactMatch = allAddOns.find(a => Math.abs(Number(a.price) - inferredPackageAmount) < 0.01);
+    if (exactMatch) {
+      inferredAddOns.push({ name: exactMatch.name, price: Number(exactMatch.price) });
+    } else {
+      let remainder = inferredPackageAmount;
+      const sorted = [...allAddOns].sort((a, b) => Number(b.price) - Number(a.price));
+      for (const addon of sorted) {
+        const p = Number(addon.price);
+        if (p <= remainder + 0.01 && p > 0) {
+          inferredAddOns.push({ name: addon.name, price: p });
+          remainder -= p;
+          if (remainder < 0.01) break;
+        }
+      }
+      if (remainder > 0.01) inferredAddOns.length = 0;
+    }
+  }
+
+  const servicePrice = Math.max(0, subtotalBeforeDiscount - addonsTotal - inferredPackageAmount);
   const discountAmount = hasCoupon ? subtotalBeforeDiscount - total : 0;
 
   const getPaymentBadge = () => {
