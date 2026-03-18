@@ -501,7 +501,10 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
           </div>
 
           <div className="border-t pt-3">
-            <p className="font-medium">{booking.service_name || "Service"} — {booking.breed_name || booking.dog_name}</p>
+            <p className="font-medium">
+              {booking.service_name || "Grooming"} — {booking.dog_name}
+              {booking.breed_name ? ` (${booking.breed_name})` : ""}
+            </p>
             <p className="text-sm text-muted-foreground">with {booking.staff_name}</p>
             {/* Add-ons */}
             {bookingAddons && bookingAddons.length > 0 && (
