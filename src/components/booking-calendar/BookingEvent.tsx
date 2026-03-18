@@ -136,6 +136,43 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
     enabled: !booking.is_block && !booking.is_overtime,
   });
 
+  const total = Number(booking.total_price || 0);
+  const deposit = Number(booking.deposit_paid || 0);
+  const balanceDue = Math.max(0, total - deposit);
+  const addonsTotal = (bookingAddons || []).reduce((sum: number, addon: any) => sum + Number(addon.add_ons?.price || 0), 0);
+  const discountType = eventCouponUsage?.coupons?.discount_type as string | undefined;
+  const discountValue = Number(eventCouponUsage?.coupons?.discount_value || 0);
+
+  const subtotalBeforeDiscount = hasCoupon
+    ? discountType === "percentage" && discountValue < 100
+      ? total / (1 - discountValue / 100)
+      : total + discountValue
+    : total;
+
+  const normalizedServiceName = (booking.service_name || "").toLowerCase();
+  const inferredBaseServicePrice = !breedPricing
+    ? null
+    : normalizedServiceName.includes("full groom")
+      ? Number(breedPricing.price_full_groom || 0)
+      : normalizedServiceName.includes("bath")
+        ? Number(breedPricing.price_bath_brush || 0)
+        : null;
+
+  const inferredPackageAmount =
+    addonsTotal === 0 &&
+    inferredBaseServicePrice !== null &&
+    inferredBaseServicePrice > 0 &&
+    subtotalBeforeDiscount > inferredBaseServicePrice + 0.01
+      ? subtotalBeforeDiscount - inferredBaseServicePrice
+      : 0;
+
+  const inferredPackageLabel = booking.notes?.toLowerCase().includes("ultimate")
+    ? "Ultimate Package"
+    : "Additional package / add-ons";
+
+  const servicePrice = Math.max(0, subtotalBeforeDiscount - addonsTotal - inferredPackageAmount);
+  const discountAmount = hasCoupon ? subtotalBeforeDiscount - total : 0;
+
   const isCancelled = booking.status === "Cancelled";
   const isNoShow = booking.status === "No Show";
   const isRefunded = booking.status === "Refunded";
