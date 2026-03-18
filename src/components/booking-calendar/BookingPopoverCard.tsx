@@ -259,8 +259,22 @@ export function BookingPopoverCard({
       </div>
 
       <div className="border-t pt-3">
-        <p className="font-medium">{booking.service_name || "Service"} — {booking.breed_name || booking.dog_name}</p>
+        <p className="font-medium">
+          {booking.service_name || "Grooming"} — {booking.dog_name}
+          {booking.breed_name ? ` (${booking.breed_name})` : ""}
+        </p>
         <p className="text-sm text-muted-foreground">with {booking.staff_name}</p>
+        {/* Add-ons */}
+        {popoverAddons && popoverAddons.length > 0 && (
+          <div className="mt-1.5 flex flex-wrap gap-1">
+            {popoverAddons.map((ba: any) => (
+              <Badge key={ba.addon_id} variant="secondary" className="text-[10px] gap-1">
+                <Sparkles className="h-2.5 w-2.5" />
+                {ba.add_ons?.name} · £{Number(ba.add_ons?.price || 0).toFixed(2)}
+              </Badge>
+            ))}
+          </div>
+        )}
         <p className="text-sm font-medium mt-1">£{total.toFixed(2)}</p>
         {(booking as any).is_groomers_own_customer && (
           <Badge className="mt-1 text-xs bg-violet-100 text-violet-700 hover:bg-violet-100 dark:bg-violet-900/30 dark:text-violet-400">Own Customer • 50%</Badge>
