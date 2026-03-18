@@ -131,24 +131,34 @@ export function ViewOrderDialog({ open, onOpenChange, booking, userRole, onRefun
       ? subtotalBeforeDiscount - inferredBaseServicePrice
       : 0;
 
-  // Try to match inferred amount to known add-ons by price
+  // Try to match inferred amount to known add-ons using pence math (avoids float drift)
+  const toCents = (value: number) => Math.round(Number(value || 0) * 100);
   const inferredAddOns: { name: string; price: number }[] = [];
   if (inferredPackageAmount > 0 && allAddOns && allAddOns.length > 0) {
-    const exactMatch = allAddOns.find(a => Math.abs(Number(a.price) - inferredPackageAmount) < 0.01);
-    if (exactMatch) {
-      inferredAddOns.push({ name: exactMatch.name, price: Number(exactMatch.price) });
+    const inferredCents = toCents(inferredPackageAmount);
+    const sortedAddOns = [...allAddOns]
+      .map((a) => ({ ...a, cents: toCents(Number(a.price)) }))
+      .filter((a) => a.cents > 0)
+      .sort((a, b) => b.cents - a.cents);
+
+    const nearestSingle = [...sortedAddOns].sort(
+      (a, b) => Math.abs(a.cents - inferredCents) - Math.abs(b.cents - inferredCents)
+    )[0];
+
+    // Accept near-single match within 50p tolerance for legacy rounding differences
+    if (nearestSingle && Math.abs(nearestSingle.cents - inferredCents) <= 50) {
+      inferredAddOns.push({ name: nearestSingle.name, price: nearestSingle.cents / 100 });
     } else {
-      let remainder = inferredPackageAmount;
-      const sorted = [...allAddOns].sort((a, b) => Number(b.price) - Number(a.price));
-      for (const addon of sorted) {
-        const p = Number(addon.price);
-        if (p <= remainder + 0.01 && p > 0) {
-          inferredAddOns.push({ name: addon.name, price: p });
-          remainder -= p;
-          if (remainder < 0.01) break;
+      let remainderCents = inferredCents;
+      for (const addon of sortedAddOns) {
+        if (addon.cents <= remainderCents + 1) {
+          inferredAddOns.push({ name: addon.name, price: addon.cents / 100 });
+          remainderCents -= addon.cents;
+          if (remainderCents <= 50) break;
         }
       }
-      if (remainder > 0.01) inferredAddOns.length = 0;
+
+      if (remainderCents > 50) inferredAddOns.length = 0;
     }
   }
 
