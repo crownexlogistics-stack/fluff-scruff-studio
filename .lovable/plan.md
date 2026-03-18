@@ -1,43 +1,54 @@
 
 
-## Plan: Add Itemized Price Breakdown to Booking Details Dialog
+## Booking Flow UI Overhaul — Pet-Themed Animations
 
-### Problem
-The `ViewOrderDialog` currently shows only a flat "Total Price" with no explanation of how it was calculated. When a customer pays £70 for a £45 service, there's no visibility into the £25 of add-ons. The popover card already has this breakdown, but the dialog does not.
+This plan adds playful, on-brand animations to the booking flow while preserving all existing logic (Stripe, puppy auto-switch, back navigation).
 
-### Changes
+---
 
-**File: `src/components/booking-calendar/ViewOrderDialog.tsx`**
+### 1. Walking Paw Progress Bar
 
-1. **Add a `booking_addons` query** — same pattern already used in `BookingPopoverCard.tsx`:
-   - Query `booking_addons` joined with `add_ons(name, price)` filtered by `booking_id`
+- Add a **paw-print step indicator** at the top of the BookingFlow, below the header.
+- Define the steps as an ordered array (e.g. `["sub-service", "breed", "calendar", "addons", "guest-details"]`), filtered based on whether the flow needs breed/addons.
+- Render a row of `PawPrint` icons — completed steps use the brand accent color, current step is highlighted, future steps are greyed out (`text-muted-foreground/30`).
+- Use `framer-motion`'s `layoutId` on a small underline/highlight element that animates smoothly between paw positions as the step changes, creating the "walking" effect.
+- Each paw tilts slightly (`rotate: -15deg` → `15deg`) using a short spring animation on the active paw.
 
-2. **Replace the "Financial Summary" section** with an itemized breakdown:
-   - Service name → calculated service price (total minus add-ons, before discount)
-   - Each add-on → name + price (with Sparkles icon)
-   - If coupon applied: subtotal line, then coupon discount line (code + amount)
-   - Bold total line
-   - Deposit paid / balance due below
+### 2. Tail Wag Loading Animation
 
-3. **Merge the separate "Coupon Indicator" section** into the price breakdown so everything is in one clear block instead of two disconnected sections.
+- Create a small `TailWagSpinner` component using an inline SVG of a simplified dog tail.
+- Animate with `framer-motion` using a repeating `rotate` keyframe (`[-20, 20, -20]` on loop) with `duration: 0.4s`.
+- Replace the existing CSS spinner (line 825: `animate-spin h-8 w-8 border-4...`) and the "Processing..." text in submit buttons with this component.
 
-4. Add `Sparkles` to the lucide imports.
+### 3. Bouncy Page Transitions (Framer Motion)
 
-### No database changes needed
-The `booking_addons` table and `coupon_usages` table already exist with correct RLS policies. This is purely a UI change to surface existing data.
+- Wrap each step's content block in a `<motion.div>` with `AnimatePresence` and keyed by `step`.
+- Entry: `initial={{ x: 80, opacity: 0 }}`, `animate={{ x: 0, opacity: 1 }}` with `type: "spring", stiffness: 300, damping: 25`.
+- Exit: `exit={{ x: -80, opacity: 0 }}` with a fast tween.
+- Track navigation direction (forward/back) to reverse the slide direction when going back (slide in from left instead of right).
 
-### Result
-The Booking Details dialog will show a complete price trail:
-```text
-Full Groom                     £45.00
-+ Ultrasonic Teeth Clean       £15.00
-+ Nail Trim                    £10.00
-─────────────────────────────────────
-Subtotal                       £70.00
-🏷 Coupon NEWSTART15 (15%)    -£10.50
-─────────────────────────────────────
-Total                          £59.50
-Deposit Paid                   £10.00
-Balance Due                    £49.50
-```
+### 4. Back Button & Puppy Logic
+
+- The existing `goBack` function already resets state per step — no changes needed there.
+- For the **Puppy Special "pop" effect**: when `showPuppyPopup` closes and the calendar step appears, add a `motion.div` around the "Puppy Special" service name in the calendar's summary card with `animate={{ scale: [1, 1.15, 1] }}` and a sparkle keyframe, triggered when `puppySwitched` is true.
+
+### 5. Styling Constraints
+
+- All animations use `duration: 0.3–0.5s` max.
+- Spring transitions use high stiffness (300+) and moderate damping (25+) for snappy feel.
+- No layout shifts — all animated elements have fixed dimensions or use `layout` prop.
+
+---
+
+### Files to Edit
+
+| File | Change |
+|------|--------|
+| `src/components/BookingFlow.tsx` | Add `AnimatePresence`, `motion.div` wrappers per step, paw progress bar component, tail wag spinner, direction tracking for transitions, sparkle effect on puppy switch |
+
+### Technical Notes
+
+- `framer-motion` is already installed.
+- The `TailWagSpinner` and `PawProgressBar` will be inline components within `BookingFlow.tsx` to keep changes contained.
+- No database or edge function changes needed.
 
