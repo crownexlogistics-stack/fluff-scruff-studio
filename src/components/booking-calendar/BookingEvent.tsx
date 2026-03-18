@@ -626,12 +626,22 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
               </div>
             ))}
 
-            {inferredPackageAmount > 0 && (
+            {inferredPackageAmount > 0 && inferredAddOns.length > 0 && inferredAddOns.map((addon, i) => (
+              <div key={`inferred-${i}`} className="flex justify-between">
+                <span className="text-muted-foreground flex items-center gap-1">
+                  <Sparkles className="h-2.5 w-2.5" />
+                  {addon.name}
+                </span>
+                <span className="font-medium">£{addon.price.toFixed(2)}</span>
+              </div>
+            ))}
+
+            {inferredPackageAmount > 0 && inferredAddOns.length === 0 && (
               <>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground flex items-center gap-1">
                     <Sparkles className="h-2.5 w-2.5" />
-                    {inferredPackageLabel}
+                    Additional add-ons
                   </span>
                   <span className="font-medium">£{inferredPackageAmount.toFixed(2)}</span>
                 </div>
