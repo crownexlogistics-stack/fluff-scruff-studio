@@ -89,6 +89,23 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
     },
   });
 
+  // Fetch coupon usage for calendar card indicator
+  const { data: eventCouponUsage } = useQuery({
+    queryKey: ["booking-coupon-event", booking.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("coupon_usages")
+        .select("id")
+        .eq("booking_id", booking.id)
+        .maybeSingle();
+      if (error) return null;
+      return data;
+    },
+    enabled: !booking.is_block && !booking.is_overtime,
+  });
+
+  const hasCoupon = !!eventCouponUsage;
+
   // Fetch audit log for this booking
   const { data: auditLog } = useQuery({
     queryKey: ["booking-audit-log", booking.id],

@@ -278,59 +278,66 @@ export function BookingPopoverCard({
           {booking.breed_name ? ` (${booking.breed_name})` : ""}
         </p>
         <p className="text-sm text-muted-foreground">with {booking.staff_name}</p>
-        {/* Add-ons */}
-        {popoverAddons && popoverAddons.length > 0 && (
-          <div className="mt-1.5 flex flex-wrap gap-1">
-            {popoverAddons.map((ba: any) => (
-              <Badge key={ba.addon_id} variant="secondary" className="text-[10px] gap-1">
-                <Sparkles className="h-2.5 w-2.5" />
-                {ba.add_ons?.name} · £{Number(ba.add_ons?.price || 0).toFixed(2)}
-              </Badge>
-            ))}
-          </div>
-        )}
-        <p className="text-sm font-medium mt-1">£{total.toFixed(2)}</p>
         {(booking as any).is_groomers_own_customer && (
           <Badge className="mt-1 text-xs bg-violet-100 text-violet-700 hover:bg-violet-100 dark:bg-violet-900/30 dark:text-violet-400">Own Customer • 50%</Badge>
         )}
       </div>
 
-      {/* Coupon Used Indicator */}
-      {couponUsage?.coupons && (
-        <div className="bg-purple-50 border border-purple-200 rounded-md px-3 py-2 text-xs text-purple-800 space-y-1">
-          <div className="flex items-center gap-1.5 font-semibold">
-            <Ticket className="h-3.5 w-3.5" />
-            <span>Coupon Applied: <code className="font-mono bg-purple-100 px-1 rounded">{couponUsage.coupons.code}</code></span>
-          </div>
-          <div className="flex justify-between">
-            <span>Discount</span>
-            <span className="font-semibold">
-              {couponUsage.coupons.discount_type === "percentage"
-                ? `${couponUsage.coupons.discount_value}% off`
-                : `£${Number(couponUsage.coupons.discount_value).toFixed(2)} off`}
-            </span>
-          </div>
-          {(() => {
-            const discountVal = Number(couponUsage.coupons.discount_value);
-            const originalPrice = couponUsage.coupons.discount_type === "percentage"
-              ? total / (1 - discountVal / 100)
-              : total + discountVal;
-            return (
-              <div className="flex justify-between border-t border-purple-300 pt-1 mt-1">
-                <span>Price before coupon</span>
-                <span className="font-semibold line-through">£{originalPrice.toFixed(2)}</span>
+      {/* Full Price Breakdown */}
+      <div className="bg-muted/40 border rounded-md px-3 py-2 text-xs space-y-1">
+        {(() => {
+          const addonsTotal = (popoverAddons || []).reduce((sum: number, ba: any) => sum + Number(ba.add_ons?.price || 0), 0);
+          const hasCoupon = !!couponUsage?.coupons;
+          const discountVal = hasCoupon ? Number(couponUsage.coupons.discount_value) : 0;
+          const discountType = hasCoupon ? couponUsage.coupons.discount_type : null;
+          // Original price before coupon
+          const originalTotal = hasCoupon
+            ? (discountType === "percentage" ? total / (1 - discountVal / 100) : total + discountVal)
+            : total;
+          const servicePrice = originalTotal - addonsTotal;
+          const discountAmount = originalTotal - total;
+
+          return (
+            <>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">{booking.service_name || "Grooming"}</span>
+                <span className="font-medium">£{servicePrice.toFixed(2)}</span>
               </div>
-            );
-          })()}
-          <div className="flex justify-between">
-            <span>Price after coupon</span>
-            <span className="font-bold">£{total.toFixed(2)}</span>
-          </div>
-          {couponUsage.applied_by_staff_name && (
-            <p className="text-[10px] text-purple-600">Applied by {couponUsage.applied_by_staff_name}</p>
-          )}
-        </div>
-      )}
+              {(popoverAddons || []).map((ba: any) => (
+                <div key={ba.addon_id} className="flex justify-between">
+                  <span className="text-muted-foreground flex items-center gap-1">
+                    <Sparkles className="h-2.5 w-2.5" /> {ba.add_ons?.name}
+                  </span>
+                  <span className="font-medium">£{Number(ba.add_ons?.price || 0).toFixed(2)}</span>
+                </div>
+              ))}
+              {hasCoupon && (
+                <>
+                  <div className="flex justify-between border-t pt-1 mt-1">
+                    <span className="text-muted-foreground">Subtotal</span>
+                    <span className="font-medium">£{originalTotal.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-purple-700">
+                    <span className="flex items-center gap-1">
+                      <Ticket className="h-3 w-3" />
+                      Coupon <code className="font-mono bg-purple-100 px-1 rounded text-[10px]">{couponUsage.coupons.code}</code>
+                      {discountType === "percentage" ? ` (${discountVal}%)` : ""}
+                    </span>
+                    <span className="font-semibold">-£{discountAmount.toFixed(2)}</span>
+                  </div>
+                  {couponUsage.applied_by_staff_name && (
+                    <p className="text-[10px] text-purple-600">Applied by {couponUsage.applied_by_staff_name}</p>
+                  )}
+                </>
+              )}
+              <div className="flex justify-between border-t pt-1 mt-1 font-bold">
+                <span>Total</span>
+                <span>£{total.toFixed(2)}</span>
+              </div>
+            </>
+          );
+        })()}
+      </div>
 
       {/* Migrated booking payment info */}
       {booking.is_migrated && (
