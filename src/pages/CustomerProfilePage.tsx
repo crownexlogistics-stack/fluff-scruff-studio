@@ -26,7 +26,7 @@ import {
   ArrowLeft, Mail, Phone, Dog, Calendar, Send,
   Pencil, Check, X, MessageSquare, MailOpen, Ban, CalendarPlus, UserCheck, ChevronDown, ChevronUp,
   CreditCard, RefreshCw, ExternalLink, Smartphone, Sparkles, RotateCcw, PenLine, Loader2, Plus, ChevronsUpDown,
-  MailX, MailCheck, MessageSquareDashed,
+  MailX, MailCheck, MessageSquareDashed, Package,
 } from "lucide-react";
 import { AdminPetTools } from "@/components/customer-profile/AdminPetTools";
 import { format, parseISO } from "date-fns";
