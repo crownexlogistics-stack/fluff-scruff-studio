@@ -317,13 +317,15 @@ export function PackageDetailDialog({ packageBookingId, open, onClose }: Props) 
 
       <PasswordVerifyDialog
         open={passwordOpen}
-        onClose={() => setPasswordOpen(false)}
-        onVerified={() => {
+        onOpenChange={setPasswordOpen}
+        onConfirmed={() => {
           setPasswordOpen(false);
           handleCancelPackage();
         }}
         title="Verify to Cancel Package"
         description={`This will refund £${potentialRefund.toFixed(2)} for ${remaining} unused sessions.`}
+        confirmLabel="Cancel Package"
+        destructive
       />
     </>
   );

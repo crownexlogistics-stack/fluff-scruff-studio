@@ -35,9 +35,9 @@ export function CreatePackageBooking({ onCreated }: { onCreated: () => void }) {
   const { data: packages } = useQuery({
     queryKey: ["packages-list"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase
         .from("packages" as any)
-        .select("*")
+        .select("*") as any)
         .eq("is_active", true)
         .order("session_count");
       if (error) throw error;
