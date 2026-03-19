@@ -1015,6 +1015,7 @@ export default function CustomerProfilePage() {
               </Card>
             )}
 
+            <Card>
               <CardContent className="p-5">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-sm font-semibold flex items-center gap-2"><Dog className="h-4 w-4" /> Registered Dogs</h3>
