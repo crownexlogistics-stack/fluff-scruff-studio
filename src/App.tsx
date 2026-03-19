@@ -69,6 +69,7 @@ import HistoricalDataPage from "./pages/HistoricalDataPage";
 import DuplicateReportPage from "./pages/DuplicateReportPage";
 import AcademyPage from "./pages/AcademyPage";
 import PurchaseOrdersPage from "./pages/PurchaseOrdersPage";
+import PackagesPage from "./pages/PackagesPage";
 import UnsubscribePage from "./pages/UnsubscribePage";
 import SmsTrackPage from "./pages/SmsTrackPage";
 
