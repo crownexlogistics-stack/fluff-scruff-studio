@@ -143,3 +143,6 @@ verify_jwt = false
 
 [functions.migrate-wix-notes]
 verify_jwt = false
+
+[functions.send-package-tc-email]
+verify_jwt = false

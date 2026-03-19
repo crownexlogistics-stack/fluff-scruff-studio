@@ -1865,6 +1865,8 @@ export type Database = {
           status: string | null
           stripe_payment_intent_id: string | null
           stripe_payment_status: string | null
+          tc_signed: boolean | null
+          tc_signed_at: string | null
           total_paid: number
         }
         Insert: {
@@ -1885,6 +1887,8 @@ export type Database = {
           status?: string | null
           stripe_payment_intent_id?: string | null
           stripe_payment_status?: string | null
+          tc_signed?: boolean | null
+          tc_signed_at?: string | null
           total_paid: number
         }
         Update: {
@@ -1905,6 +1909,8 @@ export type Database = {
           status?: string | null
           stripe_payment_intent_id?: string | null
           stripe_payment_status?: string | null
+          tc_signed?: boolean | null
+          tc_signed_at?: string | null
           total_paid?: number
         }
         Relationships: [
@@ -1961,6 +1967,71 @@ export type Database = {
           },
           {
             foreignKeyName: "package_sessions_package_booking_id_fkey"
+            columns: ["package_booking_id"]
+            isOneToOne: false
+            referencedRelation: "package_bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      package_tc_signatures: {
+        Row: {
+          created_at: string | null
+          customer_email: string
+          customer_name: string
+          email_sent_at: string | null
+          id: string
+          ip_address: string | null
+          manual_note: string | null
+          package_booking_id: string | null
+          performed_by: string | null
+          signature_text: string | null
+          signed_at: string | null
+          signing_token: string | null
+          status: string | null
+          tc_version: string | null
+          token_expires_at: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          customer_email: string
+          customer_name: string
+          email_sent_at?: string | null
+          id?: string
+          ip_address?: string | null
+          manual_note?: string | null
+          package_booking_id?: string | null
+          performed_by?: string | null
+          signature_text?: string | null
+          signed_at?: string | null
+          signing_token?: string | null
+          status?: string | null
+          tc_version?: string | null
+          token_expires_at?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          customer_email?: string
+          customer_name?: string
+          email_sent_at?: string | null
+          id?: string
+          ip_address?: string | null
+          manual_note?: string | null
+          package_booking_id?: string | null
+          performed_by?: string | null
+          signature_text?: string | null
+          signed_at?: string | null
+          signing_token?: string | null
+          status?: string | null
+          tc_version?: string | null
+          token_expires_at?: string | null
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "package_tc_signatures_package_booking_id_fkey"
             columns: ["package_booking_id"]
             isOneToOne: false
             referencedRelation: "package_bookings"

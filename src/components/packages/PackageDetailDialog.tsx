@@ -6,8 +6,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { AlertTriangle, Package, Loader2 } from "lucide-react";
+import { AlertTriangle, Package, Loader2, FileCheck, Clock, Send, PenLine } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { PasswordVerifyDialog } from "@/components/booking-calendar/PasswordVerifyDialog";
@@ -23,6 +25,11 @@ export function PackageDetailDialog({ packageBookingId, open, onClose }: Props) 
   const [cancelConfirm, setCancelConfirm] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [manualOverride, setManualOverride] = useState(false);
+  const [manualNote, setManualNote] = useState("");
+  const [manualName, setManualName] = useState("");
+  const [savingManual, setSavingManual] = useState(false);
 
   const { data: pb, isLoading } = useQuery({
     queryKey: ["package-booking-detail", packageBookingId],
@@ -52,6 +59,74 @@ export function PackageDetailDialog({ packageBookingId, open, onClose }: Props) 
     enabled: open,
   });
 
+  const { data: tcSignature, refetch: refetchTc } = useQuery({
+    queryKey: ["package-tc-signature", packageBookingId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("package_tc_signatures" as any)
+        .select("*")
+        .eq("package_booking_id", packageBookingId)
+        .order("created_at", { ascending: false })
+        .limit(1);
+      if (error) throw error;
+      return (data as any[])?.[0] || null;
+    },
+    enabled: open,
+  });
+
+  const handleResendTCEmail = async () => {
+    setResending(true);
+    try {
+      await supabase.functions.invoke("send-package-tc-email", {
+        body: { type: "resend_invite", package_booking_id: packageBookingId },
+      });
+      toast.success("T&C signing email resent!");
+      refetchTc();
+    } catch {
+      toast.error("Failed to resend email");
+    } finally {
+      setResending(false);
+    }
+  };
+
+  const handleManualSign = async () => {
+    if (!manualNote.trim() || !manualName.trim()) {
+      toast.error("Please enter name and note");
+      return;
+    }
+    setSavingManual(true);
+    try {
+      const now = new Date().toISOString();
+      await supabase.from("package_tc_signatures" as any).insert({
+        package_booking_id: packageBookingId,
+        customer_email: pb.customer_email,
+        customer_name: pb.customer_name,
+        signature_text: manualName.trim(),
+        signed_at: now,
+        status: "signed",
+        performed_by: "Admin",
+        manual_note: manualNote.trim(),
+        tc_version: "1.0",
+      });
+
+      await supabase
+        .from("package_bookings" as any)
+        .update({ tc_signed: true, tc_signed_at: now })
+        .eq("id", packageBookingId);
+
+      toast.success("T&C marked as manually signed");
+      setManualOverride(false);
+      setManualNote("");
+      setManualName("");
+      refetchTc();
+      queryClient.invalidateQueries({ queryKey: ["package-booking-detail"] });
+    } catch {
+      toast.error("Failed to save");
+    } finally {
+      setSavingManual(false);
+    }
+  };
+
   const handleCancelPackage = async () => {
     if (!pb) return;
     setCancelling(true);
@@ -61,7 +136,6 @@ export function PackageDetailDialog({ packageBookingId, open, onClose }: Props) 
       const pricePerSession = pb.total_paid / pb.sessions_total;
       const refundAmount = remaining * pricePerSession;
 
-      // Cancel future bookings
       if (sessions) {
         const futureSessionBookingIds = sessions
           .filter((s: any) => s.status === "scheduled" && s.booking_id)
@@ -81,7 +155,6 @@ export function PackageDetailDialog({ packageBookingId, open, onClose }: Props) 
         }
       }
 
-      // Update package booking
       await supabase
         .from("package_bookings" as any)
         .update({
@@ -92,7 +165,6 @@ export function PackageDetailDialog({ packageBookingId, open, onClose }: Props) 
         })
         .eq("id", packageBookingId);
 
-      // If Stripe payment, process refund
       if (pb.stripe_payment_intent_id && refundAmount > 0) {
         const { error: refundError } = await supabase.functions.invoke("process-refund", {
           body: {
@@ -113,7 +185,6 @@ export function PackageDetailDialog({ packageBookingId, open, onClose }: Props) 
         );
       }
 
-      // Audit log
       await supabase.from("booking_audit_log" as any).insert({
         booking_id: sessions?.[0]?.booking_id || packageBookingId,
         event_type: "package_cancelled",
@@ -151,6 +222,9 @@ export function PackageDetailDialog({ packageBookingId, open, onClose }: Props) 
   const pricePerSession = pb.total_paid / total;
   const potentialRefund = remaining * pricePerSession;
 
+  const tcSigned = pb.tc_signed || tcSignature?.status === "signed";
+  const tcPending = !tcSigned;
+
   const sessionStatusBadge = (status: string) => {
     if (status === "completed") return <Badge className="bg-emerald-100 text-emerald-800">Completed</Badge>;
     if (status === "scheduled") return <Badge className="bg-blue-100 text-blue-800">Scheduled</Badge>;
@@ -170,6 +244,67 @@ export function PackageDetailDialog({ packageBookingId, open, onClose }: Props) 
           </DialogHeader>
 
           <div className="space-y-4">
+            {/* T&C Status */}
+            <div className="flex items-center gap-2 flex-wrap">
+              {tcSigned ? (
+                <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200">
+                  <FileCheck className="h-3 w-3 mr-1" />
+                  T&C Signed — {pb.tc_signed_at ? format(new Date(pb.tc_signed_at), "dd MMM yyyy") : tcSignature?.signed_at ? format(new Date(tcSignature.signed_at), "dd MMM yyyy") : ""}
+                </Badge>
+              ) : (
+                <Badge className="bg-amber-100 text-amber-800 border-amber-200">
+                  <Clock className="h-3 w-3 mr-1" />
+                  Awaiting Signature
+                </Badge>
+              )}
+            </div>
+
+            {tcSigned && tcSignature && (
+              <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-sm space-y-1">
+                <p>Signed by <strong>{tcSignature.signature_text}</strong> on {tcSignature.signed_at ? format(new Date(tcSignature.signed_at), "dd MMM yyyy 'at' HH:mm") : "—"}</p>
+                {tcSignature.performed_by && <p className="text-muted-foreground">Manually recorded by {tcSignature.performed_by}</p>}
+                {tcSignature.manual_note && <p className="text-muted-foreground italic">"{tcSignature.manual_note}"</p>}
+              </div>
+            )}
+
+            {tcPending && (
+              <div className="flex flex-wrap gap-2">
+                <Button variant="outline" size="sm" onClick={handleResendTCEmail} disabled={resending}>
+                  {resending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Send className="h-3 w-3 mr-1" />}
+                  {tcSignature ? "Resend Signing Link" : "Send Signing Link"}
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setManualOverride(true)}>
+                  <PenLine className="h-3 w-3 mr-1" />
+                  Mark as Signed Manually
+                </Button>
+              </div>
+            )}
+
+            {manualOverride && (
+              <div className="bg-muted rounded-lg p-3 space-y-3">
+                <p className="text-sm font-medium">Manual Override — Legacy Package</p>
+                <Input
+                  placeholder="Customer name as signed"
+                  value={manualName}
+                  onChange={(e) => setManualName(e.target.value)}
+                />
+                <Textarea
+                  placeholder='e.g. "Paper agreement signed in salon on 15/01/2026"'
+                  value={manualNote}
+                  onChange={(e) => setManualNote(e.target.value)}
+                />
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={handleManualSign} disabled={savingManual}>
+                    {savingManual ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                    Save
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setManualOverride(false)}>Cancel</Button>
+                </div>
+              </div>
+            )}
+
+            <Separator />
+
             {/* Summary */}
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div>

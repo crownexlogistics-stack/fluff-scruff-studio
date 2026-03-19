@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Package, Eye, Loader2 } from "lucide-react";
+import { Package, Eye, Loader2, FileCheck, Clock } from "lucide-react";
 import { format } from "date-fns";
 import { PackageDetailDialog } from "./PackageDetailDialog";
 
@@ -90,6 +90,15 @@ export function ActivePackages() {
                     <Badge className={statusColor(pb.status)}>
                       {pb.status === "active" ? "Active" : pb.status === "completed" ? "Completed" : "Cancelled"}
                     </Badge>
+                    {pb.tc_signed ? (
+                      <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200">
+                        <FileCheck className="h-3 w-3 mr-1" /> T&C Signed
+                      </Badge>
+                    ) : (
+                      <Badge className="bg-amber-100 text-amber-800 border-amber-200">
+                        <Clock className="h-3 w-3 mr-1" /> Awaiting Signature
+                      </Badge>
+                    )}
                   </div>
 
                   <div className="text-sm text-muted-foreground">
