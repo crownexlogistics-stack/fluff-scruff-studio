@@ -119,7 +119,23 @@ export default function CustomerProfilePage() {
     enabled: !!decodedEmail,
   });
 
-  // Fetch migrated customer record (for name/phone fallback)
+  // Fetch active package bookings for this customer
+  const { data: customerPackages } = useQuery({
+    queryKey: ["customer-packages", decodedEmail],
+    queryFn: async () => {
+      const { data, error } = await (supabase
+        .from("package_bookings" as any)
+        .select("*, packages(name, package_type, session_count, discount_percentage)") as any)
+        .eq("customer_email", decodedEmail)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data as any[];
+    },
+    enabled: !!decodedEmail,
+  });
+
+  const hasActivePackage = (customerPackages || []).some((p: any) => p.status === "active");
+
   const { data: migratedCustomer } = useQuery({
     queryKey: ["migrated-customer-record", decodedEmail],
     queryFn: async () => {
