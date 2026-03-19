@@ -38,6 +38,7 @@ import {
 const mainNavItems = [
   { title: "Dashboard", url: "/admin", icon: LayoutDashboard },
   { title: "Bookings", url: "/bookings", icon: Calendar },
+  { title: "Package Deals", url: "/admin/packages", icon: Package },
   { title: "Finance", url: "/finance", icon: PoundSterling },
   { title: "Messages", url: "/messages", icon: Inbox },
   { title: "Add-Ons", url: "/add-ons", icon: Sparkles },
