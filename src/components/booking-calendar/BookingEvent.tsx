@@ -16,6 +16,7 @@ import { useQuery } from "@tanstack/react-query";
 import { SendPaymentLinkDialog } from "./SendPaymentLinkDialog";
 import { DogBriefButton } from "./DogBriefButton";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { PackageBadge } from "@/components/packages/PackageBadge";
 
 export interface BookingData {
   id: string;
