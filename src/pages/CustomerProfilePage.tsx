@@ -980,7 +980,41 @@ export default function CustomerProfilePage() {
               </Card>
             )}
 
-            <Card>
+            {/* Active Package Deals */}
+            {(customerPackages || []).length > 0 && (
+              <Card>
+                <CardContent className="p-5 space-y-3">
+                  <h3 className="text-sm font-semibold flex items-center gap-2">
+                    <Package className="h-4 w-4" /> Package Deals
+                  </h3>
+                  {(customerPackages || []).map((pkg: any) => {
+                    const used = pkg.sessions_used || 0;
+                    const total = pkg.sessions_total || 1;
+                    const pct = Math.round((used / total) * 100);
+                    return (
+                      <div key={pkg.id} className="border rounded-lg p-3 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium text-sm">{pkg.packages?.name || "Package"}</span>
+                          <Badge className={pkg.status === "active" ? "bg-emerald-100 text-emerald-800" : pkg.status === "completed" ? "bg-blue-100 text-blue-800" : "bg-red-100 text-red-800"}>
+                            {pkg.status}
+                          </Badge>
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {used} of {total} sessions used • £{Number(pkg.total_paid).toFixed(2)} paid
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 bg-muted rounded-full h-2 overflow-hidden">
+                            <div className="bg-primary h-full rounded-full transition-all" style={{ width: `${pct}%` }} />
+                          </div>
+                          <span className="text-xs text-muted-foreground">{pct}%</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </CardContent>
+              </Card>
+            )}
+
               <CardContent className="p-5">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-sm font-semibold flex items-center gap-2"><Dog className="h-4 w-4" /> Registered Dogs</h3>
