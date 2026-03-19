@@ -72,6 +72,7 @@ import PurchaseOrdersPage from "./pages/PurchaseOrdersPage";
 import PackagesPage from "./pages/PackagesPage";
 import UnsubscribePage from "./pages/UnsubscribePage";
 import SmsTrackPage from "./pages/SmsTrackPage";
+import SignPackageTCPage from "./pages/SignPackageTCPage";
 
 const queryClient = new QueryClient();
 
