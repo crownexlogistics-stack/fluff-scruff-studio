@@ -216,8 +216,20 @@ export function CreatePackageBooking({ onCreated }: { onCreated: () => void }) {
         });
       }
 
+      // Send T&C signing email automatically
+      try {
+        await supabase.functions.invoke("send-package-tc-email", {
+          body: {
+            type: "invite",
+            package_booking_id: (pkgBooking as any).id,
+          },
+        });
+      } catch (emailErr) {
+        console.error("Failed to send T&C email:", emailErr);
+      }
+
       queryClient.invalidateQueries({ queryKey: ["package-bookings"] });
-      toast.success("Package booking created successfully!");
+      toast.success("Package booking created and T&C signing email sent!");
       onCreated();
     } catch (err: any) {
       toast.error(err.message || "Failed to create package booking");
