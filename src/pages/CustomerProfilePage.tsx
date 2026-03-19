@@ -995,9 +995,20 @@ export default function CustomerProfilePage() {
                       <div key={pkg.id} className="border rounded-lg p-3 space-y-2">
                         <div className="flex items-center justify-between">
                           <span className="font-medium text-sm">{pkg.packages?.name || "Package"}</span>
-                          <Badge className={pkg.status === "active" ? "bg-emerald-100 text-emerald-800" : pkg.status === "completed" ? "bg-blue-100 text-blue-800" : "bg-red-100 text-red-800"}>
-                            {pkg.status}
-                          </Badge>
+                          <div className="flex items-center gap-1.5">
+                            {pkg.tc_signed ? (
+                              <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 text-[10px]">
+                                ✅ T&C Signed{pkg.tc_signed_at ? ` — ${format(new Date(pkg.tc_signed_at), "dd MMM")}` : ""}
+                              </Badge>
+                            ) : (
+                              <Badge className="bg-amber-100 text-amber-800 border-amber-200 text-[10px]">
+                                ⏳ Awaiting Signature
+                              </Badge>
+                            )}
+                            <Badge className={pkg.status === "active" ? "bg-emerald-100 text-emerald-800" : pkg.status === "completed" ? "bg-blue-100 text-blue-800" : "bg-red-100 text-red-800"}>
+                              {pkg.status}
+                            </Badge>
+                          </div>
                         </div>
                         <div className="text-xs text-muted-foreground">
                           {used} of {total} sessions used • £{Number(pkg.total_paid).toFixed(2)} paid
