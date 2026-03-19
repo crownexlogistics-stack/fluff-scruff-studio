@@ -911,6 +911,9 @@ export default function CustomerProfilePage() {
                   ) : migratedCustomer?.phone ? (
                     <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"><MessageSquare className="h-3 w-3 mr-1" />SMS: Subscribed</Badge>
                   ) : null}
+                  {hasActivePackage && (
+                    <Badge className="bg-amber-100 text-amber-800 border-amber-200"><Package className="h-3 w-3 mr-1" />Package Customer</Badge>
+                  )}
                 </div>
               </div>
             </div>
