@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Package, Eye, Loader2 } from "lucide-react";
+import { Package, Eye, Loader2, FileCheck, Clock } from "lucide-react";
 import { format } from "date-fns";
 import { PackageDetailDialog } from "./PackageDetailDialog";
 
