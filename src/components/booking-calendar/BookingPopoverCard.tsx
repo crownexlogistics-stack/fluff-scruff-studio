@@ -14,6 +14,7 @@ import { logAudit } from "@/lib/auditLog";
 import { useQuery } from "@tanstack/react-query";
 import type { BookingData } from "./BookingEvent";
 import { DogBriefButton } from "./DogBriefButton";
+import { PackageBadge } from "@/components/packages/PackageBadge";
 
 interface BookingPopoverCardProps {
   booking: BookingData;
