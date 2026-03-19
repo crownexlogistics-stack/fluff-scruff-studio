@@ -598,6 +598,9 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
             })()}</p>
           </div>
 
+          {/* Package Badge */}
+          <PackageBadge bookingId={booking.id} />
+
           <div className="border-t pt-3">
             <p className="font-medium">
               {booking.service_name || "Grooming"} — {booking.dog_name}
