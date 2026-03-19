@@ -98,6 +98,7 @@ const App = () => (
           <Route path="/academy" element={<AcademyPage />} />
           <Route path="/unsubscribe" element={<UnsubscribePage />} />
           <Route path="/track" element={<SmsTrackPage />} />
+          <Route path="/sign-package-tc" element={<SignPackageTCPage />} />
           {/* Old Wix URL redirects */}
           <Route path="/blank" element={<Navigate to="/" replace />} />
           <Route path="/services-2" element={<Navigate to="/" replace />} />
