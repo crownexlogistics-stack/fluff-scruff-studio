@@ -1846,6 +1846,164 @@ export type Database = {
         }
         Relationships: []
       }
+      package_bookings: {
+        Row: {
+          cancelled_at: string | null
+          created_at: string | null
+          customer_email: string
+          customer_name: string
+          customer_phone: string | null
+          dog_name: string | null
+          id: string
+          notes: string | null
+          package_id: string | null
+          refund_amount: number | null
+          refund_reason: string | null
+          sessions_remaining: number | null
+          sessions_total: number
+          sessions_used: number | null
+          status: string | null
+          stripe_payment_intent_id: string | null
+          stripe_payment_status: string | null
+          total_paid: number
+        }
+        Insert: {
+          cancelled_at?: string | null
+          created_at?: string | null
+          customer_email: string
+          customer_name: string
+          customer_phone?: string | null
+          dog_name?: string | null
+          id?: string
+          notes?: string | null
+          package_id?: string | null
+          refund_amount?: number | null
+          refund_reason?: string | null
+          sessions_remaining?: number | null
+          sessions_total: number
+          sessions_used?: number | null
+          status?: string | null
+          stripe_payment_intent_id?: string | null
+          stripe_payment_status?: string | null
+          total_paid: number
+        }
+        Update: {
+          cancelled_at?: string | null
+          created_at?: string | null
+          customer_email?: string
+          customer_name?: string
+          customer_phone?: string | null
+          dog_name?: string | null
+          id?: string
+          notes?: string | null
+          package_id?: string | null
+          refund_amount?: number | null
+          refund_reason?: string | null
+          sessions_remaining?: number | null
+          sessions_total?: number
+          sessions_used?: number | null
+          status?: string | null
+          stripe_payment_intent_id?: string | null
+          stripe_payment_status?: string | null
+          total_paid?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "package_bookings_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "packages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      package_sessions: {
+        Row: {
+          booking_id: string | null
+          created_at: string | null
+          id: string
+          package_booking_id: string | null
+          scheduled_date: string | null
+          scheduled_time: string | null
+          service_type: string | null
+          session_number: number
+          status: string | null
+        }
+        Insert: {
+          booking_id?: string | null
+          created_at?: string | null
+          id?: string
+          package_booking_id?: string | null
+          scheduled_date?: string | null
+          scheduled_time?: string | null
+          service_type?: string | null
+          session_number: number
+          status?: string | null
+        }
+        Update: {
+          booking_id?: string | null
+          created_at?: string | null
+          id?: string
+          package_booking_id?: string | null
+          scheduled_date?: string | null
+          scheduled_time?: string | null
+          service_type?: string | null
+          session_number?: number
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "package_sessions_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "package_sessions_package_booking_id_fkey"
+            columns: ["package_booking_id"]
+            isOneToOne: false
+            referencedRelation: "package_bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      packages: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          discount_percentage: number
+          id: string
+          is_active: boolean | null
+          name: string
+          package_type: string
+          price_per_session: number | null
+          session_count: number
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          discount_percentage: number
+          id?: string
+          is_active?: boolean | null
+          name: string
+          package_type: string
+          price_per_session?: number | null
+          session_count: number
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          discount_percentage?: number
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          package_type?: string
+          price_per_session?: number | null
+          session_count?: number
+        }
+        Relationships: []
+      }
       payout_records: {
         Row: {
           amount: number
