@@ -246,7 +246,7 @@ export function CreatePackageBooking({ onCreated }: { onCreated: () => void }) {
           <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Customer</h3>
           <div>
             <Label>Search existing customer</Label>
-            <CustomerSearchInput onSelect={handleCustomerSelect} />
+            <CustomerSearchInput onSelect={handleCustomerSelect} onAddNew={() => {}} />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div>
