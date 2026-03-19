@@ -5,7 +5,7 @@ import {
   LogOut, Sparkles, AlertTriangle, ShieldCheck, BookOpen,
   Inbox, FileText, Ticket, PoundSterling, Bug, Activity, ArrowRightLeft,
   PawPrint, Bot, MessageSquare, PhoneForwarded, Settings, Search,
-  BookOpen as HistoryBook, ShoppingCart,
+  BookOpen as HistoryBook, ShoppingCart, Package,
 } from "lucide-react";
 import logo from "@/assets/logo-transparent.png";
 import { useNewErrorReportsCount } from "@/hooks/useNewErrorReportsCount";
@@ -38,6 +38,7 @@ import {
 const mainNavItems = [
   { title: "Dashboard", url: "/admin", icon: LayoutDashboard },
   { title: "Bookings", url: "/bookings", icon: Calendar },
+  { title: "Package Deals", url: "/admin/packages", icon: Package },
   { title: "Finance", url: "/finance", icon: PoundSterling },
   { title: "Messages", url: "/messages", icon: Inbox },
   { title: "Add-Ons", url: "/add-ons", icon: Sparkles },

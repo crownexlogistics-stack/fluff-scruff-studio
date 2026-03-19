@@ -26,7 +26,7 @@ import {
   ArrowLeft, Mail, Phone, Dog, Calendar, Send,
   Pencil, Check, X, MessageSquare, MailOpen, Ban, CalendarPlus, UserCheck, ChevronDown, ChevronUp,
   CreditCard, RefreshCw, ExternalLink, Smartphone, Sparkles, RotateCcw, PenLine, Loader2, Plus, ChevronsUpDown,
-  MailX, MailCheck, MessageSquareDashed,
+  MailX, MailCheck, MessageSquareDashed, Package,
 } from "lucide-react";
 import { AdminPetTools } from "@/components/customer-profile/AdminPetTools";
 import { format, parseISO } from "date-fns";
@@ -119,7 +119,23 @@ export default function CustomerProfilePage() {
     enabled: !!decodedEmail,
   });
 
-  // Fetch migrated customer record (for name/phone fallback)
+  // Fetch active package bookings for this customer
+  const { data: customerPackages } = useQuery({
+    queryKey: ["customer-packages", decodedEmail],
+    queryFn: async () => {
+      const { data, error } = await (supabase
+        .from("package_bookings" as any)
+        .select("*, packages(name, package_type, session_count, discount_percentage)") as any)
+        .eq("customer_email", decodedEmail)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data as any[];
+    },
+    enabled: !!decodedEmail,
+  });
+
+  const hasActivePackage = (customerPackages || []).some((p: any) => p.status === "active");
+
   const { data: migratedCustomer } = useQuery({
     queryKey: ["migrated-customer-record", decodedEmail],
     queryFn: async () => {
@@ -895,6 +911,9 @@ export default function CustomerProfilePage() {
                   ) : migratedCustomer?.phone ? (
                     <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"><MessageSquare className="h-3 w-3 mr-1" />SMS: Subscribed</Badge>
                   ) : null}
+                  {hasActivePackage && (
+                    <Badge className="bg-amber-100 text-amber-800 border-amber-200"><Package className="h-3 w-3 mr-1" />Package Customer</Badge>
+                  )}
                 </div>
               </div>
             </div>
@@ -957,6 +976,41 @@ export default function CustomerProfilePage() {
                     onCheckedChange={(checked) => toggleOwnCustomerMutation.mutate(checked)}
                     disabled={toggleOwnCustomerMutation.isPending}
                   />
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Active Package Deals */}
+            {(customerPackages || []).length > 0 && (
+              <Card>
+                <CardContent className="p-5 space-y-3">
+                  <h3 className="text-sm font-semibold flex items-center gap-2">
+                    <Package className="h-4 w-4" /> Package Deals
+                  </h3>
+                  {(customerPackages || []).map((pkg: any) => {
+                    const used = pkg.sessions_used || 0;
+                    const total = pkg.sessions_total || 1;
+                    const pct = Math.round((used / total) * 100);
+                    return (
+                      <div key={pkg.id} className="border rounded-lg p-3 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium text-sm">{pkg.packages?.name || "Package"}</span>
+                          <Badge className={pkg.status === "active" ? "bg-emerald-100 text-emerald-800" : pkg.status === "completed" ? "bg-blue-100 text-blue-800" : "bg-red-100 text-red-800"}>
+                            {pkg.status}
+                          </Badge>
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {used} of {total} sessions used • £{Number(pkg.total_paid).toFixed(2)} paid
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 bg-muted rounded-full h-2 overflow-hidden">
+                            <div className="bg-primary h-full rounded-full transition-all" style={{ width: `${pct}%` }} />
+                          </div>
+                          <span className="text-xs text-muted-foreground">{pct}%</span>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </CardContent>
               </Card>
             )}

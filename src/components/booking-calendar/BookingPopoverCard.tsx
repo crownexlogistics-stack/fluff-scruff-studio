@@ -14,6 +14,7 @@ import { logAudit } from "@/lib/auditLog";
 import { useQuery } from "@tanstack/react-query";
 import type { BookingData } from "./BookingEvent";
 import { DogBriefButton } from "./DogBriefButton";
+import { PackageBadge } from "@/components/packages/PackageBadge";
 
 interface BookingPopoverCardProps {
   booking: BookingData;
@@ -367,6 +368,9 @@ export function BookingPopoverCard({
           return ` – ${String(Math.floor(endMin / 60)).padStart(2, "0")}:${String(endMin % 60).padStart(2, "0")}`;
         })()}</p>
       </div>
+
+      {/* Package Badge */}
+      {!booking.is_block && <PackageBadge bookingId={booking.id} />}
 
       <div className="border-t pt-3">
         <p className="font-medium">

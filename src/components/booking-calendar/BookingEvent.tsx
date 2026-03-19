@@ -16,6 +16,7 @@ import { useQuery } from "@tanstack/react-query";
 import { SendPaymentLinkDialog } from "./SendPaymentLinkDialog";
 import { DogBriefButton } from "./DogBriefButton";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { PackageBadge } from "@/components/packages/PackageBadge";
 
 export interface BookingData {
   id: string;
@@ -596,6 +597,9 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
               return ` – ${String(Math.floor(endMin / 60)).padStart(2, "0")}:${String(endMin % 60).padStart(2, "0")}`;
             })()}</p>
           </div>
+
+          {/* Package Badge */}
+          <PackageBadge bookingId={booking.id} />
 
           <div className="border-t pt-3">
             <p className="font-medium">
