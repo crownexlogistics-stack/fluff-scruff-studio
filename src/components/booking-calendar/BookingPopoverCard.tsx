@@ -369,6 +369,9 @@ export function BookingPopoverCard({
         })()}</p>
       </div>
 
+      {/* Package Badge */}
+      {!booking.is_block && <PackageBadge bookingId={booking.id} />}
+
       <div className="border-t pt-3">
         <p className="font-medium">
           {booking.service_name || "Grooming"} — {booking.dog_name}
