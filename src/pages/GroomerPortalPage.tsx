@@ -247,10 +247,19 @@ const GroomerPortalPage = () => {
       case "overview":
         return (
           <div className="space-y-6">
-            <GroomerDailyBriefing staffId={staffId} groomerName={staffName} />
+            <GroomerDailyBriefing staffId={staffId} groomerName={staffName} careerTotal={0} />
+            <TodayStatsBar staffId={staffId} />
+            <CustomerMilestoneCard staffId={staffId} />
+            <TodayPrepNotes staffId={staffId} />
+            <CareerStats staffId={staffId} />
+            <EarningsTracker staffId={staffId} />
+            <MostLoyalCustomers staffId={staffId} />
+            <ReEngagementCard staffId={staffId} />
+            <WeatherWidget />
             {/* Mobile: show section cards for quick navigation */}
             {isMobile && (
               <div className="space-y-3">
+                <h2 className="font-heading font-bold text-base text-foreground">📂 Quick Access</h2>
                 {sectionCards.map((card) => (
                   <button key={card.id} onClick={() => navigate(sectionToRoute[card.id])} className="w-full text-left rounded-2xl border border-border bg-card p-4 hover:shadow-md transition-all active:scale-[0.98] flex items-center gap-3">
                     <div className="p-2.5 rounded-xl bg-primary/10 text-primary shrink-0"><card.icon className="h-5 w-5" /></div>
