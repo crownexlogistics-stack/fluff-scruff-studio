@@ -250,6 +250,7 @@ const GroomerPortalPage = () => {
         return (
           <div className="space-y-6">
             <GroomerDailyBriefing staffId={staffId} groomerName={staffName} careerTotal={0} />
+            <UnpaidDepositsAlert staffId={staffId} />
             <TodayStatsBar staffId={staffId} />
             <CustomerMilestoneCard staffId={staffId} />
             <TodayPrepNotes staffId={staffId} />
@@ -257,6 +258,7 @@ const GroomerPortalPage = () => {
             <EarningsTracker staffId={staffId} />
             <MostLoyalCustomers staffId={staffId} />
             <ReEngagementCard staffId={staffId} />
+            <GoneQuietCard staffId={staffId} />
             <WeatherWidget />
             {/* Mobile: show section cards for quick navigation */}
             {isMobile && (
