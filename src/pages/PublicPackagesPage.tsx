@@ -203,6 +203,23 @@ export default function PublicPackagesPage() {
             ))}
           </div>
         </div>
+
+        {/* Book Online CTA */}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.2 }}
+          transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+          className="max-w-4xl mx-auto px-4 sm:px-6 mt-10 text-center"
+        >
+          <button
+            onClick={() => navigate("/book-package")}
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-accent text-white font-bold font-heading text-base sm:text-lg px-10 py-4 hover:bg-accent/90 transition-all active:scale-[0.97] shadow-lg"
+            style={{ borderRadius: '30px' }}
+          >
+            <Package className="h-5 w-5" /> Book a Package Online
+          </button>
+        </motion.div>
       </section>
 
       {/* FAQ */}
