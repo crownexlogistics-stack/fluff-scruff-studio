@@ -6,187 +6,174 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-async function fetchContextData(supabaseAdmin: any, latestMessage: string) {
-  const msg = latestMessage.toLowerCase();
+async function fetchAllContext(supabaseAdmin: any) {
   const context: Record<string, any> = {};
-
-  // Always fetch base context
-  const today = new Date().toISOString().split("T")[0];
+  const now = new Date();
+  const today = now.toISOString().split("T")[0];
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
+  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0];
   const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().split("T")[0];
-  const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split("T")[0];
+  const ninetyDaysAgo = new Date(Date.now() - 90 * 86400000).toISOString().split("T")[0];
 
-  const [todayBookings, weekRevenue, unpaidDeposits, activePackages] = await Promise.all([
-    supabaseAdmin.from("bookings").select("id", { count: "exact", head: true }).eq("booking_date", today).in("status", ["Pending", "Confirmed"]),
-    supabaseAdmin.from("bookings").select("total_price, deposit_paid, final_charge").gte("booking_date", weekAgo).in("status", ["Confirmed", "Completed"]),
-    supabaseAdmin.from("bookings").select("id, customer_name, total_price, deposit_paid, staff_id").eq("status", "Pending").eq("deposit_paid", 0),
-    supabaseAdmin.from("package_bookings").select("id", { count: "exact", head: true }).eq("status", "active"),
+  // Fetch everything in parallel
+  const [
+    monthBookings,
+    staff,
+    commissions,
+    activePackages,
+    packageSessions,
+    emailCampaigns,
+    smsCampaigns,
+    allBookingEmails,
+    todayBookingsResult,
+  ] = await Promise.all([
+    supabaseAdmin.from("bookings")
+      .select("id, customer_name, dog_name, booking_date, booking_time, status, total_price, deposit_paid, final_charge, staff_id, service_id, booking_source, customer_email, stripe_payment_id")
+      .gte("booking_date", monthStart).lte("booking_date", monthEnd)
+      .order("booking_date", { ascending: true }),
+    supabaseAdmin.from("staff").select("id, name, commission_rate, is_active"),
+    supabaseAdmin.from("commission_records")
+      .select("staff_id, groomer_pay, total_price, booking_source, commission_rate")
+      .gte("created_at", monthStart),
+    supabaseAdmin.from("package_bookings")
+      .select("id, customer_name, dog_name, package_type, sessions_count, total_paid, status, tc_signed, created_at")
+      .eq("status", "active"),
+    supabaseAdmin.from("package_sessions").select("package_booking_id, status"),
+    supabaseAdmin.from("email_campaigns")
+      .select("id, subject, status, emails_sent, opens, clicks, unique_opens, unique_clicks, sent_at")
+      .order("created_at", { ascending: false }).limit(10),
+    supabaseAdmin.from("bulk_sms_log")
+      .select("campaign_name, status, delivery_status, sent_at")
+      .order("sent_at", { ascending: false }).limit(50),
+    supabaseAdmin.from("bookings")
+      .select("customer_email").order("created_at", { ascending: true }),
+    supabaseAdmin.from("bookings")
+      .select("id", { count: "exact", head: true })
+      .eq("booking_date", today).in("status", ["Pending", "Confirmed"]),
   ]);
 
-  const weekTotal = (weekRevenue.data || []).reduce((s: number, b: any) => s + (b.final_charge || b.total_price || 0), 0);
+  const staffMap = Object.fromEntries((staff.data || []).map((s: any) => [s.id, s.name]));
+  const bookings = monthBookings.data || [];
 
-  context.base = {
-    todays_bookings_count: todayBookings.count || 0,
-    this_weeks_revenue: `£${weekTotal.toFixed(2)}`,
-    unpaid_deposits_count: (unpaidDeposits.data || []).length,
-    unpaid_deposits_total: `£${(unpaidDeposits.data || []).reduce((s: number, b: any) => s + (b.total_price || 0), 0).toFixed(2)}`,
-    active_packages_count: activePackages.count || 0,
+  // Status counts and sums
+  const statusSummary: Record<string, { count: number; revenue: number }> = {};
+  let totalDepositsCollected = 0;
+  let futureBookedRevenue = 0;
+
+  bookings.forEach((b: any) => {
+    if (!statusSummary[b.status]) statusSummary[b.status] = { count: 0, revenue: 0 };
+    statusSummary[b.status].count++;
+    statusSummary[b.status].revenue += b.total_price || 0;
+    totalDepositsCollected += b.deposit_paid || 0;
+    if (b.booking_date >= today && (b.status === "Pending" || b.status === "Confirmed")) {
+      futureBookedRevenue += b.total_price || 0;
+    }
+  });
+
+  const bookedRevenue = bookings.reduce((s: number, b: any) => s + (b.total_price || 0), 0);
+  const earnedRevenue = bookings.filter((b: any) => b.status === "Completed").reduce((s: number, b: any) => s + (b.total_price || 0), 0);
+
+  context.bookings_summary = {
+    month: monthStart,
+    today_count: todayBookingsResult.count || 0,
+    total_booked_revenue: `£${bookedRevenue.toFixed(2)}`,
+    earned_revenue_completed: `£${earnedRevenue.toFixed(2)}`,
+    deposits_collected: `£${totalDepositsCollected.toFixed(2)}`,
+    future_booked_revenue: `£${futureBookedRevenue.toFixed(2)}`,
+    by_status: Object.fromEntries(
+      Object.entries(statusSummary).map(([k, v]) => [k, { count: v.count, revenue: `£${v.revenue.toFixed(2)}` }])
+    ),
   };
 
-  // Booking/payment context
-  if (/booking|payment|deposit|appoint|revenue|money|income/.test(msg)) {
-    const { data: bookings } = await supabaseAdmin
-      .from("bookings")
-      .select("id, customer_name, dog_name, booking_date, booking_time, status, total_price, deposit_paid, final_charge, staff_id, booking_source")
-      .order("booking_date", { ascending: false })
-      .limit(50);
+  // Recent bookings detail
+  context.bookings_this_month = bookings.map((b: any) => ({
+    id: b.id,
+    customer_name: b.customer_name,
+    dog_name: b.dog_name,
+    date: b.booking_date,
+    time: b.booking_time,
+    status: b.status,
+    total_price: b.total_price,
+    deposit_paid: b.deposit_paid,
+    groomer: staffMap[b.staff_id] || "Unassigned",
+    source: b.booking_source,
+    has_stripe: !!b.stripe_payment_id,
+  }));
 
-    const { data: staff } = await supabaseAdmin.from("staff").select("id, name");
-    const staffMap = Object.fromEntries((staff || []).map((s: any) => [s.id, s.name]));
+  // Commission by groomer
+  const commByStaff: Record<string, { pay: number; revenue: number; count: number }> = {};
+  (commissions.data || []).forEach((c: any) => {
+    if (!commByStaff[c.staff_id]) commByStaff[c.staff_id] = { pay: 0, revenue: 0, count: 0 };
+    commByStaff[c.staff_id].pay += c.groomer_pay || 0;
+    commByStaff[c.staff_id].revenue += c.total_price || 0;
+    commByStaff[c.staff_id].count++;
+  });
 
-    context.recent_bookings = (bookings || []).map((b: any) => ({
-      ...b,
+  context.staff_performance = (staff.data || []).filter((s: any) => s.is_active).map((s: any) => ({
+    name: s.name,
+    commission_rate: s.commission_rate,
+    month_pay: `£${(commByStaff[s.id]?.pay || 0).toFixed(2)}`,
+    month_revenue: `£${(commByStaff[s.id]?.revenue || 0).toFixed(2)}`,
+    month_bookings: commByStaff[s.id]?.count || 0,
+  }));
+
+  // Packages
+  const sessionsByPkg: Record<string, { used: number; total: number }> = {};
+  (packageSessions.data || []).forEach((s: any) => {
+    if (!sessionsByPkg[s.package_booking_id]) sessionsByPkg[s.package_booking_id] = { used: 0, total: 0 };
+    sessionsByPkg[s.package_booking_id].total++;
+    if (s.status === "used") sessionsByPkg[s.package_booking_id].used++;
+  });
+
+  context.active_packages = (activePackages.data || []).map((p: any) => ({
+    customer_name: p.customer_name,
+    dog_name: p.dog_name,
+    package_type: p.package_type,
+    total_paid: `£${(p.total_paid || 0).toFixed(2)}`,
+    tc_signed: p.tc_signed,
+    sessions_used: sessionsByPkg[p.id]?.used || 0,
+    sessions_total: sessionsByPkg[p.id]?.total || p.sessions_count,
+  }));
+
+  // Customers
+  const allEmails = (allBookingEmails.data || []).map((b: any) => b.customer_email?.toLowerCase()).filter(Boolean);
+  const uniqueCustomers = new Set(allEmails);
+  
+  // New customers this month - first booking ever
+  const firstBookingByEmail: Record<string, string> = {};
+  (allBookingEmails.data || []).forEach((b: any) => {
+    const email = b.customer_email?.toLowerCase();
+    if (!email) return;
+    // The bookings are ordered by created_at ascending, so first occurrence is the first booking
+  });
+  // Simpler: customers whose first booking in bookings table is this month
+  const monthCustomerEmails = bookings.map((b: any) => b.customer_email?.toLowerCase()).filter(Boolean);
+  const newThisMonth = monthCustomerEmails.filter((email: string) => {
+    // Check if this email has no bookings before this month
+    return !allEmails.some((e: string) => e === email); // This won't work perfectly; use the count approach
+  });
+
+  context.customers = {
+    total_unique_customers: uniqueCustomers.size,
+    note: "Customer counts based on unique emails in bookings table",
+  };
+
+  // Campaigns
+  context.email_campaigns = emailCampaigns.data || [];
+  context.sms_campaigns_recent = smsCampaigns.data || [];
+
+  // Anomalies
+  const anomalies = bookings.filter((b: any) => b.status === "Pending" && b.deposit_paid === 0);
+  context.unpaid_deposits = {
+    count: anomalies.length,
+    total_value: `£${anomalies.reduce((s: number, b: any) => s + (b.total_price || 0), 0).toFixed(2)}`,
+    bookings: anomalies.slice(0, 20).map((b: any) => ({
+      customer_name: b.customer_name,
+      date: b.booking_date,
+      total_price: b.total_price,
       groomer: staffMap[b.staff_id] || "Unassigned",
-    }));
-  }
-
-  // Customer context
-  if (/customer|client|new.*week|retention|loyal/.test(msg)) {
-    const { data: recentCustomers } = await supabaseAdmin
-      .from("bookings")
-      .select("customer_name, customer_email")
-      .gte("created_at", weekAgo)
-      .order("created_at", { ascending: false })
-      .limit(100);
-
-    const uniqueNewEmails = new Set((recentCustomers || []).map((c: any) => c.customer_email?.toLowerCase()).filter(Boolean));
-
-    const { data: topCustomers } = await supabaseAdmin
-      .from("bookings")
-      .select("customer_name, customer_email")
-      .in("status", ["Confirmed", "Completed"]);
-
-    const visitCounts: Record<string, { name: string; count: number }> = {};
-    (topCustomers || []).forEach((b: any) => {
-      const key = b.customer_email?.toLowerCase();
-      if (!key) return;
-      if (!visitCounts[key]) visitCounts[key] = { name: b.customer_name, count: 0 };
-      visitCounts[key].count++;
-    });
-
-    const topList = Object.values(visitCounts).sort((a, b) => b.count - a.count).slice(0, 15);
-
-    context.customers = {
-      new_this_week: uniqueNewEmails.size,
-      top_customers_by_visits: topList,
-    };
-  }
-
-  // Staff/groomer context
-  if (/groomer|staff|commission|performance|team/.test(msg)) {
-    const { data: staff } = await supabaseAdmin.from("staff").select("id, name, commission_rate, is_active");
-    const { data: commissions } = await supabaseAdmin
-      .from("commission_records")
-      .select("staff_id, groomer_pay, total_price, booking_source")
-      .gte("created_at", monthStart);
-
-    const { data: weekBookings } = await supabaseAdmin
-      .from("bookings")
-      .select("staff_id, id")
-      .gte("booking_date", weekAgo)
-      .in("status", ["Confirmed", "Completed"]);
-
-    const commByStaff: Record<string, { pay: number; revenue: number; count: number }> = {};
-    (commissions || []).forEach((c: any) => {
-      if (!commByStaff[c.staff_id]) commByStaff[c.staff_id] = { pay: 0, revenue: 0, count: 0 };
-      commByStaff[c.staff_id].pay += c.groomer_pay || 0;
-      commByStaff[c.staff_id].revenue += c.total_price || 0;
-      commByStaff[c.staff_id].count++;
-    });
-
-    const weekByStaff: Record<string, number> = {};
-    (weekBookings || []).forEach((b: any) => {
-      weekByStaff[b.staff_id] = (weekByStaff[b.staff_id] || 0) + 1;
-    });
-
-    context.staff_performance = (staff || []).filter((s: any) => s.is_active).map((s: any) => ({
-      name: s.name,
-      commission_rate: s.commission_rate,
-      month_pay: `£${(commByStaff[s.id]?.pay || 0).toFixed(2)}`,
-      month_revenue: `£${(commByStaff[s.id]?.revenue || 0).toFixed(2)}`,
-      month_bookings: commByStaff[s.id]?.count || 0,
-      week_bookings: weekByStaff[s.id] || 0,
-    }));
-  }
-
-  // Marketing context
-  if (/campaign|sms|email|marketing|promot/.test(msg)) {
-    const { data: emailCampaigns } = await supabaseAdmin
-      .from("email_campaigns")
-      .select("id, subject, status, emails_sent, opens, clicks, unique_opens, unique_clicks, sent_at")
-      .order("created_at", { ascending: false })
-      .limit(10);
-
-    const { data: smsCampaigns } = await supabaseAdmin
-      .from("bulk_sms_log")
-      .select("campaign_name, status, delivery_status, sent_at")
-      .order("sent_at", { ascending: false })
-      .limit(50);
-
-    context.marketing = { email_campaigns: emailCampaigns, sms_recent: smsCampaigns };
-  }
-
-  // Package context
-  if (/package|deal|bundle/.test(msg)) {
-    const { data: packages } = await supabaseAdmin
-      .from("package_bookings")
-      .select("id, customer_name, dog_name, package_type, sessions_count, total_paid, status, tc_signed, created_at")
-      .order("created_at", { ascending: false })
-      .limit(20);
-
-    const { data: sessions } = await supabaseAdmin
-      .from("package_sessions")
-      .select("package_booking_id, status");
-
-    const sessionsByPkg: Record<string, { used: number; total: number }> = {};
-    (sessions || []).forEach((s: any) => {
-      if (!sessionsByPkg[s.package_booking_id]) sessionsByPkg[s.package_booking_id] = { used: 0, total: 0 };
-      sessionsByPkg[s.package_booking_id].total++;
-      if (s.status === "used") sessionsByPkg[s.package_booking_id].used++;
-    });
-
-    context.packages = (packages || []).map((p: any) => ({
-      ...p,
-      sessions_used: sessionsByPkg[p.id]?.used || 0,
-      sessions_total: sessionsByPkg[p.id]?.total || p.sessions_count,
-    }));
-  }
-
-  // Fraud/anomaly context
-  if (/fraud|anomal|suspicious|discrepan|wrong|investigate|check/.test(msg)) {
-    const { data: anomalies } = await supabaseAdmin
-      .from("bookings")
-      .select("id, customer_name, booking_date, total_price, final_charge, deposit_paid, staff_id, payment_anomaly, anomaly_type, anomaly_reviewed")
-      .eq("payment_anomaly", true)
-      .order("booking_date", { ascending: false })
-      .limit(20);
-
-    const { data: staff } = await supabaseAdmin.from("staff").select("id, name");
-    const staffMap = Object.fromEntries((staff || []).map((s: any) => [s.id, s.name]));
-
-    context.anomalies = (anomalies || []).map((b: any) => ({
-      ...b,
-      groomer: staffMap[b.staff_id] || "Unknown",
-    }));
-
-    const { data: auditFlags } = await supabaseAdmin
-      .from("audit_logs")
-      .select("action, details, created_at")
-      .eq("action", "UNMATCHED_PAYMENT")
-      .order("created_at", { ascending: false })
-      .limit(5);
-
-    context.unmatched_payments = auditFlags;
-  }
+    })),
+  };
 
   return context;
 }
@@ -198,7 +185,6 @@ serve(async (req) => {
     const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
     if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY not configured");
 
-    // Verify director role
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: corsHeaders });
@@ -219,7 +205,6 @@ serve(async (req) => {
     }
     const userId = claimsData.claims.sub;
 
-    // Check director role
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
     const { data: roleData } = await supabaseAdmin
       .from("user_roles")
@@ -234,10 +219,8 @@ serve(async (req) => {
     const { messages, imageBase64, imageMediaType, fileContent } = await req.json();
     if (!messages?.length) throw new Error("No messages provided");
 
-    const latestMessage = messages[messages.length - 1]?.content || "";
-
-    // Fetch context data
-    const contextData = await fetchContextData(supabaseAdmin, latestMessage);
+    // Fetch ALL context data on every request
+    const contextData = await fetchAllContext(supabaseAdmin);
 
     const systemPrompt = `You are a private AI analyst and assistant for Sevak, the director of Fluff & Scruff Studio, a dog grooming salon in Hornchurch, Essex. You have access to live data from the salon management system.
 
@@ -276,7 +259,6 @@ ${JSON.stringify(contextData, null, 2)}`;
       return { role: m.role, content: m.content };
     });
 
-    // Stream from Claude
     const anthropicRes = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {

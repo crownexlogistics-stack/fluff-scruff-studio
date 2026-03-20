@@ -39,7 +39,7 @@ export function GroomerLayout({ children }: GroomerLayoutProps) {
   return (
     <div className="min-h-screen flex w-full">
       {/* Sidebar */}
-      <aside className="w-56 bg-sidebar border-r border-border flex flex-col shrink-0 hidden md:flex">
+      <aside className="w-56 bg-sidebar border-r border-border flex flex-col shrink-0 hidden md:flex sticky top-0 h-screen overflow-y-auto">
         <div className="p-4 flex items-center gap-3">
           <img src={logo} alt="Fluff & Scruff" className="h-10 w-auto brightness-0 invert opacity-90" />
           <div>

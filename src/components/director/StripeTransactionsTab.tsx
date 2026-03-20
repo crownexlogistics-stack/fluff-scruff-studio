@@ -11,9 +11,16 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  RefreshCw, AlertTriangle, CheckCircle2, XCircle, Clock, Search, Loader2,
+  Sheet, SheetContent, SheetHeader, SheetTitle,
+} from "@/components/ui/sheet";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  RefreshCw, AlertTriangle, CheckCircle2, XCircle, Search, Loader2, Copy, Link2, ExternalLink,
 } from "lucide-react";
 import { format, startOfDay, startOfWeek, startOfMonth } from "date-fns";
+import { toast } from "sonner";
 
 interface Transaction {
   id: string;
@@ -22,6 +29,7 @@ interface Transaction {
   status: string;
   created: number;
   customer_email: string | null;
+  customer_name: string | null;
   payment_method: string;
   description: string | null;
   metadata: Record<string, string>;
@@ -35,6 +43,59 @@ interface Payout {
   status: string;
   arrival_date: number;
   created: number;
+}
+
+interface TransactionDetail {
+  id: string;
+  amount: number;
+  currency: string;
+  status: string;
+  created: number;
+  description: string | null;
+  metadata: Record<string, string>;
+  customer_email: string | null;
+  customer_name: string | null;
+  charge_id: string | null;
+  payment_method: {
+    type: string;
+    card: {
+      brand: string;
+      last4: string;
+      exp_month: number;
+      exp_year: number;
+      funding: string;
+      issuer: string | null;
+      three_d_secure: string | null;
+      cvc_check: string | null;
+    } | null;
+  } | null;
+  refunded: boolean;
+  amount_refunded: number;
+  stripe_fee: number;
+  net_amount: number;
+  matched_booking: {
+    id: string;
+    customer_name: string;
+    dog_name: string;
+    booking_date: string;
+    booking_time: string;
+    status: string;
+    total_price: number;
+    deposit_paid: number;
+    groomer_name: string | null;
+  } | null;
+}
+
+interface MatchBooking {
+  id: string;
+  customer_name: string;
+  dog_name: string;
+  booking_date: string;
+  booking_time: string;
+  status: string;
+  total_price: number;
+  deposit_paid: number;
+  staff_id: string | null;
 }
 
 interface StripeTransactionsTabProps {
@@ -53,6 +114,19 @@ export function StripeTransactionsTab({ onInvestigate }: StripeTransactionsTabPr
   const [searchQuery, setSearchQuery] = useState("");
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
+  // Detail panel
+  const [selectedTxId, setSelectedTxId] = useState<string | null>(null);
+  const [txDetail, setTxDetail] = useState<TransactionDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+
+  // Match dialog
+  const [matchTx, setMatchTx] = useState<Transaction | null>(null);
+  const [matchSearch, setMatchSearch] = useState("");
+  const [matchResults, setMatchResults] = useState<MatchBooking[]>([]);
+  const [matchSearching, setMatchSearching] = useState(false);
+  const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
+  const [matching, setMatching] = useState(false);
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
@@ -61,7 +135,6 @@ export function StripeTransactionsTab({ onInvestigate }: StripeTransactionsTabPr
       if (!token) return;
 
       const params = new URLSearchParams({ limit: "100" });
-
       const now = new Date();
       if (dateRange === "today") {
         params.set("created_gte", String(Math.floor(startOfDay(now).getTime() / 1000)));
@@ -94,12 +167,117 @@ export function StripeTransactionsTab({ onInvestigate }: StripeTransactionsTabPr
   }, [dateRange]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
-
-  // Auto-refresh every 5 minutes
   useEffect(() => {
     const interval = setInterval(fetchData, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, [fetchData]);
+
+  // Fetch detail
+  const fetchDetail = useCallback(async (piId: string) => {
+    setDetailLoading(true);
+    setTxDetail(null);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      if (!token) return;
+
+      const resp = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-stripe-transactions?action=detail&payment_intent_id=${piId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          },
+        }
+      );
+      if (!resp.ok) throw new Error("Failed");
+      const data = await resp.json();
+      setTxDetail(data.detail);
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to load transaction details");
+    } finally {
+      setDetailLoading(false);
+    }
+  }, []);
+
+  const handleRowClick = (tx: Transaction) => {
+    setSelectedTxId(tx.id);
+    fetchDetail(tx.id);
+  };
+
+  // Match booking search
+  const searchBookings = useCallback(async (query: string) => {
+    if (!query.trim()) { setMatchResults([]); return; }
+    setMatchSearching(true);
+    try {
+      const q = query.trim().toLowerCase();
+      const { data } = await supabase
+        .from("bookings")
+        .select("id, customer_name, dog_name, booking_date, booking_time, status, total_price, deposit_paid, staff_id")
+        .or(`customer_name.ilike.%${q}%,customer_email.ilike.%${q}%`)
+        .order("booking_date", { ascending: false })
+        .limit(20);
+      setMatchResults((data as MatchBooking[]) || []);
+    } catch {
+      setMatchResults([]);
+    } finally {
+      setMatchSearching(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => { if (matchSearch) searchBookings(matchSearch); }, 300);
+    return () => clearTimeout(timer);
+  }, [matchSearch, searchBookings]);
+
+  const handleMatchConfirm = async () => {
+    if (!matchTx || !selectedBookingId) return;
+    setMatching(true);
+    try {
+      const booking = matchResults.find(b => b.id === selectedBookingId);
+      if (!booking) throw new Error("Booking not found");
+
+      const newDeposit = matchTx.amount;
+      const newStatus = newDeposit >= booking.total_price ? "Confirmed" : "Confirmed";
+
+      const { error } = await supabase
+        .from("bookings")
+        .update({
+          stripe_payment_id: matchTx.id,
+          deposit_paid: newDeposit,
+          status: newStatus,
+        } as any)
+        .eq("id", selectedBookingId);
+
+      if (error) throw error;
+
+      // Audit log
+      await (supabase.from("booking_audit_log" as any) as any).insert({
+        booking_id: selectedBookingId,
+        event_type: "payment_matched",
+        note: `Payment ${matchTx.id} of £${matchTx.amount.toFixed(2)} manually matched by director on ${format(new Date(), "dd MMM yyyy")}. Previously unmatched in Stripe.`,
+        performed_by: "director",
+      });
+
+      await (supabase.from("audit_logs" as any) as any).insert({
+        user_id: (await supabase.auth.getUser()).data.user?.id,
+        action: "PAYMENT_MANUALLY_MATCHED",
+        details: `Payment ${matchTx.id} of £${matchTx.amount.toFixed(2)} matched to booking ${selectedBookingId} (${booking.customer_name}). Deposit updated to £${newDeposit.toFixed(2)}.`,
+      });
+
+      toast.success("Payment matched — booking updated ✅");
+      setMatchTx(null);
+      setSelectedBookingId(null);
+      setMatchSearch("");
+      setMatchResults([]);
+      fetchData(); // Refresh to show updated match status
+    } catch (e: any) {
+      toast.error(e.message || "Failed to match payment");
+    } finally {
+      setMatching(false);
+    }
+  };
 
   const filtered = transactions.filter((t) => {
     if (statusFilter === "succeeded" && t.status !== "succeeded") return false;
@@ -107,25 +285,14 @@ export function StripeTransactionsTab({ onInvestigate }: StripeTransactionsTabPr
     if (statusFilter === "failed" && t.status !== "requires_payment_method" && t.status !== "canceled") return false;
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      if (
-        !t.customer_email?.toLowerCase().includes(q) &&
-        !t.id.toLowerCase().includes(q)
-      ) return false;
+      if (!t.customer_email?.toLowerCase().includes(q) && !t.id.toLowerCase().includes(q) && !t.customer_name?.toLowerCase().includes(q)) return false;
     }
     return true;
   });
 
-  const unmatchedSucceeded = transactions.filter(
-    (t) => t.status === "succeeded" && !t.matched
-  );
-
-  const totalAmount = filtered
-    .filter((t) => t.status === "succeeded")
-    .reduce((sum, t) => sum + t.amount, 0);
-
-  const monthPayouts = payouts
-    .filter((p) => p.status === "paid" || p.status === "in_transit")
-    .reduce((sum, p) => sum + p.amount, 0);
+  const unmatchedSucceeded = transactions.filter((t) => t.status === "succeeded" && !t.matched);
+  const totalAmount = filtered.filter((t) => t.status === "succeeded").reduce((sum, t) => sum + t.amount, 0);
+  const monthPayouts = payouts.filter((p) => p.status === "paid" || p.status === "in_transit").reduce((sum, p) => sum + p.amount, 0);
 
   const statusBadge = (status: string) => {
     if (status === "succeeded") return <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100 border-0">Succeeded</Badge>;
@@ -149,13 +316,22 @@ export function StripeTransactionsTab({ onInvestigate }: StripeTransactionsTabPr
                 </p>
                 <div className="mt-2 space-y-1.5">
                   {unmatchedSucceeded.slice(0, 5).map((t) => (
-                    <div key={t.id} className="flex items-center gap-2 text-xs">
+                    <div key={t.id} className="flex items-center gap-2 text-xs flex-wrap">
                       <span className="font-medium">£{t.amount.toFixed(2)}</span>
                       <span className="text-muted-foreground">{t.customer_email || "No email"}</span>
                       <span className="text-muted-foreground">{format(new Date(t.created * 1000), "dd MMM HH:mm")}</span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-6 text-xs px-2"
+                        onClick={() => { setMatchTx(t); setMatchSearch(t.customer_email || ""); }}
+                      >
+                        <Link2 className="h-3 w-3 mr-1" />
+                        Match to Booking
+                      </Button>
                       {onInvestigate && (
                         <Button
-                          variant="outline"
+                          variant="ghost"
                           size="sm"
                           className="h-6 text-xs px-2"
                           onClick={() => onInvestigate(
@@ -167,9 +343,6 @@ export function StripeTransactionsTab({ onInvestigate }: StripeTransactionsTabPr
                       )}
                     </div>
                   ))}
-                  {unmatchedSucceeded.length > 5 && (
-                    <p className="text-xs text-muted-foreground">...and {unmatchedSucceeded.length - 5} more</p>
-                  )}
                 </div>
               </div>
             </div>
@@ -180,9 +353,7 @@ export function StripeTransactionsTab({ onInvestigate }: StripeTransactionsTabPr
       {/* Filter bar */}
       <div className="flex flex-wrap gap-2 items-center">
         <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
-          <SelectTrigger className="w-[140px] h-9 text-sm">
-            <SelectValue />
-          </SelectTrigger>
+          <SelectTrigger className="w-[140px] h-9 text-sm"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All statuses</SelectItem>
             <SelectItem value="succeeded">Succeeded</SelectItem>
@@ -192,9 +363,7 @@ export function StripeTransactionsTab({ onInvestigate }: StripeTransactionsTabPr
         </Select>
 
         <Select value={dateRange} onValueChange={(v) => setDateRange(v as DateRange)}>
-          <SelectTrigger className="w-[140px] h-9 text-sm">
-            <SelectValue />
-          </SelectTrigger>
+          <SelectTrigger className="w-[140px] h-9 text-sm"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="today">Today</SelectItem>
             <SelectItem value="this_week">This week</SelectItem>
@@ -206,7 +375,7 @@ export function StripeTransactionsTab({ onInvestigate }: StripeTransactionsTabPr
         <div className="relative flex-1 min-w-[200px] max-w-xs">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search email or payment ID..."
+            placeholder="Search email, name or payment ID..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-8 h-9 text-sm"
@@ -219,8 +388,7 @@ export function StripeTransactionsTab({ onInvestigate }: StripeTransactionsTabPr
         </Button>
 
         <span className="text-xs text-muted-foreground ml-auto">
-          £{totalAmount.toFixed(2)} across {filtered.length} transactions
-          · Updated {format(lastRefresh, "HH:mm")}
+          £{totalAmount.toFixed(2)} across {filtered.length} transactions · Updated {format(lastRefresh, "HH:mm")}
         </span>
       </div>
 
@@ -239,21 +407,26 @@ export function StripeTransactionsTab({ onInvestigate }: StripeTransactionsTabPr
                   <TableHead className="text-xs">Amount</TableHead>
                   <TableHead className="text-xs">Status</TableHead>
                   <TableHead className="text-xs">Payment Method</TableHead>
-                  <TableHead className="text-xs">Customer Email</TableHead>
+                  <TableHead className="text-xs">Customer</TableHead>
                   <TableHead className="text-xs">Payment Intent</TableHead>
                   <TableHead className="text-xs text-center">Matched</TableHead>
+                  <TableHead className="text-xs"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-muted-foreground py-8 text-sm">
+                    <TableCell colSpan={8} className="text-center text-muted-foreground py-8 text-sm">
                       No transactions found
                     </TableCell>
                   </TableRow>
                 ) : (
                   filtered.map((t) => (
-                    <TableRow key={t.id}>
+                    <TableRow
+                      key={t.id}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => handleRowClick(t)}
+                    >
                       <TableCell className="text-xs whitespace-nowrap">
                         {format(new Date(t.created * 1000), "dd MMM yyyy HH:mm")}
                       </TableCell>
@@ -263,7 +436,7 @@ export function StripeTransactionsTab({ onInvestigate }: StripeTransactionsTabPr
                       <TableCell>{statusBadge(t.status)}</TableCell>
                       <TableCell className="text-xs">{t.payment_method}</TableCell>
                       <TableCell className="text-xs max-w-[180px] truncate">
-                        {t.customer_email || <span className="text-muted-foreground">—</span>}
+                        {t.customer_name || t.customer_email || <span className="text-muted-foreground">—</span>}
                       </TableCell>
                       <TableCell>
                         <code className="text-[10px] text-muted-foreground font-mono">
@@ -281,6 +454,18 @@ export function StripeTransactionsTab({ onInvestigate }: StripeTransactionsTabPr
                           <span className="text-muted-foreground text-xs">—</span>
                         )}
                       </TableCell>
+                      <TableCell>
+                        {t.status === "succeeded" && !t.matched && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-6 text-xs px-2"
+                            onClick={(e) => { e.stopPropagation(); setMatchTx(t); setMatchSearch(t.customer_email || ""); }}
+                          >
+                            Match
+                          </Button>
+                        )}
+                      </TableCell>
                     </TableRow>
                   ))
                 )}
@@ -290,7 +475,7 @@ export function StripeTransactionsTab({ onInvestigate }: StripeTransactionsTabPr
         </CardContent>
       </Card>
 
-      {/* Payouts section */}
+      {/* Payouts */}
       <Card>
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
@@ -312,19 +497,13 @@ export function StripeTransactionsTab({ onInvestigate }: StripeTransactionsTabPr
             <TableBody>
               {payouts.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={3} className="text-center text-muted-foreground py-6 text-sm">
-                    No payouts found
-                  </TableCell>
+                  <TableCell colSpan={3} className="text-center text-muted-foreground py-6 text-sm">No payouts found</TableCell>
                 </TableRow>
               ) : (
                 payouts.map((p) => (
                   <TableRow key={p.id}>
-                    <TableCell className="text-xs">
-                      {format(new Date(p.arrival_date * 1000), "dd MMM yyyy")}
-                    </TableCell>
-                    <TableCell className="text-sm font-medium tabular-nums">
-                      £{p.amount.toFixed(2)}
-                    </TableCell>
+                    <TableCell className="text-xs">{format(new Date(p.arrival_date * 1000), "dd MMM yyyy")}</TableCell>
+                    <TableCell className="text-sm font-medium tabular-nums">£{p.amount.toFixed(2)}</TableCell>
                     <TableCell>
                       <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100 border-0 text-xs">
                         {p.status === "paid" ? "Paid" : p.status === "in_transit" ? "In Transit" : p.status}
@@ -337,6 +516,234 @@ export function StripeTransactionsTab({ onInvestigate }: StripeTransactionsTabPr
           </Table>
         </CardContent>
       </Card>
+
+      {/* Transaction Detail Sheet */}
+      <Sheet open={!!selectedTxId} onOpenChange={(open) => { if (!open) { setSelectedTxId(null); setTxDetail(null); } }}>
+        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle className="text-base">Transaction Details</SheetTitle>
+          </SheetHeader>
+          {detailLoading ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : txDetail ? (
+            <div className="space-y-5 mt-4">
+              {/* Amount & Status */}
+              <div className="flex items-center justify-between">
+                <span className="text-2xl font-bold">£{txDetail.amount.toFixed(2)}</span>
+                {statusBadge(txDetail.refunded ? "refunded" : txDetail.status)}
+              </div>
+
+              {/* Customer */}
+              <div className="space-y-1.5">
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase">Customer</h4>
+                <p className="text-sm">{txDetail.customer_name || "—"}</p>
+                <p className="text-xs text-muted-foreground">{txDetail.customer_email || "No email"}</p>
+              </div>
+
+              {/* Date */}
+              <div className="space-y-1">
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase">Date & Time</h4>
+                <p className="text-sm">{format(new Date(txDetail.created * 1000), "dd MMMM yyyy 'at' HH:mm")}</p>
+              </div>
+
+              {/* Payment Method */}
+              {txDetail.payment_method?.card && (
+                <div className="space-y-1.5">
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase">Payment Method</h4>
+                  <div className="text-sm space-y-0.5">
+                    <p className="capitalize">{txDetail.payment_method.card.brand} •••• {txDetail.payment_method.card.last4}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Expires {txDetail.payment_method.card.exp_month}/{txDetail.payment_method.card.exp_year}
+                      {txDetail.payment_method.card.funding && ` · ${txDetail.payment_method.card.funding}`}
+                    </p>
+                    {txDetail.payment_method.card.three_d_secure && (
+                      <p className="text-xs text-muted-foreground">3D Secure: {txDetail.payment_method.card.three_d_secure}</p>
+                    )}
+                    {txDetail.payment_method.card.cvc_check && (
+                      <p className="text-xs text-muted-foreground">CVC: {txDetail.payment_method.card.cvc_check}</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Fees */}
+              {txDetail.stripe_fee != null && (
+                <div className="space-y-1">
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase">Payment Breakdown</h4>
+                  <div className="text-sm space-y-0.5">
+                    <div className="flex justify-between"><span>Amount</span><span>£{txDetail.amount.toFixed(2)}</span></div>
+                    <div className="flex justify-between text-muted-foreground"><span>Stripe fee</span><span>-£{txDetail.stripe_fee.toFixed(2)}</span></div>
+                    <div className="flex justify-between font-medium border-t pt-1"><span>Net</span><span>£{txDetail.net_amount.toFixed(2)}</span></div>
+                  </div>
+                </div>
+              )}
+
+              {/* IDs */}
+              <div className="space-y-1.5">
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase">Reference IDs</h4>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <code className="text-[10px] font-mono bg-muted px-1.5 py-0.5 rounded">{txDetail.id}</code>
+                    <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => { navigator.clipboard.writeText(txDetail.id); toast.success("Copied"); }}>
+                      <Copy className="h-3 w-3" />
+                    </Button>
+                  </div>
+                  {txDetail.charge_id && (
+                    <code className="text-[10px] font-mono bg-muted px-1.5 py-0.5 rounded block">{txDetail.charge_id}</code>
+                  )}
+                </div>
+              </div>
+
+              {/* Matched booking */}
+              <div className="space-y-1.5">
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase">Matched Booking</h4>
+                {txDetail.matched_booking ? (
+                  <Card className="border-emerald-200 bg-emerald-50/50">
+                    <CardContent className="p-3 text-sm space-y-0.5">
+                      <p className="font-medium">{txDetail.matched_booking.customer_name} — {txDetail.matched_booking.dog_name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {format(new Date(txDetail.matched_booking.booking_date), "dd MMM yyyy")} at {txDetail.matched_booking.booking_time}
+                      </p>
+                      <p className="text-xs">
+                        £{txDetail.matched_booking.total_price} · Deposit: £{txDetail.matched_booking.deposit_paid}
+                        {txDetail.matched_booking.groomer_name && ` · ${txDetail.matched_booking.groomer_name}`}
+                      </p>
+                      <Badge className="bg-emerald-100 text-emerald-800 border-0 text-[10px] mt-1">{txDetail.matched_booking.status}</Badge>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <Card className="border-amber-200 bg-amber-50/50">
+                    <CardContent className="p-3">
+                      <div className="flex items-center gap-2 text-amber-800 text-sm">
+                        <AlertTriangle className="h-4 w-4" />
+                        <span>No matching booking found</span>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mt-2 h-7 text-xs"
+                        onClick={() => {
+                          setSelectedTxId(null);
+                          setTxDetail(null);
+                          const tx = transactions.find(t => t.id === txDetail.id);
+                          if (tx) { setMatchTx(tx); setMatchSearch(tx.customer_email || ""); }
+                        }}
+                      >
+                        <Link2 className="h-3 w-3 mr-1" />
+                        Match to Booking
+                      </Button>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-2 pt-2 border-t">
+                <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(txDetail.id); toast.success("Copied"); }}>
+                  <Copy className="h-3.5 w-3.5 mr-1.5" />
+                  Copy Payment ID
+                </Button>
+                {!txDetail.matched_booking && txDetail.status === "succeeded" && !txDetail.refunded && (
+                  <Button variant="outline" size="sm" onClick={() => {
+                    setSelectedTxId(null);
+                    setTxDetail(null);
+                    const tx = transactions.find(t => t.id === txDetail.id);
+                    if (tx) { setMatchTx(tx); setMatchSearch(tx.customer_email || ""); }
+                  }}>
+                    <Link2 className="h-3.5 w-3.5 mr-1.5" />
+                    Match to Booking
+                  </Button>
+                )}
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground py-8 text-center">Failed to load details</p>
+          )}
+        </SheetContent>
+      </Sheet>
+
+      {/* Match to Booking Dialog */}
+      <Dialog open={!!matchTx} onOpenChange={(open) => { if (!open) { setMatchTx(null); setSelectedBookingId(null); setMatchSearch(""); setMatchResults([]); } }}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Match Payment to Booking</DialogTitle>
+          </DialogHeader>
+
+          {matchTx && (
+            <div className="space-y-4">
+              {/* Payment info */}
+              <Card className="bg-muted/50">
+                <CardContent className="p-3 text-sm space-y-0.5">
+                  <p className="font-medium">£{matchTx.amount.toFixed(2)} — {matchTx.customer_email || "No email"}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {format(new Date(matchTx.created * 1000), "dd MMM yyyy HH:mm")} · {matchTx.id.slice(0, 25)}...
+                  </p>
+                </CardContent>
+              </Card>
+
+              {/* Search */}
+              <div>
+                <label className="text-xs font-medium mb-1 block">Search customer by name or email</label>
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    value={matchSearch}
+                    onChange={(e) => setMatchSearch(e.target.value)}
+                    placeholder="Search..."
+                    className="pl-8 h-9 text-sm"
+                  />
+                </div>
+              </div>
+
+              {/* Results */}
+              {matchSearching && <Loader2 className="h-4 w-4 animate-spin mx-auto" />}
+              {matchResults.length > 0 && (
+                <div className="space-y-1.5 max-h-[300px] overflow-y-auto">
+                  {matchResults.map((b) => (
+                    <Card
+                      key={b.id}
+                      className={`cursor-pointer transition-colors ${selectedBookingId === b.id ? "border-primary bg-primary/5" : "hover:bg-muted/50"}`}
+                      onClick={() => setSelectedBookingId(b.id)}
+                    >
+                      <CardContent className="p-3 text-sm">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium">{b.customer_name} — {b.dog_name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {format(new Date(b.booking_date), "dd MMM yyyy")} at {b.booking_time}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm font-medium">£{b.total_price}</p>
+                            <p className="text-xs text-muted-foreground">Deposit: £{b.deposit_paid}</p>
+                          </div>
+                        </div>
+                        <Badge variant="outline" className="mt-1 text-[10px]">{b.status}</Badge>
+                        {selectedBookingId === b.id && (
+                          <CheckCircle2 className="h-4 w-4 text-primary absolute top-3 right-3" />
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+              {matchSearch && !matchSearching && matchResults.length === 0 && (
+                <p className="text-xs text-muted-foreground text-center py-3">No bookings found</p>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMatchTx(null)}>Cancel</Button>
+            <Button onClick={handleMatchConfirm} disabled={!selectedBookingId || matching}>
+              {matching ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null}
+              Confirm Match
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

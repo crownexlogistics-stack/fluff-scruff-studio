@@ -7,17 +7,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Send, Sparkles, Plus, Paperclip, X, Loader2,
   CalendarCheck, AlertTriangle, PoundSterling, Users,
-  Package, BarChart3, UserPlus, ShieldAlert, CreditCard,
+  Package, BarChart3, UserPlus, ShieldAlert, CreditCard, Trash2,
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
 import { StripeTransactionsTab } from "@/components/director/StripeTransactionsTab";
 
+const STORAGE_KEY = "director_assistant_messages";
+
 interface Message {
   role: "user" | "assistant";
   content: string;
-  timestamp: Date;
+  timestamp: string; // ISO string for serialization
   imagePreview?: string;
   fileName?: string;
 }
@@ -41,7 +43,12 @@ const conversationStarters = [
 ];
 
 export default function DirectorAssistantPage() {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      return stored ? JSON.parse(stored) : [];
+    } catch { return []; }
+  });
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [activeTab, setActiveTab] = useState("assistant");
@@ -54,6 +61,20 @@ export default function DirectorAssistantPage() {
   } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Persist messages to localStorage
+  useEffect(() => {
+    try {
+      // Don't store image previews in localStorage (too large)
+      const toStore = messages.map(m => ({
+        role: m.role,
+        content: m.content,
+        timestamp: m.timestamp,
+        fileName: m.fileName,
+      }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(toStore));
+    } catch { /* quota exceeded — ignore */ }
+  }, [messages]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -85,13 +106,12 @@ export default function DirectorAssistantPage() {
     if (!text.trim() && !attachment) return;
     if (isStreaming) return;
 
-    // Switch to assistant tab when sending
     setActiveTab("assistant");
 
     const userMsg: Message = {
       role: "user",
       content: text.trim(),
-      timestamp: new Date(),
+      timestamp: new Date().toISOString(),
       imagePreview: attachment?.preview,
       fileName: attachment?.file?.name,
     };
@@ -143,7 +163,7 @@ export default function DirectorAssistantPage() {
       let assistantContent = "";
       let buffer = "";
 
-      setMessages((prev) => [...prev, { role: "assistant", content: "", timestamp: new Date() }]);
+      setMessages((prev) => [...prev, { role: "assistant", content: "", timestamp: new Date().toISOString() }]);
 
       while (true) {
         const { done, value } = await reader.read();
@@ -193,7 +213,7 @@ export default function DirectorAssistantPage() {
     } catch (e: any) {
       setMessages((prev) => [
         ...prev.filter((m) => m.role !== "assistant" || m.content),
-        { role: "assistant", content: `⚠️ Error: ${e.message}`, timestamp: new Date() },
+        { role: "assistant", content: `⚠️ Error: ${e.message}`, timestamp: new Date().toISOString() },
       ]);
     } finally {
       setIsStreaming(false);
@@ -204,6 +224,7 @@ export default function DirectorAssistantPage() {
     setMessages([]);
     setInput("");
     setAttachment(null);
+    localStorage.removeItem(STORAGE_KEY);
   };
 
   const handleInvestigate = (message: string) => {
@@ -226,7 +247,7 @@ export default function DirectorAssistantPage() {
           </div>
           {activeTab === "assistant" && messages.length > 0 && (
             <Button variant="outline" size="sm" onClick={handleNewConversation}>
-              <Plus className="h-3.5 w-3.5 mr-1" />
+              <Trash2 className="h-3.5 w-3.5 mr-1" />
               New Conversation
             </Button>
           )}
@@ -249,6 +270,12 @@ export default function DirectorAssistantPage() {
             <div className="flex gap-4 h-full">
               {/* Chat column */}
               <div className="flex-1 flex flex-col min-w-0 border rounded-lg bg-background">
+                {/* Persistence note */}
+                {messages.length > 0 && (
+                  <div className="px-4 py-1.5 border-b bg-muted/30 text-[10px] text-muted-foreground">
+                    Conversation saved locally — clears when you click New Conversation
+                  </div>
+                )}
                 <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4">
                   {messages.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full gap-6 py-8">
@@ -297,7 +324,7 @@ export default function DirectorAssistantPage() {
                             "text-[10px] mt-1.5",
                             msg.role === "user" ? "text-primary-foreground/50" : "text-muted-foreground"
                           )}>
-                            {format(msg.timestamp, "HH:mm")}
+                            {format(new Date(msg.timestamp), "HH:mm")}
                           </p>
                         </div>
                       </div>
