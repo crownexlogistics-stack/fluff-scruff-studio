@@ -73,6 +73,7 @@ import PackagesPage from "./pages/PackagesPage";
 import UnsubscribePage from "./pages/UnsubscribePage";
 import SmsTrackPage from "./pages/SmsTrackPage";
 import SignPackageTCPage from "./pages/SignPackageTCPage";
+import PublicPackagesPage from "./pages/PublicPackagesPage";
 
 const queryClient = new QueryClient();
 
@@ -99,6 +100,7 @@ const App = () => (
           <Route path="/unsubscribe" element={<UnsubscribePage />} />
           <Route path="/track" element={<SmsTrackPage />} />
           <Route path="/sign-package-tc" element={<SignPackageTCPage />} />
+          <Route path="/packages" element={<PublicPackagesPage />} />
           {/* Old Wix URL redirects */}
           <Route path="/blank" element={<Navigate to="/" replace />} />
           <Route path="/services-2" element={<Navigate to="/" replace />} />

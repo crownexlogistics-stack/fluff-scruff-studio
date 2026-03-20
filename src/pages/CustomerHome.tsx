@@ -17,6 +17,7 @@ import { BookingFlow } from "@/components/BookingFlow";
 
 import { TrustStrip } from "@/components/TrustStrip";
 import { AIChatWidget } from "@/components/AIChatWidget";
+import { PackageDealsSection } from "@/components/PackageDealsSection";
 
 const CustomerHome = () => {
   const { user, signOut, loading: authLoading } = useAuth();
@@ -111,6 +112,9 @@ const CustomerHome = () => {
         services={services}
         onSelectService={(title) => navigate(`/book?service=${encodeURIComponent(title)}`)}
       />
+
+      {/* ══════ PACKAGE DEALS ══════ */}
+      <PackageDealsSection />
 
       {/* ══════ REVIEWS ══════ */}
       <GoogleReviews />

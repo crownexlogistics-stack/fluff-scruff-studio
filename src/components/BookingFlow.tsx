@@ -204,6 +204,8 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
   const [checkingMigrated, setCheckingMigrated] = useState(false);
   const [serverVerifiedSlots, setServerVerifiedSlots] = useState<string[] | null>(null);
   const [verifyingSlots, setVerifyingSlots] = useState(false);
+  const [packagePromptDismissed, setPackagePromptDismissed] = useState(false);
+  const [showPackagePopup, setShowPackagePopup] = useState(false);
 
   const effectiveService = puppySwitched ? "Puppy Special" : service;
 
@@ -1376,6 +1378,92 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
                   </div>
                 )}
               </div>
+            )}
+
+            {/* Package deal prompt — show once before calendar */}
+            {step === "calendar" && !packagePromptDismissed && (
+              (() => {
+                const isGroomingService = effectiveService === "Grooming" || selectedSub === "Full Groom" || selectedSub === "Bath & Brush";
+                const isTeethService = effectiveService === "Ultrasonic Teeth Cleaning";
+                if (!isGroomingService && !isTeethService) return null;
+                return (
+                  <div className="max-w-lg mx-auto px-5 mb-4">
+                    <motion.div
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.4 }}
+                      className="bg-accent/10 border border-accent/20 p-4 space-y-3"
+                      style={{ borderRadius: '20px' }}
+                    >
+                      <p className="font-body text-sm text-foreground leading-relaxed">
+                        {isTeethService
+                          ? "💡 Did you know? Book 5 teeth cleaning sessions for £100 — that's £20 each instead of £25. Contact us to find out more."
+                          : "💡 Did you know? Book 4 sessions upfront and save 10% on every visit — or save 15% when you book 6. Contact us to set up a package deal."}
+                      </p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setShowPackagePopup(true)}
+                          className="font-body font-bold text-xs px-4 py-2 bg-accent text-white hover:bg-accent/90 transition-all active:scale-[0.97]"
+                          style={{ borderRadius: '30px' }}
+                        >
+                          Tell Me More
+                        </button>
+                        <button
+                          onClick={() => setPackagePromptDismissed(true)}
+                          className="font-body font-semibold text-xs px-4 py-2 bg-muted text-muted-foreground hover:bg-muted/80 transition-all active:scale-[0.97]"
+                          style={{ borderRadius: '30px' }}
+                        >
+                          Continue with single booking
+                        </button>
+                      </div>
+                    </motion.div>
+
+                    {/* Package info popup */}
+                    {showPackagePopup && (
+                      <Dialog open={showPackagePopup} onOpenChange={setShowPackagePopup}>
+                        <DialogContent className="max-w-md" style={{ borderRadius: '24px' }}>
+                          <DialogHeader>
+                            <DialogTitle className="font-heading text-lg">📦 Package Deals</DialogTitle>
+                          </DialogHeader>
+                          <div className="space-y-4 font-body text-sm text-muted-foreground">
+                            {isTeethService ? (
+                              <div className="bg-accent/10 p-4 space-y-2" style={{ borderRadius: '16px' }}>
+                                <p className="font-bold text-foreground">5 Teeth Cleans for £100</p>
+                                <p>Normally £25 per session — pay just £20 each when you pre-book 5 sessions.</p>
+                                <p className="font-semibold text-accent">Save £25 in total!</p>
+                              </div>
+                            ) : (
+                              <>
+                                <div className="bg-accent/10 p-4 space-y-2" style={{ borderRadius: '16px' }}>
+                                  <p className="font-bold text-foreground">4 Sessions — Save 10%</p>
+                                  <p>Pre-book 4 grooming sessions. Mix full grooms and bath & brush.</p>
+                                </div>
+                                <div className="bg-accent/10 p-4 space-y-2" style={{ borderRadius: '16px' }}>
+                                  <p className="font-bold text-foreground">6 Sessions — Save 15%</p>
+                                  <p>Our best deal! Pre-book 6 sessions and lock in the biggest discount.</p>
+                                </div>
+                              </>
+                            )}
+                            <div className="pt-2 border-t border-border/30 space-y-2">
+                              <p className="font-semibold text-foreground">How to book a package:</p>
+                              <p>📞 Call us: <a href="tel:01708606655" className="text-accent font-bold">01708 606655</a></p>
+                              <p>💬 WhatsApp: <a href="https://wa.me/447476452782" target="_blank" rel="noopener noreferrer" className="text-accent font-bold">+44 7476 452782</a></p>
+                              <p>🏠 Or pop into the salon!</p>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => { setShowPackagePopup(false); setPackagePromptDismissed(true); }}
+                            className="w-full font-body font-bold text-sm py-2.5 bg-accent text-white hover:bg-accent/90 transition-all active:scale-[0.97] mt-2"
+                            style={{ borderRadius: '30px' }}
+                          >
+                            Continue with single booking
+                          </button>
+                        </DialogContent>
+                      </Dialog>
+                    )}
+                  </div>
+                );
+              })()
             )}
 
             {/* Calendar + time slots */}
