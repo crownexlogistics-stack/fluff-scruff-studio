@@ -50,8 +50,11 @@ serve(async (req) => {
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
 
     // Create a Stripe Payment Link
+    const isDeposit = payment_type === "deposit";
+    const labelPrefix = isDeposit ? "Deposit" : "Payment";
+
     const product = await stripe.products.create({
-      name: `Payment — ${booking.services?.name || "Dog Grooming"} for ${booking.dog_name}`,
+      name: `${labelPrefix} — ${booking.services?.name || "Dog Grooming"} for ${booking.dog_name}`,
     });
     const price = await stripe.prices.create({
       product: product.id,
