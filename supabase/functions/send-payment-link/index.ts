@@ -25,7 +25,7 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { booking_id, send_via } = await req.json();
+    const { booking_id, send_via, payment_type } = await req.json();
     if (!booking_id) throw new Error("booking_id required");
 
     const { data: booking, error: bErr } = await supabase
@@ -37,7 +37,11 @@ serve(async (req) => {
 
     const total = Number(booking.total_price);
     const deposit = Number(booking.deposit_paid);
-    const amountDue = total - deposit;
+
+    // When payment_type is "deposit", charge exactly 50% of total
+    const amountDue = payment_type === "deposit"
+      ? total * 0.5
+      : total - deposit;
     if (amountDue <= 0) throw new Error("No amount due on this booking");
 
     const amountInPence = Math.round(amountDue * 100);
