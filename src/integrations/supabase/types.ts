@@ -1926,6 +1926,53 @@ export type Database = {
           },
         ]
       }
+      package_checkout_pending: {
+        Row: {
+          breed_id: string | null
+          created_at: string | null
+          customer_email: string
+          customer_name: string
+          customer_phone: string | null
+          dog_name: string | null
+          id: string
+          package_id: string | null
+          sessions_json: Json
+          total_price: number
+        }
+        Insert: {
+          breed_id?: string | null
+          created_at?: string | null
+          customer_email: string
+          customer_name?: string
+          customer_phone?: string | null
+          dog_name?: string | null
+          id?: string
+          package_id?: string | null
+          sessions_json?: Json
+          total_price?: number
+        }
+        Update: {
+          breed_id?: string | null
+          created_at?: string | null
+          customer_email?: string
+          customer_name?: string
+          customer_phone?: string | null
+          dog_name?: string | null
+          id?: string
+          package_id?: string | null
+          sessions_json?: Json
+          total_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "package_checkout_pending_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "packages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       package_sessions: {
         Row: {
           booking_id: string | null
