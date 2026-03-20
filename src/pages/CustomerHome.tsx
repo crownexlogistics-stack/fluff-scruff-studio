@@ -113,6 +113,9 @@ const CustomerHome = () => {
         onSelectService={(title) => navigate(`/book?service=${encodeURIComponent(title)}`)}
       />
 
+      {/* ══════ PACKAGE DEALS ══════ */}
+      <PackageDealsSection />
+
       {/* ══════ REVIEWS ══════ */}
       <GoogleReviews />
 
