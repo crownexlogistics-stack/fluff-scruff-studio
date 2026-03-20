@@ -66,7 +66,7 @@ serve(async (req) => {
       metadata: { booking_id },
       after_completion: {
         type: "redirect",
-        redirect: { url: "https://fluffandscruff.co.uk/booking-success?booking_id=" + booking_id + "&payment_type=balance" },
+        redirect: { url: "https://fluffandscruff.co.uk/booking-success?booking_id=" + booking_id + "&payment_type=" + (isDeposit ? "deposit" : "balance") },
       },
     });
 
