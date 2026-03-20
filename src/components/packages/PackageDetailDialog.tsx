@@ -13,6 +13,8 @@ import { AlertTriangle, Package, Loader2, FileCheck, Clock, Send, PenLine, FileD
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { PasswordVerifyDialog } from "@/components/booking-calendar/PasswordVerifyDialog";
+import { useAuth } from "@/hooks/useAuth";
+import { useUserRole } from "@/hooks/useUserRole";
 
 interface Props {
   packageBookingId: string;
