@@ -80,7 +80,7 @@ async function fetchAllContext(supabaseAdmin: any) {
   const staffMap = Object.fromEntries((staff.data || []).map((s: any) => [s.id, s.name]));
   const bookings = monthBookings.data || [];
 
-  // Build add-on price map and per-booking addon totals
+  // Build add-on labels per booking (for display only — NOT added to revenue since total_price already includes add-ons)
   const addonPriceMap = Object.fromEntries((addOns.data || []).map((a: any) => [a.id, { name: a.name, price: a.price }]));
   const bookingIdSet = new Set(bookings.map((b: any) => b.id));
   const addonsByBooking: Record<string, { total: number; items: string[] }> = {};
@@ -102,10 +102,13 @@ async function fetchAllContext(supabaseAdmin: any) {
   let totalDepositsCollected = 0;
   let futureBookedRevenue = 0;
   let completedRevenue = 0;
-  let completedAddonRevenue = 0;
   let cashPaymentsTotal = 0;
   let cardOnlineTotal = 0;
   let outstandingBalance = 0;
+  let wixMigratedCompletedRevenue = 0;
+  let completedToday = 0;
+  let revenueToday = 0;
+  let todayBookingCount = 0;
 
   bookings.forEach((b: any) => {
     const price = effectivePrice(b);
@@ -114,13 +117,23 @@ async function fetchAllContext(supabaseAdmin: any) {
     statusSummary[b.status].revenue += price;
     totalDepositsCollected += b.deposit_paid || 0;
 
+    if (b.booking_date === today) {
+      todayBookingCount++;
+    }
+
     if (b.status === "Completed") {
       completedRevenue += price;
-      completedAddonRevenue += addonsByBooking[b.id]?.total || 0;
       if (b.booking_source === "cash") {
         cashPaymentsTotal += price;
       } else {
         cardOnlineTotal += price;
+      }
+      if (b.booking_source === "wix_migrated" || b.booking_source === "wix") {
+        wixMigratedCompletedRevenue += price;
+      }
+      if (b.booking_date === today) {
+        completedToday++;
+        revenueToday += price;
       }
     }
 
@@ -134,21 +147,24 @@ async function fetchAllContext(supabaseAdmin: any) {
 
   context.bookings_summary = {
     month: monthStart,
-    today_count: todayBookingsResult.count || 0,
+    today_count: todayBookingCount,
+    completed_today: completedToday,
+    revenue_today: `£${revenueToday.toFixed(2)}`,
     total_booked_revenue: `£${bookedRevenue.toFixed(2)}`,
     completed_bookings_revenue: `£${completedRevenue.toFixed(2)}`,
-    completed_addons_revenue: `£${completedAddonRevenue.toFixed(2)}`,
-    total_earned_this_month: `£${(completedRevenue + completedAddonRevenue).toFixed(2)}`,
+    total_earned_this_month: `£${completedRevenue.toFixed(2)}`,
+    wix_migrated_completed_revenue: `£${wixMigratedCompletedRevenue.toFixed(2)}`,
     cash_payments_total: `£${cashPaymentsTotal.toFixed(2)}`,
     card_online_payments_total: `£${cardOnlineTotal.toFixed(2)}`,
     deposits_collected: `£${totalDepositsCollected.toFixed(2)}`,
     future_booked_revenue: `£${futureBookedRevenue.toFixed(2)}`,
     outstanding_balance_to_collect: `£${outstandingBalance.toFixed(2)}`,
-    total_if_all_complete: `£${(bookedRevenue + Object.values(addonsByBooking).reduce((s, a) => s + a.total, 0)).toFixed(2)}`,
+    total_if_all_complete: `£${bookedRevenue.toFixed(2)}`,
     by_status: Object.fromEntries(
       Object.entries(statusSummary).map(([k, v]) => [k, { count: v.count, revenue: `£${v.revenue.toFixed(2)}` }])
     ),
-    note_on_revenue: "completed_bookings_revenue uses final_charge if set and > 0, otherwise total_price. completed_addons_revenue is from booking_addons table. total_earned = completed + addons.",
+    note_on_revenue: "IMPORTANT: total_price already includes add-ons and coupon discounts. Do NOT add addon amounts separately — that would double-count. Revenue = total_price (or final_charge if set and > 0). deposit_paid and balance_due are payment timing fields, not separate revenue. A completed booking generates full revenue regardless of whether balance has been collected.",
+    expected_completed_revenue_check: `£${completedRevenue.toFixed(2)}`,
   };
 
   // Bookings detail
@@ -161,14 +177,14 @@ async function fetchAllContext(supabaseAdmin: any) {
     status: b.status,
     total_price: b.total_price,
     final_charge: b.final_charge,
-    effective_price: effectivePrice(b),
+    effective_revenue: effectivePrice(b),
     deposit_paid: b.deposit_paid,
     balance_due: Math.max(0, effectivePrice(b) - (b.deposit_paid || 0)),
     groomer: staffMap[b.staff_id] || "Unassigned",
     source: b.booking_source,
     has_stripe: !!b.stripe_payment_id,
-    addons: addonsByBooking[b.id]?.items || [],
-    addons_total: addonsByBooking[b.id]?.total || 0,
+    addons_included: addonsByBooking[b.id]?.items || [],
+    note: "total_price already includes add-ons and discounts. balance_due is what remains to collect, NOT additional revenue.",
   }));
 
   // Commission by groomer
@@ -315,14 +331,21 @@ You can help with:
 - Reviewing package deal status
 - Analysing any uploaded screenshots or files
 
+CRITICAL REVENUE RULES:
+- Revenue for a booking is ALWAYS total_price (or final_charge if set and > 0). This is the final amount after discounts.
+- total_price ALREADY includes add-on prices and coupon discounts. Do NOT add addon amounts separately — that would double-count.
+- deposit_paid is how much has been collected so far. balance_due is what remains to collect. Neither is separate revenue.
+- A completed booking generates full revenue (total_price) regardless of whether the balance has been collected yet.
+- Wix migrated bookings with deposit_paid = 0 are still real completed bookings with real revenue — include them.
+
 When asked about revenue, always show ALL of the following figures separately:
-1. Completed bookings revenue (total_price or final_charge for completed bookings)
-2. Add-ons revenue for completed bookings
-3. Total earned this month (1 + 2)
-4. Stripe confirmed receipts this month
-5. Cash payments this month
-6. Future booked revenue (confirmed bookings not yet completed)
-7. Total if all current bookings complete
+1. Completed bookings revenue (sum of total_price or final_charge for completed bookings)
+2. Total earned this month (same as #1 — add-ons are already included in total_price)
+3. Stripe confirmed receipts this month (from stripe_cross_reference)
+4. Cash payments this month
+5. Future booked revenue (confirmed bookings not yet completed)
+6. Total if all current bookings complete
+7. Outstanding balance still to collect (deposits not yet paid)
 
 Never estimate or guess revenue figures. Always use exact numbers from the data. If the figures do not match what Sevak expects, say clearly which fields you are reading from and ask Sevak to verify which field contains the correct amounts.
 
