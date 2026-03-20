@@ -207,7 +207,34 @@ export default function CustomerProfilePage() {
     queryFn: async () => {
       const { data, error } = await supabase.rpc("get_user_id_by_email", { _email: decodedEmail });
       if (error) return null;
-      return data as string | null;
+      if (data) return data as string;
+
+      const fallbackName = decodedEmail
+        .split("@")[0]
+        .replace(/[._-]+/g, " ")
+        .trim();
+
+      const { data: created, error: createError } = await supabase
+        .from("migrated_customers")
+        .insert({
+          email: decodedEmail,
+          full_name: fallbackName || decodedEmail,
+        })
+        .select("id, supabase_user_id")
+        .single();
+
+      if (createError) {
+        const { data: existing } = await supabase
+          .from("migrated_customers")
+          .select("id, supabase_user_id")
+          .ilike("email", decodedEmail)
+          .maybeSingle();
+
+        if (!existing) return null;
+        return (existing.supabase_user_id ?? existing.id) as string;
+      }
+
+      return (created.supabase_user_id ?? created.id) as string;
     },
     enabled: !!decodedEmail,
   });
