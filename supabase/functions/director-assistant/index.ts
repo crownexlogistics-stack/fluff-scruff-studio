@@ -6,16 +6,36 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-async function fetchAllContext(supabaseAdmin: any) {
-  const context: Record<string, any> = {};
+function getDateContext() {
   const now = new Date();
   const today = now.toISOString().split("T")[0];
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
-  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0];
-  const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().split("T")[0];
-  const ninetyDaysAgo = new Date(Date.now() - 90 * 86400000).toISOString().split("T")[0];
+  const dayOfWeek = now.getDay(); // 0=Sun
+  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  const weekStart = new Date(now);
+  weekStart.setDate(now.getDate() + mondayOffset);
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 6);
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  const monthName = now.toLocaleString("en-GB", { month: "long", year: "numeric" });
 
-  // Fetch everything in parallel
+  return {
+    today,
+    current_week_start: weekStart.toISOString().split("T")[0],
+    current_week_end: weekEnd.toISOString().split("T")[0],
+    current_month: monthName,
+    current_month_start: monthStart.toISOString().split("T")[0],
+    current_month_end: monthEnd.toISOString().split("T")[0],
+  };
+}
+
+async function fetchAllContext(supabaseAdmin: any) {
+  const context: Record<string, any> = {};
+  const dates = getDateContext();
+  context.current_date_context = dates;
+
+  const { today, current_month_start: monthStart, current_month_end: monthEnd } = dates;
+
   const [
     monthBookings,
     staff,
@@ -26,6 +46,8 @@ async function fetchAllContext(supabaseAdmin: any) {
     smsCampaigns,
     allBookingEmails,
     todayBookingsResult,
+    addOns,
+    bookingAddonsResult,
   ] = await Promise.all([
     supabaseAdmin.from("bookings")
       .select("id, customer_name, dog_name, booking_date, booking_time, status, total_price, deposit_paid, final_charge, staff_id, service_id, booking_source, customer_email, stripe_payment_id")
@@ -50,42 +72,86 @@ async function fetchAllContext(supabaseAdmin: any) {
     supabaseAdmin.from("bookings")
       .select("id", { count: "exact", head: true })
       .eq("booking_date", today).in("status", ["Pending", "Confirmed"]),
+    supabaseAdmin.from("add_ons").select("id, name, price"),
+    supabaseAdmin.from("booking_addons")
+      .select("booking_id, addon_id"),
   ]);
 
   const staffMap = Object.fromEntries((staff.data || []).map((s: any) => [s.id, s.name]));
   const bookings = monthBookings.data || [];
 
+  // Build add-on price map and per-booking addon totals
+  const addonPriceMap = Object.fromEntries((addOns.data || []).map((a: any) => [a.id, { name: a.name, price: a.price }]));
+  const bookingIdSet = new Set(bookings.map((b: any) => b.id));
+  const addonsByBooking: Record<string, { total: number; items: string[] }> = {};
+  (bookingAddonsResult.data || []).forEach((ba: any) => {
+    if (!bookingIdSet.has(ba.booking_id)) return;
+    if (!addonsByBooking[ba.booking_id]) addonsByBooking[ba.booking_id] = { total: 0, items: [] };
+    const addon = addonPriceMap[ba.addon_id];
+    if (addon) {
+      addonsByBooking[ba.booking_id].total += addon.price;
+      addonsByBooking[ba.booking_id].items.push(`${addon.name} (£${addon.price.toFixed(2)})`);
+    }
+  });
+
+  // Helper: effective price for a booking
+  const effectivePrice = (b: any) => (b.final_charge && b.final_charge > 0) ? b.final_charge : (b.total_price || 0);
+
   // Status counts and sums
   const statusSummary: Record<string, { count: number; revenue: number }> = {};
   let totalDepositsCollected = 0;
   let futureBookedRevenue = 0;
+  let completedRevenue = 0;
+  let completedAddonRevenue = 0;
+  let cashPaymentsTotal = 0;
+  let cardOnlineTotal = 0;
+  let outstandingBalance = 0;
 
   bookings.forEach((b: any) => {
+    const price = effectivePrice(b);
     if (!statusSummary[b.status]) statusSummary[b.status] = { count: 0, revenue: 0 };
     statusSummary[b.status].count++;
-    statusSummary[b.status].revenue += b.total_price || 0;
+    statusSummary[b.status].revenue += price;
     totalDepositsCollected += b.deposit_paid || 0;
+
+    if (b.status === "Completed") {
+      completedRevenue += price;
+      completedAddonRevenue += addonsByBooking[b.id]?.total || 0;
+      if (b.booking_source === "cash") {
+        cashPaymentsTotal += price;
+      } else {
+        cardOnlineTotal += price;
+      }
+    }
+
     if (b.booking_date >= today && (b.status === "Pending" || b.status === "Confirmed")) {
-      futureBookedRevenue += b.total_price || 0;
+      futureBookedRevenue += price;
+      outstandingBalance += Math.max(0, price - (b.deposit_paid || 0));
     }
   });
 
-  const bookedRevenue = bookings.reduce((s: number, b: any) => s + (b.total_price || 0), 0);
-  const earnedRevenue = bookings.filter((b: any) => b.status === "Completed").reduce((s: number, b: any) => s + (b.total_price || 0), 0);
+  const bookedRevenue = bookings.reduce((s: number, b: any) => s + effectivePrice(b), 0);
 
   context.bookings_summary = {
     month: monthStart,
     today_count: todayBookingsResult.count || 0,
     total_booked_revenue: `£${bookedRevenue.toFixed(2)}`,
-    earned_revenue_completed: `£${earnedRevenue.toFixed(2)}`,
+    completed_bookings_revenue: `£${completedRevenue.toFixed(2)}`,
+    completed_addons_revenue: `£${completedAddonRevenue.toFixed(2)}`,
+    total_earned_this_month: `£${(completedRevenue + completedAddonRevenue).toFixed(2)}`,
+    cash_payments_total: `£${cashPaymentsTotal.toFixed(2)}`,
+    card_online_payments_total: `£${cardOnlineTotal.toFixed(2)}`,
     deposits_collected: `£${totalDepositsCollected.toFixed(2)}`,
     future_booked_revenue: `£${futureBookedRevenue.toFixed(2)}`,
+    outstanding_balance_to_collect: `£${outstandingBalance.toFixed(2)}`,
+    total_if_all_complete: `£${(bookedRevenue + Object.values(addonsByBooking).reduce((s, a) => s + a.total, 0)).toFixed(2)}`,
     by_status: Object.fromEntries(
       Object.entries(statusSummary).map(([k, v]) => [k, { count: v.count, revenue: `£${v.revenue.toFixed(2)}` }])
     ),
+    note_on_revenue: "completed_bookings_revenue uses final_charge if set and > 0, otherwise total_price. completed_addons_revenue is from booking_addons table. total_earned = completed + addons.",
   };
 
-  // Recent bookings detail
+  // Bookings detail
   context.bookings_this_month = bookings.map((b: any) => ({
     id: b.id,
     customer_name: b.customer_name,
@@ -94,10 +160,15 @@ async function fetchAllContext(supabaseAdmin: any) {
     time: b.booking_time,
     status: b.status,
     total_price: b.total_price,
+    final_charge: b.final_charge,
+    effective_price: effectivePrice(b),
     deposit_paid: b.deposit_paid,
+    balance_due: Math.max(0, effectivePrice(b) - (b.deposit_paid || 0)),
     groomer: staffMap[b.staff_id] || "Unassigned",
     source: b.booking_source,
     has_stripe: !!b.stripe_payment_id,
+    addons: addonsByBooking[b.id]?.items || [],
+    addons_total: addonsByBooking[b.id]?.total || 0,
   }));
 
   // Commission by groomer
@@ -138,20 +209,6 @@ async function fetchAllContext(supabaseAdmin: any) {
   // Customers
   const allEmails = (allBookingEmails.data || []).map((b: any) => b.customer_email?.toLowerCase()).filter(Boolean);
   const uniqueCustomers = new Set(allEmails);
-  
-  // New customers this month - first booking ever
-  const firstBookingByEmail: Record<string, string> = {};
-  (allBookingEmails.data || []).forEach((b: any) => {
-    const email = b.customer_email?.toLowerCase();
-    if (!email) return;
-    // The bookings are ordered by created_at ascending, so first occurrence is the first booking
-  });
-  // Simpler: customers whose first booking in bookings table is this month
-  const monthCustomerEmails = bookings.map((b: any) => b.customer_email?.toLowerCase()).filter(Boolean);
-  const newThisMonth = monthCustomerEmails.filter((email: string) => {
-    // Check if this email has no bookings before this month
-    return !allEmails.some((e: string) => e === email); // This won't work perfectly; use the count approach
-  });
 
   context.customers = {
     total_unique_customers: uniqueCustomers.size,
@@ -162,18 +219,42 @@ async function fetchAllContext(supabaseAdmin: any) {
   context.email_campaigns = emailCampaigns.data || [];
   context.sms_campaigns_recent = smsCampaigns.data || [];
 
-  // Anomalies
-  const anomalies = bookings.filter((b: any) => b.status === "Pending" && b.deposit_paid === 0);
+  // Anomalies — unpaid deposits
+  const anomalies = bookings.filter((b: any) => b.status === "Pending" && (b.deposit_paid || 0) === 0);
   context.unpaid_deposits = {
     count: anomalies.length,
-    total_value: `£${anomalies.reduce((s: number, b: any) => s + (b.total_price || 0), 0).toFixed(2)}`,
+    total_value: `£${anomalies.reduce((s: number, b: any) => s + effectivePrice(b), 0).toFixed(2)}`,
     bookings: anomalies.slice(0, 20).map((b: any) => ({
       customer_name: b.customer_name,
       date: b.booking_date,
-      total_price: b.total_price,
+      total_price: effectivePrice(b),
       groomer: staffMap[b.staff_id] || "Unassigned",
     })),
   };
+
+  // Stripe cross-reference
+  try {
+    const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY");
+    if (STRIPE_SECRET_KEY) {
+      const monthStartUnix = Math.floor(new Date(monthStart).getTime() / 1000);
+      const stripeRes = await fetch(
+        `https://api.stripe.com/v1/payment_intents?limit=100&created[gte]=${monthStartUnix}`,
+        { headers: { Authorization: `Bearer ${STRIPE_SECRET_KEY}` } }
+      );
+      if (stripeRes.ok) {
+        const stripeData = await stripeRes.json();
+        const succeeded = (stripeData.data || []).filter((pi: any) => pi.status === "succeeded");
+        const stripeTotal = succeeded.reduce((s: number, pi: any) => s + (pi.amount_received || 0), 0) / 100;
+        context.stripe_cross_reference = {
+          stripe_total_this_month: `£${stripeTotal.toFixed(2)}`,
+          stripe_succeeded_count: succeeded.length,
+          note: "Compare this against completed_bookings_revenue + deposits to spot discrepancies",
+        };
+      }
+    }
+  } catch (e) {
+    context.stripe_cross_reference = { error: "Could not fetch Stripe data" };
+  }
 
   return context;
 }
@@ -219,7 +300,6 @@ serve(async (req) => {
     const { messages, imageBase64, imageMediaType, fileContent } = await req.json();
     if (!messages?.length) throw new Error("No messages provided");
 
-    // Fetch ALL context data on every request
     const contextData = await fetchAllContext(supabaseAdmin);
 
     const systemPrompt = `You are a private AI analyst and assistant for Sevak, the director of Fluff & Scruff Studio, a dog grooming salon in Hornchurch, Essex. You have access to live data from the salon management system.
@@ -235,12 +315,24 @@ You can help with:
 - Reviewing package deal status
 - Analysing any uploaded screenshots or files
 
+When asked about revenue, always show ALL of the following figures separately:
+1. Completed bookings revenue (total_price or final_charge for completed bookings)
+2. Add-ons revenue for completed bookings
+3. Total earned this month (1 + 2)
+4. Stripe confirmed receipts this month
+5. Cash payments this month
+6. Future booked revenue (confirmed bookings not yet completed)
+7. Total if all current bookings complete
+
+Never estimate or guess revenue figures. Always use exact numbers from the data. If the figures do not match what Sevak expects, say clearly which fields you are reading from and ask Sevak to verify which field contains the correct amounts.
+
+Use the current_date_context object to determine exact date ranges for "this week", "this month", "today" etc. Do not guess dates.
+
 Always refer to money in pounds sterling (£). Always refer to the director as Sevak. Keep responses clear and structured. Use bullet points for lists of data. Flag urgent issues with a warning emoji 🚨. Use ✅ for all-clear items.
 
 Here is the current live data from the system:
 ${JSON.stringify(contextData, null, 2)}`;
 
-    // Build Claude messages
     const claudeMessages = messages.map((m: any, i: number) => {
       if (i === messages.length - 1 && (imageBase64 || fileContent)) {
         const content: any[] = [];
