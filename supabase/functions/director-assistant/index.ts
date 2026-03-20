@@ -101,8 +101,19 @@ async function fetchAllContext(supabaseAdmin: any) {
     }
   });
 
-  // Helper: effective price for a booking
-  const effectivePrice = (b: any) => (b.final_charge && b.final_charge > 0) ? b.final_charge : (b.total_price || 0);
+  // Revenue is always based on total_price (authoritative), never deposit/balance fields
+  const bookingRevenue = (b: any) => Number(b.total_price || 0);
+
+  // Authoritative completed revenue queries
+  const completedRevenueExact = (completedMonthRevenueRows.data || []).reduce(
+    (sum: number, row: any) => sum + Number(row.total_price || 0),
+    0,
+  );
+  const todayCompletedRevenue = (completedTodayRevenueRows.data || []).reduce(
+    (sum: number, row: any) => sum + Number(row.total_price || 0),
+    0,
+  );
+  console.log("Completed revenue:", completedRevenueExact);
 
   // Status counts and sums
   const statusSummary: Record<string, { count: number; revenue: number }> = {};
@@ -114,11 +125,10 @@ async function fetchAllContext(supabaseAdmin: any) {
   let outstandingBalance = 0;
   let wixMigratedCompletedRevenue = 0;
   let completedToday = 0;
-  let revenueToday = 0;
   let todayBookingCount = 0;
 
   bookings.forEach((b: any) => {
-    const price = effectivePrice(b);
+    const price = bookingRevenue(b);
     if (!statusSummary[b.status]) statusSummary[b.status] = { count: 0, revenue: 0 };
     statusSummary[b.status].count++;
     statusSummary[b.status].revenue += price;
@@ -140,26 +150,30 @@ async function fetchAllContext(supabaseAdmin: any) {
       }
       if (b.booking_date === today) {
         completedToday++;
-        revenueToday += price;
       }
     }
 
     if (b.booking_date >= today && (b.status === "Pending" || b.status === "Confirmed")) {
       futureBookedRevenue += price;
-      outstandingBalance += Math.max(0, price - (b.deposit_paid || 0));
+      outstandingBalance += Math.max(0, Number(b.total_price || 0) - Number(b.deposit_paid || 0));
     }
   });
 
-  const bookedRevenue = bookings.reduce((s: number, b: any) => s + effectivePrice(b), 0);
+  const bookedRevenue = bookings.reduce((s: number, b: any) => s + bookingRevenue(b), 0);
+
+  context.completed_revenue_exact = completedRevenueExact;
+  context.today_completed_revenue = todayCompletedRevenue;
 
   context.bookings_summary = {
     month: monthStart,
     today_count: todayBookingCount,
     completed_today: completedToday,
-    revenue_today: `£${revenueToday.toFixed(2)}`,
+    revenue_today: `£${todayCompletedRevenue.toFixed(2)}`,
     total_booked_revenue: `£${bookedRevenue.toFixed(2)}`,
-    completed_bookings_revenue: `£${completedRevenue.toFixed(2)}`,
-    total_earned_this_month: `£${completedRevenue.toFixed(2)}`,
+    completed_bookings_revenue: `£${completedRevenueExact.toFixed(2)}`,
+    completed_revenue_exact: `£${completedRevenueExact.toFixed(2)}`,
+    today_completed_revenue: `£${todayCompletedRevenue.toFixed(2)}`,
+    total_earned_this_month: `£${completedRevenueExact.toFixed(2)}`,
     wix_migrated_completed_revenue: `£${wixMigratedCompletedRevenue.toFixed(2)}`,
     cash_payments_total: `£${cashPaymentsTotal.toFixed(2)}`,
     card_online_payments_total: `£${cardOnlineTotal.toFixed(2)}`,
@@ -170,8 +184,8 @@ async function fetchAllContext(supabaseAdmin: any) {
     by_status: Object.fromEntries(
       Object.entries(statusSummary).map(([k, v]) => [k, { count: v.count, revenue: `£${v.revenue.toFixed(2)}` }])
     ),
-    note_on_revenue: "IMPORTANT: total_price already includes add-ons and coupon discounts. Do NOT add addon amounts separately — that would double-count. Revenue = total_price (or final_charge if set and > 0). deposit_paid and balance_due are payment timing fields, not separate revenue. A completed booking generates full revenue regardless of whether balance has been collected.",
-    expected_completed_revenue_check: `£${completedRevenue.toFixed(2)}`,
+    note_on_revenue: "IMPORTANT: Revenue uses total_price only. deposit_paid and balance_due are payment timing fields (collected vs remaining), not separate revenue. total_price already includes add-ons and discounts.",
+    expected_completed_revenue_check: `£${completedRevenueExact.toFixed(2)}`,
   };
 
   // Bookings detail
@@ -182,16 +196,16 @@ async function fetchAllContext(supabaseAdmin: any) {
     date: b.booking_date,
     time: b.booking_time,
     status: b.status,
-    total_price: b.total_price,
+    total_price: Number(b.total_price || 0),
     final_charge: b.final_charge,
-    effective_revenue: effectivePrice(b),
-    deposit_paid: b.deposit_paid,
-    balance_due: Math.max(0, effectivePrice(b) - (b.deposit_paid || 0)),
+    effective_revenue: Number(b.total_price || 0),
+    deposit_paid: Number(b.deposit_paid || 0),
+    balance_due: Math.max(0, Number(b.total_price || 0) - Number(b.deposit_paid || 0)),
     groomer: staffMap[b.staff_id] || "Unassigned",
     source: b.booking_source,
     has_stripe: !!b.stripe_payment_id,
     addons_included: addonsByBooking[b.id]?.items || [],
-    note: "total_price already includes add-ons and discounts. balance_due is what remains to collect, NOT additional revenue.",
+    note: "Revenue for this booking = total_price. deposit_paid is already collected; balance_due is still to collect.",
   }));
 
   // Commission by groomer
