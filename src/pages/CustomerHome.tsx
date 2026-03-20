@@ -84,6 +84,7 @@ const CustomerHome = () => {
             <a href="#services" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2.5 rounded-2xl text-sm font-semibold font-body text-foreground/80 hover:bg-muted/50 transition-colors">Services</a>
             <a href="#about" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2.5 rounded-2xl text-sm font-semibold font-body text-foreground/80 hover:bg-muted/50 transition-colors">About</a>
             <a href="#contact" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2.5 rounded-2xl text-sm font-semibold font-body text-foreground/80 hover:bg-muted/50 transition-colors">Contact</a>
+            <Link to="/packages" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2.5 rounded-2xl text-sm font-semibold font-body text-accent hover:bg-accent/10 transition-colors">📦 Package Deals</Link>
             {accountLink && (
               <Link to={accountLink} onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2.5 rounded-2xl text-sm font-semibold font-body text-foreground/80 hover:bg-muted/50 transition-colors">My Account</Link>
             )}
