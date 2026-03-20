@@ -80,7 +80,7 @@ serve(async (req) => {
     if ((send_via === "email" || send_via === "both") && booking.customer_email && RESEND_API_KEY) {
       const html = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
-          <h2 style="color: #1a1a1a;">Your Payment Link 🐾</h2>
+          <h2 style="color: #1a1a1a;">Your ${isDeposit ? "Deposit" : "Payment"} Link 🐾</h2>
           <p>Hi ${firstName},</p>
           <p>Here's your secure payment link for <strong>${booking.dog_name}</strong>'s appointment on <strong>${dateFormatted}</strong>.</p>
           
