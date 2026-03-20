@@ -23,6 +23,9 @@ interface Props {
 }
 
 export function PackageDetailDialog({ packageBookingId, open, onClose }: Props) {
+  const { user } = useAuth();
+  const { role } = useUserRole(user?.id);
+  const isAdmin = role === "director" || role === "manager";
   const queryClient = useQueryClient();
   const [cancelConfirm, setCancelConfirm] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
