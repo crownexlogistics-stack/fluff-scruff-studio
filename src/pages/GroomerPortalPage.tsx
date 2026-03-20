@@ -24,6 +24,8 @@ import { MostLoyalCustomers } from "@/components/groomer/overview/MostLoyalCusto
 import { CustomerMilestoneCard } from "@/components/groomer/overview/CustomerMilestoneCard";
 import { ReEngagementCard } from "@/components/groomer/overview/ReEngagementCard";
 import { WeatherWidget } from "@/components/groomer/overview/WeatherWidget";
+import { UnpaidDepositsAlert } from "@/components/groomer/overview/UnpaidDepositsAlert";
+import { GoneQuietCard } from "@/components/groomer/overview/GoneQuietCard";
 import { ActivePackages } from "@/components/packages/ActivePackages";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addWeeks, addMonths } from "date-fns";
 import { useLocation, useNavigate } from "react-router-dom";
