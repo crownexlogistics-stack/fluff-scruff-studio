@@ -1444,16 +1444,24 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
                                 </div>
                               </>
                             )}
+                            <a
+                              href="/book-package"
+                              className="block w-full font-body font-bold text-sm py-2.5 bg-accent text-white hover:bg-accent/90 transition-all active:scale-[0.97] text-center"
+                              style={{ borderRadius: '30px' }}
+                            >
+                              Book a Package Online
+                            </a>
                             <div className="pt-2 border-t border-border/30 space-y-2">
-                              <p className="font-semibold text-foreground">How to book a package:</p>
-                              <p>📞 Call us: <a href="tel:01708606655" className="text-accent font-bold">01708 606655</a></p>
-                              <p>💬 WhatsApp: <a href="https://wa.me/447476452782" target="_blank" rel="noopener noreferrer" className="text-accent font-bold">+44 7476 452782</a></p>
-                              <p>🏠 Or pop into the salon!</p>
+                              <p className="font-semibold text-foreground text-center text-xs text-muted-foreground">Or get in touch:</p>
+                              <div className="flex items-center justify-center gap-4 text-xs">
+                                <a href="tel:01708606655" className="text-accent font-bold">📞 Call</a>
+                                <a href="https://wa.me/447476452782" target="_blank" rel="noopener noreferrer" className="text-accent font-bold">💬 WhatsApp</a>
+                              </div>
                             </div>
                           </div>
                           <button
                             onClick={() => { setShowPackagePopup(false); setPackagePromptDismissed(true); }}
-                            className="w-full font-body font-bold text-sm py-2.5 bg-accent text-white hover:bg-accent/90 transition-all active:scale-[0.97] mt-2"
+                            className="w-full font-body font-bold text-sm py-2.5 bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-all active:scale-[0.97] mt-2"
                             style={{ borderRadius: '30px' }}
                           >
                             Continue with single booking
