@@ -128,6 +128,24 @@ export function PackageDetailDialog({ packageBookingId, open, onClose }: Props) 
     }
   };
 
+  const handleDownloadPdf = async () => {
+    if (!tcSignature?.pdf_storage_path) return;
+    setDownloadingPdf(true);
+    try {
+      const { data, error } = await supabase.storage
+        .from("package-agreements")
+        .createSignedUrl(tcSignature.pdf_storage_path, 3600);
+      if (error || !data?.signedUrl) {
+        toast.error("Failed to generate download link");
+        return;
+      }
+      window.open(data.signedUrl, "_blank");
+    } catch {
+      toast.error("Failed to download agreement");
+    } finally {
+      setDownloadingPdf(false);
+    }
+
   const handleCancelPackage = async () => {
     if (!pb) return;
     setCancelling(true);
