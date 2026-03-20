@@ -280,10 +280,22 @@ export function PackageDetailDialog({ packageBookingId, open, onClose }: Props) 
             </div>
 
             {tcSigned && tcSignature && (
-              <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-sm space-y-1">
+              <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-sm space-y-2">
                 <p>Signed by <strong>{tcSignature.signature_text}</strong> on {tcSignature.signed_at ? format(new Date(tcSignature.signed_at), "dd MMM yyyy 'at' HH:mm") : "—"}</p>
                 {tcSignature.performed_by && <p className="text-muted-foreground">Manually recorded by {tcSignature.performed_by}</p>}
                 {tcSignature.manual_note && <p className="text-muted-foreground italic">"{tcSignature.manual_note}"</p>}
+                {tcSignature.pdf_storage_path && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleDownloadPdf}
+                    disabled={downloadingPdf}
+                    className="mt-1"
+                  >
+                    {downloadingPdf ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <FileDown className="h-3 w-3 mr-1" />}
+                    📄 Download Signed Agreement
+                  </Button>
+                )}
               </div>
             )}
 
