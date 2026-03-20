@@ -30,6 +30,7 @@ export function PackageDetailDialog({ packageBookingId, open, onClose }: Props) 
   const [manualNote, setManualNote] = useState("");
   const [manualName, setManualName] = useState("");
   const [savingManual, setSavingManual] = useState(false);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
 
   const { data: pb, isLoading } = useQuery({
     queryKey: ["package-booking-detail", packageBookingId],
