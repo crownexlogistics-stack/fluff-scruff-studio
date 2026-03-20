@@ -48,13 +48,13 @@ export function CreatePackageBooking({ onCreated }: { onCreated: () => void }) {
   const { data: staff } = useQuery({
     queryKey: ["staff-for-packages"],
     queryFn: async () => {
-      const { data, error } = await (supabase
+      const { data, error } = await supabase
         .from("staff")
-        .select("id, name") as any)
-        .eq("is_active", true)
+        .select("id, name")
+        .eq("account_blocked", false)
         .order("name");
       if (error) throw error;
-      return data as any[];
+      return data;
     },
   });
 
@@ -157,10 +157,11 @@ export function CreatePackageBooking({ onCreated }: { onCreated: () => void }) {
           booking_time: session.time || "09:00",
           status: "Confirmed",
           staff_id: session.staffId || null,
-          total_price: 0, // Will be set per-session
+          total_price: 0,
           deposit_paid: 0,
           booking_source: "package",
           notes: `📦 Package: ${pkg.name}`,
+          duration_minutes: pkg.package_type === "teeth_cleaning" ? 30 : 60,
         };
 
         if (pkg.package_type === "teeth_cleaning") {
@@ -176,9 +177,10 @@ export function CreatePackageBooking({ onCreated }: { onCreated: () => void }) {
 
         if (bookingError) throw bookingError;
         bookingIds.push(booking.id);
-        if (pkg.package_type === "teeth_cleaning") {
-          totalPrice = (pkg.price_per_session || 20) * pkg.session_count;
-        }
+      }
+
+      if (pkg.package_type === "teeth_cleaning") {
+        totalPrice = (pkg.price_per_session || 20) * pkg.session_count;
       }
 
       // Create package_booking
