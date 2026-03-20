@@ -76,7 +76,16 @@ export function GoneQuietCard({ staffId }: GoneQuietCardProps) {
     },
   });
 
-  if (quietCustomers.length === 0) return null;
+  if (quietCustomers.length === 0) return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base font-heading">🔔 Regulars Who've Gone Quiet</CardTitle>
+      </CardHeader>
+      <CardContent className="p-4 pt-0">
+        <p className="text-sm text-muted-foreground text-center py-4">No quiet regulars yet — keep grooming! 🐾</p>
+      </CardContent>
+    </Card>
+  );
 
   const getMessage = (c: { name: string; dog: string }) =>
     `Subject: Time for ${c.dog}'s next groom? 🐾\n\nHi ${c.name}, we noticed it's been a little while since ${c.dog}'s last visit and wanted to check in! We'd love to see you both again. Book online at fluffandscruff.co.uk or call 01708 606655. See you soon! Fluff & Scruff Studio`;

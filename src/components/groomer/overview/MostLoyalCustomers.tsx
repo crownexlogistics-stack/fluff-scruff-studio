@@ -45,7 +45,16 @@ export function MostLoyalCustomers({ staffId }: MostLoyalCustomersProps) {
     },
   });
 
-  if (loyalCustomers.length === 0) return null;
+  if (loyalCustomers.length === 0) return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base font-heading">⭐ Your Most Loyal Customers</CardTitle>
+      </CardHeader>
+      <CardContent className="p-4 pt-0">
+        <p className="text-sm text-muted-foreground text-center py-4">No repeat customers yet — keep grooming! 🐾</p>
+      </CardContent>
+    </Card>
+  );
 
   const handleClick = (email: string, name: string) => {
     if (!email) return;
