@@ -70,7 +70,16 @@ export function ReEngagementCard({ staffId }: ReEngagementCardProps) {
     },
   });
 
-  if (lapsedCustomers.length === 0) return null;
+  if (lapsedCustomers.length === 0) return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base font-heading">💌 Visited Once — Never Came Back</CardTitle>
+      </CardHeader>
+      <CardContent className="p-4 pt-0">
+        <p className="text-sm text-muted-foreground text-center py-4">No one-time customers to follow up with yet — keep grooming! 🐾</p>
+      </CardContent>
+    </Card>
+  );
 
   const getMessage = (c: { name: string; dog: string }) =>
     `Subject: We miss ${c.dog} at Fluff & Scruff! 🐾\n\nHi ${c.name}, it's been a while since we last saw ${c.dog} and we miss them! Is it time for another groom? Book online at fluffandscruff.co.uk or call 01708 606655. Hope to see you soon! Fluff & Scruff Studio`;
