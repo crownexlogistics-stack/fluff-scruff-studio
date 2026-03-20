@@ -73,6 +73,7 @@ function StepIndicator({ current }: { current: Step }) {
 
 export default function BookPackagePage() {
   const navigate = useNavigate();
+  const { user, signOut } = useAuth();
   const [step, setStep] = useState<Step>(1);
   const [selectedPackageId, setSelectedPackageId] = useState("");
   const [firstName, setFirstName] = useState("");
@@ -87,6 +88,10 @@ export default function BookPackagePage() {
   const [tcDialogOpen, setTcDialogOpen] = useState(false);
   const [paying, setPaying] = useState(false);
   const [dateWarnings, setDateWarnings] = useState<Record<number, string>>({});
+  const [selectedDogIdx, setSelectedDogIdx] = useState<number | null>(null);
+  const [addingNewDog, setAddingNewDog] = useState(false);
+  const [prefilled, setPrefilled] = useState(false);
+
 
   // ── Data queries ──
   const { data: packages } = useQuery({
