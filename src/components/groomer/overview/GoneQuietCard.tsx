@@ -6,17 +6,17 @@ import { Badge } from "@/components/ui/badge";
 import { Copy, ExternalLink } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
+import { useMigratedBookings } from "@/hooks/useMigratedBookings";
 
 interface GoneQuietCardProps {
   staffId: string;
 }
 
 export function GoneQuietCard({ staffId }: GoneQuietCardProps) {
-  const navigate = useNavigate();
+  const { data: migratedBookings = [] } = useMigratedBookings(staffId);
 
   const { data: quietCustomers = [] } = useQuery({
-    queryKey: ["groomer-gone-quiet", staffId],
+    queryKey: ["groomer-gone-quiet", staffId, migratedBookings.length],
     queryFn: async () => {
       const { data: allBookings, error } = await supabase
         .from("bookings")
@@ -27,17 +27,39 @@ export function GoneQuietCard({ staffId }: GoneQuietCardProps) {
       if (error) throw error;
 
       const customerMap = new Map<string, { name: string; email: string; dog: string; dates: string[] }>();
+
       for (const b of allBookings) {
         if (!b.customer_email) continue;
-        const existing = customerMap.get(b.customer_email);
+        const key = b.customer_email.toLowerCase();
+        const existing = customerMap.get(key);
         if (existing) {
           existing.dates.push(b.booking_date);
         } else {
-          customerMap.set(b.customer_email, {
+          customerMap.set(key, {
             name: b.customer_name,
             email: b.customer_email,
             dog: b.dog_name,
             dates: [b.booking_date],
+          });
+        }
+      }
+
+      // Merge migrated bookings
+      for (const mb of migratedBookings) {
+        const mc = (mb as any).migrated_customers;
+        const email = mc?.email?.toLowerCase();
+        if (!email) continue;
+        const existing = customerMap.get(email);
+        if (existing) {
+          existing.dates.push(mb.booking_date);
+          // Keep sorted descending
+          existing.dates.sort((a, b) => b.localeCompare(a));
+        } else {
+          customerMap.set(email, {
+            name: mc.full_name || "Wix Customer",
+            email: mc.email,
+            dog: mb.dog_name || "Unknown",
+            dates: [mb.booking_date],
           });
         }
       }
@@ -52,7 +74,6 @@ export function GoneQuietCard({ staffId }: GoneQuietCardProps) {
         const lastDate = new Date(customer.dates[0] + "T00:00:00");
         if (lastDate >= ninetyDaysAgo) continue;
 
-        // Check no recent booking with anyone
         const { count } = await supabase
           .from("bookings")
           .select("id", { count: "exact", head: true })

@@ -3,15 +3,17 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Heart, Star } from "lucide-react";
 import { format } from "date-fns";
-import { toast } from "sonner";
+import { useMigratedBookings } from "@/hooks/useMigratedBookings";
 
 interface MostLoyalCustomersProps {
   staffId: string;
 }
 
 export function MostLoyalCustomers({ staffId }: MostLoyalCustomersProps) {
+  const { data: migratedBookings = [] } = useMigratedBookings(staffId);
+
   const { data: loyalCustomers = [] } = useQuery({
-    queryKey: ["groomer-loyal-customers", staffId],
+    queryKey: ["groomer-loyal-customers", staffId, migratedBookings.length],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("bookings")
@@ -22,8 +24,10 @@ export function MostLoyalCustomers({ staffId }: MostLoyalCustomersProps) {
       if (error) throw error;
 
       const customerMap = new Map<string, { name: string; email: string; dog: string; count: number; lastVisit: string }>();
+
+      // Add regular bookings
       for (const b of data) {
-        const key = b.customer_email || b.customer_name;
+        const key = (b.customer_email || b.customer_name).toLowerCase();
         const existing = customerMap.get(key);
         if (existing) {
           existing.count++;
@@ -34,6 +38,28 @@ export function MostLoyalCustomers({ staffId }: MostLoyalCustomersProps) {
             dog: b.dog_name,
             count: 1,
             lastVisit: b.booking_date,
+          });
+        }
+      }
+
+      // Add migrated bookings
+      for (const mb of migratedBookings) {
+        const mc = (mb as any).migrated_customers;
+        const email = mc?.email?.toLowerCase();
+        if (!email) continue;
+        const existing = customerMap.get(email);
+        if (existing) {
+          existing.count++;
+          if (mb.booking_date > existing.lastVisit) {
+            existing.lastVisit = mb.booking_date;
+          }
+        } else {
+          customerMap.set(email, {
+            name: mc.full_name || "Wix Customer",
+            email: mc.email || "",
+            dog: mb.dog_name || "Unknown",
+            count: 1,
+            lastVisit: mb.booking_date,
           });
         }
       }
@@ -56,7 +82,7 @@ export function MostLoyalCustomers({ staffId }: MostLoyalCustomersProps) {
     </Card>
   );
 
-  const handleClick = (email: string, name: string) => {
+  const handleClick = (email: string) => {
     if (!email) return;
     window.open(`/admin/customers/${encodeURIComponent(email)}`, "_blank");
   };
@@ -75,7 +101,7 @@ export function MostLoyalCustomers({ staffId }: MostLoyalCustomersProps) {
             <div className="flex-1 min-w-0">
               {c.email ? (
                 <button
-                  onClick={() => handleClick(c.email, c.name)}
+                  onClick={() => handleClick(c.email)}
                   className="font-medium text-sm text-primary hover:underline text-left truncate block"
                 >
                   {c.name}

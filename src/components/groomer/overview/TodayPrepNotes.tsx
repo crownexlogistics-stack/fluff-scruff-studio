@@ -4,6 +4,7 @@ import { format } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ClipboardList } from "lucide-react";
+import { useMigratedBookings } from "@/hooks/useMigratedBookings";
 
 interface TodayPrepNotesProps {
   staffId: string;
@@ -11,6 +12,7 @@ interface TodayPrepNotesProps {
 
 export function TodayPrepNotes({ staffId }: TodayPrepNotesProps) {
   const today = format(new Date(), "yyyy-MM-dd");
+  const { data: migratedBookings = [] } = useMigratedBookings(staffId);
 
   const { data: appointments = [] } = useQuery({
     queryKey: ["groomer-prep-notes", staffId, today],
@@ -27,9 +29,18 @@ export function TodayPrepNotes({ staffId }: TodayPrepNotesProps) {
     },
   });
 
-  // Get visit counts and last visit for each customer
+  // Build migrated visit counts by email
+  const migratedCounts = new Map<string, number>();
+  for (const mb of migratedBookings) {
+    const email = ((mb as any).migrated_customers?.email || "").toLowerCase();
+    if (email) {
+      migratedCounts.set(email, (migratedCounts.get(email) || 0) + 1);
+    }
+  }
+
+  // Get visit counts and last visit for each customer (including migrated)
   const { data: visitData = {} } = useQuery({
-    queryKey: ["groomer-visit-counts", staffId, appointments.map(a => a.customer_email).join(",")],
+    queryKey: ["groomer-visit-counts", staffId, appointments.map(a => a.customer_email).join(","), migratedBookings.length],
     queryFn: async () => {
       const emails = [...new Set(appointments.map(a => a.customer_email).filter(Boolean))];
       if (emails.length === 0) return {};
@@ -47,9 +58,28 @@ export function TodayPrepNotes({ staffId }: TodayPrepNotesProps) {
           .limit(50);
         
         if (!error && data) {
+          const migratedCount = migratedCounts.get(email.toLowerCase()) || 0;
+          
+          // Find last migrated visit for this customer
+          let lastMigratedDate: string | null = null;
+          for (const mb of migratedBookings) {
+            const mc = (mb as any).migrated_customers;
+            if (mc?.email?.toLowerCase() === email.toLowerCase()) {
+              if (!lastMigratedDate || mb.booking_date > lastMigratedDate) {
+                lastMigratedDate = mb.booking_date;
+              }
+            }
+          }
+
+          const lastBookingDate = data.length > 0 ? data[0].booking_date : null;
+          let lastVisit = lastBookingDate;
+          if (lastMigratedDate && (!lastVisit || lastMigratedDate > lastVisit)) {
+            lastVisit = lastMigratedDate;
+          }
+
           result[email] = {
-            count: data.length,
-            lastVisit: data.length > 0 ? data[0].booking_date : null,
+            count: data.length + migratedCount,
+            lastVisit,
           };
         }
       }
@@ -87,7 +117,7 @@ export function TodayPrepNotes({ staffId }: TodayPrepNotesProps) {
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="text-base font-heading flex items-center gap-2">
-          <ClipboardList className="h-5 w-5 text-[hsl(var(--primary))]" />
+          <ClipboardList className="h-5 w-5 text-primary" />
           🗒️ Today's Dogs — Be Prepared
         </CardTitle>
       </CardHeader>
@@ -111,7 +141,7 @@ export function TodayPrepNotes({ staffId }: TodayPrepNotesProps) {
                     {apt.breeds?.name && <span className="text-muted-foreground/70"> ({apt.breeds.name})</span>}
                   </p>
                 </div>
-                <Badge className="bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))] border-[hsl(var(--primary))]/20 text-[10px]">
+                <Badge className="bg-primary/10 text-primary border-primary/20 text-[10px]">
                   {apt.dog_name}'s {visitCount === 1 ? "1st" : visitCount === 2 ? "2nd" : visitCount === 3 ? "3rd" : `${visitCount}th`} visit
                 </Badge>
               </div>

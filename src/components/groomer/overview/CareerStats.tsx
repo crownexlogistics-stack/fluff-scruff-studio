@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Scissors, Dog, Heart } from "lucide-react";
+import { useMigratedBookings } from "@/hooks/useMigratedBookings";
 
 interface CareerStatsProps {
   staffId: string;
@@ -17,6 +18,8 @@ function getMilestoneMessage(count: number) {
 }
 
 export function CareerStats({ staffId }: CareerStatsProps) {
+  const { data: migratedBookings = [] } = useMigratedBookings(staffId);
+
   const { data: totalDogs = 0 } = useQuery({
     queryKey: ["groomer-career-dogs", staffId],
     queryFn: async () => {
@@ -41,10 +44,10 @@ export function CareerStats({ staffId }: CareerStatsProps) {
         .not("breed_id", "is", null);
       if (error) throw error;
       
-      const breedNames = [...new Set((data as any[]).map(b => b.breeds?.name).filter(Boolean))];
+      const breedNames = new Set((data as any[]).map(b => b.breeds?.name).filter(Boolean));
       return {
-        count: breedNames.length,
-        recent: breedNames.slice(0, 5),
+        count: breedNames.size,
+        recent: [...breedNames].slice(0, 5),
       };
     },
   });
@@ -69,29 +72,47 @@ export function CareerStats({ staffId }: CareerStatsProps) {
     },
   });
 
+  // Merge migrated data
+  const migratedDogsCount = migratedBookings.length;
+  const combinedTotalDogs = totalDogs + migratedDogsCount;
+
+  // Merge breeds from migrated
+  const migratedBreeds = new Set(migratedBookings.map((b: any) => b.dog_breed).filter(Boolean));
+  const allBreeds = new Set([...breedData.recent, ...migratedBreeds]);
+  const combinedBreedCount = breedData.count + [...migratedBreeds].filter(b => !breedData.recent.includes(b)).length;
+
+  // Merge loyal count from migrated
+  const migratedEmailCounts = new Map<string, number>();
+  for (const b of migratedBookings) {
+    const email = (b as any).migrated_customers?.email;
+    if (email) {
+      migratedEmailCounts.set(email.toLowerCase(), (migratedEmailCounts.get(email.toLowerCase()) || 0) + 1);
+    }
+  }
+  const migratedLoyalExtra = [...migratedEmailCounts.values()].filter(c => c >= 3).length;
+  const combinedLoyalCount = loyalCount + migratedLoyalExtra;
+
   return (
     <div className="space-y-3">
       <h2 className="font-heading font-bold text-base text-foreground">🏅 Your Career</h2>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        {/* Total Dogs */}
-        <Card className="bg-gradient-to-br from-[hsl(var(--primary))]/5 to-[hsl(var(--primary))]/10 border-[hsl(var(--primary))]/15">
+        <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/15">
           <CardContent className="p-5 text-center">
-            <Scissors className="h-8 w-8 mx-auto text-[hsl(var(--primary))] mb-2" />
-            <p className="text-4xl font-bold text-foreground">{totalDogs}</p>
+            <Scissors className="h-8 w-8 mx-auto text-primary mb-2" />
+            <p className="text-4xl font-bold text-foreground">{combinedTotalDogs}</p>
             <p className="text-xs text-muted-foreground mt-1">Dogs groomed in your career</p>
-            <p className="text-xs font-medium text-[hsl(var(--primary))] mt-2">{getMilestoneMessage(totalDogs)}</p>
+            <p className="text-xs font-medium text-primary mt-2">{getMilestoneMessage(combinedTotalDogs)}</p>
           </CardContent>
         </Card>
 
-        {/* Breeds */}
-        <Card className="bg-gradient-to-br from-[hsl(var(--primary))]/5 to-[hsl(var(--primary))]/10 border-[hsl(var(--primary))]/15">
+        <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/15">
           <CardContent className="p-5 text-center">
-            <Dog className="h-8 w-8 mx-auto text-[hsl(var(--primary))] mb-2" />
-            <p className="text-4xl font-bold text-foreground">{breedData.count}</p>
+            <Dog className="h-8 w-8 mx-auto text-primary mb-2" />
+            <p className="text-4xl font-bold text-foreground">{combinedBreedCount}</p>
             <p className="text-xs text-muted-foreground mt-1">Different breeds groomed</p>
-            {breedData.recent.length > 0 && (
+            {allBreeds.size > 0 && (
               <div className="flex flex-wrap justify-center gap-1 mt-2">
-                {breedData.recent.map((b) => (
+                {[...allBreeds].slice(0, 5).map((b) => (
                   <Badge key={b} variant="secondary" className="text-[10px] px-1.5 py-0">{b}</Badge>
                 ))}
               </div>
@@ -99,13 +120,12 @@ export function CareerStats({ staffId }: CareerStatsProps) {
           </CardContent>
         </Card>
 
-        {/* Loyal Regulars */}
-        <Card className="bg-gradient-to-br from-[hsl(var(--primary))]/5 to-[hsl(var(--primary))]/10 border-[hsl(var(--primary))]/15">
+        <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/15">
           <CardContent className="p-5 text-center">
-            <Heart className="h-8 w-8 mx-auto text-[hsl(var(--primary))] mb-2" />
-            <p className="text-4xl font-bold text-foreground">{loyalCount}</p>
+            <Heart className="h-8 w-8 mx-auto text-primary mb-2" />
+            <p className="text-4xl font-bold text-foreground">{combinedLoyalCount}</p>
             <p className="text-xs text-muted-foreground mt-1">Customers back 3+ times</p>
-            <p className="text-xs font-medium text-[hsl(var(--primary))] mt-2">These are YOUR people 🐶</p>
+            <p className="text-xs font-medium text-primary mt-2">These are YOUR people 🐶</p>
           </CardContent>
         </Card>
       </div>
