@@ -424,8 +424,8 @@ export function PackageDetailDialog({ packageBookingId, open, onClose }: Props) 
               </>
             )}
 
-            {/* Cancel section */}
-            {pb.status === "active" && (
+            {/* Cancel section — admin only */}
+            {pb.status === "active" && isAdmin && (
               <>
                 <Separator />
                 {!cancelConfirm ? (
