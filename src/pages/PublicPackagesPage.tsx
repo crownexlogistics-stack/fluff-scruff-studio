@@ -241,12 +241,19 @@ export default function PublicPackagesPage() {
             Ready to save? Get in touch today.
           </h2>
           <p className="text-white/90 font-body text-base">
-            We'll help you choose the right package and book your sessions.
+            Book online or contact us — we'll help you get started.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <button
+              onClick={() => navigate("/book-package")}
+              className="inline-flex items-center gap-2 bg-white text-accent font-bold font-body text-sm px-8 py-3.5 hover:bg-white/95 transition-all active:scale-[0.97] shadow-xl"
+              style={{ borderRadius: '30px' }}
+            >
+              <Package className="h-4 w-4" /> Book a Package Online
+            </button>
             <a
               href="tel:01708606655"
-              className="inline-flex items-center gap-2 bg-white text-accent font-bold font-body text-sm px-8 py-3.5 hover:bg-white/95 transition-all active:scale-[0.97] shadow-xl"
+              className="inline-flex items-center gap-2 bg-white/20 text-white font-bold font-body text-sm px-8 py-3.5 hover:bg-white/30 transition-all active:scale-[0.97] border border-white/30"
               style={{ borderRadius: '30px' }}
             >
               <Phone className="h-4 w-4" /> Call Us
