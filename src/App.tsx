@@ -76,6 +76,7 @@ import SignPackageTCPage from "./pages/SignPackageTCPage";
 import PublicPackagesPage from "./pages/PublicPackagesPage";
 import BookPackagePage from "./pages/BookPackagePage";
 import PackageBookingConfirmedPage from "./pages/PackageBookingConfirmedPage";
+import DirectorAssistantPage from "./pages/DirectorAssistantPage";
 
 const queryClient = new QueryClient();
 
