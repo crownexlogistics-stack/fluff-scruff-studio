@@ -394,6 +394,7 @@ export type Database = {
           customer_email: string | null
           customer_name: string
           customer_phone: string | null
+          deposit_link_sent_at: string | null
           deposit_paid: number
           dog_name: string
           duration_minutes: number | null
@@ -428,6 +429,7 @@ export type Database = {
           customer_email?: string | null
           customer_name: string
           customer_phone?: string | null
+          deposit_link_sent_at?: string | null
           deposit_paid?: number
           dog_name: string
           duration_minutes?: number | null
@@ -462,6 +464,7 @@ export type Database = {
           customer_email?: string | null
           customer_name?: string
           customer_phone?: string | null
+          deposit_link_sent_at?: string | null
           deposit_paid?: number
           dog_name?: string
           duration_minutes?: number | null
