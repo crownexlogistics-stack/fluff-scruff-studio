@@ -259,7 +259,8 @@ export default function BookPackagePage() {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       if (data?.url) {
-        window.location.href = data.url;
+        window.open(data.url, "_blank");
+        setPaying(false);
       }
     } catch (err: any) {
       toast.error(err.message || "Failed to start payment");
