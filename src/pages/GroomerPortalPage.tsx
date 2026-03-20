@@ -15,8 +15,10 @@ import { GroomerMessagesTab } from "@/components/groomer/GroomerMessagesTab";
 import { GroomerBreedsTab } from "@/components/groomer/GroomerBreedsTab";
 import { GroomerDocumentsTab } from "@/components/groomer/GroomerDocumentsTab";
 import { GroomerPurchaseRequestsTab } from "@/components/groomer/GroomerPurchaseRequestsTab";
+import { GroomerDailyBriefing } from "@/components/groomer/GroomerDailyBriefing";
 import { ActivePackages } from "@/components/packages/ActivePackages";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addWeeks, addMonths } from "date-fns";
+import { useLocation, useNavigate } from "react-router-dom";
 
 function GroomerFinanceView({ staffId }: { staffId: string }) {
   const [period, setPeriod] = useState<"weekly" | "monthly">("weekly");
@@ -156,7 +158,22 @@ function GroomerFinanceView({ staffId }: { staffId: string }) {
   );
 }
 
-type Section = "bookings" | "messages" | "breeds" | "finance" | "documents" | "purchases" | "packages";
+type Section = "overview" | "bookings" | "messages" | "breeds" | "finance" | "documents" | "purchases" | "packages";
+
+const sectionToRoute: Record<Section, string> = {
+  overview: "/portal",
+  bookings: "/portal/bookings",
+  messages: "/portal/messages",
+  packages: "/admin/packages",
+  purchases: "/portal/purchases",
+  breeds: "/portal/breeds",
+  finance: "/portal/finance",
+  documents: "/portal/documents",
+};
+
+const routeToSection: Record<string, Section> = Object.fromEntries(
+  Object.entries(sectionToRoute).map(([k, v]) => [v, k as Section])
+);
 
 const sectionCards: { id: Section; icon: React.ElementType; title: string; subtitle: string }[] = [
   { id: "bookings", icon: CalendarDays, title: "Bookings", subtitle: "Your schedule & salon calendar" },
@@ -172,9 +189,13 @@ const GroomerPortalPage = () => {
   const { user } = useAuth();
   const { role: userRole } = useUserRole(user?.id);
   const [staffId, setStaffId] = useState<string | null>(null);
+  const [staffName, setStaffName] = useState("");
   const [loading, setLoading] = useState(true);
   const isMobile = useIsMobile();
-  const [activeSection, setActiveSection] = useState<Section | null>(null);
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const activeSection: Section = routeToSection[location.pathname] || "overview";
 
   useEffect(() => {
     if (!user) return;
@@ -182,10 +203,11 @@ const GroomerPortalPage = () => {
       setLoading(true);
       const { data } = await supabase
         .from("staff")
-        .select("id")
+        .select("id, name")
         .eq("auth_user_id", user.id)
         .maybeSingle();
       setStaffId(data?.id ?? null);
+      setStaffName(data?.name ?? "");
       setLoading(false);
     };
     fetchStaff();
@@ -214,6 +236,27 @@ const GroomerPortalPage = () => {
 
   const renderSectionContent = (section: Section) => {
     switch (section) {
+      case "overview":
+        return (
+          <div className="space-y-6">
+            <GroomerDailyBriefing staffId={staffId} groomerName={staffName} />
+            {/* Mobile: show section cards for quick navigation */}
+            {isMobile && (
+              <div className="space-y-3">
+                {sectionCards.map((card) => (
+                  <button key={card.id} onClick={() => navigate(sectionToRoute[card.id])} className="w-full text-left rounded-2xl border border-border bg-card p-4 hover:shadow-md transition-all active:scale-[0.98] flex items-center gap-3">
+                    <div className="p-2.5 rounded-xl bg-primary/10 text-primary shrink-0"><card.icon className="h-5 w-5" /></div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-foreground text-sm">{card.title}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{card.subtitle}</p>
+                    </div>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        );
       case "bookings": return <GroomerBookingsTab staffId={staffId} userRole={userRole} />;
       case "messages": return <GroomerMessagesTab staffId={staffId} />;
       case "breeds": return <GroomerBreedsTab />;
@@ -224,76 +267,23 @@ const GroomerPortalPage = () => {
     }
   };
 
-  // Mobile: card-based navigation
-  if (isMobile) {
-    if (activeSection) {
-      const sectionMeta = sectionCards.find(s => s.id === activeSection)!;
-      return (
-        <GroomerLayout>
-          <div className="space-y-4">
-            <button onClick={() => setActiveSection(null)} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors -ml-1">
-              <ArrowLeft className="h-4 w-4" /> Back
-            </button>
-            <div>
-              <h1 className="text-xl font-heading text-foreground">{sectionMeta.title}</h1>
-              <p className="text-muted-foreground text-xs mt-0.5">{sectionMeta.subtitle}</p>
-            </div>
-            {renderSectionContent(activeSection)}
-          </div>
-        </GroomerLayout>
-      );
-    }
+  const sectionMeta = activeSection === "overview"
+    ? { title: "My Portal", subtitle: "Your schedule, messages & more" }
+    : sectionCards.find(s => s.id === activeSection) || { title: "My Portal", subtitle: "" };
 
-    return (
-      <GroomerLayout>
-        <div className="space-y-4">
-          <div>
-            <h1 className="text-2xl font-heading text-foreground">My Account</h1>
-            <p className="text-muted-foreground font-body text-sm mt-1">Your schedule, messages & more</p>
-          </div>
-          <div className="space-y-3">
-            {sectionCards.map((card) => (
-              <button key={card.id} onClick={() => setActiveSection(card.id)} className="w-full text-left rounded-2xl border border-border bg-card p-4 hover:shadow-md transition-all active:scale-[0.98] flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-primary/10 text-primary shrink-0"><card.icon className="h-5 w-5" /></div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-foreground text-sm">{card.title}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">{card.subtitle}</p>
-                </div>
-                <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-              </button>
-            ))}
-          </div>
-        </div>
-      </GroomerLayout>
-    );
-  }
-
-  // Desktop: tabs
   return (
     <GroomerLayout>
       <div className="space-y-4">
+        {activeSection !== "overview" && isMobile && (
+          <button onClick={() => navigate("/portal")} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors -ml-1">
+            <ArrowLeft className="h-4 w-4" /> Back
+          </button>
+        )}
         <div>
-          <h1 className="text-2xl font-heading text-foreground">My Account</h1>
-          <p className="text-muted-foreground font-body text-sm mt-1">Your schedule, messages & more</p>
+          <h1 className="text-2xl font-heading text-foreground">{sectionMeta.title}</h1>
+          <p className="text-muted-foreground font-body text-sm mt-1">{sectionMeta.subtitle}</p>
         </div>
-        <Tabs defaultValue="bookings">
-          <TabsList className="flex-wrap">
-            <TabsTrigger value="bookings" className="gap-1.5"><CalendarDays className="h-4 w-4" /> Bookings</TabsTrigger>
-            <TabsTrigger value="messages" className="gap-1.5"><MessageSquare className="h-4 w-4" /> Messages</TabsTrigger>
-            <TabsTrigger value="packages" className="gap-1.5"><Package className="h-4 w-4" /> Packages</TabsTrigger>
-            <TabsTrigger value="purchases" className="gap-1.5"><ShoppingCart className="h-4 w-4" /> Purchases</TabsTrigger>
-            <TabsTrigger value="breeds" className="gap-1.5"><Dog className="h-4 w-4" /> Breeds</TabsTrigger>
-            <TabsTrigger value="finance" className="gap-1.5"><PoundSterling className="h-4 w-4" /> Finance</TabsTrigger>
-            <TabsTrigger value="documents" className="gap-1.5"><FileText className="h-4 w-4" /> Documents</TabsTrigger>
-          </TabsList>
-          <TabsContent value="bookings" className="mt-4">{renderSectionContent("bookings")}</TabsContent>
-          <TabsContent value="messages" className="mt-4">{renderSectionContent("messages")}</TabsContent>
-          <TabsContent value="packages" className="mt-4">{renderSectionContent("packages")}</TabsContent>
-          <TabsContent value="purchases" className="mt-4">{renderSectionContent("purchases")}</TabsContent>
-          <TabsContent value="breeds" className="mt-4">{renderSectionContent("breeds")}</TabsContent>
-          <TabsContent value="finance" className="mt-4">{renderSectionContent("finance")}</TabsContent>
-          <TabsContent value="documents" className="mt-4">{renderSectionContent("documents")}</TabsContent>
-        </Tabs>
+        {renderSectionContent(activeSection)}
       </div>
     </GroomerLayout>
   );
