@@ -2,17 +2,21 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Copy, ExternalLink } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 
-interface ReEngagementCardProps {
+interface GoneQuietCardProps {
   staffId: string;
 }
 
-export function ReEngagementCard({ staffId }: ReEngagementCardProps) {
-  const { data: lapsedCustomers = [] } = useQuery({
-    queryKey: ["groomer-reengagement", staffId],
+export function GoneQuietCard({ staffId }: GoneQuietCardProps) {
+  const navigate = useNavigate();
+
+  const { data: quietCustomers = [] } = useQuery({
+    queryKey: ["groomer-gone-quiet", staffId],
     queryFn: async () => {
       const { data: allBookings, error } = await supabase
         .from("bookings")
@@ -38,21 +42,22 @@ export function ReEngagementCard({ staffId }: ReEngagementCardProps) {
         }
       }
 
-      const sixtyDaysAgo = new Date();
-      sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+      const ninetyDaysAgo = new Date();
+      ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
 
-      const results: { name: string; email: string; dog: string; visitDate: string; daysSince: number }[] = [];
+      const results: { name: string; email: string; dog: string; visits: number; lastVisit: string; daysSince: number }[] = [];
 
       for (const [, customer] of customerMap) {
-        if (customer.dates.length !== 1) continue;
-        const visitDate = new Date(customer.dates[0] + "T00:00:00");
-        if (visitDate >= sixtyDaysAgo) continue;
+        if (customer.dates.length < 3) continue;
+        const lastDate = new Date(customer.dates[0] + "T00:00:00");
+        if (lastDate >= ninetyDaysAgo) continue;
 
+        // Check no recent booking with anyone
         const { count } = await supabase
           .from("bookings")
           .select("id", { count: "exact", head: true })
           .eq("customer_email", customer.email)
-          .gt("booking_date", customer.dates[0])
+          .gte("booking_date", format(ninetyDaysAgo, "yyyy-MM-dd"))
           .in("status", ["Confirmed", "Pending", "Completed"]);
 
         if ((count ?? 0) === 0) {
@@ -60,8 +65,9 @@ export function ReEngagementCard({ staffId }: ReEngagementCardProps) {
             name: customer.name,
             email: customer.email,
             dog: customer.dog,
-            visitDate: customer.dates[0],
-            daysSince: differenceInDays(new Date(), visitDate),
+            visits: customer.dates.length,
+            lastVisit: customer.dates[0],
+            daysSince: differenceInDays(new Date(), lastDate),
           });
         }
       }
@@ -70,10 +76,10 @@ export function ReEngagementCard({ staffId }: ReEngagementCardProps) {
     },
   });
 
-  if (lapsedCustomers.length === 0) return null;
+  if (quietCustomers.length === 0) return null;
 
   const getMessage = (c: { name: string; dog: string }) =>
-    `Subject: We miss ${c.dog} at Fluff & Scruff! 🐾\n\nHi ${c.name}, it's been a while since we last saw ${c.dog} and we miss them! Is it time for another groom? Book online at fluffandscruff.co.uk or call 01708 606655. Hope to see you soon! Fluff & Scruff Studio`;
+    `Subject: Time for ${c.dog}'s next groom? 🐾\n\nHi ${c.name}, we noticed it's been a little while since ${c.dog}'s last visit and wanted to check in! We'd love to see you both again. Book online at fluffandscruff.co.uk or call 01708 606655. See you soon! Fluff & Scruff Studio`;
 
   const handleCopy = (c: { name: string; dog: string }) => {
     navigator.clipboard.writeText(getMessage(c));
@@ -88,11 +94,10 @@ export function ReEngagementCard({ staffId }: ReEngagementCardProps) {
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="text-base font-heading">💌 Visited Once — Never Came Back</CardTitle>
-        <p className="text-xs text-muted-foreground">These customers visited once but never returned. A friendly message could bring them back!</p>
+        <CardTitle className="text-base font-heading">🔔 Regulars Who've Gone Quiet</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3 p-4 pt-0">
-        {lapsedCustomers.map((c) => (
+        {quietCustomers.map((c) => (
           <div key={c.email} className="rounded-xl border border-border p-3 bg-card/50 space-y-2">
             <div className="flex items-center gap-3">
               <div className="flex-1 min-w-0">
@@ -102,9 +107,12 @@ export function ReEngagementCard({ staffId }: ReEngagementCardProps) {
                 >
                   {c.name}
                 </button>
-                <p className="text-xs text-muted-foreground">🐕 {c.dog} · Visited {format(new Date(c.visitDate + "T00:00:00"), "d MMM yyyy")}</p>
-                <p className="text-[10px] text-muted-foreground/70">{c.daysSince} days ago</p>
+                <p className="text-xs text-muted-foreground">🐕 {c.dog} · {c.visits} visits with you</p>
+                <p className="text-xs text-amber-600 font-medium">Last seen {c.daysSince} days ago</p>
               </div>
+              <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 text-[10px] shrink-0">
+                Worth a check-in 💛
+              </Badge>
             </div>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" className="text-xs gap-1.5" onClick={() => handleCopy(c)}>
@@ -116,7 +124,9 @@ export function ReEngagementCard({ staffId }: ReEngagementCardProps) {
             </div>
           </div>
         ))}
-        <p className="text-[10px] text-muted-foreground/60 italic">Open their profile to send a re-engagement email.</p>
+        <p className="text-[10px] text-muted-foreground/60 italic">
+          These customers were regulars with you — it might be worth a friendly email to check in and invite them back.
+        </p>
       </CardContent>
     </Card>
   );

@@ -24,6 +24,8 @@ import { MostLoyalCustomers } from "@/components/groomer/overview/MostLoyalCusto
 import { CustomerMilestoneCard } from "@/components/groomer/overview/CustomerMilestoneCard";
 import { ReEngagementCard } from "@/components/groomer/overview/ReEngagementCard";
 import { WeatherWidget } from "@/components/groomer/overview/WeatherWidget";
+import { UnpaidDepositsAlert } from "@/components/groomer/overview/UnpaidDepositsAlert";
+import { GoneQuietCard } from "@/components/groomer/overview/GoneQuietCard";
 import { ActivePackages } from "@/components/packages/ActivePackages";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addWeeks, addMonths } from "date-fns";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -248,6 +250,7 @@ const GroomerPortalPage = () => {
         return (
           <div className="space-y-6">
             <GroomerDailyBriefing staffId={staffId} groomerName={staffName} careerTotal={0} />
+            <UnpaidDepositsAlert staffId={staffId} />
             <TodayStatsBar staffId={staffId} />
             <CustomerMilestoneCard staffId={staffId} />
             <TodayPrepNotes staffId={staffId} />
@@ -255,6 +258,7 @@ const GroomerPortalPage = () => {
             <EarningsTracker staffId={staffId} />
             <MostLoyalCustomers staffId={staffId} />
             <ReEngagementCard staffId={staffId} />
+            <GoneQuietCard staffId={staffId} />
             <WeatherWidget />
             {/* Mobile: show section cards for quick navigation */}
             {isMobile && (
