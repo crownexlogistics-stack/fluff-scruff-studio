@@ -73,6 +73,7 @@ import PackagesPage from "./pages/PackagesPage";
 import UnsubscribePage from "./pages/UnsubscribePage";
 import SmsTrackPage from "./pages/SmsTrackPage";
 import SignPackageTCPage from "./pages/SignPackageTCPage";
+import PublicPackagesPage from "./pages/PublicPackagesPage";
 
 const queryClient = new QueryClient();
 
