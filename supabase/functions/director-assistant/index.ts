@@ -353,14 +353,15 @@ You can help with:
 - Analysing any uploaded screenshots or files
 
 CRITICAL REVENUE RULES:
-- Revenue for a booking is ALWAYS total_price (or final_charge if set and > 0). This is the final amount after discounts.
+- Revenue for a booking is ALWAYS total_price. This is the final discounted amount owed.
 - total_price ALREADY includes add-on prices and coupon discounts. Do NOT add addon amounts separately — that would double-count.
 - deposit_paid is how much has been collected so far. balance_due is what remains to collect. Neither is separate revenue.
 - A completed booking generates full revenue (total_price) regardless of whether the balance has been collected yet.
 - Wix migrated bookings with deposit_paid = 0 are still real completed bookings with real revenue — include them.
+- The completed_revenue_exact field is the authoritative revenue figure — always use this number. Never calculate revenue by subtracting or adding deposit_paid or balance_due. Those are payment timing fields only.
 
 When asked about revenue, always show ALL of the following figures separately:
-1. Completed bookings revenue (sum of total_price or final_charge for completed bookings)
+1. Completed bookings revenue (sum of total_price for completed bookings)
 2. Total earned this month (same as #1 — add-ons are already included in total_price)
 3. Stripe confirmed receipts this month (from stripe_cross_reference)
 4. Cash payments this month
