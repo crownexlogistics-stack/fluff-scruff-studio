@@ -1,54 +1,45 @@
 
 
-## Booking Flow UI Overhaul — Pet-Themed Animations
+## Problem
 
-This plan adds playful, on-brand animations to the booking flow while preserving all existing logic (Stripe, puppy auto-switch, back navigation).
+The "Send Deposit Link" button in the groomer portal calls `send-payment-link` which calculates `amountDue = total - deposit` (the full remaining balance). For a booking with £0 deposit paid, this sends a link for the **full price** instead of a **50% deposit**.
 
----
+## Fix 1 — Edge Function: `send-payment-link`
 
-### 1. Walking Paw Progress Bar
+Add a `payment_type` parameter. When `payment_type === "deposit"`:
+- Calculate amount as `total_price * 0.5` instead of `total - deposit`
+- Update the email copy to say "Deposit" instead of "Payment"
+- Update the audit log to say "Deposit link" instead of "Payment link"
 
-- Add a **paw-print step indicator** at the top of the BookingFlow, below the header.
-- Define the steps as an ordered array (e.g. `["sub-service", "breed", "calendar", "addons", "guest-details"]`), filtered based on whether the flow needs breed/addons.
-- Render a row of `PawPrint` icons — completed steps use the brand accent color, current step is highlighted, future steps are greyed out (`text-muted-foreground/30`).
-- Use `framer-motion`'s `layoutId` on a small underline/highlight element that animates smoothly between paw positions as the step changes, creating the "walking" effect.
-- Each paw tilts slightly (`rotate: -15deg` → `15deg`) using a short spring animation on the active paw.
+When `payment_type` is not "deposit" (or absent), keep existing behavior (full balance due).
 
-### 2. Tail Wag Loading Animation
+The metadata on the Stripe payment link already includes `booking_id`, which is correct.
 
-- Create a small `TailWagSpinner` component using an inline SVG of a simplified dog tail.
-- Animate with `framer-motion` using a repeating `rotate` keyframe (`[-20, 20, -20]` on loop) with `duration: 0.4s`.
-- Replace the existing CSS spinner (line 825: `animate-spin h-8 w-8 border-4...`) and the "Processing..." text in submit buttons with this component.
+## Fix 2 — Frontend: `UnpaidDepositsAlert.tsx`
 
-### 3. Bouncy Page Transitions (Framer Motion)
+In `handleSendDepositLink`, pass `payment_type: "deposit"` in the request body:
+```typescript
+body: { booking_id: booking.id, send_via: ..., payment_type: "deposit" }
+```
 
-- Wrap each step's content block in a `<motion.div>` with `AnimatePresence` and keyed by `step`.
-- Entry: `initial={{ x: 80, opacity: 0 }}`, `animate={{ x: 0, opacity: 1 }}` with `type: "spring", stiffness: 300, damping: 25`.
-- Exit: `exit={{ x: -80, opacity: 0 }}` with a fast tween.
-- Track navigation direction (forward/back) to reverse the slide direction when going back (slide in from left instead of right).
+## Fix 3 — Verify `record-payment` Edge Function
 
-### 4. Back Button & Puppy Logic
+The existing `record-payment` function:
+- Searches Stripe checkout sessions for matching `booking_id` in metadata ✅
+- Retrieves `amount_received` from the payment intent ✅
+- Updates `deposit_paid` (not `total_price`) ✅
+- Sets status to "Confirmed" (unless closed status) ✅
 
-- The existing `goBack` function already resets state per step — no changes needed there.
-- For the **Puppy Special "pop" effect**: when `showPuppyPopup` closes and the calendar step appears, add a `motion.div` around the "Puppy Special" service name in the calendar's summary card with `animate={{ scale: [1, 1.15, 1] }}` and a sparkle keyframe, triggered when `puppySwitched` is true.
+This is already correct. When a customer pays via the payment link, the checkout session inherits the payment link's metadata with `booking_id`, so `record-payment` will find it and update `deposit_paid` correctly.
 
-### 5. Styling Constraints
+## Fix 4 — Flag Orphaned Payment for Manual Review
 
-- All animations use `duration: 0.3–0.5s` max.
-- Spring transitions use high stiffness (300+) and moderate damping (25+) for snappy feel.
-- No layout shifts — all animated elements have fixed dimensions or use `layout` prop.
+Insert an audit log entry for `pi_3TD6XgQfeHASnkQW1onchwcE` flagging it for manual review. Also insert a booking anomaly-style record or audit entry visible in the finance page:
+- Add an audit log: "UNMATCHED_PAYMENT — Payment of £50.00 received (pi_3TD6XgQfeHASnkQW1onchwcE) but no matching booking found. Manual review required."
 
----
+## Files Changed
 
-### Files to Edit
-
-| File | Change |
-|------|--------|
-| `src/components/BookingFlow.tsx` | Add `AnimatePresence`, `motion.div` wrappers per step, paw progress bar component, tail wag spinner, direction tracking for transitions, sparkle effect on puppy switch |
-
-### Technical Notes
-
-- `framer-motion` is already installed.
-- The `TailWagSpinner` and `PawProgressBar` will be inline components within `BookingFlow.tsx` to keep changes contained.
-- No database or edge function changes needed.
+1. `supabase/functions/send-payment-link/index.ts` — Add `payment_type` support to calculate 50% deposit amount
+2. `src/components/groomer/overview/UnpaidDepositsAlert.tsx` — Pass `payment_type: "deposit"` in request
+3. Database insert — One audit log entry for the orphaned payment
 
