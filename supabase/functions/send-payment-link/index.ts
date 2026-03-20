@@ -171,8 +171,8 @@ serve(async (req) => {
     await supabase.from("audit_logs").insert({
       user_id: userId,
       staff_id: booking.staff_id,
-      action: "PAYMENT_LINK_SENT",
-      details: `Payment link of £${amountDue.toFixed(2)} sent via ${send_via} for ${booking.customer_name} (${booking.dog_name}). Booking date: ${booking.booking_date}.`,
+      action: isDeposit ? "DEPOSIT_LINK_SENT" : "PAYMENT_LINK_SENT",
+      details: `${labelPrefix} link of £${amountDue.toFixed(2)} sent via ${send_via} for ${booking.customer_name} (${booking.dog_name}). Booking date: ${booking.booking_date}.`,
     });
 
     return new Response(JSON.stringify({ success: true, url: linkUrl }), {
