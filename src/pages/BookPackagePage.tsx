@@ -159,13 +159,8 @@ export default function BookPackagePage() {
     }
   }, [customerDogs, selectedDogIdx, addingNewDog]);
 
-  // Sync breed search text when breedId set from dog selection
-  useEffect(() => {
-    if (breedId && breeds) {
-      const b = breeds.find(br => br.id === breedId);
-      if (b) setBreedSearch(b.name);
-    }
-  }, [breedId, breeds]);
+
+
 
   // ── Data queries ──
   const { data: packages } = useQuery({
