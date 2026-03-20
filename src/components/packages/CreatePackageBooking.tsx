@@ -48,13 +48,13 @@ export function CreatePackageBooking({ onCreated }: { onCreated: () => void }) {
   const { data: staff } = useQuery({
     queryKey: ["staff-for-packages"],
     queryFn: async () => {
-      const { data, error } = await (supabase
+      const { data, error } = await supabase
         .from("staff")
-        .select("id, name") as any)
-        .eq("is_active", true)
+        .select("id, name")
+        .eq("account_blocked", false)
         .order("name");
       if (error) throw error;
-      return data as any[];
+      return data;
     },
   });
 
