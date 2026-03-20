@@ -304,7 +304,7 @@ export function PackageDetailDialog({ packageBookingId, open, onClose }: Props) 
               </div>
             )}
 
-            {tcPending && (
+            {tcPending && isAdmin && (
               <div className="flex flex-wrap gap-2">
                 <Button variant="outline" size="sm" onClick={handleResendTCEmail} disabled={resending}>
                   {resending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Send className="h-3 w-3 mr-1" />}
