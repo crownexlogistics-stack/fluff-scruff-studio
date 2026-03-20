@@ -145,6 +145,7 @@ export function PackageDetailDialog({ packageBookingId, open, onClose }: Props) 
     } finally {
       setDownloadingPdf(false);
     }
+  };
 
   const handleCancelPackage = async () => {
     if (!pb) return;
