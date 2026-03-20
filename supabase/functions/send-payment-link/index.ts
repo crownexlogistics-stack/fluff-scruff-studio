@@ -139,7 +139,7 @@ serve(async (req) => {
         formattedPhone = "+44" + formattedPhone;
       }
 
-      const smsBody = `Hi ${firstName}, here is your payment link for your appointment at Fluff & Scruff: ${linkUrl}`;
+      const smsBody = `Hi ${firstName}, here is your ${isDeposit ? "deposit" : "payment"} link for your appointment at Fluff & Scruff: ${linkUrl}`;
       
       const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`;
       const formData = new URLSearchParams();
