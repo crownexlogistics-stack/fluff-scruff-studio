@@ -436,51 +436,121 @@ export default function BookPackagePage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <Label className="text-xs font-body">First Name *</Label>
-                    <Input value={firstName} onChange={e => setFirstName(e.target.value)} placeholder="First name" className="rounded-xl" />
+                    <Input value={firstName} onChange={e => !user && setFirstName(e.target.value)} placeholder="First name" className="rounded-xl" readOnly={!!user} disabled={!!user} />
                   </div>
                   <div>
                     <Label className="text-xs font-body">Last Name *</Label>
-                    <Input value={lastName} onChange={e => setLastName(e.target.value)} placeholder="Last name" className="rounded-xl" />
+                    <Input value={lastName} onChange={e => !user && setLastName(e.target.value)} placeholder="Last name" className="rounded-xl" readOnly={!!user} disabled={!!user} />
                   </div>
                 </div>
                 <div>
                   <Label className="text-xs font-body">Email Address *</Label>
-                  <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" className="rounded-xl" />
+                  <Input type="email" value={email} onChange={e => !user && setEmail(e.target.value)} placeholder="you@example.com" className="rounded-xl" readOnly={!!user} disabled={!!user} />
                 </div>
                 <div>
                   <Label className="text-xs font-body">Phone Number *</Label>
-                  <Input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="07..." className="rounded-xl" />
+                  <Input type="tel" value={phone} onChange={e => !user && setPhone(e.target.value)} placeholder="07..." className="rounded-xl" readOnly={!!user} disabled={!!user} />
                 </div>
+                {user && (
+                  <p className="text-xs text-muted-foreground font-body">
+                    Logged in as {user.email} —{" "}
+                    <button type="button" onClick={async () => { await signOut(); setPrefilled(false); setFirstName(""); setLastName(""); setEmail(""); setPhone(""); setDogName(""); setBreedId(""); setBreedSearch(""); setSelectedDogIdx(null); }} className="underline text-accent hover:text-accent/80">
+                      not you? Sign out
+                    </button>
+                  </p>
+                )}
                 <Separator />
-                <div>
-                  <Label className="text-xs font-body">Dog's Name *</Label>
-                  <Input value={dogName} onChange={e => setDogName(e.target.value)} placeholder="Your pup's name" className="rounded-xl" />
-                </div>
-                <div>
-                  <Label className="text-xs font-body">Dog's Breed</Label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      value={breedSearch}
-                      onChange={e => { setBreedSearch(e.target.value); setBreedId(""); }}
-                      placeholder="Search breed..."
-                      className="rounded-xl pl-9"
-                    />
-                  </div>
-                  {breedSearch && filteredBreeds.length > 0 && !breedId && (
-                    <div className="border rounded-xl mt-1 max-h-40 overflow-y-auto bg-card shadow-lg">
-                      {filteredBreeds.slice(0, 15).map(b => (
-                        <button key={b.id} onClick={() => { setBreedId(b.id); setBreedSearch(b.name); }}
-                          className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors font-body">
-                          {b.name}
-                        </button>
-                      ))}
+
+                {/* Dog selection — logged in with dogs on file */}
+                {user && customerDogs && customerDogs.length > 1 && !addingNewDog ? (
+                  <div className="space-y-3">
+                    <Label className="text-xs font-body">Which dog is this booking for? *</Label>
+                    <div className="space-y-2">
+                      {customerDogs.map((d, idx) => {
+                        const breed = d.breed_id ? breeds?.find(b => b.id === d.breed_id) : null;
+                        const isSelected = selectedDogIdx === idx;
+                        return (
+                          <button
+                            key={d.dog_name}
+                            type="button"
+                            onClick={() => {
+                              setSelectedDogIdx(idx);
+                              setDogName(d.dog_name);
+                              setBreedId(d.breed_id || "");
+                              setBreedSearch(breed?.name || "");
+                              setAddingNewDog(false);
+                            }}
+                            className={`w-full text-left p-3 rounded-xl border-2 transition-all flex items-center gap-3 ${isSelected ? "border-accent bg-accent/5" : "border-border hover:border-accent/40"}`}
+                          >
+                            <Dog className="h-5 w-5 text-muted-foreground shrink-0" />
+                            <div>
+                              <p className="font-body font-semibold text-sm">{d.dog_name}</p>
+                              {breed && <p className="text-xs text-muted-foreground font-body">{breed.name}</p>}
+                            </div>
+                            {isSelected && (
+                              <div className="ml-auto w-5 h-5 bg-accent rounded-full flex items-center justify-center">
+                                <Check className="h-3 w-3 text-white" />
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })}
                     </div>
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground font-body">
-                  Already booked with us before? We'll recognise your email and link this to your existing profile.
-                </p>
+                    {/* Show breed picker if selected dog has no breed */}
+                    {selectedDogIdx !== null && !customerDogs[selectedDogIdx]?.breed_id && (
+                      <div>
+                        <Label className="text-xs font-body">Dog's Breed</Label>
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Input value={breedSearch} onChange={e => { setBreedSearch(e.target.value); setBreedId(""); }} placeholder="Search breed..." className="rounded-xl pl-9" />
+                        </div>
+                        {breedSearch && filteredBreeds.length > 0 && !breedId && (
+                          <div className="border rounded-xl mt-1 max-h-40 overflow-y-auto bg-card shadow-lg">
+                            {filteredBreeds.slice(0, 15).map(b => (
+                              <button key={b.id} type="button" onClick={() => { setBreedId(b.id); setBreedSearch(b.name); }} className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors font-body">{b.name}</button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    <button type="button" onClick={() => { setAddingNewDog(true); setSelectedDogIdx(null); setDogName(""); setBreedId(""); setBreedSearch(""); }} className="text-xs text-accent hover:text-accent/80 underline font-body">
+                      + Add a different dog
+                    </button>
+                  </div>
+                ) : (
+                  /* Default dog fields — guest, single dog, no dogs, or adding new */
+                  <div className="space-y-4">
+                    {user && addingNewDog && customerDogs && customerDogs.length > 1 && (
+                      <button type="button" onClick={() => { setAddingNewDog(false); }} className="text-xs text-accent hover:text-accent/80 underline font-body">
+                        ← Back to my dogs
+                      </button>
+                    )}
+                    <div>
+                      <Label className="text-xs font-body">Dog's Name *</Label>
+                      <Input value={dogName} onChange={e => setDogName(e.target.value)} placeholder="Your pup's name" className="rounded-xl" />
+                    </div>
+                    <div>
+                      <Label className="text-xs font-body">Dog's Breed</Label>
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input value={breedSearch} onChange={e => { setBreedSearch(e.target.value); setBreedId(""); }} placeholder="Search breed..." className="rounded-xl pl-9" />
+                      </div>
+                      {breedSearch && filteredBreeds.length > 0 && !breedId && (
+                        <div className="border rounded-xl mt-1 max-h-40 overflow-y-auto bg-card shadow-lg">
+                          {filteredBreeds.slice(0, 15).map(b => (
+                            <button key={b.id} type="button" onClick={() => { setBreedId(b.id); setBreedSearch(b.name); }} className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors font-body">{b.name}</button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {!user && (
+                  <p className="text-xs text-muted-foreground font-body">
+                    Already booked with us before? We'll recognise your email and link this to your existing profile.
+                  </p>
+                )}
               </div>
               <Button onClick={() => setStep(3)} disabled={!canProceedStep2} className="w-full mt-6 bg-accent hover:bg-accent/90 text-white font-bold h-12 rounded-full">
                 Continue <ChevronRight className="h-4 w-4 ml-1" />
