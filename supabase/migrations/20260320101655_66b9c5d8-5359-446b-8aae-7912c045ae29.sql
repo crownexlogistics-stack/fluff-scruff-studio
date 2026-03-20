@@ -1,0 +1,1 @@
+UPDATE auth.users SET raw_user_meta_data = jsonb_set(COALESCE(raw_user_meta_data, '{}'::jsonb), '{full_name}', '"Sevak"') WHERE id = '5a13ad73-729b-4a43-af05-5925aa605435'
