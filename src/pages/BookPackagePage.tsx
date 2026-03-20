@@ -1,7 +1,8 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -72,6 +73,7 @@ function StepIndicator({ current }: { current: Step }) {
 
 export default function BookPackagePage() {
   const navigate = useNavigate();
+  const { user, signOut } = useAuth();
   const [step, setStep] = useState<Step>(1);
   const [selectedPackageId, setSelectedPackageId] = useState("");
   const [firstName, setFirstName] = useState("");
@@ -86,6 +88,76 @@ export default function BookPackagePage() {
   const [tcDialogOpen, setTcDialogOpen] = useState(false);
   const [paying, setPaying] = useState(false);
   const [dateWarnings, setDateWarnings] = useState<Record<number, string>>({});
+  const [selectedDogIdx, setSelectedDogIdx] = useState<number | null>(null);
+  const [addingNewDog, setAddingNewDog] = useState(false);
+  const [prefilled, setPrefilled] = useState(false);
+
+
+  // Fetch logged-in customer's dogs from bookings + migrated_bookings
+  const { data: customerDogs } = useQuery({
+    queryKey: ["customer-dogs-pkg", user?.email],
+    enabled: !!user?.email,
+    queryFn: async () => {
+      const userEmail = user!.email!.toLowerCase();
+      const [bookingsRes, migratedRes] = await Promise.all([
+        supabase.from("bookings").select("dog_name, breed_id").ilike("customer_email", userEmail).not("dog_name", "is", null),
+        (supabase.from("migrated_bookings" as any).select("dog_name, breed_name") as any).ilike("customer_email", userEmail),
+      ]);
+      const dogMap = new Map<string, string | null>();
+      ((bookingsRes.data || []) as any[]).forEach((b: any) => {
+        if (b.dog_name?.trim()) dogMap.set(b.dog_name.trim(), b.breed_id || dogMap.get(b.dog_name.trim()) || null);
+      });
+      ((migratedRes.data || []) as any[]).forEach((mb: any) => {
+        if (mb.dog_name?.trim() && !dogMap.has(mb.dog_name.trim())) dogMap.set(mb.dog_name.trim(), null);
+      });
+      return Array.from(dogMap.entries()).map(([name, bId]) => ({ dog_name: name, breed_id: bId }));
+    },
+  });
+
+  // Pre-fill logged-in user details
+  useEffect(() => {
+    if (!user || prefilled) return;
+    const fetchProfile = async () => {
+      const userEmail = user.email || "";
+      setEmail(userEmail);
+      const { data: profile } = await supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle();
+      if (profile?.full_name) {
+        const parts = profile.full_name.trim().split(/\s+/);
+        setFirstName(parts[0] || "");
+        setLastName(parts.slice(1).join(" ") || "");
+      }
+      const { data: booking } = await supabase.from("bookings").select("customer_phone, customer_name").ilike("customer_email", userEmail).not("customer_phone", "is", null).limit(1).maybeSingle();
+      if (booking?.customer_phone) setPhone(booking.customer_phone);
+      if (!profile?.full_name && booking?.customer_name) {
+        const parts = booking.customer_name.trim().split(/\s+/);
+        setFirstName(prev => prev || parts[0] || "");
+        setLastName(prev => prev || parts.slice(1).join(" ") || "");
+      }
+      const { data: migrated } = await supabase.from("migrated_customers").select("full_name, phone").ilike("email", userEmail).limit(1).maybeSingle();
+      if (migrated) {
+        if (migrated.full_name) {
+          const mp = migrated.full_name.trim().split(/\s+/);
+          setFirstName(prev => prev || mp[0] || "");
+          setLastName(prev => prev || mp.slice(1).join(" ") || "");
+        }
+        setPhone(prev => prev || migrated.phone || "");
+      }
+      setPrefilled(true);
+    };
+    fetchProfile();
+  }, [user, prefilled]);
+
+  // Auto-select single dog
+  useEffect(() => {
+    if (!customerDogs || customerDogs.length === 0 || selectedDogIdx !== null || addingNewDog) return;
+    if (customerDogs.length === 1) {
+      setSelectedDogIdx(0);
+      setDogName(customerDogs[0].dog_name);
+      if (customerDogs[0].breed_id) {
+        setBreedId(customerDogs[0].breed_id);
+      }
+    }
+  }, [customerDogs, selectedDogIdx, addingNewDog]);
 
   // ── Data queries ──
   const { data: packages } = useQuery({
@@ -105,6 +177,14 @@ export default function BookPackagePage() {
       return data;
     },
   });
+
+  // Sync breed search text when breedId set from dog selection
+  useEffect(() => {
+    if (breedId && breeds) {
+      const b = breeds.find(br => br.id === breedId);
+      if (b) setBreedSearch(b.name);
+    }
+  }, [breedId, breeds]);
 
   const { data: groomers } = useQuery({
     queryKey: ["groomers-for-pkg-booking"],
@@ -356,51 +436,121 @@ export default function BookPackagePage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <Label className="text-xs font-body">First Name *</Label>
-                    <Input value={firstName} onChange={e => setFirstName(e.target.value)} placeholder="First name" className="rounded-xl" />
+                    <Input value={firstName} onChange={e => !user && setFirstName(e.target.value)} placeholder="First name" className="rounded-xl" readOnly={!!user} disabled={!!user} />
                   </div>
                   <div>
                     <Label className="text-xs font-body">Last Name *</Label>
-                    <Input value={lastName} onChange={e => setLastName(e.target.value)} placeholder="Last name" className="rounded-xl" />
+                    <Input value={lastName} onChange={e => !user && setLastName(e.target.value)} placeholder="Last name" className="rounded-xl" readOnly={!!user} disabled={!!user} />
                   </div>
                 </div>
                 <div>
                   <Label className="text-xs font-body">Email Address *</Label>
-                  <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" className="rounded-xl" />
+                  <Input type="email" value={email} onChange={e => !user && setEmail(e.target.value)} placeholder="you@example.com" className="rounded-xl" readOnly={!!user} disabled={!!user} />
                 </div>
                 <div>
                   <Label className="text-xs font-body">Phone Number *</Label>
-                  <Input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="07..." className="rounded-xl" />
+                  <Input type="tel" value={phone} onChange={e => !user && setPhone(e.target.value)} placeholder="07..." className="rounded-xl" readOnly={!!user} disabled={!!user} />
                 </div>
+                {user && (
+                  <p className="text-xs text-muted-foreground font-body">
+                    Logged in as {user.email} —{" "}
+                    <button type="button" onClick={async () => { await signOut(); setPrefilled(false); setFirstName(""); setLastName(""); setEmail(""); setPhone(""); setDogName(""); setBreedId(""); setBreedSearch(""); setSelectedDogIdx(null); }} className="underline text-accent hover:text-accent/80">
+                      not you? Sign out
+                    </button>
+                  </p>
+                )}
                 <Separator />
-                <div>
-                  <Label className="text-xs font-body">Dog's Name *</Label>
-                  <Input value={dogName} onChange={e => setDogName(e.target.value)} placeholder="Your pup's name" className="rounded-xl" />
-                </div>
-                <div>
-                  <Label className="text-xs font-body">Dog's Breed</Label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      value={breedSearch}
-                      onChange={e => { setBreedSearch(e.target.value); setBreedId(""); }}
-                      placeholder="Search breed..."
-                      className="rounded-xl pl-9"
-                    />
-                  </div>
-                  {breedSearch && filteredBreeds.length > 0 && !breedId && (
-                    <div className="border rounded-xl mt-1 max-h-40 overflow-y-auto bg-card shadow-lg">
-                      {filteredBreeds.slice(0, 15).map(b => (
-                        <button key={b.id} onClick={() => { setBreedId(b.id); setBreedSearch(b.name); }}
-                          className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors font-body">
-                          {b.name}
-                        </button>
-                      ))}
+
+                {/* Dog selection — logged in with dogs on file */}
+                {user && customerDogs && customerDogs.length > 1 && !addingNewDog ? (
+                  <div className="space-y-3">
+                    <Label className="text-xs font-body">Which dog is this booking for? *</Label>
+                    <div className="space-y-2">
+                      {customerDogs.map((d, idx) => {
+                        const breed = d.breed_id ? breeds?.find(b => b.id === d.breed_id) : null;
+                        const isSelected = selectedDogIdx === idx;
+                        return (
+                          <button
+                            key={d.dog_name}
+                            type="button"
+                            onClick={() => {
+                              setSelectedDogIdx(idx);
+                              setDogName(d.dog_name);
+                              setBreedId(d.breed_id || "");
+                              setBreedSearch(breed?.name || "");
+                              setAddingNewDog(false);
+                            }}
+                            className={`w-full text-left p-3 rounded-xl border-2 transition-all flex items-center gap-3 ${isSelected ? "border-accent bg-accent/5" : "border-border hover:border-accent/40"}`}
+                          >
+                            <Dog className="h-5 w-5 text-muted-foreground shrink-0" />
+                            <div>
+                              <p className="font-body font-semibold text-sm">{d.dog_name}</p>
+                              {breed && <p className="text-xs text-muted-foreground font-body">{breed.name}</p>}
+                            </div>
+                            {isSelected && (
+                              <div className="ml-auto w-5 h-5 bg-accent rounded-full flex items-center justify-center">
+                                <Check className="h-3 w-3 text-white" />
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })}
                     </div>
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground font-body">
-                  Already booked with us before? We'll recognise your email and link this to your existing profile.
-                </p>
+                    {/* Show breed picker if selected dog has no breed */}
+                    {selectedDogIdx !== null && !customerDogs[selectedDogIdx]?.breed_id && (
+                      <div>
+                        <Label className="text-xs font-body">Dog's Breed</Label>
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Input value={breedSearch} onChange={e => { setBreedSearch(e.target.value); setBreedId(""); }} placeholder="Search breed..." className="rounded-xl pl-9" />
+                        </div>
+                        {breedSearch && filteredBreeds.length > 0 && !breedId && (
+                          <div className="border rounded-xl mt-1 max-h-40 overflow-y-auto bg-card shadow-lg">
+                            {filteredBreeds.slice(0, 15).map(b => (
+                              <button key={b.id} type="button" onClick={() => { setBreedId(b.id); setBreedSearch(b.name); }} className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors font-body">{b.name}</button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    <button type="button" onClick={() => { setAddingNewDog(true); setSelectedDogIdx(null); setDogName(""); setBreedId(""); setBreedSearch(""); }} className="text-xs text-accent hover:text-accent/80 underline font-body">
+                      + Add a different dog
+                    </button>
+                  </div>
+                ) : (
+                  /* Default dog fields — guest, single dog, no dogs, or adding new */
+                  <div className="space-y-4">
+                    {user && addingNewDog && customerDogs && customerDogs.length > 1 && (
+                      <button type="button" onClick={() => { setAddingNewDog(false); }} className="text-xs text-accent hover:text-accent/80 underline font-body">
+                        ← Back to my dogs
+                      </button>
+                    )}
+                    <div>
+                      <Label className="text-xs font-body">Dog's Name *</Label>
+                      <Input value={dogName} onChange={e => setDogName(e.target.value)} placeholder="Your pup's name" className="rounded-xl" />
+                    </div>
+                    <div>
+                      <Label className="text-xs font-body">Dog's Breed</Label>
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input value={breedSearch} onChange={e => { setBreedSearch(e.target.value); setBreedId(""); }} placeholder="Search breed..." className="rounded-xl pl-9" />
+                      </div>
+                      {breedSearch && filteredBreeds.length > 0 && !breedId && (
+                        <div className="border rounded-xl mt-1 max-h-40 overflow-y-auto bg-card shadow-lg">
+                          {filteredBreeds.slice(0, 15).map(b => (
+                            <button key={b.id} type="button" onClick={() => { setBreedId(b.id); setBreedSearch(b.name); }} className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors font-body">{b.name}</button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {!user && (
+                  <p className="text-xs text-muted-foreground font-body">
+                    Already booked with us before? We'll recognise your email and link this to your existing profile.
+                  </p>
+                )}
               </div>
               <Button onClick={() => setStep(3)} disabled={!canProceedStep2} className="w-full mt-6 bg-accent hover:bg-accent/90 text-white font-bold h-12 rounded-full">
                 Continue <ChevronRight className="h-4 w-4 ml-1" />
