@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { format } from "date-fns";
 import { PartyPopper } from "lucide-react";
+import { useMigratedBookings } from "@/hooks/useMigratedBookings";
 
 interface CustomerMilestoneCardProps {
   staffId: string;
@@ -12,9 +13,10 @@ const MILESTONES = [5, 10, 15, 20, 25, 50, 75, 100];
 
 export function CustomerMilestoneCard({ staffId }: CustomerMilestoneCardProps) {
   const today = format(new Date(), "yyyy-MM-dd");
+  const { data: migratedBookings = [] } = useMigratedBookings(staffId);
 
   const { data: milestones = [] } = useQuery({
-    queryKey: ["groomer-milestones", staffId, today],
+    queryKey: ["groomer-milestones", staffId, today, migratedBookings.length],
     queryFn: async () => {
       // Get today's appointments
       const { data: todayAppts, error: e1 } = await supabase
@@ -24,6 +26,19 @@ export function CustomerMilestoneCard({ staffId }: CustomerMilestoneCardProps) {
         .eq("booking_date", today)
         .not("status", "in", '("Cancelled","No Show")');
       if (e1) throw e1;
+
+      // Build migrated visit counts by email
+      const migratedCounts = new Map<string, number>();
+      const migratedFirstDates = new Map<string, string>();
+      for (const mb of migratedBookings) {
+        const email = ((mb as any).migrated_customers?.email || "").toLowerCase();
+        if (!email) continue;
+        migratedCounts.set(email, (migratedCounts.get(email) || 0) + 1);
+        const existing = migratedFirstDates.get(email);
+        if (!existing || mb.booking_date < existing) {
+          migratedFirstDates.set(email, mb.booking_date);
+        }
+      }
 
       const results: { customerName: string; dogName: string; visitNumber: number; firstVisit: string }[] = [];
 
@@ -39,14 +54,24 @@ export function CustomerMilestoneCard({ staffId }: CustomerMilestoneCardProps) {
           .order("booking_date", { ascending: true });
 
         const completedCount = pastBookings?.length || 0;
-        const visitNumber = completedCount + 1; // today's visit
+        const migratedCount = migratedCounts.get(apt.customer_email.toLowerCase()) || 0;
+        const visitNumber = completedCount + migratedCount + 1; // +1 for today
 
         if (MILESTONES.includes(visitNumber)) {
+          const migratedFirst = migratedFirstDates.get(apt.customer_email.toLowerCase());
+          const bookingFirst = pastBookings?.[0]?.booking_date;
+          let firstVisit = today;
+          if (migratedFirst && bookingFirst) {
+            firstVisit = migratedFirst < bookingFirst ? migratedFirst : bookingFirst;
+          } else {
+            firstVisit = migratedFirst || bookingFirst || today;
+          }
+
           results.push({
             customerName: apt.customer_name,
             dogName: apt.dog_name,
             visitNumber,
-            firstVisit: pastBookings?.[0]?.booking_date || today,
+            firstVisit,
           });
         }
       }

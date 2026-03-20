@@ -5,14 +5,17 @@ import { Button } from "@/components/ui/button";
 import { Copy, ExternalLink } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import { toast } from "sonner";
+import { useMigratedBookings } from "@/hooks/useMigratedBookings";
 
 interface ReEngagementCardProps {
   staffId: string;
 }
 
 export function ReEngagementCard({ staffId }: ReEngagementCardProps) {
+  const { data: migratedBookings = [] } = useMigratedBookings(staffId);
+
   const { data: lapsedCustomers = [] } = useQuery({
-    queryKey: ["groomer-reengagement", staffId],
+    queryKey: ["groomer-reengagement", staffId, migratedBookings.length],
     queryFn: async () => {
       const { data: allBookings, error } = await supabase
         .from("bookings")
@@ -23,17 +26,37 @@ export function ReEngagementCard({ staffId }: ReEngagementCardProps) {
       if (error) throw error;
 
       const customerMap = new Map<string, { name: string; email: string; dog: string; dates: string[] }>();
+
       for (const b of allBookings) {
         if (!b.customer_email) continue;
-        const existing = customerMap.get(b.customer_email);
+        const key = b.customer_email.toLowerCase();
+        const existing = customerMap.get(key);
         if (existing) {
           existing.dates.push(b.booking_date);
         } else {
-          customerMap.set(b.customer_email, {
+          customerMap.set(key, {
             name: b.customer_name,
             email: b.customer_email,
             dog: b.dog_name,
             dates: [b.booking_date],
+          });
+        }
+      }
+
+      // Merge migrated bookings
+      for (const mb of migratedBookings) {
+        const mc = (mb as any).migrated_customers;
+        const email = mc?.email?.toLowerCase();
+        if (!email) continue;
+        const existing = customerMap.get(email);
+        if (existing) {
+          existing.dates.push(mb.booking_date);
+        } else {
+          customerMap.set(email, {
+            name: mc.full_name || "Wix Customer",
+            email: mc.email,
+            dog: mb.dog_name || "Unknown",
+            dates: [mb.booking_date],
           });
         }
       }
