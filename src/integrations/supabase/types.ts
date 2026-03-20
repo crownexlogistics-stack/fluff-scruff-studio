@@ -1984,6 +1984,7 @@ export type Database = {
           ip_address: string | null
           manual_note: string | null
           package_booking_id: string | null
+          pdf_storage_path: string | null
           performed_by: string | null
           signature_text: string | null
           signed_at: string | null
@@ -2002,6 +2003,7 @@ export type Database = {
           ip_address?: string | null
           manual_note?: string | null
           package_booking_id?: string | null
+          pdf_storage_path?: string | null
           performed_by?: string | null
           signature_text?: string | null
           signed_at?: string | null
@@ -2020,6 +2022,7 @@ export type Database = {
           ip_address?: string | null
           manual_note?: string | null
           package_booking_id?: string | null
+          pdf_storage_path?: string | null
           performed_by?: string | null
           signature_text?: string | null
           signed_at?: string | null
