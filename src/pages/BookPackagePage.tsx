@@ -93,6 +93,77 @@ export default function BookPackagePage() {
   const [prefilled, setPrefilled] = useState(false);
 
 
+  // Fetch logged-in customer's dogs from bookings + migrated_bookings
+  const { data: customerDogs } = useQuery({
+    queryKey: ["customer-dogs-pkg", user?.email],
+    enabled: !!user?.email,
+    queryFn: async () => {
+      const userEmail = user!.email!.toLowerCase();
+      const [bookingsRes, migratedRes] = await Promise.all([
+        supabase.from("bookings").select("dog_name, breed_id").ilike("customer_email", userEmail).not("dog_name", "is", null),
+        (supabase.from("migrated_bookings" as any).select("dog_name, breed_name") as any).ilike("customer_email", userEmail),
+      ]);
+      const dogMap = new Map<string, string | null>();
+      ((bookingsRes.data || []) as any[]).forEach((b: any) => {
+        if (b.dog_name?.trim()) dogMap.set(b.dog_name.trim(), b.breed_id || dogMap.get(b.dog_name.trim()) || null);
+      });
+      ((migratedRes.data || []) as any[]).forEach((mb: any) => {
+        if (mb.dog_name?.trim() && !dogMap.has(mb.dog_name.trim())) dogMap.set(mb.dog_name.trim(), null);
+      });
+      return Array.from(dogMap.entries()).map(([name, bId]) => ({ dog_name: name, breed_id: bId }));
+    },
+  });
+
+  // Pre-fill logged-in user details
+  useEffect(() => {
+    if (!user || prefilled) return;
+    const fetchProfile = async () => {
+      const userEmail = user.email || "";
+      setEmail(userEmail);
+      const { data: profile } = await supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle();
+      if (profile?.full_name) {
+        const parts = profile.full_name.trim().split(/\s+/);
+        setFirstName(parts[0] || "");
+        setLastName(parts.slice(1).join(" ") || "");
+      }
+      const { data: booking } = await supabase.from("bookings").select("customer_phone, customer_name").ilike("customer_email", userEmail).not("customer_phone", "is", null).limit(1).maybeSingle();
+      if (booking?.customer_phone) setPhone(booking.customer_phone);
+      if (!profile?.full_name && booking?.customer_name) {
+        const parts = booking.customer_name.trim().split(/\s+/);
+        setFirstName(prev => prev || parts[0] || "");
+        setLastName(prev => prev || parts.slice(1).join(" ") || "");
+      }
+      const { data: migrated } = await supabase.from("migrated_customers").select("first_name, last_name, phone").ilike("email", userEmail).limit(1).maybeSingle();
+      if (migrated) {
+        setFirstName(prev => prev || migrated.first_name || "");
+        setLastName(prev => prev || migrated.last_name || "");
+        setPhone(prev => prev || migrated.phone || "");
+      }
+      setPrefilled(true);
+    };
+    fetchProfile();
+  }, [user, prefilled]);
+
+  // Auto-select single dog
+  useEffect(() => {
+    if (!customerDogs || customerDogs.length === 0 || selectedDogIdx !== null || addingNewDog) return;
+    if (customerDogs.length === 1) {
+      setSelectedDogIdx(0);
+      setDogName(customerDogs[0].dog_name);
+      if (customerDogs[0].breed_id) {
+        setBreedId(customerDogs[0].breed_id);
+      }
+    }
+  }, [customerDogs, selectedDogIdx, addingNewDog]);
+
+  // Sync breed search text when breedId set from dog selection
+  useEffect(() => {
+    if (breedId && breeds) {
+      const b = breeds.find(br => br.id === breedId);
+      if (b) setBreedSearch(b.name);
+    }
+  }, [breedId, breeds]);
+
   // ── Data queries ──
   const { data: packages } = useQuery({
     queryKey: ["public-packages"],
