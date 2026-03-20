@@ -1,4 +1,4 @@
-import { CalendarDays, MessageSquare, Dog, PoundSterling, FileText, LogOut, PawPrint, Package } from "lucide-react";
+import { CalendarDays, MessageSquare, Dog, PoundSterling, FileText, LogOut, PawPrint, Package, ShoppingCart } from "lucide-react";
 import { useNavigate, Link, useLocation } from "react-router-dom";
 import logo from "@/assets/logo-transparent.png";
 import { useAuth } from "@/hooks/useAuth";
@@ -9,6 +9,17 @@ interface GroomerLayoutProps {
   children: React.ReactNode;
 }
 
+const groomerNavItems = [
+  { title: "My Portal", url: "/portal", icon: CalendarDays },
+  { title: "Bookings", url: "/portal/bookings", icon: CalendarDays },
+  { title: "Messages", url: "/portal/messages", icon: MessageSquare },
+  { title: "Package Deals", url: "/admin/packages", icon: Package },
+  { title: "Purchase Requests", url: "/portal/purchases", icon: ShoppingCart },
+  { title: "Breeds", url: "/portal/breeds", icon: Dog },
+  { title: "Finance", url: "/portal/finance", icon: PoundSterling },
+  { title: "Documents", url: "/portal/documents", icon: FileText },
+];
+
 export function GroomerLayout({ children }: GroomerLayoutProps) {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
@@ -18,6 +29,11 @@ export function GroomerLayout({ children }: GroomerLayoutProps) {
   const handleSignOut = async () => {
     await signOut();
     navigate("/");
+  };
+
+  const isActive = (url: string) => {
+    if (url === "/portal") return location.pathname === "/portal";
+    return location.pathname === url || location.pathname.startsWith(url + "/");
   };
 
   return (
@@ -33,20 +49,16 @@ export function GroomerLayout({ children }: GroomerLayoutProps) {
         </div>
 
         <nav className="flex-1 px-3 py-4 space-y-1">
-          <Link
-            to="/portal"
-            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${location.pathname === "/portal" ? "bg-sidebar-accent text-sidebar-primary-foreground font-medium" : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50"}`}
-          >
-            <CalendarDays className="h-4 w-4" />
-            My Portal
-          </Link>
-          <Link
-            to="/admin/packages"
-            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${location.pathname === "/admin/packages" ? "bg-sidebar-accent text-sidebar-primary-foreground font-medium" : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50"}`}
-          >
-            <Package className="h-4 w-4" />
-            Package Deals
-          </Link>
+          {groomerNavItems.map((item) => (
+            <Link
+              key={item.url}
+              to={item.url}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${isActive(item.url) ? "bg-sidebar-accent text-sidebar-primary-foreground font-medium" : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50"}`}
+            >
+              <item.icon className="h-4 w-4" />
+              {item.title}
+            </Link>
+          ))}
           {hasCustomerBookings && (
             <Link
               to="/my-pets"
