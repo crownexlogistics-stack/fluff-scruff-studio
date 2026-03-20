@@ -155,11 +155,12 @@ function GroomerFinanceView({ staffId }: { staffId: string }) {
   );
 }
 
-type Section = "bookings" | "messages" | "breeds" | "finance" | "documents" | "purchases";
+type Section = "bookings" | "messages" | "breeds" | "finance" | "documents" | "purchases" | "packages";
 
 const sectionCards: { id: Section; icon: React.ElementType; title: string; subtitle: string }[] = [
   { id: "bookings", icon: CalendarDays, title: "Bookings", subtitle: "Your schedule & salon calendar" },
   { id: "messages", icon: MessageSquare, title: "Messages", subtitle: "Customer enquiries & replies" },
+  { id: "packages", icon: Package, title: "Package Deals", subtitle: "View active package bookings" },
   { id: "purchases", icon: ShoppingCart, title: "Purchase Requests", subtitle: "Request equipment & supplies" },
   { id: "breeds", icon: Dog, title: "Breeds", subtitle: "Pricing & duration reference" },
   { id: "finance", icon: PoundSterling, title: "Finance", subtitle: "Commission & payouts" },
