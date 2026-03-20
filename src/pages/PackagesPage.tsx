@@ -4,9 +4,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Package } from "lucide-react";
 import { ActivePackages } from "@/components/packages/ActivePackages";
 import { CreatePackageBooking } from "@/components/packages/CreatePackageBooking";
+import { useAuth } from "@/hooks/useAuth";
+import { useUserRole } from "@/hooks/useUserRole";
 
 export default function PackagesPage() {
   const [tab, setTab] = useState("active");
+  const { user } = useAuth();
+  const { role } = useUserRole(user?.id);
+  const isAdmin = role === "director" || role === "manager";
 
   return (
     <AppLayout>
@@ -19,16 +24,18 @@ export default function PackagesPage() {
         <Tabs value={tab} onValueChange={setTab}>
           <TabsList>
             <TabsTrigger value="active">Active Packages</TabsTrigger>
-            <TabsTrigger value="create">Create New</TabsTrigger>
+            {isAdmin && <TabsTrigger value="create">Create New</TabsTrigger>}
           </TabsList>
 
           <TabsContent value="active">
             <ActivePackages />
           </TabsContent>
 
-          <TabsContent value="create">
-            <CreatePackageBooking onCreated={() => setTab("active")} />
-          </TabsContent>
+          {isAdmin && (
+            <TabsContent value="create">
+              <CreatePackageBooking onCreated={() => setTab("active")} />
+            </TabsContent>
+          )}
         </Tabs>
       </div>
     </AppLayout>

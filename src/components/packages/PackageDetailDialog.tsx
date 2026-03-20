@@ -13,6 +13,8 @@ import { AlertTriangle, Package, Loader2, FileCheck, Clock, Send, PenLine, FileD
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { PasswordVerifyDialog } from "@/components/booking-calendar/PasswordVerifyDialog";
+import { useAuth } from "@/hooks/useAuth";
+import { useUserRole } from "@/hooks/useUserRole";
 
 interface Props {
   packageBookingId: string;
@@ -21,6 +23,9 @@ interface Props {
 }
 
 export function PackageDetailDialog({ packageBookingId, open, onClose }: Props) {
+  const { user } = useAuth();
+  const { role } = useUserRole(user?.id);
+  const isAdmin = role === "director" || role === "manager";
   const queryClient = useQueryClient();
   const [cancelConfirm, setCancelConfirm] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
@@ -299,7 +304,7 @@ export function PackageDetailDialog({ packageBookingId, open, onClose }: Props) 
               </div>
             )}
 
-            {tcPending && (
+            {tcPending && isAdmin && (
               <div className="flex flex-wrap gap-2">
                 <Button variant="outline" size="sm" onClick={handleResendTCEmail} disabled={resending}>
                   {resending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Send className="h-3 w-3 mr-1" />}
@@ -419,8 +424,8 @@ export function PackageDetailDialog({ packageBookingId, open, onClose }: Props) 
               </>
             )}
 
-            {/* Cancel section */}
-            {pb.status === "active" && (
+            {/* Cancel section — admin only */}
+            {pb.status === "active" && isAdmin && (
               <>
                 <Separator />
                 {!cancelConfirm ? (

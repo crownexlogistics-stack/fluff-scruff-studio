@@ -1,4 +1,4 @@
-import { CalendarDays, MessageSquare, Dog, PoundSterling, FileText, LogOut, PawPrint } from "lucide-react";
+import { CalendarDays, MessageSquare, Dog, PoundSterling, FileText, LogOut, PawPrint, Package } from "lucide-react";
 import { useNavigate, Link, useLocation } from "react-router-dom";
 import logo from "@/assets/logo-transparent.png";
 import { useAuth } from "@/hooks/useAuth";
@@ -39,6 +39,13 @@ export function GroomerLayout({ children }: GroomerLayoutProps) {
           >
             <CalendarDays className="h-4 w-4" />
             My Portal
+          </Link>
+          <Link
+            to="/admin/packages"
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${location.pathname === "/admin/packages" ? "bg-sidebar-accent text-sidebar-primary-foreground font-medium" : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50"}`}
+          >
+            <Package className="h-4 w-4" />
+            Package Deals
           </Link>
           {hasCustomerBookings && (
             <Link
