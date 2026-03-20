@@ -88,7 +88,7 @@ serve(async (req) => {
             <tr><td style="padding: 8px 0; color: #666;">Service</td><td style="padding: 8px 0; font-weight: bold;">${booking.services?.name || "Dog Grooming"}</td></tr>
             <tr><td style="padding: 8px 0; color: #666;">Total</td><td style="padding: 8px 0; font-weight: bold;">£${total.toFixed(2)}</td></tr>
             <tr><td style="padding: 8px 0; color: #666;">Already Paid</td><td style="padding: 8px 0; font-weight: bold;">£${deposit.toFixed(2)}</td></tr>
-            <tr><td style="padding: 8px 0; color: #666; font-weight: bold;">Amount Due</td><td style="padding: 8px 0; font-weight: bold; color: #b91c1c;">£${amountDue.toFixed(2)}</td></tr>
+            <tr><td style="padding: 8px 0; color: #666; font-weight: bold;">${isDeposit ? "Deposit Due" : "Amount Due"}</td><td style="padding: 8px 0; font-weight: bold; color: #b91c1c;">£${amountDue.toFixed(2)}</td></tr>
           </table>
 
           <div style="text-align: center; margin: 24px 0;">
