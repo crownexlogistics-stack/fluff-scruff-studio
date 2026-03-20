@@ -280,6 +280,7 @@ const GroomerPortalPage = () => {
           <TabsList className="flex-wrap">
             <TabsTrigger value="bookings" className="gap-1.5"><CalendarDays className="h-4 w-4" /> Bookings</TabsTrigger>
             <TabsTrigger value="messages" className="gap-1.5"><MessageSquare className="h-4 w-4" /> Messages</TabsTrigger>
+            <TabsTrigger value="packages" className="gap-1.5"><Package className="h-4 w-4" /> Packages</TabsTrigger>
             <TabsTrigger value="purchases" className="gap-1.5"><ShoppingCart className="h-4 w-4" /> Purchases</TabsTrigger>
             <TabsTrigger value="breeds" className="gap-1.5"><Dog className="h-4 w-4" /> Breeds</TabsTrigger>
             <TabsTrigger value="finance" className="gap-1.5"><PoundSterling className="h-4 w-4" /> Finance</TabsTrigger>
@@ -287,6 +288,7 @@ const GroomerPortalPage = () => {
           </TabsList>
           <TabsContent value="bookings" className="mt-4">{renderSectionContent("bookings")}</TabsContent>
           <TabsContent value="messages" className="mt-4">{renderSectionContent("messages")}</TabsContent>
+          <TabsContent value="packages" className="mt-4">{renderSectionContent("packages")}</TabsContent>
           <TabsContent value="purchases" className="mt-4">{renderSectionContent("purchases")}</TabsContent>
           <TabsContent value="breeds" className="mt-4">{renderSectionContent("breeds")}</TabsContent>
           <TabsContent value="finance" className="mt-4">{renderSectionContent("finance")}</TabsContent>
