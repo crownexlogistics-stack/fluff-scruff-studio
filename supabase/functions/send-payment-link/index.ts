@@ -82,7 +82,7 @@ serve(async (req) => {
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
           <h2 style="color: #1a1a1a;">Your ${isDeposit ? "Deposit" : "Payment"} Link 🐾</h2>
           <p>Hi ${firstName},</p>
-          <p>Here's your secure payment link for <strong>${booking.dog_name}</strong>'s appointment on <strong>${dateFormatted}</strong>.</p>
+          <p>Here's your secure ${isDeposit ? "deposit" : "payment"} link for <strong>${booking.dog_name}</strong>'s appointment on <strong>${dateFormatted}</strong>.</p>
           
           <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
             <tr><td style="padding: 8px 0; color: #666;">Service</td><td style="padding: 8px 0; font-weight: bold;">${booking.services?.name || "Dog Grooming"}</td></tr>
