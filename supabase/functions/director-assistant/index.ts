@@ -356,8 +356,14 @@ Always refer to money in pounds sterling (£). Always refer to the director as S
 Here is the current live data from the system:
 ${JSON.stringify(contextData, null, 2)}`;
 
-    const claudeMessages = messages.map((m: any, i: number) => {
-      if (i === messages.length - 1 && (imageBase64 || fileContent)) {
+    // Filter out messages with empty content and build Claude messages
+    const validMessages = messages.filter((m: any) => {
+      if (typeof m.content === "string" && m.content.trim() === "") return false;
+      return true;
+    });
+
+    const claudeMessages = validMessages.map((m: any, i: number) => {
+      if (i === validMessages.length - 1 && (imageBase64 || fileContent)) {
         const content: any[] = [];
         if (imageBase64) {
           content.push({
@@ -368,10 +374,15 @@ ${JSON.stringify(contextData, null, 2)}`;
         if (fileContent) {
           content.push({ type: "text", text: `[Attached file content]:\n${fileContent}` });
         }
-        content.push({ type: "text", text: m.content });
+        const textContent = (m.content || "").trim();
+        if (textContent) {
+          content.push({ type: "text", text: textContent });
+        } else if (content.length === 0) {
+          content.push({ type: "text", text: "Please analyse the attached content." });
+        }
         return { role: m.role, content };
       }
-      return { role: m.role, content: m.content };
+      return { role: m.role, content: m.content || "..." };
     });
 
     const anthropicRes = await fetch("https://api.anthropic.com/v1/messages", {
