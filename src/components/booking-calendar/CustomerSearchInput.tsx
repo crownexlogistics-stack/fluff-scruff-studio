@@ -1,10 +1,9 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Search, UserPlus, X } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { Search, UserPlus, X, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 export interface CustomerResult {
@@ -28,25 +27,42 @@ export function CustomerSearchInput({ onSelect, onAddNew, disabled, initialSelec
   const [query, setQuery] = useState("");
   const [showResults, setShowResults] = useState(false);
   const [selectedName, setSelectedName] = useState<string | null>(initialSelectedName || null);
+  const [results, setResults] = useState<CustomerResult[]>([]);
+  const [searching, setSearching] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
     setSelectedName(initialSelectedName || null);
   }, [initialSelectedName]);
 
-  // Fetch all customers from bookings + migrated_customers
-  const { data: customers } = useQuery({
-    queryKey: ["customer-search-list"],
-    queryFn: async () => {
+  const searchCustomers = useCallback(async (term: string) => {
+    if (term.trim().length < 3) {
+      setResults([]);
+      return;
+    }
+
+    setSearching(true);
+    try {
       const map = new Map<string, CustomerResult>();
+      const pattern = `%${term}%`;
 
-      // Source 1: bookings
-      const { data: bookingsData } = await supabase
-        .from("bookings")
-        .select("customer_name, customer_email, customer_phone, dog_name, breed_id")
-        .order("created_at", { ascending: false });
+      // Search bookings and migrated_customers in parallel
+      const [bookingsRes, migratedRes] = await Promise.all([
+        supabase
+          .from("bookings")
+          .select("customer_name, customer_email, customer_phone, dog_name, breed_id")
+          .or(`customer_name.ilike.${pattern},customer_email.ilike.${pattern}`)
+          .order("created_at", { ascending: false })
+          .limit(50),
+        supabase
+          .from("migrated_customers")
+          .select("id, full_name, email, phone")
+          .or(`full_name.ilike.${pattern},email.ilike.${pattern}`)
+          .limit(20),
+      ]);
 
-      for (const b of bookingsData || []) {
+      for (const b of bookingsRes.data || []) {
         const key = (b.customer_email || b.customer_phone || b.customer_name).toLowerCase().trim();
         if (map.has(key)) {
           const existing = map.get(key)!;
@@ -66,65 +82,49 @@ export function CustomerSearchInput({ onSelect, onAddNew, disabled, initialSelec
         }
       }
 
-      // Source 2: migrated_customers
-      const { data: migrated } = await supabase
-        .from("migrated_customers")
-        .select("id, full_name, email, phone");
-
-      for (const mc of migrated || []) {
+      for (const mc of migratedRes.data || []) {
         const key = (mc.email || mc.phone || mc.full_name || "").toLowerCase().trim();
         if (!key || map.has(key)) continue;
-
-        // Also check by phone dedup
         const phoneKey = mc.phone?.toLowerCase().trim();
         if (phoneKey && Array.from(map.values()).some(v => v.customer_phone && v.customer_phone.replace(/\s/g, '') === phoneKey.replace(/\s/g, ''))) continue;
-
-        const { data: mbData } = await supabase
-          .from("migrated_bookings")
-          .select("dog_name, dog_breed")
-          .eq("migrated_customer_id", mc.id)
-          .limit(5);
-
-        const dogs = (mbData || [])
-          .filter((b: any) => b.dog_name)
-          .reduce((acc: { name: string; breed_id: string | null }[], b: any) => {
-            if (!acc.some(d => d.name.toLowerCase() === b.dog_name.toLowerCase())) {
-              acc.push({ name: b.dog_name, breed_id: null });
-            }
-            return acc;
-          }, []);
 
         map.set(key, {
           customer_name: mc.full_name || "Unknown",
           customer_email: mc.email || "",
           customer_phone: mc.phone || "",
-          dog_name: dogs[0]?.name || "",
+          dog_name: "",
           breed_id: null,
-          dogs,
+          dogs: [],
           source: "migrated",
         });
       }
 
-      return Array.from(map.values());
-    },
-  });
+      setResults(Array.from(map.values()).slice(0, 10));
+    } catch (err) {
+      console.error("Customer search error:", err);
+    } finally {
+      setSearching(false);
+    }
+  }, []);
 
-  const filtered = query.trim().length >= 2
-    ? (customers || []).filter(c => {
-        const q = query.toLowerCase();
-        return (
-          c.customer_name.toLowerCase().includes(q) ||
-          c.customer_email.toLowerCase().includes(q) ||
-          c.customer_phone.replace(/\s/g, '').includes(q.replace(/\s/g, '')) ||
-          c.dogs.some(d => d.name.toLowerCase().includes(q))
-        );
-      }).slice(0, 10)
-    : [];
+  const handleQueryChange = (value: string) => {
+    setQuery(value);
+    setShowResults(true);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (value.trim().length < 3) {
+      setResults([]);
+      return;
+    }
+    debounceRef.current = setTimeout(() => searchCustomers(value), 300);
+  };
+
+  useEffect(() => {
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, []);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
-        // Small delay to let button onMouseDown fire first
         setTimeout(() => setShowResults(false), 50);
       }
     };
@@ -135,6 +135,7 @@ export function CustomerSearchInput({ onSelect, onAddNew, disabled, initialSelec
   const handleSelect = (c: CustomerResult) => {
     setSelectedName(c.customer_name);
     setQuery("");
+    setResults([]);
     setShowResults(false);
     onSelect(c);
   };
@@ -142,6 +143,7 @@ export function CustomerSearchInput({ onSelect, onAddNew, disabled, initialSelec
   const handleClear = () => {
     setSelectedName(null);
     setQuery("");
+    setResults([]);
     onAddNew();
   };
 
@@ -165,22 +167,20 @@ export function CustomerSearchInput({ onSelect, onAddNew, disabled, initialSelec
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
-          placeholder="Search by name, email, phone or dog..."
+          placeholder="Search by name or email (min 3 chars)..."
           value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            setShowResults(true);
-          }}
+          onChange={(e) => handleQueryChange(e.target.value)}
           onFocus={() => setShowResults(true)}
           className="pl-9"
           disabled={disabled}
         />
+        {searching && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />}
       </div>
 
-      {showResults && query.trim().length >= 2 && (
+      {showResults && query.trim().length >= 3 && (
         <div className="absolute z-50 left-0 right-0 top-full mt-1 rounded-md border bg-popover shadow-lg max-h-64 overflow-y-auto">
-          {filtered.length > 0 ? (
-            filtered.map((c, i) => (
+          {results.length > 0 ? (
+            results.map((c, i) => (
               <button
                 key={i}
                 type="button"
@@ -199,10 +199,10 @@ export function CustomerSearchInput({ onSelect, onAddNew, disabled, initialSelec
                 </p>
               </button>
             ))
+          ) : searching ? (
+            <div className="p-3 text-center text-sm text-muted-foreground">Searching...</div>
           ) : (
-            <div className="p-3 text-center text-sm text-muted-foreground">
-              No customers found
-            </div>
+            <div className="p-3 text-center text-sm text-muted-foreground">No customers found</div>
           )}
           <button
             type="button"
