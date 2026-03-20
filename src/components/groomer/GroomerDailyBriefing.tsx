@@ -57,9 +57,8 @@ export function GroomerDailyBriefing({ staffId, groomerName }: GroomerDailyBrief
 
       const firstName = groomerName.split(" ")[0];
 
-      const { data, error } = await supabase.functions.invoke("ai-grooming-assistant", {
+      const { data, error } = await supabase.functions.invoke("groomer-briefing", {
         body: {
-          type: "groomer_briefing",
           groomerName: firstName,
           todayDate: format(new Date(), "EEEE, d MMMM yyyy"),
           appointmentCount: confirmed.length,
