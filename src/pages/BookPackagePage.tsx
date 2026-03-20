@@ -133,10 +133,13 @@ export default function BookPackagePage() {
         setFirstName(prev => prev || parts[0] || "");
         setLastName(prev => prev || parts.slice(1).join(" ") || "");
       }
-      const { data: migrated } = await supabase.from("migrated_customers").select("first_name, last_name, phone").ilike("email", userEmail).limit(1).maybeSingle();
+      const { data: migrated } = await supabase.from("migrated_customers").select("full_name, phone").ilike("email", userEmail).limit(1).maybeSingle();
       if (migrated) {
-        setFirstName(prev => prev || migrated.first_name || "");
-        setLastName(prev => prev || migrated.last_name || "");
+        if (migrated.full_name) {
+          const mp = migrated.full_name.trim().split(/\s+/);
+          setFirstName(prev => prev || mp[0] || "");
+          setLastName(prev => prev || mp.slice(1).join(" ") || "");
+        }
         setPhone(prev => prev || migrated.phone || "");
       }
       setPrefilled(true);
