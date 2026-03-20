@@ -19,7 +19,6 @@ Deno.serve(async (req) => {
     const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY")!, { apiVersion: "2025-08-27.basil" });
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
-    // Retrieve Stripe session
     const checkoutSession = await stripe.checkout.sessions.retrieve(session_id);
     if (checkoutSession.payment_status !== "paid") {
       throw new Error("Payment not completed");
@@ -30,7 +29,7 @@ Deno.serve(async (req) => {
       throw new Error("Invalid session type");
     }
 
-    // Check if already processed (idempotency)
+    // Check idempotency
     const { data: existingPkg } = await (supabase.from("package_bookings").select("id").eq("stripe_payment_intent_id", checkoutSession.payment_intent as string).maybeSingle() as any);
     if (existingPkg) {
       return new Response(JSON.stringify({ package_booking_id: existingPkg.id }), {
@@ -38,14 +37,23 @@ Deno.serve(async (req) => {
       });
     }
 
-    const sessionsData = JSON.parse(meta.sessions_json || "[]");
-    const totalPaid = Number(meta.total_price) || 0;
-    const packageId = meta.package_id;
-    const customerEmail = meta.customer_email;
-    const customerName = meta.customer_name;
-    const customerPhone = meta.customer_phone;
-    const dogName = meta.dog_name;
-    const breedId = meta.breed_id || null;
+    // Load pending data
+    const { data: pending, error: pendingErr } = await supabase
+      .from("package_checkout_pending")
+      .select("*")
+      .eq("id", meta.pending_id)
+      .single();
+
+    if (pendingErr || !pending) throw new Error("Pending checkout data not found");
+
+    const sessionsData = pending.sessions_json || [];
+    const totalPaid = Number(pending.total_price) || 0;
+    const packageId = pending.package_id;
+    const customerEmail = pending.customer_email;
+    const customerName = pending.customer_name;
+    const customerPhone = pending.customer_phone;
+    const dogName = pending.dog_name;
+    const breedId = pending.breed_id || null;
 
     // Get package info
     const { data: pkg } = await (supabase.from("packages").select("*").eq("id", packageId).single() as any);
@@ -83,7 +91,7 @@ Deno.serve(async (req) => {
       if (lower.includes("teeth") || lower.includes("ultrasonic")) serviceMap["teeth_cleaning"] = svc.id;
     }
 
-    // Create individual bookings for each session
+    // Create individual bookings
     for (const session of sessionsData) {
       const sessionPrice = totalPaid / pkg.session_count;
       const serviceId = serviceMap[session.service_type] || null;
@@ -110,7 +118,6 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // Create package_session link
       await (supabase.from("package_sessions").insert({
         package_booking_id: packageBookingId,
         booking_id: booking.id,
@@ -121,7 +128,6 @@ Deno.serve(async (req) => {
         status: "scheduled",
       }) as any);
 
-      // Audit log
       await supabase.from("booking_audit_log").insert({
         booking_id: booking.id,
         event_type: "created_online",
@@ -132,16 +138,13 @@ Deno.serve(async (req) => {
     // Trigger T&C signing email
     try {
       await supabase.functions.invoke("send-package-tc-email", {
-        body: {
-          package_booking_id: packageBookingId,
-          type: "invite",
-        },
+        body: { package_booking_id: packageBookingId, type: "invite" },
       });
     } catch (e) {
       console.error("[process-package-payment] Failed to send TC email:", e);
     }
 
-    // Send confirmation email to customer
+    // Send confirmation email
     try {
       const sessionDetails = sessionsData.map((s: any) =>
         `Session ${s.session_number}: ${s.date} at ${s.time}`
@@ -159,7 +162,7 @@ Deno.serve(async (req) => {
             html: `
               <div style="font-family: Nunito, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
                 <h1 style="font-family: Fredoka One, sans-serif; color: #2D1B0E;">Your Package is Booked! 🐾</h1>
-                <p>Hi ${customerName.split(" ")[0]},</p>
+                <p>Hi ${(customerName || "").split(" ")[0]},</p>
                 <p>Thank you for booking the <strong>${pkg.name}</strong> for <strong>${dogName}</strong>.</p>
                 <p><strong>Total Paid:</strong> £${totalPaid.toFixed(2)}</p>
                 <h3 style="color: #FF6B35;">Your Sessions</h3>
@@ -198,6 +201,9 @@ Deno.serve(async (req) => {
     } catch (e) {
       console.error("[process-package-payment] Failed to notify salon:", e);
     }
+
+    // Clean up pending record
+    await supabase.from("package_checkout_pending").delete().eq("id", meta.pending_id);
 
     return new Response(JSON.stringify({ package_booking_id: packageBookingId }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
