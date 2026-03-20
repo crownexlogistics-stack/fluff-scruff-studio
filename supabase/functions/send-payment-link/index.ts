@@ -123,7 +123,7 @@ serve(async (req) => {
           from: "Fluff & Scruff Studio <info@fluffandscruff.co.uk>",
           to: [booking.customer_email],
           reply_to: "info@fluffandscruff.co.uk",
-          subject: "Your payment link from Fluff & Scruff 🐾",
+          subject: isDeposit ? "Your deposit link from Fluff & Scruff 🐾" : "Your payment link from Fluff & Scruff 🐾",
           html,
         }),
       });
