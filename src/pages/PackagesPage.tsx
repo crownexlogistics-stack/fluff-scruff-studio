@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { AppLayout } from "@/components/AppLayout";
+import { GroomerLayout } from "@/components/GroomerLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Package } from "lucide-react";
 import { ActivePackages } from "@/components/packages/ActivePackages";
@@ -11,10 +12,12 @@ export default function PackagesPage() {
   const [tab, setTab] = useState("active");
   const { user } = useAuth();
   const { role } = useUserRole(user?.id);
-  const isAdmin = role === "director" || role === "manager";
+  const isGroomer = role === "groomer";
+
+  const Layout = isGroomer ? GroomerLayout : AppLayout;
 
   return (
-    <AppLayout>
+    <Layout>
       <div className="p-4 md:p-6 max-w-6xl mx-auto space-y-6">
         <div className="flex items-center gap-3">
           <Package className="h-7 w-7 text-primary" />
@@ -24,20 +27,18 @@ export default function PackagesPage() {
         <Tabs value={tab} onValueChange={setTab}>
           <TabsList>
             <TabsTrigger value="active">Active Packages</TabsTrigger>
-            {isAdmin && <TabsTrigger value="create">Create New</TabsTrigger>}
+            <TabsTrigger value="create">Create New</TabsTrigger>
           </TabsList>
 
           <TabsContent value="active">
             <ActivePackages />
           </TabsContent>
 
-          {isAdmin && (
-            <TabsContent value="create">
-              <CreatePackageBooking onCreated={() => setTab("active")} />
-            </TabsContent>
-          )}
+          <TabsContent value="create">
+            <CreatePackageBooking onCreated={() => setTab("active")} />
+          </TabsContent>
         </Tabs>
       </div>
-    </AppLayout>
+    </Layout>
   );
 }
