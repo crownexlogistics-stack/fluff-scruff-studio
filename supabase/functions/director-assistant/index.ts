@@ -257,14 +257,14 @@ async function fetchAllContext(supabaseAdmin: any) {
   context.sms_campaigns_recent = smsCampaigns.data || [];
 
   // Anomalies — unpaid deposits
-  const anomalies = bookings.filter((b: any) => b.status === "Pending" && (b.deposit_paid || 0) === 0);
+  const anomalies = bookings.filter((b: any) => b.status === "Pending" && Number(b.deposit_paid || 0) === 0);
   context.unpaid_deposits = {
     count: anomalies.length,
-    total_value: `£${anomalies.reduce((s: number, b: any) => s + effectivePrice(b), 0).toFixed(2)}`,
+    total_value: `£${anomalies.reduce((s: number, b: any) => s + Number(b.total_price || 0), 0).toFixed(2)}`,
     bookings: anomalies.slice(0, 20).map((b: any) => ({
       customer_name: b.customer_name,
       date: b.booking_date,
-      total_price: effectivePrice(b),
+      total_price: Number(b.total_price || 0),
       groomer: staffMap[b.staff_id] || "Unassigned",
     })),
   };
