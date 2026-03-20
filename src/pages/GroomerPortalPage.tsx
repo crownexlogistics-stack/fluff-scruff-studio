@@ -220,6 +220,7 @@ const GroomerPortalPage = () => {
       case "documents": return <GroomerDocumentsTab staffId={staffId} />;
       case "finance": return <GroomerFinanceView staffId={staffId} />;
       case "purchases": return <GroomerPurchaseRequestsTab staffId={staffId} />;
+      case "packages": return <ActivePackages />;
     }
   };
 
