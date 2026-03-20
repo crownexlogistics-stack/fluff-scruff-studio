@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
-import { Phone, MessageCircle, ChevronRight, Check, Instagram, Facebook } from "lucide-react";
+import { Phone, MessageCircle, ChevronRight, Check, Instagram, Facebook, Package } from "lucide-react";
 import { motion } from "framer-motion";
 import logo from "@/assets/logo-transparent.png";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";

@@ -103,6 +103,8 @@ const App = () => (
           <Route path="/track" element={<SmsTrackPage />} />
           <Route path="/sign-package-tc" element={<SignPackageTCPage />} />
           <Route path="/packages" element={<PublicPackagesPage />} />
+          <Route path="/book-package" element={<BookPackagePage />} />
+          <Route path="/package-booking-confirmed" element={<PackageBookingConfirmedPage />} />
           {/* Old Wix URL redirects */}
           <Route path="/blank" element={<Navigate to="/" replace />} />
           <Route path="/services-2" element={<Navigate to="/" replace />} />
