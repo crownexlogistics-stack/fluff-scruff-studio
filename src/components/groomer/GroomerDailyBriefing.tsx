@@ -10,9 +10,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 interface GroomerDailyBriefingProps {
   staffId: string;
   groomerName: string;
+  careerTotal: number;
 }
 
-export function GroomerDailyBriefing({ staffId, groomerName }: GroomerDailyBriefingProps) {
+export function GroomerDailyBriefing({ staffId, groomerName, careerTotal }: GroomerDailyBriefingProps) {
   const [forceRefresh, setForceRefresh] = useState(0);
   const today = format(new Date(), "yyyy-MM-dd");
 
@@ -30,27 +31,27 @@ export function GroomerDailyBriefing({ staffId, groomerName }: GroomerDailyBrief
     },
   });
 
-  const { data: weekBookings = [] } = useQuery({
-    queryKey: ["groomer-week-bookings", staffId, today],
+  const { data: weekBookingsCount = 0 } = useQuery({
+    queryKey: ["groomer-week-count", staffId, today],
     queryFn: async () => {
       const endOfWeek = new Date();
       endOfWeek.setDate(endOfWeek.getDate() + (7 - endOfWeek.getDay()));
-      const { data, error } = await supabase
+      const { count, error } = await supabase
         .from("bookings")
-        .select("id")
+        .select("id", { count: "exact", head: true })
         .eq("staff_id", staffId)
         .gte("booking_date", today)
         .lte("booking_date", format(endOfWeek, "yyyy-MM-dd"))
         .in("status", ["Confirmed", "Pending"]);
       if (error) throw error;
-      return data;
+      return count ?? 0;
     },
   });
 
   const { data: briefing, isLoading, isRefetching } = useQuery({
     queryKey: ["groomer-briefing", staffId, today, forceRefresh],
     queryFn: async () => {
-      const confirmed = todaysBookings.filter(b => b.status === "Confirmed" || b.status === "Pending");
+      const confirmed = todaysBookings.filter(b => ["Confirmed", "Pending"].includes(b.status));
       const noShows = todaysBookings.filter(b => b.status === "No Show");
       const cancelled = todaysBookings.filter(b => b.status === "Cancelled");
       const dogNames = confirmed.map(b => b.dog_name).filter(Boolean);
@@ -65,7 +66,8 @@ export function GroomerDailyBriefing({ staffId, groomerName }: GroomerDailyBrief
           dogNames,
           noShowCount: noShows.length,
           cancelledCount: cancelled.length,
-          weekAppointments: weekBookings.length,
+          weekAppointments: weekBookingsCount,
+          careerTotal,
         },
       });
       if (error) throw error;
@@ -74,17 +76,18 @@ export function GroomerDailyBriefing({ staffId, groomerName }: GroomerDailyBrief
         generatedAt: new Date().toISOString(),
       };
     },
-    enabled: todaysBookings !== undefined,
+    enabled: todaysBookings.length >= 0,
     staleTime: 1000 * 60 * 30,
   });
 
   return (
-    <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
+    <Card className="border-[hsl(var(--primary))]/20 overflow-hidden">
+      <div className="h-1 bg-[hsl(var(--primary))]" />
       <CardContent className="p-5">
         <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-2 text-primary">
+          <div className="flex items-center gap-2 text-[hsl(var(--primary))]">
             <Sparkles className="h-5 w-5" />
-            <h3 className="font-semibold text-sm">Your Daily Briefing</h3>
+            <h3 className="font-heading font-bold text-base">Good Morning, {groomerName.split(" ")[0]}!</h3>
           </div>
           <Button
             variant="ghost"
