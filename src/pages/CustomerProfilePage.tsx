@@ -1929,8 +1929,13 @@ export default function CustomerProfilePage() {
               <Button
                 disabled={!newDogForm.pet_name.trim()}
                 onClick={async () => {
+                  if (!customerUserId) {
+                    toast({ title: "Unable to link customer profile", description: "Please refresh and try again.", variant: "destructive" });
+                    return;
+                  }
+
                   const { error } = await supabase.from("customer_pets").insert({
-                    user_id: customerUserId!,
+                    user_id: customerUserId,
                     pet_name: newDogForm.pet_name.trim(),
                     breed_id: newDogForm.breed_id || null,
                     dog_age_years: newDogForm.dog_age_years || null,
