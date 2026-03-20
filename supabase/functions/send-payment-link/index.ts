@@ -25,7 +25,7 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { booking_id, send_via } = await req.json();
+    const { booking_id, send_via, payment_type } = await req.json();
     if (!booking_id) throw new Error("booking_id required");
 
     const { data: booking, error: bErr } = await supabase
@@ -37,7 +37,11 @@ serve(async (req) => {
 
     const total = Number(booking.total_price);
     const deposit = Number(booking.deposit_paid);
-    const amountDue = total - deposit;
+
+    // When payment_type is "deposit", charge exactly 50% of total
+    const amountDue = payment_type === "deposit"
+      ? total * 0.5
+      : total - deposit;
     if (amountDue <= 0) throw new Error("No amount due on this booking");
 
     const amountInPence = Math.round(amountDue * 100);
@@ -46,8 +50,11 @@ serve(async (req) => {
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
 
     // Create a Stripe Payment Link
+    const isDeposit = payment_type === "deposit";
+    const labelPrefix = isDeposit ? "Deposit" : "Payment";
+
     const product = await stripe.products.create({
-      name: `Payment — ${booking.services?.name || "Dog Grooming"} for ${booking.dog_name}`,
+      name: `${labelPrefix} — ${booking.services?.name || "Dog Grooming"} for ${booking.dog_name}`,
     });
     const price = await stripe.prices.create({
       product: product.id,
@@ -59,7 +66,7 @@ serve(async (req) => {
       metadata: { booking_id },
       after_completion: {
         type: "redirect",
-        redirect: { url: "https://fluffandscruff.co.uk/booking-success?booking_id=" + booking_id + "&payment_type=balance" },
+        redirect: { url: "https://fluffandscruff.co.uk/booking-success?booking_id=" + booking_id + "&payment_type=" + (isDeposit ? "deposit" : "balance") },
       },
     });
 
@@ -73,15 +80,15 @@ serve(async (req) => {
     if ((send_via === "email" || send_via === "both") && booking.customer_email && RESEND_API_KEY) {
       const html = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
-          <h2 style="color: #1a1a1a;">Your Payment Link 🐾</h2>
+          <h2 style="color: #1a1a1a;">Your ${isDeposit ? "Deposit" : "Payment"} Link 🐾</h2>
           <p>Hi ${firstName},</p>
-          <p>Here's your secure payment link for <strong>${booking.dog_name}</strong>'s appointment on <strong>${dateFormatted}</strong>.</p>
+          <p>Here's your secure ${isDeposit ? "deposit" : "payment"} link for <strong>${booking.dog_name}</strong>'s appointment on <strong>${dateFormatted}</strong>.</p>
           
           <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
             <tr><td style="padding: 8px 0; color: #666;">Service</td><td style="padding: 8px 0; font-weight: bold;">${booking.services?.name || "Dog Grooming"}</td></tr>
             <tr><td style="padding: 8px 0; color: #666;">Total</td><td style="padding: 8px 0; font-weight: bold;">£${total.toFixed(2)}</td></tr>
             <tr><td style="padding: 8px 0; color: #666;">Already Paid</td><td style="padding: 8px 0; font-weight: bold;">£${deposit.toFixed(2)}</td></tr>
-            <tr><td style="padding: 8px 0; color: #666; font-weight: bold;">Amount Due</td><td style="padding: 8px 0; font-weight: bold; color: #b91c1c;">£${amountDue.toFixed(2)}</td></tr>
+            <tr><td style="padding: 8px 0; color: #666; font-weight: bold;">${isDeposit ? "Deposit Due" : "Amount Due"}</td><td style="padding: 8px 0; font-weight: bold; color: #b91c1c;">£${amountDue.toFixed(2)}</td></tr>
           </table>
 
           <div style="text-align: center; margin: 24px 0;">
@@ -116,7 +123,7 @@ serve(async (req) => {
           from: "Fluff & Scruff Studio <info@fluffandscruff.co.uk>",
           to: [booking.customer_email],
           reply_to: "info@fluffandscruff.co.uk",
-          subject: "Your payment link from Fluff & Scruff 🐾",
+          subject: isDeposit ? "Your deposit link from Fluff & Scruff 🐾" : "Your payment link from Fluff & Scruff 🐾",
           html,
         }),
       });
@@ -132,7 +139,7 @@ serve(async (req) => {
         formattedPhone = "+44" + formattedPhone;
       }
 
-      const smsBody = `Hi ${firstName}, here is your payment link for your appointment at Fluff & Scruff: ${linkUrl}`;
+      const smsBody = `Hi ${firstName}, here is your ${isDeposit ? "deposit" : "payment"} link for your appointment at Fluff & Scruff: ${linkUrl}`;
       
       const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`;
       const formData = new URLSearchParams();
@@ -164,8 +171,8 @@ serve(async (req) => {
     await supabase.from("audit_logs").insert({
       user_id: userId,
       staff_id: booking.staff_id,
-      action: "PAYMENT_LINK_SENT",
-      details: `Payment link of £${amountDue.toFixed(2)} sent via ${send_via} for ${booking.customer_name} (${booking.dog_name}). Booking date: ${booking.booking_date}.`,
+      action: isDeposit ? "DEPOSIT_LINK_SENT" : "PAYMENT_LINK_SENT",
+      details: `${labelPrefix} link of £${amountDue.toFixed(2)} sent via ${send_via} for ${booking.customer_name} (${booking.dog_name}). Booking date: ${booking.booking_date}.`,
     });
 
     return new Response(JSON.stringify({ success: true, url: linkUrl }), {

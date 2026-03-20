@@ -62,7 +62,7 @@ export function UnpaidDepositsAlert({ staffId }: UnpaidDepositsAlertProps) {
     setSendingIds(prev => new Set(prev).add(booking.id));
     try {
       const { data, error } = await supabase.functions.invoke("send-payment-link", {
-        body: { booking_id: booking.id, send_via: booking.customer_email ? "email" : "sms" },
+        body: { booking_id: booking.id, send_via: booking.customer_email ? "email" : "sms", payment_type: "deposit" },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
