@@ -45,9 +45,10 @@ async function fetchAllContext(supabaseAdmin: any) {
     emailCampaigns,
     smsCampaigns,
     allBookingEmails,
-    todayBookingsResult,
     addOns,
     bookingAddonsResult,
+    completedMonthRevenueRows,
+    completedTodayRevenueRows,
   ] = await Promise.all([
     supabaseAdmin.from("bookings")
       .select("id, customer_name, dog_name, booking_date, booking_time, status, total_price, deposit_paid, final_charge, staff_id, service_id, booking_source, customer_email, stripe_payment_id")
@@ -69,12 +70,18 @@ async function fetchAllContext(supabaseAdmin: any) {
       .order("sent_at", { ascending: false }).limit(50),
     supabaseAdmin.from("bookings")
       .select("customer_email").order("created_at", { ascending: true }),
-    supabaseAdmin.from("bookings")
-      .select("id", { count: "exact", head: true })
-      .eq("booking_date", today).in("status", ["Pending", "Confirmed"]),
     supabaseAdmin.from("add_ons").select("id, name, price"),
     supabaseAdmin.from("booking_addons")
       .select("booking_id, addon_id"),
+    supabaseAdmin.from("bookings")
+      .select("total_price")
+      .eq("status", "Completed")
+      .gte("booking_date", monthStart)
+      .lte("booking_date", monthEnd),
+    supabaseAdmin.from("bookings")
+      .select("total_price")
+      .eq("status", "Completed")
+      .eq("booking_date", today),
   ]);
 
   const staffMap = Object.fromEntries((staff.data || []).map((s: any) => [s.id, s.name]));
