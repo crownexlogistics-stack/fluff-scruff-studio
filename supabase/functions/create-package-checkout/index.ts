@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 
 const corsHeaders = {
@@ -17,6 +18,10 @@ serve(async (req) => {
     if (!stripeKey) throw new Error("STRIPE_SECRET_KEY not set");
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
 
     const {
       package_id,
@@ -35,6 +40,24 @@ serve(async (req) => {
 
     const amountInPence = Math.round(Number(total_price) * 100);
     if (amountInPence < 30) throw new Error("Amount too small");
+
+    // Store sessions in a temporary table row to avoid Stripe metadata limit
+    const { data: pending, error: pendingErr } = await supabase
+      .from("package_checkout_pending")
+      .insert({
+        package_id,
+        customer_name: customer_name || "",
+        customer_email,
+        customer_phone: customer_phone || "",
+        dog_name: dog_name || "",
+        breed_id: breed_id || null,
+        sessions_json: sessions,
+        total_price,
+      })
+      .select("id")
+      .single();
+
+    if (pendingErr) throw pendingErr;
 
     // Check for existing Stripe customer
     let customerId: string | undefined;
@@ -66,14 +89,7 @@ serve(async (req) => {
       cancel_url: `${origin}/book-package`,
       metadata: {
         type: "package_booking",
-        package_id,
-        customer_name: customer_name || "",
-        customer_email,
-        customer_phone: customer_phone || "",
-        dog_name: dog_name || "",
-        breed_id: breed_id || "",
-        sessions_json: JSON.stringify(sessions),
-        total_price: String(total_price),
+        pending_id: pending.id,
       },
     });
 
