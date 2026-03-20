@@ -177,14 +177,14 @@ async function fetchAllContext(supabaseAdmin: any) {
     status: b.status,
     total_price: b.total_price,
     final_charge: b.final_charge,
-    effective_price: effectivePrice(b),
+    effective_revenue: effectivePrice(b),
     deposit_paid: b.deposit_paid,
     balance_due: Math.max(0, effectivePrice(b) - (b.deposit_paid || 0)),
     groomer: staffMap[b.staff_id] || "Unassigned",
     source: b.booking_source,
     has_stripe: !!b.stripe_payment_id,
-    addons: addonsByBooking[b.id]?.items || [],
-    addons_total: addonsByBooking[b.id]?.total || 0,
+    addons_included: addonsByBooking[b.id]?.items || [],
+    note: "total_price already includes add-ons and discounts. balance_due is what remains to collect, NOT additional revenue.",
   }));
 
   // Commission by groomer
