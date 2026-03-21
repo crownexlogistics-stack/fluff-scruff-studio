@@ -741,7 +741,7 @@ const Index = () => {
               </div>
               <p className="text-2xl font-bold font-heading">£{totalGroomerPay.toLocaleString()}</p>
               <p className="text-xs text-muted-foreground">
-                {totalRevenue > 0 ? Math.round((totalGroomerPay / totalRevenue) * 100) : 0}% of revenue
+                {combinedRevenue > 0 ? Math.round((totalGroomerPay / combinedRevenue) * 100) : 0}% of revenue
               </p>
               <DeltaBadge current={totalGroomerPay} previous={prevGroomerPay} />
             </CardContent>
