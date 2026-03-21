@@ -380,6 +380,22 @@ const Index = () => {
   const prevGroomerPay = prevCommissions.reduce((s: number, c: any) => s + Number(c.groomer_pay), 0);
   const prevStudioShare = prevCommissions.reduce((s: number, c: any) => s + Number(c.studio_share), 0);
 
+  // Upcoming within selected period (future bookings already in the period query)
+  const upcomingInPeriod = useMemo(() => {
+    const today = new Date();
+    const liveFuture = bookings
+      .filter((b: any) => {
+        const bd = parseISO(b.booking_date);
+        return bd >= startOfDay(today) && (b.status === "Confirmed" || b.status === "Pending");
+      });
+    const migratedFuture = migratedBookings
+      .filter((mb: any) => {
+        const bd = parseISO(mb.booking_date);
+        return bd >= startOfDay(today);
+      });
+    return [...liveFuture, ...migratedFuture];
+  }, [bookings, migratedBookings]);
+
   const projectedGross = upcomingInPeriod.reduce((s: number, b: any) => s + Number(b.total_price || 0), 0);
 
   // Date-aware expenses
