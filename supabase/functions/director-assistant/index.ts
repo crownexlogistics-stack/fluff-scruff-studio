@@ -280,6 +280,17 @@ async function fetchAllContext(supabaseAdmin: any) {
     notes: mb.notes,
   }));
 
+  // Combined bookings from both sources, sorted by date then time
+  const allBookings = [
+    ...context.bookings_this_month,
+    ...context.migrated_bookings_this_month,
+  ].sort((a: any, b: any) => {
+    const dateCmp = (a.date || "").localeCompare(b.date || "");
+    if (dateCmp !== 0) return dateCmp;
+    return (a.time || "").localeCompare(b.time || "");
+  });
+  context.combined_bookings_this_month = allBookings;
+
   // Commission by groomer
   const commByStaff: Record<string, { pay: number; revenue: number; count: number }> = {};
   (commissions.data || []).forEach((c: any) => {
