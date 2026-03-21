@@ -18,6 +18,7 @@ import { BookingFlow } from "@/components/BookingFlow";
 import { TrustStrip } from "@/components/TrustStrip";
 import { AIChatWidget } from "@/components/AIChatWidget";
 import { PackageDealsSection } from "@/components/PackageDealsSection";
+import InstagramFeed from "@/components/InstagramFeed";
 
 const CustomerHome = () => {
   const { user, signOut, loading: authLoading } = useAuth();
