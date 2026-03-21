@@ -719,7 +719,11 @@ const Index = () => {
               <p className={cn("text-2xl font-bold font-heading", netProfit >= 0 ? "text-green-600" : "text-destructive")}>
                 £{netProfit.toLocaleString()}
               </p>
-              <p className="text-xs text-muted-foreground">After groomer pay & paid expenses</p>
+              {rangeKey === "week" && netProfit < 0 ? (
+                <p className="text-[10px] text-amber-600 mt-1">Weekly profit view not available — expenses are calculated monthly. See Month Forecast for accurate figures.</p>
+              ) : (
+                <p className="text-xs text-muted-foreground">After groomer pay & paid expenses</p>
+              )}
               {expensesStillToPay > 0 && (
                 <p className="text-xs text-muted-foreground mt-1">
                   📅 £{Math.round(expensesStillToPay).toLocaleString()} still due this month
