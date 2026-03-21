@@ -688,6 +688,7 @@ const Index = () => {
               </div>
               <p className="text-2xl font-bold font-heading">£{combinedRevenue.toLocaleString()}</p>
               <p className="text-xs text-muted-foreground">£{projectedGross.toLocaleString()} projected upcoming</p>
+              <p className="text-[10px] text-amber-600 mt-1">For accurate figures see Month Forecast below</p>
               <DeltaBadge current={totalRevenue} previous={prevRevenue} />
             </CardContent>
           </Card>
@@ -703,6 +704,7 @@ const Index = () => {
               <p className="text-xs text-muted-foreground">
                 {completed.length + migratedCompleted.length} completed · {upcomingInPeriod.length} upcoming · {cancelled.length} cancelled
               </p>
+              <p className="text-[10px] text-amber-600 mt-1">For accurate figures see Month Forecast below</p>
               <DeltaBadge current={bookings.length} previous={prevBookings.length} />
             </CardContent>
           </Card>
@@ -717,7 +719,11 @@ const Index = () => {
               <p className={cn("text-2xl font-bold font-heading", netProfit >= 0 ? "text-green-600" : "text-destructive")}>
                 £{netProfit.toLocaleString()}
               </p>
-              <p className="text-xs text-muted-foreground">After groomer pay & paid expenses</p>
+              {rangeKey === "week" && netProfit < 0 ? (
+                <p className="text-[10px] text-amber-600 mt-1">Weekly profit view not available — expenses are calculated monthly. See Month Forecast for accurate figures.</p>
+              ) : (
+                <p className="text-xs text-muted-foreground">After groomer pay & paid expenses</p>
+              )}
               {expensesStillToPay > 0 && (
                 <p className="text-xs text-muted-foreground mt-1">
                   📅 £{Math.round(expensesStillToPay).toLocaleString()} still due this month
