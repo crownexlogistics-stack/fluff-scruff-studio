@@ -688,6 +688,7 @@ const Index = () => {
               </div>
               <p className="text-2xl font-bold font-heading">£{combinedRevenue.toLocaleString()}</p>
               <p className="text-xs text-muted-foreground">£{projectedGross.toLocaleString()} projected upcoming</p>
+              <p className="text-[10px] text-amber-600 mt-1">For accurate figures see Month Forecast below</p>
               <DeltaBadge current={totalRevenue} previous={prevRevenue} />
             </CardContent>
           </Card>
