@@ -225,7 +225,7 @@ const Index = () => {
     enabled: compareOn,
   });
 
-  // Upcoming (next 30 days for forecast)
+  // Upcoming for next 30 days forecast (separate from period)
   const { data: upcomingLive = [] } = useQuery({
     queryKey: ["dash-upcoming-30", todayStr],
     queryFn: async () => {
@@ -241,20 +241,21 @@ const Index = () => {
     },
   });
 
-  // Upcoming migrated bookings (future)
+  // Upcoming migrated bookings for forecast (within next 30 days)
   const { data: upcomingMigrated = [] } = useQuery({
-    queryKey: ["dash-upcoming-migrated", todayStr],
+    queryKey: ["dash-upcoming-migrated", todayStr, next30Str],
     queryFn: async () => {
       const { data } = await supabase
         .from("migrated_bookings")
         .select("*, migrated_customers(full_name, email)")
         .gte("booking_date", todayStr)
+        .lte("booking_date", next30Str)
         .eq("is_future_booking", true);
       return (data ?? []) as any[];
     },
   });
 
-  // Combine upcoming bookings
+  // Combine upcoming for forecast card only
   const upcomingAll = useMemo(() => {
     const live = upcomingLive.map((b: any) => ({ ...b, _source: "live" as const }));
     const migrated = upcomingMigrated.map((b: any) => ({
@@ -354,11 +355,21 @@ const Index = () => {
   // ── Computed Stats ───────────────────────────
   const completed = bookings.filter((b: any) => b.status === "Completed" || b.status === "No Show");
   const cancelled = bookings.filter((b: any) => b.status === "Cancelled");
-  const confirmed = bookings.filter((b: any) => b.status === "Confirmed");
-  const pending = bookings.filter((b: any) => b.status === "Pending");
 
-  const totalRevenue = completed.reduce((s: number, b: any) => s + Number(b.total_price), 0);
-  const migratedRevenue = migratedBookings.reduce((s: number, b: any) => s + Number(b.total_price || 0), 0);
+  // Revenue from completed bookings only (use final_charge if set, else total_price)
+  const totalRevenue = completed.reduce((s: number, b: any) => {
+    const fc = Number(b.final_charge);
+    return s + (fc > 0 ? fc : Number(b.total_price));
+  }, 0);
+  // Migrated completed revenue only (payment_status = 'Completed' or past date)
+  const migratedCompleted = migratedBookings.filter((b: any) => {
+    const ps = b.payment_status;
+    if (ps === "Completed") return true;
+    // Past migrated bookings are effectively completed
+    const bd = parseISO(b.booking_date);
+    return bd < startOfDay(new Date());
+  });
+  const migratedRevenue = migratedCompleted.reduce((s: number, b: any) => s + Number(b.total_price || 0), 0);
   const combinedRevenue = totalRevenue + migratedRevenue;
 
   const prevCompleted = prevBookings.filter((b: any) => b.status === "Completed" || b.status === "No Show");
@@ -369,7 +380,23 @@ const Index = () => {
   const prevGroomerPay = prevCommissions.reduce((s: number, c: any) => s + Number(c.groomer_pay), 0);
   const prevStudioShare = prevCommissions.reduce((s: number, c: any) => s + Number(c.studio_share), 0);
 
-  const projectedGross = upcomingAll.reduce((s: number, b: any) => s + Number(b.total_price || 0), 0);
+  // Upcoming within selected period (future bookings already in the period query)
+  const upcomingInPeriod = useMemo(() => {
+    const today = new Date();
+    const liveFuture = bookings
+      .filter((b: any) => {
+        const bd = parseISO(b.booking_date);
+        return bd >= startOfDay(today) && (b.status === "Confirmed" || b.status === "Pending");
+      });
+    const migratedFuture = migratedBookings
+      .filter((mb: any) => {
+        const bd = parseISO(mb.booking_date);
+        return bd >= startOfDay(today);
+      });
+    return [...liveFuture, ...migratedFuture];
+  }, [bookings, migratedBookings]);
+
+  const projectedGross = upcomingInPeriod.reduce((s: number, b: any) => s + Number(b.total_price || 0), 0);
 
   // Date-aware expenses
   const dateAwareExpenses = calcDateAwareExpenses(recurringExpenses, new Date());
@@ -386,7 +413,7 @@ const Index = () => {
 
   const calcDelta = (curr: number, prev: number) => prev > 0 ? Math.round(((curr - prev) / prev) * 100) : 0;
 
-  // Cancellation rate
+  // Cancellation rate — period bookings only
   const totalBookingsCount = bookings.length + migratedBookings.length;
   const cancellationRate = totalBookingsCount > 0 ? Math.round((cancelled.length / totalBookingsCount) * 100) : 0;
 
@@ -674,7 +701,7 @@ const Index = () => {
               </div>
               <p className="text-2xl font-bold font-heading">{totalBookingsCount}</p>
               <p className="text-xs text-muted-foreground">
-                {completed.length} completed · {confirmed.length + pending.length + upcomingMigrated.length} upcoming · {cancelled.length} cancelled
+                {completed.length + migratedCompleted.length} completed · {upcomingInPeriod.length} upcoming · {cancelled.length} cancelled
               </p>
               <DeltaBadge current={bookings.length} previous={prevBookings.length} />
             </CardContent>
@@ -714,7 +741,7 @@ const Index = () => {
               </div>
               <p className="text-2xl font-bold font-heading">£{totalGroomerPay.toLocaleString()}</p>
               <p className="text-xs text-muted-foreground">
-                {totalRevenue > 0 ? Math.round((totalGroomerPay / totalRevenue) * 100) : 0}% of revenue
+                {combinedRevenue > 0 ? Math.round((totalGroomerPay / combinedRevenue) * 100) : 0}% of revenue
               </p>
               <DeltaBadge current={totalGroomerPay} previous={prevGroomerPay} />
             </CardContent>
