@@ -154,7 +154,7 @@ async function fetchAllContext(supabaseAdmin: any) {
   console.log("Today completed revenue (bookings):", todayCompletedBookings, "Today completed (migrated):", todayCompletedMigrated, "Total:", todayCompletedRevenue);
   console.log("Completed revenue:", completedRevenueExact);
 
-  // Status counts and sums
+  // Status counts and sums (bookings table only)
   const statusSummary: Record<string, { count: number; revenue: number }> = {};
   let totalDepositsCollected = 0;
   let futureBookedRevenue = 0;
@@ -162,7 +162,6 @@ async function fetchAllContext(supabaseAdmin: any) {
   let cashPaymentsTotal = 0;
   let cardOnlineTotal = 0;
   let outstandingBalance = 0;
-  let wixMigratedCompletedRevenue = 0;
   let completedToday = 0;
   let todayBookingCount = 0;
 
@@ -171,7 +170,7 @@ async function fetchAllContext(supabaseAdmin: any) {
     if (!statusSummary[b.status]) statusSummary[b.status] = { count: 0, revenue: 0 };
     statusSummary[b.status].count++;
     statusSummary[b.status].revenue += price;
-    totalDepositsCollected += b.deposit_paid || 0;
+    totalDepositsCollected += Number(b.deposit_paid || 0);
 
     if (b.booking_date === today) {
       todayBookingCount++;
@@ -184,9 +183,6 @@ async function fetchAllContext(supabaseAdmin: any) {
       } else {
         cardOnlineTotal += price;
       }
-      if (b.booking_source === "wix_migrated" || b.booking_source === "wix") {
-        wixMigratedCompletedRevenue += price;
-      }
       if (b.booking_date === today) {
         completedToday++;
       }
@@ -198,7 +194,24 @@ async function fetchAllContext(supabaseAdmin: any) {
     }
   });
 
+  // Include migrated bookings in counts
+  let migratedCompletedCount = 0;
+  let migratedCompletedTodayCount = 0;
+  migratedBookings.forEach((mb: any) => {
+    if (mb.payment_status === "Completed") {
+      migratedCompletedCount++;
+      if (mb.booking_date === today) {
+        migratedCompletedTodayCount++;
+        todayBookingCount++;
+      }
+    }
+    if (mb.booking_date === today) {
+      todayBookingCount++;
+    }
+  });
+
   const bookedRevenue = bookings.reduce((s: number, b: any) => s + bookingRevenue(b), 0);
+  const migratedBookedRevenue = migratedBookings.reduce((s: number, mb: any) => s + Number(mb.total_price || 0), 0);
 
   context.completed_revenue_exact = completedRevenueExact;
   context.today_completed_revenue = todayCompletedRevenue;
@@ -206,28 +219,30 @@ async function fetchAllContext(supabaseAdmin: any) {
   context.bookings_summary = {
     month: monthStart,
     today_count: todayBookingCount,
-    completed_today: completedToday,
+    completed_today: completedToday + migratedCompletedTodayCount,
     revenue_today: `£${todayCompletedRevenue.toFixed(2)}`,
-    total_booked_revenue: `£${bookedRevenue.toFixed(2)}`,
+    total_booked_revenue: `£${(bookedRevenue + migratedBookedRevenue).toFixed(2)}`,
     completed_bookings_revenue: `£${completedRevenueExact.toFixed(2)}`,
     completed_revenue_exact: `£${completedRevenueExact.toFixed(2)}`,
+    completed_revenue_from_bookings_table: `£${completedRevenueBookings.toFixed(2)}`,
+    completed_revenue_from_migrated_table: `£${completedRevenueMigrated.toFixed(2)}`,
     today_completed_revenue: `£${todayCompletedRevenue.toFixed(2)}`,
     total_earned_this_month: `£${completedRevenueExact.toFixed(2)}`,
-    wix_migrated_completed_revenue: `£${wixMigratedCompletedRevenue.toFixed(2)}`,
+    wix_migrated_completed_revenue: `£${completedRevenueMigrated.toFixed(2)}`,
     cash_payments_total: `£${cashPaymentsTotal.toFixed(2)}`,
     card_online_payments_total: `£${cardOnlineTotal.toFixed(2)}`,
     deposits_collected: `£${totalDepositsCollected.toFixed(2)}`,
     future_booked_revenue: `£${futureBookedRevenue.toFixed(2)}`,
     outstanding_balance_to_collect: `£${outstandingBalance.toFixed(2)}`,
-    total_if_all_complete: `£${bookedRevenue.toFixed(2)}`,
+    total_if_all_complete: `£${(bookedRevenue + migratedBookedRevenue).toFixed(2)}`,
     by_status: Object.fromEntries(
       Object.entries(statusSummary).map(([k, v]) => [k, { count: v.count, revenue: `£${v.revenue.toFixed(2)}` }])
     ),
-    note_on_revenue: "IMPORTANT: Revenue uses total_price only. deposit_paid and balance_due are payment timing fields (collected vs remaining), not separate revenue. total_price already includes add-ons and discounts.",
+    note_on_revenue: "IMPORTANT: completed_revenue_exact includes BOTH bookings table AND migrated_bookings table. Revenue uses total_price only. deposit_paid and balance_due are payment timing fields, not revenue.",
     expected_completed_revenue_check: `£${completedRevenueExact.toFixed(2)}`,
   };
 
-  // Bookings detail
+  // Bookings detail (main bookings table)
   context.bookings_this_month = bookings.map((b: any) => ({
     id: b.id,
     customer_name: b.customer_name,
@@ -244,7 +259,25 @@ async function fetchAllContext(supabaseAdmin: any) {
     source: b.booking_source,
     has_stripe: !!b.stripe_payment_id,
     addons_included: addonsByBooking[b.id]?.items || [],
-    note: "Revenue for this booking = total_price. deposit_paid is already collected; balance_due is still to collect.",
+    note: "Revenue = total_price. deposit_paid = already collected; balance_due = still to collect.",
+  }));
+
+  // Migrated bookings detail (from Wix)
+  context.migrated_bookings_this_month = migratedBookings.map((mb: any) => ({
+    id: mb.id,
+    customer_name: migratedCustomerMap[mb.migrated_customer_id] || "Unknown",
+    dog_name: mb.dog_name || "Unknown",
+    dog_breed: mb.dog_breed,
+    date: mb.booking_date,
+    time: mb.booking_time,
+    status: mb.payment_status,
+    total_price: Number(mb.total_price || 0),
+    effective_revenue: Number(mb.total_price || 0),
+    deposit_paid: Number(mb.deposit_paid || 0),
+    groomer: mb.staff_name || "Unassigned",
+    source: "wix_migrated",
+    service: mb.service_name,
+    notes: mb.notes,
   }));
 
   // Commission by groomer
