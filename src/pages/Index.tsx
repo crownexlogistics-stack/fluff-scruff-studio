@@ -384,11 +384,21 @@ const Index = () => {
   // ── Computed Stats ───────────────────────────
   const completed = bookings.filter((b: any) => b.status === "Completed" || b.status === "No Show");
   const cancelled = bookings.filter((b: any) => b.status === "Cancelled");
-  const confirmed = bookings.filter((b: any) => b.status === "Confirmed");
-  const pending = bookings.filter((b: any) => b.status === "Pending");
 
-  const totalRevenue = completed.reduce((s: number, b: any) => s + Number(b.total_price), 0);
-  const migratedRevenue = migratedBookings.reduce((s: number, b: any) => s + Number(b.total_price || 0), 0);
+  // Revenue from completed bookings only (use final_charge if set, else total_price)
+  const totalRevenue = completed.reduce((s: number, b: any) => {
+    const fc = Number(b.final_charge);
+    return s + (fc > 0 ? fc : Number(b.total_price));
+  }, 0);
+  // Migrated completed revenue only (payment_status = 'Completed' or past date)
+  const migratedCompleted = migratedBookings.filter((b: any) => {
+    const ps = b.payment_status;
+    if (ps === "Completed") return true;
+    // Past migrated bookings are effectively completed
+    const bd = parseISO(b.booking_date);
+    return bd < startOfDay(new Date());
+  });
+  const migratedRevenue = migratedCompleted.reduce((s: number, b: any) => s + Number(b.total_price || 0), 0);
   const combinedRevenue = totalRevenue + migratedRevenue;
 
   const prevCompleted = prevBookings.filter((b: any) => b.status === "Completed" || b.status === "No Show");
@@ -399,7 +409,7 @@ const Index = () => {
   const prevGroomerPay = prevCommissions.reduce((s: number, c: any) => s + Number(c.groomer_pay), 0);
   const prevStudioShare = prevCommissions.reduce((s: number, c: any) => s + Number(c.studio_share), 0);
 
-  const projectedGross = upcomingAll.reduce((s: number, b: any) => s + Number(b.total_price || 0), 0);
+  const projectedGross = upcomingInPeriod.reduce((s: number, b: any) => s + Number(b.total_price || 0), 0);
 
   // Date-aware expenses
   const dateAwareExpenses = calcDateAwareExpenses(recurringExpenses, new Date());
@@ -416,7 +426,7 @@ const Index = () => {
 
   const calcDelta = (curr: number, prev: number) => prev > 0 ? Math.round(((curr - prev) / prev) * 100) : 0;
 
-  // Cancellation rate
+  // Cancellation rate — period bookings only
   const totalBookingsCount = bookings.length + migratedBookings.length;
   const cancellationRate = totalBookingsCount > 0 ? Math.round((cancelled.length / totalBookingsCount) * 100) : 0;
 
