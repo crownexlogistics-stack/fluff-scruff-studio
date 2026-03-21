@@ -444,6 +444,12 @@ CRITICAL REVENUE RULES:
 - The completed_revenue_exact field is the authoritative revenue figure — it includes BOTH bookings table AND migrated_bookings table. Always use this number.
 - Never calculate revenue by subtracting or adding deposit_paid or balance_due. Those are payment timing fields only.
 
+CRITICAL — COMBINED BOOKINGS:
+- The combined_bookings_this_month array contains ALL bookings from BOTH the main bookings table AND Wix migrated bookings, merged and sorted by date and time.
+- When listing bookings for any specific day, week, or period, ALWAYS use combined_bookings_this_month. This is the single source of truth for all booking lists.
+- Never list only bookings_this_month without also including migrated_bookings_this_month. The combined array handles this for you.
+- Migrated bookings use "status" field same as regular bookings in the combined array. Check status = "Completed" for both.
+
 When asked about revenue, always show ALL of the following figures separately:
 1. Completed bookings revenue (sum of total_price for completed bookings)
 2. Total earned this month (same as #1 — add-ons are already included in total_price)
