@@ -225,35 +225,6 @@ const Index = () => {
     enabled: compareOn,
   });
 
-  // Upcoming within selected period only (future bookings in range)
-  const upcomingInPeriod = useMemo(() => {
-    const today = new Date();
-    const liveFuture = bookings
-      .filter((b: any) => {
-        const bd = parseISO(b.booking_date);
-        return bd >= startOfDay(today) && (b.status === "Confirmed" || b.status === "Pending");
-      })
-      .map((b: any) => ({ ...b, _source: "live" as const }));
-    const migratedFuture = migratedBookings
-      .filter((mb: any) => {
-        const bd = parseISO(mb.booking_date);
-        return bd >= startOfDay(today);
-      })
-      .map((b: any) => ({
-        ...b,
-        _source: "wix" as const,
-        customer_name: b.migrated_customers?.full_name || "Wix Customer",
-        total_price: b.total_price || 0,
-        deposit_paid: b.deposit_paid || 0,
-        status: "Confirmed",
-      }));
-    return [...liveFuture, ...migratedFuture].sort((a, b) => {
-      const dateA = a.booking_date + (a.booking_time || "");
-      const dateB = b.booking_date + (b.booking_time || "");
-      return dateA.localeCompare(dateB);
-    });
-  }, [bookings, migratedBookings]);
-
   // Upcoming for next 30 days forecast (separate from period)
   const { data: upcomingLive = [] } = useQuery({
     queryKey: ["dash-upcoming-30", todayStr],
