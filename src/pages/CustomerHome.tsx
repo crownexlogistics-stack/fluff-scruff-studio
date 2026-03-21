@@ -121,6 +121,9 @@ const CustomerHome = () => {
       {/* ══════ REVIEWS ══════ */}
       <GoogleReviews />
 
+      {/* ══════ INSTAGRAM ══════ */}
+      <InstagramFeed />
+
       {/* ══════ ABOUT ══════ */}
       <section id="about" className="py-12 sm:py-20 bg-background">
         <div className="max-w-4xl mx-auto px-4 sm:px-6">
