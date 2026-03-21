@@ -280,6 +280,17 @@ async function fetchAllContext(supabaseAdmin: any) {
     notes: mb.notes,
   }));
 
+  // Combined bookings from both sources, sorted by date then time
+  const allBookings = [
+    ...context.bookings_this_month,
+    ...context.migrated_bookings_this_month,
+  ].sort((a: any, b: any) => {
+    const dateCmp = (a.date || "").localeCompare(b.date || "");
+    if (dateCmp !== 0) return dateCmp;
+    return (a.time || "").localeCompare(b.time || "");
+  });
+  context.combined_bookings_this_month = allBookings;
+
   // Commission by groomer
   const commByStaff: Record<string, { pay: number; revenue: number; count: number }> = {};
   (commissions.data || []).forEach((c: any) => {
@@ -432,6 +443,12 @@ CRITICAL REVENUE RULES:
 - Wix migrated bookings are in migrated_bookings_this_month (separate from bookings_this_month). They have payment_status instead of status. Include them in ALL revenue calculations.
 - The completed_revenue_exact field is the authoritative revenue figure — it includes BOTH bookings table AND migrated_bookings table. Always use this number.
 - Never calculate revenue by subtracting or adding deposit_paid or balance_due. Those are payment timing fields only.
+
+CRITICAL — COMBINED BOOKINGS:
+- The combined_bookings_this_month array contains ALL bookings from BOTH the main bookings table AND Wix migrated bookings, merged and sorted by date and time.
+- When listing bookings for any specific day, week, or period, ALWAYS use combined_bookings_this_month. This is the single source of truth for all booking lists.
+- Never list only bookings_this_month without also including migrated_bookings_this_month. The combined array handles this for you.
+- Migrated bookings use "status" field same as regular bookings in the combined array. Check status = "Completed" for both.
 
 When asked about revenue, always show ALL of the following figures separately:
 1. Completed bookings revenue (sum of total_price for completed bookings)
