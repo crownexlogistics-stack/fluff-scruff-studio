@@ -685,7 +685,7 @@ const Index = () => {
               </div>
               <p className="text-2xl font-bold font-heading">{totalBookingsCount}</p>
               <p className="text-xs text-muted-foreground">
-                {completed.length} completed · {confirmed.length + pending.length + upcomingMigrated.length} upcoming · {cancelled.length} cancelled
+                {completed.length + migratedCompleted.length} completed · {upcomingInPeriod.length} upcoming · {cancelled.length} cancelled
               </p>
               <DeltaBadge current={bookings.length} previous={prevBookings.length} />
             </CardContent>
