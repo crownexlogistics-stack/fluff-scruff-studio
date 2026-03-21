@@ -49,6 +49,9 @@ async function fetchAllContext(supabaseAdmin: any) {
     bookingAddonsResult,
     completedMonthRevenueRows,
     completedTodayRevenueRows,
+    migratedMonthBookings,
+    migratedCompletedMonthRows,
+    migratedCompletedTodayRows,
   ] = await Promise.all([
     supabaseAdmin.from("bookings")
       .select("id, customer_name, dog_name, booking_date, booking_time, status, total_price, deposit_paid, final_charge, staff_id, service_id, booking_source, customer_email, stripe_payment_id")
@@ -82,7 +85,33 @@ async function fetchAllContext(supabaseAdmin: any) {
       .select("total_price")
       .eq("status", "Completed")
       .eq("booking_date", today),
+    // Migrated bookings (from Wix) — stored in separate table
+    supabaseAdmin.from("migrated_bookings")
+      .select("id, migrated_customer_id, dog_name, dog_breed, service_name, staff_name, booking_date, booking_time, duration_minutes, payment_status, total_price, deposit_paid, amount_due, notes")
+      .gte("booking_date", monthStart)
+      .lte("booking_date", monthEnd)
+      .order("booking_date", { ascending: true }),
+    supabaseAdmin.from("migrated_bookings")
+      .select("total_price")
+      .eq("payment_status", "Completed")
+      .gte("booking_date", monthStart)
+      .lte("booking_date", monthEnd),
+    supabaseAdmin.from("migrated_bookings")
+      .select("total_price")
+      .eq("payment_status", "Completed")
+      .eq("booking_date", today),
   ]);
+
+  // Fetch migrated customer names for display
+  const migratedBookings = migratedMonthBookings.data || [];
+  const migratedCustomerIds = [...new Set(migratedBookings.map((mb: any) => mb.migrated_customer_id).filter(Boolean))];
+  let migratedCustomerMap: Record<string, string> = {};
+  if (migratedCustomerIds.length > 0) {
+    const { data: mcData } = await supabaseAdmin.from("migrated_customers")
+      .select("id, full_name")
+      .in("id", migratedCustomerIds);
+    migratedCustomerMap = Object.fromEntries((mcData || []).map((mc: any) => [mc.id, mc.full_name]));
+  }
 
   const staffMap = Object.fromEntries((staff.data || []).map((s: any) => [s.id, s.name]));
   const bookings = monthBookings.data || [];
@@ -104,15 +133,25 @@ async function fetchAllContext(supabaseAdmin: any) {
   // Revenue is always based on total_price (authoritative), never deposit/balance fields
   const bookingRevenue = (b: any) => Number(b.total_price || 0);
 
-  // Authoritative completed revenue queries
-  const completedRevenueExact = (completedMonthRevenueRows.data || []).reduce(
-    (sum: number, row: any) => sum + Number(row.total_price || 0),
-    0,
+  // Authoritative completed revenue from BOTH tables
+  const completedRevenueBookings = (completedMonthRevenueRows.data || []).reduce(
+    (sum: number, row: any) => sum + Number(row.total_price || 0), 0,
   );
-  const todayCompletedRevenue = (completedTodayRevenueRows.data || []).reduce(
-    (sum: number, row: any) => sum + Number(row.total_price || 0),
-    0,
+  const completedRevenueMigrated = (migratedCompletedMonthRows.data || []).reduce(
+    (sum: number, row: any) => sum + Number(row.total_price || 0), 0,
   );
+  const completedRevenueExact = completedRevenueBookings + completedRevenueMigrated;
+
+  const todayCompletedBookings = (completedTodayRevenueRows.data || []).reduce(
+    (sum: number, row: any) => sum + Number(row.total_price || 0), 0,
+  );
+  const todayCompletedMigrated = (migratedCompletedTodayRows.data || []).reduce(
+    (sum: number, row: any) => sum + Number(row.total_price || 0), 0,
+  );
+  const todayCompletedRevenue = todayCompletedBookings + todayCompletedMigrated;
+
+  console.log("Completed revenue (bookings):", completedRevenueBookings, "Completed revenue (migrated):", completedRevenueMigrated, "Total:", completedRevenueExact);
+  console.log("Today completed revenue (bookings):", todayCompletedBookings, "Today completed (migrated):", todayCompletedMigrated, "Total:", todayCompletedRevenue);
   console.log("Completed revenue:", completedRevenueExact);
 
   // Status counts and sums
