@@ -704,6 +704,7 @@ const Index = () => {
               <p className="text-xs text-muted-foreground">
                 {completed.length + migratedCompleted.length} completed · {upcomingInPeriod.length} upcoming · {cancelled.length} cancelled
               </p>
+              <p className="text-[10px] text-amber-600 mt-1">For accurate figures see Month Forecast below</p>
               <DeltaBadge current={bookings.length} previous={prevBookings.length} />
             </CardContent>
           </Card>
