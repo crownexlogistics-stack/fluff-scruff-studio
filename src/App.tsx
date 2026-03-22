@@ -68,6 +68,7 @@ import WixMigrationPage from "./pages/WixMigrationPage";
 import HistoricalDataPage from "./pages/HistoricalDataPage";
 import DuplicateReportPage from "./pages/DuplicateReportPage";
 import AcademyPage from "./pages/AcademyPage";
+import AcademyEnquiriesPage from "./pages/AcademyEnquiriesPage";
 import PurchaseOrdersPage from "./pages/PurchaseOrdersPage";
 import PackagesPage from "./pages/PackagesPage";
 import UnsubscribePage from "./pages/UnsubscribePage";
@@ -158,6 +159,7 @@ const App = () => (
           <Route path="/admin/historical" element={<ProtectedRoute allowedRoles={["manager", "director"]}><HistoricalDataPage /></ProtectedRoute>} />
           <Route path="/admin/duplicate-report" element={<ProtectedRoute allowedRoles={["director"]}><DuplicateReportPage /></ProtectedRoute>} />
           <Route path="/admin/director-assistant" element={<ProtectedRoute allowedRoles={["director"]}><DirectorAssistantPage /></ProtectedRoute>} />
+          <Route path="/admin/academy" element={<ProtectedRoute allowedRoles={["director", "manager"]}><AcademyEnquiriesPage /></ProtectedRoute>} />
 
           <Route path="*" element={<NotFound />} />
         </Routes>

@@ -1,5 +1,5 @@
 import {
-  Brain,
+  Brain, GraduationCap,
   Dog, Users, Calendar, LayoutDashboard, Crown,
   UserPlus, CalendarClock, ChevronDown, Megaphone,
   UsersRound, BarChart3, Mail,
@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import logo from "@/assets/logo-transparent.png";
 import { useNewErrorReportsCount } from "@/hooks/useNewErrorReportsCount";
+import { useNewAcademyEnquiriesCount } from "@/hooks/useNewAcademyEnquiriesCount";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/hooks/useAuth";
 import { useUnreadSmsCount } from "@/hooks/useUnreadSmsCount";
@@ -91,6 +92,7 @@ export function AppSidebar() {
   const { role } = useUserRole(user?.id);
   const { totalUnread } = useUnreadSmsCount();
   const newErrorCount = useNewErrorReportsCount();
+  const newAcademyCount = useNewAcademyEnquiriesCount();
   const { hasCustomerBookings } = useStaffIsCustomer(user?.email ?? undefined);
   const urgentPurchaseCount = useUrgentPurchaseRequests();
 
@@ -271,6 +273,36 @@ export function AppSidebar() {
             </CollapsibleContent>
           </Collapsible>
         </SidebarGroup>
+
+        {/* Academy Section — director/manager only */}
+        {(role === "director" || role === "manager") && (
+          <SidebarGroup>
+            <SidebarGroupLabel className="text-sidebar-foreground/50 text-xs uppercase tracking-wider">
+              Academy
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <NavLink
+                      to="/admin/academy"
+                      className="hover:bg-sidebar-accent/50 transition-colors"
+                      activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
+                    >
+                      <GraduationCap className="mr-2 h-4 w-4" />
+                      {!collapsed && <span className="flex-1">Enquiries</span>}
+                      {newAcademyCount > 0 && (
+                        <Badge variant="destructive" className="ml-auto h-5 min-w-5 px-1.5 text-[10px] font-bold rounded-full">
+                          {newAcademyCount > 99 ? "99+" : newAcademyCount}
+                        </Badge>
+                      )}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
         {/* Director Section */}
         {role === "director" && (
           <SidebarGroup>

@@ -86,6 +86,7 @@ const CustomerHome = () => {
             <a href="#about" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2.5 rounded-2xl text-sm font-semibold font-body text-foreground/80 hover:bg-muted/50 transition-colors">About</a>
             <a href="#contact" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2.5 rounded-2xl text-sm font-semibold font-body text-foreground/80 hover:bg-muted/50 transition-colors">Contact</a>
             <Link to="/packages" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2.5 rounded-2xl text-sm font-semibold font-body text-accent hover:bg-accent/10 transition-colors">📦 Package Deals</Link>
+            <Link to="/academy" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2.5 rounded-2xl text-sm font-semibold font-body text-foreground/80 hover:bg-muted/50 transition-colors">🎓 Academy</Link>
             {accountLink && (
               <Link to={accountLink} onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2.5 rounded-2xl text-sm font-semibold font-body text-foreground/80 hover:bg-muted/50 transition-colors">My Account</Link>
             )}
@@ -157,6 +158,25 @@ const CustomerHome = () => {
               ))}
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* ══════ ACADEMY BANNER ══════ */}
+      <section className="py-12 sm:py-16" style={{ background: "#FFFAF4" }}>
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 text-center">
+          <h2 className="text-xl sm:text-2xl font-heading text-foreground mb-3">
+            🎓 Thinking About a Career in Dog Grooming?
+          </h2>
+          <p className="text-muted-foreground font-body text-sm sm:text-base mb-6 max-w-xl mx-auto leading-relaxed">
+            We offer hands-on professional training inside our working salon. Small groups, real dogs, real skills.
+          </p>
+          <Link
+            to="/academy"
+            className="inline-flex items-center gap-1 bg-accent text-primary-foreground font-bold font-body text-sm px-8 py-3 hover:bg-accent/90 transition-all active:scale-[0.97]"
+            style={{ borderRadius: '30px' }}
+          >
+            Find Out More →
+          </Link>
         </div>
       </section>
 
