@@ -62,6 +62,45 @@ export type Database = {
         }
         Relationships: []
       }
+      academy_enquiries: {
+        Row: {
+          created_at: string
+          email: string
+          first_name: string
+          id: string
+          last_name: string
+          message: string | null
+          phone: string
+          programme_interest: string | null
+          referral_source: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          first_name: string
+          id?: string
+          last_name: string
+          message?: string | null
+          phone: string
+          programme_interest?: string | null
+          referral_source?: string | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          first_name?: string
+          id?: string
+          last_name?: string
+          message?: string | null
+          phone?: string
+          programme_interest?: string | null
+          referral_source?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
       add_on_services: {
         Row: {
           add_on_id: string
