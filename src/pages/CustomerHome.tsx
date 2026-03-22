@@ -161,6 +161,25 @@ const CustomerHome = () => {
         </div>
       </section>
 
+      {/* ══════ ACADEMY BANNER ══════ */}
+      <section className="py-12 sm:py-16" style={{ background: "#FFFAF4" }}>
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 text-center">
+          <h2 className="text-xl sm:text-2xl font-heading text-foreground mb-3">
+            🎓 Thinking About a Career in Dog Grooming?
+          </h2>
+          <p className="text-muted-foreground font-body text-sm sm:text-base mb-6 max-w-xl mx-auto leading-relaxed">
+            We offer hands-on professional training inside our working salon. Small groups, real dogs, real skills.
+          </p>
+          <Link
+            to="/academy"
+            className="inline-flex items-center gap-1 bg-accent text-primary-foreground font-bold font-body text-sm px-8 py-3 hover:bg-accent/90 transition-all active:scale-[0.97]"
+            style={{ borderRadius: '30px' }}
+          >
+            Find Out More →
+          </Link>
+        </div>
+      </section>
+
       {/* ══════ CONTACT ══════ */}
       <section id="contact" className="py-12 sm:py-20 bg-background">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
