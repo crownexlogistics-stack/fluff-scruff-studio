@@ -1,5 +1,5 @@
 import {
-  Brain,
+  Brain, GraduationCap,
   Dog, Users, Calendar, LayoutDashboard, Crown,
   UserPlus, CalendarClock, ChevronDown, Megaphone,
   UsersRound, BarChart3, Mail,
