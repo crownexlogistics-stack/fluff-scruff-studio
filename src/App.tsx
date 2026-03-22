@@ -68,6 +68,7 @@ import WixMigrationPage from "./pages/WixMigrationPage";
 import HistoricalDataPage from "./pages/HistoricalDataPage";
 import DuplicateReportPage from "./pages/DuplicateReportPage";
 import AcademyPage from "./pages/AcademyPage";
+import AcademyEnquiriesPage from "./pages/AcademyEnquiriesPage";
 import PurchaseOrdersPage from "./pages/PurchaseOrdersPage";
 import PackagesPage from "./pages/PackagesPage";
 import UnsubscribePage from "./pages/UnsubscribePage";
