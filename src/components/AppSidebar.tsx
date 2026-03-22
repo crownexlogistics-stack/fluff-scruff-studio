@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import logo from "@/assets/logo-transparent.png";
 import { useNewErrorReportsCount } from "@/hooks/useNewErrorReportsCount";
+import { useNewAcademyEnquiriesCount } from "@/hooks/useNewAcademyEnquiriesCount";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/hooks/useAuth";
 import { useUnreadSmsCount } from "@/hooks/useUnreadSmsCount";
