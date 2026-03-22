@@ -6,7 +6,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -24,132 +23,139 @@ const staggerContainer = {
   visible: { transition: { staggerChildren: 0.12 } },
 };
 
-const TIMING_OPTIONS = [
-  "As soon as possible",
-  "Within the next month",
-  "Within the next 3 months",
-  "Within the next 6 months",
-  "Just exploring for now",
+const PROGRAMME_OPTIONS = [
+  "Month-Long Grooming Programme — £2,800",
+  "Groom Your Own Dog — £300",
+  "Full Day Grooming Masterclass — £250",
+  "Pro Skills Workshop — £180",
+  "Not sure yet",
 ];
 
-const COURSE_VALUES: Record<string, string> = {
-  "Groom Your Own Dog": "Pet Owner Session — £300",
-  "Full Day Grooming Masterclass": "Full Day Masterclass — £250",
-  "Pro Skills Workshop": "Pro Skills Workshop — £180",
-  "Month-Long Grooming Programme": "Month-Long Grooming Programme — £2,800",
-};
+const REFERRAL_OPTIONS = ["Google", "Instagram", "Word of mouth", "Existing customer", "Other"];
 
-interface InterestFormData {
+interface EnquiryFormData {
   first_name: string;
   last_name: string;
   email: string;
-  contact_number: string;
-  timing_preference: string;
-  about_me: string;
-  course_interest: string;
+  phone: string;
+  programme_interest: string;
+  message: string;
+  referral_source: string;
 }
 
-const emptyForm = (course?: string): InterestFormData => ({
+const emptyForm = (programme?: string): EnquiryFormData => ({
   first_name: "",
   last_name: "",
   email: "",
-  contact_number: "",
-  timing_preference: "",
-  about_me: "",
-  course_interest: course || "",
+  phone: "",
+  programme_interest: programme || "",
+  message: "",
+  referral_source: "",
 });
 
-function ThankYouMessage({ firstName, courseName, email, onClose }: { firstName: string; courseName: string; email: string; onClose?: () => void }) {
-  return (
-    <div className="text-center py-4 space-y-4">
-      <p className="text-5xl" style={{ color: "hsl(18, 100%, 60%)" }}>✅</p>
-      <h3 className="font-heading text-2xl" style={{ color: "hsl(20, 60%, 12%)" }}>
-        Thank You, {firstName}! 🐾
-      </h3>
-      <div className="text-muted-foreground text-sm leading-relaxed space-y-3 text-left">
-        <p>
-          We've received your interest in our <strong>{courseName}</strong> and we're really excited to hear from you!
-        </p>
-        <p>
-          We'll be in touch as soon as we have an opening. We might not always be able to offer exactly the timing you had in mind, but we will always do our best to find something that works for you.
-        </p>
-        <p>
-          Keep an eye on your inbox — we'll reach out to <strong>{email}</strong> soon.
-        </p>
-      </div>
-      {onClose && (
-        <Button variant="outline" className="rounded-xl font-bold border-2 mt-4" style={{ borderColor: "hsl(18, 100%, 60%)", color: "hsl(18, 100%, 60%)" }} onClick={onClose}>
-          Close
-        </Button>
-      )}
-    </div>
-  );
-}
+function RegistrationForm({ programme, onSuccess }: { programme: string; onSuccess: (firstName: string) => void }) {
+  const [form, setForm] = useState<EnquiryFormData>(emptyForm(programme));
+  const [submitting, setSubmitting] = useState(false);
 
-function InterestForm({ formData, setFormData, onSubmit, submitting, showCourseDropdown }: {
-  formData: InterestFormData;
-  setFormData: React.Dispatch<React.SetStateAction<InterestFormData>>;
-  onSubmit: (e: React.FormEvent) => void;
-  submitting: boolean;
-  showCourseDropdown?: boolean;
-}) {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.first_name.trim() || !form.last_name.trim() || !form.email.trim() || !form.phone.trim()) {
+      toast.error("Please fill in all required fields.");
+      return;
+    }
+    setSubmitting(true);
+
+    // Save to database
+    const { error } = await supabase.from("academy_enquiries").insert({
+      first_name: form.first_name.trim(),
+      last_name: form.last_name.trim(),
+      email: form.email.trim(),
+      phone: form.phone.trim(),
+      programme_interest: form.programme_interest || null,
+      message: form.message.trim() || null,
+      referral_source: form.referral_source || null,
+    } as any);
+
+    if (error) {
+      toast.error("Something went wrong. Please try again.");
+      console.error(error);
+      setSubmitting(false);
+      return;
+    }
+
+    // Send notification emails via edge function
+    supabase.functions.invoke("academy-enquiry-notify", {
+      body: {
+        first_name: form.first_name.trim(),
+        last_name: form.last_name.trim(),
+        email: form.email.trim(),
+        phone: form.phone.trim(),
+        programme_interest: form.programme_interest,
+        message: form.message.trim(),
+        referral_source: form.referral_source,
+      },
+    }).catch(console.error);
+
+    setSubmitting(false);
+    onSuccess(form.first_name.trim());
+  };
+
   return (
-    <form onSubmit={onSubmit} className="space-y-4">
+    <motion.form
+      onSubmit={handleSubmit}
+      className="space-y-4 bg-card rounded-2xl p-6 border border-border shadow-sm mt-4"
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: "auto" }}
+      transition={{ duration: 0.3 }}
+    >
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <Label htmlFor="first_name">First Name *</Label>
-          <Input id="first_name" required maxLength={50} value={formData.first_name} onChange={(e) => setFormData((d) => ({ ...d, first_name: e.target.value }))} />
+          <Label htmlFor="fn">First Name *</Label>
+          <Input id="fn" required maxLength={50} value={form.first_name} onChange={e => setForm(d => ({ ...d, first_name: e.target.value }))} />
         </div>
         <div>
-          <Label htmlFor="last_name">Last Name *</Label>
-          <Input id="last_name" required maxLength={50} value={formData.last_name} onChange={(e) => setFormData((d) => ({ ...d, last_name: e.target.value }))} />
+          <Label htmlFor="ln">Last Name *</Label>
+          <Input id="ln" required maxLength={50} value={form.last_name} onChange={e => setForm(d => ({ ...d, last_name: e.target.value }))} />
         </div>
       </div>
       <div>
-        <Label htmlFor="email">Email Address *</Label>
-        <Input id="email" type="email" required maxLength={255} value={formData.email} onChange={(e) => setFormData((d) => ({ ...d, email: e.target.value }))} />
+        <Label htmlFor="em">Email Address *</Label>
+        <Input id="em" type="email" required maxLength={255} value={form.email} onChange={e => setForm(d => ({ ...d, email: e.target.value }))} />
       </div>
       <div>
-        <Label htmlFor="contact_number">Contact Number *</Label>
-        <Input id="contact_number" type="tel" required maxLength={20} value={formData.contact_number} onChange={(e) => setFormData((d) => ({ ...d, contact_number: e.target.value }))} />
+        <Label htmlFor="ph">Phone Number *</Label>
+        <Input id="ph" type="tel" required maxLength={20} value={form.phone} onChange={e => setForm(d => ({ ...d, phone: e.target.value }))} />
       </div>
-      {showCourseDropdown && (
-        <div>
-          <Label>Which course are you interested in?</Label>
-          <Select value={formData.course_interest} onValueChange={(v) => setFormData((d) => ({ ...d, course_interest: v }))}>
-            <SelectTrigger><SelectValue placeholder="Select a course..." /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Pet Owner Session — £300">Groom Your Own Dog — £300</SelectItem>
-              <SelectItem value="Full Day Masterclass — £250">Full Day Masterclass — £250</SelectItem>
-              <SelectItem value="Pro Skills Workshop — £180">Pro Skills Workshop — £180</SelectItem>
-              <SelectItem value="Month-Long Grooming Programme — £2,800">Month-Long Grooming Programme — £2,800</SelectItem>
-              <SelectItem value="Not sure yet">Not sure yet</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      )}
       <div>
-        <Label>When are you interested in attending? *</Label>
-        <Select value={formData.timing_preference} onValueChange={(v) => setFormData((d) => ({ ...d, timing_preference: v }))}>
-          <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
+        <Label>Which programme are you interested in?</Label>
+        <Select value={form.programme_interest} onValueChange={v => setForm(d => ({ ...d, programme_interest: v }))}>
+          <SelectTrigger><SelectValue placeholder="Select a programme..." /></SelectTrigger>
           <SelectContent>
-            {TIMING_OPTIONS.map((t) => (
-              <SelectItem key={t} value={t}>{t}</SelectItem>
+            {PROGRAMME_OPTIONS.map(p => (
+              <SelectItem key={p} value={p}>{p}</SelectItem>
             ))}
           </SelectContent>
         </Select>
       </div>
       <div>
-        <Label htmlFor="about_me">Tell us why you're interested and anything else we should know</Label>
-        <Textarea id="about_me" rows={4} maxLength={1000} value={formData.about_me} onChange={(e) => setFormData((d) => ({ ...d, about_me: e.target.value }))} />
+        <Label htmlFor="msg">Tell us a little about yourself and why you want to learn grooming</Label>
+        <Textarea id="msg" rows={3} maxLength={1000} value={form.message} onChange={e => setForm(d => ({ ...d, message: e.target.value }))} />
+      </div>
+      <div>
+        <Label>How did you hear about us?</Label>
+        <Select value={form.referral_source} onValueChange={v => setForm(d => ({ ...d, referral_source: v }))}>
+          <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
+          <SelectContent>
+            {REFERRAL_OPTIONS.map(r => (
+              <SelectItem key={r} value={r}>{r}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
       <Button type="submit" disabled={submitting} className="w-full py-6 text-base rounded-xl font-bold" style={{ background: "hsl(18, 100%, 60%)" }}>
-        {submitting ? "Sending..." : "Send My Interest 🐾"}
+        {submitting ? "Sending..." : "Send My Registration 🐾"}
       </Button>
-      <p className="text-xs text-muted-foreground text-center">
-        No commitment needed — this is just to register your interest so we can get in touch when a spot opens up.
-      </p>
-    </form>
+    </motion.form>
   );
 }
 
@@ -160,17 +166,8 @@ export default function AcademyPage() {
   const coursesRef = useRef<HTMLDivElement>(null);
   const formRef = useRef<HTMLDivElement>(null);
 
-  // Modal state
-  const [modalOpen, setModalOpen] = useState(false);
-  const [modalCourse, setModalCourse] = useState("");
-  const [modalForm, setModalForm] = useState<InterestFormData>(emptyForm());
-  const [modalSubmitting, setModalSubmitting] = useState(false);
-  const [modalSubmitted, setModalSubmitted] = useState(false);
-
-  // Bottom form state
-  const [bottomForm, setBottomForm] = useState<InterestFormData>(emptyForm());
-  const [bottomSubmitting, setBottomSubmitting] = useState(false);
-  const [bottomSubmitted, setBottomSubmitted] = useState(false);
+  const [openForm, setOpenForm] = useState<string | null>(null);
+  const [submitted, setSubmitted] = useState<string | null>(null);
 
   useEffect(() => {
     document.title = "Grooming Academy — Fluff & Scruff Studio";
@@ -180,56 +177,13 @@ export default function AcademyPage() {
     ref.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const openModal = (courseTitle: string) => {
-    const courseValue = COURSE_VALUES[courseTitle] || courseTitle;
-    setModalCourse(courseValue);
-    setModalForm(emptyForm(courseValue));
-    setModalSubmitted(false);
-    setModalOpen(true);
-  };
-
-  const submitForm = async (data: InterestFormData): Promise<boolean> => {
-    if (!data.first_name.trim() || !data.last_name.trim() || !data.email.trim() || !data.contact_number.trim()) {
-      toast.error("Please fill in all required fields.");
-      return false;
+  const handleRegisterClick = (programme: string) => {
+    if (openForm === programme) {
+      setOpenForm(null);
+    } else {
+      setOpenForm(programme);
+      setSubmitted(null);
     }
-    if (!data.timing_preference) {
-      toast.error("Please select when you're interested in attending.");
-      return false;
-    }
-    const { error } = await supabase.from("academy_applications" as any).insert({
-      first_name: data.first_name.trim(),
-      last_name: data.last_name.trim(),
-      full_name: `${data.first_name.trim()} ${data.last_name.trim()}`,
-      email: data.email.trim(),
-      phone: data.contact_number.trim(),
-      contact_number: data.contact_number.trim(),
-      course_interest: data.course_interest || null,
-      timing_preference: data.timing_preference || null,
-      about_me: data.about_me.trim() || null,
-    } as any);
-    if (error) {
-      toast.error("Something went wrong. Please try again.");
-      console.error(error);
-      return false;
-    }
-    return true;
-  };
-
-  const handleModalSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setModalSubmitting(true);
-    const ok = await submitForm(modalForm);
-    setModalSubmitting(false);
-    if (ok) setModalSubmitted(true);
-  };
-
-  const handleBottomSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setBottomSubmitting(true);
-    const ok = await submitForm(bottomForm);
-    setBottomSubmitting(false);
-    if (ok) setBottomSubmitted(true);
   };
 
   const courses = [
@@ -239,8 +193,7 @@ export default function AcademyPage() {
       duration: "Half Day • 3 Hours",
       price: "£300",
       priceSub: "per session",
-      description:
-        "Perfect for pet owners who want to keep their dog well-groomed at home. Bring your dog and leave knowing exactly how to bath, dry, brush and trim them safely.",
+      description: "Perfect for pet owners who want to keep their dog well-groomed at home. Bring your dog and leave knowing exactly how to bath, dry, brush and trim them safely.",
       includes: [
         "Hands-on with your own dog",
         "Bath, dry & brush techniques",
@@ -248,7 +201,6 @@ export default function AcademyPage() {
         "Products & tools guidance",
         "Take-home care guide",
       ],
-      popular: false,
     },
     {
       emoji: "✂️",
@@ -256,8 +208,7 @@ export default function AcademyPage() {
       duration: "Full Day • 10am–5pm",
       price: "£250",
       priceSub: "per person",
-      description:
-        "A complete day immersed in professional grooming. You'll work on multiple dogs, learn different coat types, and finish the day with real confidence and real skills.",
+      description: "A complete day immersed in professional grooming. You'll work on multiple dogs, learn different coat types, and finish the day with real confidence and real skills.",
       includes: [
         "Multiple dogs, multiple breeds",
         "Bath, dry, scissor & clip techniques",
@@ -266,7 +217,6 @@ export default function AcademyPage() {
         "Lunch included",
         "Certificate of attendance",
       ],
-      popular: false,
     },
     {
       emoji: "🏅",
@@ -274,15 +224,13 @@ export default function AcademyPage() {
       duration: "Full Day • Qualified Groomers Only",
       price: "£180",
       priceSub: "per groomer",
-      description:
-        "Already grooming professionally? Join a specialist workshop focused on scissoring, hand stripping, or specific breed styling. Sharpen your technique with expert guidance.",
+      description: "Already grooming professionally? Join a specialist workshop focused on scissoring, hand stripping, or specific breed styling. Sharpen your technique with expert guidance.",
       specialisms: ["Scissoring", "Hand Stripping", "Breed Styling", "Asian Fusion"],
-      popular: false,
     },
   ];
 
   const steps = [
-    { emoji: "📝", title: "Apply Online", desc: "Fill in the short form below telling us which course interests you and a little about yourself." },
+    { emoji: "📝", title: "Apply Online", desc: "Fill in the short form below telling us which programme interests you and a little about yourself." },
     { emoji: "📞", title: "We'll Be In Touch", desc: "We'll contact you within 48 hours to discuss your goals and confirm your spot." },
     { emoji: "📅", title: "Pick Your Date", desc: "Choose a date that works for you. Small groups mean flexible scheduling." },
     { emoji: "✂️", title: "Come & Groom", desc: "Arrive at our Hornchurch studio. Everything is set up and waiting for you." },
@@ -290,16 +238,17 @@ export default function AcademyPage() {
 
   const faqs = [
     { q: "Do I need any experience?", a: "Not at all for the Pet Owner and Full Day Masterclass sessions. The Pro Skills Workshop is designed for qualified or working groomers who want to refine specific skills." },
-    { q: "Do I get a certificate?", a: "The Full Day Masterclass includes a certificate of attendance. Our courses are about real skills, not qualifications — you leave knowing how to groom, not just holding a piece of paper." },
+    { q: "Do I get a certificate?", a: "The Full Day Masterclass and Month-Long Programme include a certificate of completion. Our courses are about real skills — you leave knowing how to groom, not just holding a piece of paper." },
     { q: "Can I bring my own dog?", a: "For the Pet Owner session — absolutely, that's the whole point! For the other courses we provide the dogs from our regular client bookings." },
     { q: "How many people are in each session?", a: "Maximum 3 students per session. We keep it small on purpose so you get real hands-on time, not just watching." },
     { q: "Where is the studio?", a: "138 Hillview Avenue, Hornchurch RM11 2DL. There's parking on site and we're about 5 minutes from Hornchurch Station." },
     { q: "What should I wear?", a: "Comfortable clothes you don't mind getting a little wet or hairy! We provide aprons but dogs will be dogs." },
   ];
 
+  const monthLongProgrammeKey = "Month-Long Grooming Programme — £2,800";
+
   return (
     <div className="min-h-screen font-body" style={{ background: "hsl(30, 100%, 98%)" }}>
-      {/* Admin back link */}
       {isAdmin && (
         <div className="fixed top-4 left-4 z-50">
           <Link to="/admin" className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors bg-background/80 backdrop-blur rounded-full px-3 py-1.5 shadow-sm">
@@ -307,33 +256,6 @@ export default function AcademyPage() {
           </Link>
         </div>
       )}
-
-      {/* ── MODAL ── */}
-      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="max-w-md rounded-2xl">
-          {modalSubmitted ? (
-            <ThankYouMessage
-              firstName={modalForm.first_name}
-              courseName={modalCourse}
-              email={modalForm.email}
-              onClose={() => setModalOpen(false)}
-            />
-          ) : (
-            <>
-              <div className="mb-4">
-                <h2 className="font-heading text-xl" style={{ color: "hsl(20, 60%, 12%)" }}>Register Your Interest</h2>
-                <p className="text-sm text-muted-foreground">{modalCourse}</p>
-              </div>
-              <InterestForm
-                formData={modalForm}
-                setFormData={setModalForm}
-                onSubmit={handleModalSubmit}
-                submitting={modalSubmitting}
-              />
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
 
       {/* ── HERO ── */}
       <section className="relative overflow-hidden py-20 md:py-32">
@@ -355,11 +277,8 @@ export default function AcademyPage() {
             Hands-on grooming masterclasses at Fluff &amp; Scruff Studio — real dogs, real skills, real results. No exams. No theory. Just grooming.
           </motion.p>
           <motion.div variants={fadeUp} className="flex flex-col sm:flex-row gap-3 justify-center mb-6">
-            <Button size="lg" className="text-base px-8 py-6 rounded-2xl font-bold" style={{ background: "hsl(18, 100%, 60%)" }} onClick={() => scrollTo(formRef)}>
-              Apply Now
-            </Button>
-            <Button size="lg" variant="outline" className="text-base px-8 py-6 rounded-2xl font-bold border-2" style={{ borderColor: "hsl(18, 100%, 60%)", color: "hsl(18, 100%, 60%)" }} onClick={() => scrollTo(coursesRef)}>
-              See All Courses ↓
+            <Button size="lg" className="text-base px-8 py-6 rounded-2xl font-bold" style={{ background: "hsl(18, 100%, 60%)" }} onClick={() => scrollTo(coursesRef)}>
+              See Programmes ↓
             </Button>
           </motion.div>
           <motion.p variants={fadeUp} className="text-sm" style={{ color: "hsla(20, 60%, 12%, 0.55)" }}>
@@ -400,69 +319,38 @@ export default function AcademyPage() {
           <motion.p variants={fadeUp} className="text-center text-muted-foreground mb-12 max-w-xl mx-auto">
             Every course is hands-on. Every session is in our working salon. Every student leaves having groomed real dogs.
           </motion.p>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
-            {courses.map((c) => (
-              <motion.div
-                key={c.title}
-                variants={fadeUp}
-                className="relative bg-card rounded-2xl p-6 shadow-sm border border-border flex flex-col"
-              >
-                <span className="text-3xl mb-2">{c.emoji}</span>
-                <h3 className="font-heading text-xl mb-1" style={{ color: "hsl(20, 60%, 12%)" }}>{c.title}</h3>
-                <p className="text-xs text-muted-foreground mb-3">{c.duration}</p>
-                <p className="font-heading text-3xl mb-0" style={{ color: "hsl(18, 100%, 60%)" }}>{c.price}</p>
-                <p className="text-xs text-muted-foreground mb-4">{c.priceSub}</p>
-                <p className="text-sm text-muted-foreground leading-relaxed mb-4">{c.description}</p>
-                {c.includes && (
-                  <ul className="space-y-1.5 mb-5 flex-1">
-                    {c.includes.map((item) => (
-                      <li key={item} className="flex items-start gap-2 text-sm">
-                        <Check className="w-4 h-4 mt-0.5 shrink-0" style={{ color: "hsl(145, 60%, 40%)" }} />
-                        <span>{item}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                {c.specialisms && (
-                  <div className="flex flex-wrap gap-2 mb-5 flex-1">
-                    {c.specialisms.map((s) => (
-                      <span key={s} className="px-2.5 py-1 rounded-full text-xs font-medium border border-border bg-muted">{s}</span>
-                    ))}
-                  </div>
-                )}
-                <Button className="w-full rounded-xl font-bold" style={{ background: "hsl(18, 100%, 60%)" }} onClick={() => openModal(c.title)}>
-                  Register Your Interest 🐾
-                </Button>
-              </motion.div>
-            ))}
-          </div>
 
-          {/* ── FOURTH CARD — Month-Long Programme ── */}
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.1 }} variants={fadeUp} className="relative rounded-2xl p-8 md:p-10 mt-8 flex flex-col" style={{ background: "#2D1B0E" }}>
+          {/* ── MONTH-LONG PROGRAMME (FIRST — FLAGSHIP) ── */}
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.1 }} variants={fadeUp} className="relative rounded-2xl p-8 md:p-10 mb-8 flex flex-col" style={{ background: "#2D1B0E" }}>
             <span className="absolute -top-3 left-4 px-3 py-1 rounded-full text-xs font-bold" style={{ background: "#FFB800", color: "#2D1B0E" }}>
               ⭐ Most Comprehensive
             </span>
             <span className="text-4xl mb-3">🎓</span>
             <h3 className="font-heading text-2xl md:text-3xl mb-1" style={{ color: "white" }}>Month-Long Grooming Programme</h3>
-            <p className="text-sm mb-4" style={{ color: "rgba(255,255,255,0.6)" }}>4 Weeks • Monday to Saturday • Full Immersion</p>
+            <p className="text-sm mb-4" style={{ color: "rgba(255,255,255,0.6)" }}>4 Weeks · 3 Days Per Week · Mostly Hands-On</p>
             <p className="font-heading text-4xl mb-0" style={{ color: "#FFB800" }}>£2,800</p>
-            <p className="text-xs mb-5" style={{ color: "rgba(255,255,255,0.5)" }}>per student • payment plan available</p>
+            <p className="text-xs mb-5" style={{ color: "rgba(255,255,255,0.5)" }}>per student · £500 deposit secures your place. Remaining £2,300 split across the month.</p>
+            <p className="text-sm leading-relaxed mb-3" style={{ color: "rgba(255,255,255,0.85)" }}>
+              Our most comprehensive offering. Spend a full month working inside our professional salon, grooming real client dogs. Sessions are mostly hands-on with theory woven naturally into each day — no classrooms, no slideshows, just real grooming with real dogs.
+            </p>
+            <p className="text-sm leading-relaxed mb-3" style={{ color: "rgba(255,255,255,0.85)" }}>
+              You will work 3 days per week across 4 weeks (12 sessions total). Days are flexible and agreed when you register, fitted around your schedule where possible.
+            </p>
             <p className="text-sm leading-relaxed mb-6" style={{ color: "rgba(255,255,255,0.85)" }}>
-              Our most comprehensive offering. Spend a full month working inside our professional salon, grooming real client dogs every single day. By the end you will have the confidence, the technique, and the experience to groom professionally — without ever sitting in a classroom.
+              Groups are kept tiny — maximum 3 students at a time — so you get genuine one-to-one attention throughout.
             </p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-1.5 mb-6">
               {[
-                "4 full weeks in a working salon",
-                "Asian Fusion styling",
-                "20+ days of hands-on grooming",
-                "Customer handling & communication",
-                "50+ real client dogs",
-                "Tools & equipment guidance",
-                "All coat types & breeds covered",
-                "Business basics (optional module)",
-                "Bath, dry, clip & scissor techniques",
-                "Certificate of completion",
+                "12 hands-on grooming sessions",
+                "Real client dogs every session",
+                "All coat types and breeds covered",
+                "Bath, dry, clip and scissor techniques",
+                "Asian Fusion styling introduction",
                 "Hand stripping introduction",
+                "Customer handling and communication",
+                "Tools and equipment guidance",
+                "Business basics (optional module)",
+                "Certificate of completion",
                 "WhatsApp support for 3 months after",
               ].map((item) => (
                 <div key={item} className="flex items-start gap-2 text-sm" style={{ color: "rgba(255,255,255,0.85)" }}>
@@ -476,16 +364,94 @@ export default function AcademyPage() {
                 <span key={tag} className="px-3 py-1 rounded-full text-xs font-medium text-white" style={{ background: "hsl(18, 100%, 60%)" }}>{tag}</span>
               ))}
             </div>
-            <p className="text-sm italic mb-2" style={{ color: "rgba(255,255,255,0.55)" }}>
-              💳 A £500 deposit secures your place. Remaining £2,300 split across the month.
-            </p>
             <p className="text-sm mb-6" style={{ color: "rgba(255,255,255,0.45)" }}>
-              Comparable programmes in London charge £4,350–£5,450. We keep our groups tiny and our prices fair.
+              Comparable programmes in London charge £4,350–£5,450. We keep our groups tiny — maximum 3 students — and our prices fair.
             </p>
-            <Button className="w-full py-6 text-base rounded-xl font-bold" style={{ background: "hsl(18, 100%, 60%)" }} onClick={() => openModal("Month-Long Grooming Programme")}>
-              Register Your Interest 🐾
-            </Button>
+
+            {submitted === monthLongProgrammeKey ? (
+              <div className="bg-white/10 rounded-xl p-6 text-center">
+                <p className="text-2xl mb-2">✅</p>
+                <p className="font-heading text-lg" style={{ color: "white" }}>Thank you {submitted.split("|||")[0]}! We have received your registration and will be in touch within 2 working days. 🐾</p>
+              </div>
+            ) : (
+              <>
+                <Button
+                  className="w-full py-6 text-base rounded-xl font-bold"
+                  style={{ background: "hsl(18, 100%, 60%)" }}
+                  onClick={() => handleRegisterClick(monthLongProgrammeKey)}
+                >
+                  {openForm === monthLongProgrammeKey ? "Hide Form" : "Register Your Interest 🐾"}
+                </Button>
+                {openForm === monthLongProgrammeKey && (
+                  <RegistrationForm
+                    programme={monthLongProgrammeKey}
+                    onSuccess={(name) => setSubmitted(monthLongProgrammeKey)}
+                  />
+                )}
+              </>
+            )}
           </motion.div>
+
+          {/* ── OTHER COURSES ── */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+            {courses.map((c) => {
+              const programmeKey = `${c.title} — ${c.price}`;
+              return (
+                <motion.div
+                  key={c.title}
+                  variants={fadeUp}
+                  className="relative bg-card rounded-2xl p-6 shadow-sm border border-border flex flex-col"
+                >
+                  <span className="text-3xl mb-2">{c.emoji}</span>
+                  <h3 className="font-heading text-xl mb-1" style={{ color: "hsl(20, 60%, 12%)" }}>{c.title}</h3>
+                  <p className="text-xs text-muted-foreground mb-3">{c.duration}</p>
+                  <p className="font-heading text-3xl mb-0" style={{ color: "hsl(18, 100%, 60%)" }}>{c.price}</p>
+                  <p className="text-xs text-muted-foreground mb-4">{c.priceSub}</p>
+                  <p className="text-sm text-muted-foreground leading-relaxed mb-4">{c.description}</p>
+                  {c.includes && (
+                    <ul className="space-y-1.5 mb-5 flex-1">
+                      {c.includes.map((item) => (
+                        <li key={item} className="flex items-start gap-2 text-sm">
+                          <Check className="w-4 h-4 mt-0.5 shrink-0" style={{ color: "hsl(145, 60%, 40%)" }} />
+                          <span>{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {c.specialisms && (
+                    <div className="flex flex-wrap gap-2 mb-5 flex-1">
+                      {c.specialisms.map((s) => (
+                        <span key={s} className="px-2.5 py-1 rounded-full text-xs font-medium border border-border bg-muted">{s}</span>
+                      ))}
+                    </div>
+                  )}
+
+                  {submitted === programmeKey ? (
+                    <div className="bg-muted rounded-xl p-4 text-center">
+                      <p className="text-xl mb-1">✅</p>
+                      <p className="text-sm font-medium" style={{ color: "hsl(20, 60%, 12%)" }}>Thank you! We'll be in touch within 2 working days. 🐾</p>
+                    </div>
+                  ) : (
+                    <>
+                      <Button
+                        className="w-full rounded-xl font-bold"
+                        style={{ background: "hsl(18, 100%, 60%)" }}
+                        onClick={() => handleRegisterClick(programmeKey)}
+                      >
+                        {openForm === programmeKey ? "Hide Form" : "Register Your Interest 🐾"}
+                      </Button>
+                      {openForm === programmeKey && (
+                        <RegistrationForm
+                          programme={programmeKey}
+                          onSuccess={() => setSubmitted(programmeKey)}
+                        />
+                      )}
+                    </>
+                  )}
+                </motion.div>
+              );
+            })}
+          </div>
         </motion.div>
       </section>
 
@@ -539,38 +505,6 @@ export default function AcademyPage() {
         </motion.div>
       </section>
 
-      {/* ── APPLICATION FORM ── */}
-      <section ref={formRef} className="py-16 md:py-24 px-4" style={{ background: "hsl(30, 60%, 97%)" }}>
-        <motion.div className="max-w-xl mx-auto" initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.2 }} variants={staggerContainer}>
-          <motion.h2 variants={fadeUp} className="font-heading text-3xl md:text-4xl text-center mb-3" style={{ color: "hsl(20, 60%, 12%)" }}>
-            Ready to Start?
-          </motion.h2>
-          <motion.p variants={fadeUp} className="text-center text-muted-foreground mb-10">
-            Tell us a little about yourself and which course you're interested in. We'll be in touch within 48 hours.
-          </motion.p>
-
-          {bottomSubmitted ? (
-            <motion.div variants={fadeUp} className="bg-card rounded-2xl p-8 shadow-sm border border-border">
-              <ThankYouMessage
-                firstName={bottomForm.first_name}
-                courseName={bottomForm.course_interest || "grooming courses"}
-                email={bottomForm.email}
-              />
-            </motion.div>
-          ) : (
-            <motion.div variants={fadeUp} className="bg-card rounded-2xl p-6 md:p-8 shadow-sm border border-border">
-              <InterestForm
-                formData={bottomForm}
-                setFormData={setBottomForm}
-                onSubmit={handleBottomSubmit}
-                submitting={bottomSubmitting}
-                showCourseDropdown
-              />
-            </motion.div>
-          )}
-        </motion.div>
-      </section>
-
       {/* ── FAQ ── */}
       <section className="py-16 md:py-24 px-4">
         <motion.div className="max-w-2xl mx-auto" initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.2 }} variants={staggerContainer}>
@@ -599,8 +533,8 @@ export default function AcademyPage() {
           <p className="text-lg mb-8" style={{ color: "rgba(255,255,255,0.85)" }}>
             Small groups. Real dogs. Real skills. Hornchurch, Essex.
           </p>
-          <Button size="lg" className="text-base px-10 py-6 rounded-2xl font-bold" style={{ background: "white", color: "hsl(18, 100%, 60%)" }} onClick={() => scrollTo(formRef)}>
-            Apply Now
+          <Button size="lg" className="text-base px-10 py-6 rounded-2xl font-bold" style={{ background: "white", color: "hsl(18, 100%, 60%)" }} onClick={() => scrollTo(coursesRef)}>
+            View Programmes
           </Button>
         </div>
       </section>
