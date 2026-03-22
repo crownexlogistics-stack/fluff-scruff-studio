@@ -1,45 +1,35 @@
 
 
-## Problem
+## Bug Fix: Deposit Auto-Populates on Book Again Form
 
-The "Send Deposit Link" button in the groomer portal calls `send-payment-link` which calculates `amountDue = total - deposit` (the full remaining balance). For a booking with £0 deposit paid, this sends a link for the **full price** instead of a **50% deposit**.
+### Problem
+Line 213 in `NewBookingDialog.tsx` auto-calculates `deposit_paid` as 60% of total price whenever the breed/service changes. This runs even in "Book Again" mode, showing a non-zero deposit in the form. While the database insert (line 357) hardcodes `deposit_paid: 0`, the displayed value misleads groomers into thinking a deposit was recorded — and if the form's `deposit_paid` field is ever used elsewhere or the hardcode is removed, it would cause real data issues.
 
-## Fix 1 — Edge Function: `send-payment-link`
+### Fix
+In the `useEffect` price calculation block (line 211-214), set `deposit_paid: 0` instead of calculating 60%:
 
-Add a `payment_type` parameter. When `payment_type === "deposit"`:
-- Calculate amount as `total_price * 0.5` instead of `total - deposit`
-- Update the email copy to say "Deposit" instead of "Payment"
-- Update the audit log to say "Deposit link" instead of "Payment link"
+**File: `src/components/booking-calendar/NewBookingDialog.tsx`**
 
-When `payment_type` is not "deposit" (or absent), keep existing behavior (full balance due).
-
-The metadata on the Stripe payment link already includes `booking_id`, which is correct.
-
-## Fix 2 — Frontend: `UnpaidDepositsAlert.tsx`
-
-In `handleSendDepositLink`, pass `payment_type: "deposit"` in the request body:
+Change line 211-213 from:
 ```typescript
-body: { booking_id: booking.id, send_via: ..., payment_type: "deposit" }
+if (totalPrice > 0) {
+  const deposit = Math.round(totalPrice * 0.6 * 100) / 100;
+  setForm(prev => ({ ...prev, total_price: totalPrice, deposit_paid: deposit }));
+}
 ```
 
-## Fix 3 — Verify `record-payment` Edge Function
+To:
+```typescript
+if (totalPrice > 0) {
+  setForm(prev => ({ ...prev, total_price: totalPrice, deposit_paid: 0 }));
+}
+```
 
-The existing `record-payment` function:
-- Searches Stripe checkout sessions for matching `booking_id` in metadata ✅
-- Retrieves `amount_received` from the payment intent ✅
-- Updates `deposit_paid` (not `total_price`) ✅
-- Sets status to "Confirmed" (unless closed status) ✅
+This ensures:
+- The deposit field always shows £0 on the form (for both Book Again and regular staff bookings)
+- The database insert continues to save `deposit_paid: 0`
+- No other behaviour is changed
+- Total price auto-calculation still works correctly
 
-This is already correct. When a customer pays via the payment link, the checkout session inherits the payment link's metadata with `booking_id`, so `record-payment` will find it and update `deposit_paid` correctly.
-
-## Fix 4 — Flag Orphaned Payment for Manual Review
-
-Insert an audit log entry for `pi_3TD6XgQfeHASnkQW1onchwcE` flagging it for manual review. Also insert a booking anomaly-style record or audit entry visible in the finance page:
-- Add an audit log: "UNMATCHED_PAYMENT — Payment of £50.00 received (pi_3TD6XgQfeHASnkQW1onchwcE) but no matching booking found. Manual review required."
-
-## Files Changed
-
-1. `supabase/functions/send-payment-link/index.ts` — Add `payment_type` support to calculate 50% deposit amount
-2. `src/components/groomer/overview/UnpaidDepositsAlert.tsx` — Pass `payment_type: "deposit"` in request
-3. Database insert — One audit log entry for the orphaned payment
+One file changed, one line removed. No other modifications.
 
