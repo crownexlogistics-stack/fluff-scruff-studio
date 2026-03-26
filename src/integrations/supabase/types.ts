@@ -1372,6 +1372,66 @@ export type Database = {
         }
         Relationships: []
       }
+      groomer_activity_log: {
+        Row: {
+          action_summary: string
+          action_type: string
+          booking_date: string | null
+          booking_id: string | null
+          booking_time: string | null
+          customer_name: string | null
+          dog_name: string | null
+          extra_details: Json | null
+          id: string
+          performed_at: string | null
+          service_name: string | null
+          staff_id: string | null
+        }
+        Insert: {
+          action_summary: string
+          action_type: string
+          booking_date?: string | null
+          booking_id?: string | null
+          booking_time?: string | null
+          customer_name?: string | null
+          dog_name?: string | null
+          extra_details?: Json | null
+          id?: string
+          performed_at?: string | null
+          service_name?: string | null
+          staff_id?: string | null
+        }
+        Update: {
+          action_summary?: string
+          action_type?: string
+          booking_date?: string | null
+          booking_id?: string | null
+          booking_time?: string | null
+          customer_name?: string | null
+          dog_name?: string | null
+          extra_details?: Json | null
+          id?: string
+          performed_at?: string | null
+          service_name?: string | null
+          staff_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "groomer_activity_log_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "groomer_activity_log_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       groomer_payout_history: {
         Row: {
           anomaly_count: number | null
