@@ -169,7 +169,7 @@ function GroomerFinanceView({ staffId }: { staffId: string }) {
   );
 }
 
-type Section = "overview" | "bookings" | "messages" | "breeds" | "finance" | "documents" | "purchases" | "packages";
+type Section = "overview" | "bookings" | "messages" | "breeds" | "finance" | "documents" | "purchases" | "packages" | "assistant";
 
 const sectionToRoute: Record<Section, string> = {
   overview: "/portal",
@@ -180,6 +180,7 @@ const sectionToRoute: Record<Section, string> = {
   breeds: "/portal/breeds",
   finance: "/portal/finance",
   documents: "/portal/documents",
+  assistant: "/portal/assistant",
 };
 
 const routeToSection: Record<string, Section> = Object.fromEntries(
