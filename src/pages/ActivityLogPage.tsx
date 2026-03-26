@@ -32,8 +32,8 @@ export default function ActivityLogPage() {
   const { data: staff = [] } = useQuery({
     queryKey: ["staff-list"],
     queryFn: async () => {
-      const { data } = await supabase.from("staff").select("id, name").eq("is_active", true);
-      return data || [];
+      const { data } = await supabase.from("staff").select("id, name").eq("is_active", true) as any;
+      return (data || []) as { id: string; name: string }[];
     },
   });
 
