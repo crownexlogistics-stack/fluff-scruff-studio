@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { logAudit } from "@/lib/auditLog";
+import { logGroomerActivity } from "@/lib/logGroomerActivity";
 import { CustomerSearchInput, type CustomerResult } from "./CustomerSearchInput";
 
 export interface BookAgainData {
