@@ -254,6 +254,7 @@ const GroomerPortalPage = () => {
           <div className="space-y-6">
             <GroomerDailyBriefing staffId={staffId} groomerName={staffName} careerTotal={0} />
             <UnpaidDepositsAlert staffId={staffId} />
+            <MyDayWidget staffId={staffId} />
             <TodayStatsBar staffId={staffId} />
             <CustomerMilestoneCard staffId={staffId} />
             <TodayPrepNotes staffId={staffId} />
