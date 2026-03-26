@@ -194,6 +194,7 @@ const sectionCards: { id: Section; icon: React.ElementType; title: string; subti
   { id: "breeds", icon: Dog, title: "Breeds", subtitle: "Pricing & duration reference" },
   { id: "finance", icon: PoundSterling, title: "Finance", subtitle: "Commission & payouts" },
   { id: "documents", icon: FileText, title: "Documents", subtitle: "Contract, policies & reports" },
+  { id: "assistant" as Section, icon: Sparkles, title: "Groomer Assistant", subtitle: "AI helper for bookings & policies" },
 ];
 
 const GroomerPortalPage = () => {
