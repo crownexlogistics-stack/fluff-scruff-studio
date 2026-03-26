@@ -29,10 +29,10 @@ export default function ActivityLogPage() {
   const [actionFilter, setActionFilter] = useState("all");
   const [search, setSearch] = useState("");
 
-  const { data: staff = [] } = useQuery({
+  const { data: staff = [] } = useQuery<{ id: string; name: string }[]>({
     queryKey: ["staff-list"],
     queryFn: async () => {
-      const { data } = await supabase.from("staff").select("id, name").eq("is_active", true) as any;
+      const { data } = await (supabase.from("staff") as any).select("id, name").eq("is_active", true);
       return (data || []) as { id: string; name: string }[];
     },
   });
