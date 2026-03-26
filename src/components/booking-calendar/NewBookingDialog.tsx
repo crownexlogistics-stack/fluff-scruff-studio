@@ -375,6 +375,22 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
             performed_by: staffName,
             note: "Booking created manually by staff",
           } as any).then(() => {});
+
+          // Activity log for groomer
+          if (form.staff_id) {
+            const serviceName = services?.find(s => s.id === form.service_id)?.name || "";
+            logGroomerActivity({
+              staffId: form.staff_id,
+              actionType: "booking_created",
+              actionSummary: `Booked ${form.customer_name} (${form.dog_name}) for ${serviceName || "appointment"} on ${form.booking_date} at ${form.booking_time.slice(0, 5)}`,
+              bookingId: insertedBooking.id,
+              customerName: form.customer_name,
+              dogName: form.dog_name,
+              bookingDate: form.booking_date,
+              bookingTime: form.booking_time,
+              serviceName,
+            });
+          }
         }
 
         if (form.customer_email && insertedBooking?.id) {

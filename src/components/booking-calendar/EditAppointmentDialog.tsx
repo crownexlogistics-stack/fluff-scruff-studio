@@ -228,6 +228,20 @@ export function EditAppointmentDialog({ open, onOpenChange, booking }: EditAppoi
           new_time: form.booking_time,
           note: `Rescheduled from ${booking.booking_date} ${booking.booking_time.slice(0, 5)} to ${form.booking_date} ${form.booking_time}`,
         } as any).then(() => {});
+
+        // Activity log for groomer
+        if (form.staff_id) {
+          logGroomerActivity({
+            staffId: form.staff_id,
+            actionType: "reschedule",
+            actionSummary: `Rescheduled ${booking.customer_name} from ${booking.booking_date} ${booking.booking_time.slice(0, 5)} to ${form.booking_date} ${form.booking_time}`,
+            bookingId: booking.id,
+            customerName: booking.customer_name,
+            dogName: booking.dog_name,
+            bookingDate: form.booking_date,
+            bookingTime: form.booking_time,
+          });
+        }
       }
 
       logAudit({
