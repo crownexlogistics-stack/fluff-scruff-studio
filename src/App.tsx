@@ -162,6 +162,7 @@ const App = () => (
           <Route path="/admin/duplicate-report" element={<ProtectedRoute allowedRoles={["director"]}><DuplicateReportPage /></ProtectedRoute>} />
           <Route path="/admin/director-assistant" element={<ProtectedRoute allowedRoles={["director"]}><DirectorAssistantPage /></ProtectedRoute>} />
           <Route path="/admin/academy" element={<ProtectedRoute allowedRoles={["director", "manager"]}><AcademyEnquiriesPage /></ProtectedRoute>} />
+          <Route path="/admin/activity-log" element={<ProtectedRoute allowedRoles={["director"]}><ActivityLogPage /></ProtectedRoute>} />
 
           <Route path="*" element={<NotFound />} />
         </Routes>
