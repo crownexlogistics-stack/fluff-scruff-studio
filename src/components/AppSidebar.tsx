@@ -77,6 +77,7 @@ const scruffSubItems = [
 const directorOnlyItems = [
   { title: "Users", url: "/admin/users", icon: Crown },
   { title: "Terms & Conditions", url: "/admin/terms", icon: FileText },
+  { title: "Activity Log", url: "/admin/activity-log", icon: Activity },
   { title: "Duplicate Report", url: "/admin/duplicate-report", icon: Search },
   { title: "Error Reports", url: "/admin/error-reports", icon: Bug },
   { title: "System Health", url: "/admin/health", icon: Activity },

@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useQuery } from "@tanstack/react-query";
 import { GroomerLayout } from "@/components/GroomerLayout";
-import { CalendarDays, MessageSquare, Dog, PoundSterling, FileText, ChevronRight, ArrowLeft, ShoppingCart, Package } from "lucide-react";
+import { CalendarDays, MessageSquare, Dog, PoundSterling, FileText, ChevronRight, ArrowLeft, ShoppingCart, Package, Sparkles } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,6 +27,7 @@ import { WeatherWidget } from "@/components/groomer/overview/WeatherWidget";
 import { UnpaidDepositsAlert } from "@/components/groomer/overview/UnpaidDepositsAlert";
 import { GoneQuietCard } from "@/components/groomer/overview/GoneQuietCard";
 import { ActivePackages } from "@/components/packages/ActivePackages";
+import { MyDayWidget } from "@/components/groomer/overview/MyDayWidget";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addWeeks, addMonths } from "date-fns";
 import { useLocation, useNavigate } from "react-router-dom";
 
@@ -168,7 +169,7 @@ function GroomerFinanceView({ staffId }: { staffId: string }) {
   );
 }
 
-type Section = "overview" | "bookings" | "messages" | "breeds" | "finance" | "documents" | "purchases" | "packages";
+type Section = "overview" | "bookings" | "messages" | "breeds" | "finance" | "documents" | "purchases" | "packages" | "assistant";
 
 const sectionToRoute: Record<Section, string> = {
   overview: "/portal",
@@ -179,6 +180,7 @@ const sectionToRoute: Record<Section, string> = {
   breeds: "/portal/breeds",
   finance: "/portal/finance",
   documents: "/portal/documents",
+  assistant: "/portal/assistant",
 };
 
 const routeToSection: Record<string, Section> = Object.fromEntries(
@@ -193,6 +195,7 @@ const sectionCards: { id: Section; icon: React.ElementType; title: string; subti
   { id: "breeds", icon: Dog, title: "Breeds", subtitle: "Pricing & duration reference" },
   { id: "finance", icon: PoundSterling, title: "Finance", subtitle: "Commission & payouts" },
   { id: "documents", icon: FileText, title: "Documents", subtitle: "Contract, policies & reports" },
+  { id: "assistant" as Section, icon: Sparkles, title: "Groomer Assistant", subtitle: "AI helper for bookings & policies" },
 ];
 
 const GroomerPortalPage = () => {
@@ -251,6 +254,7 @@ const GroomerPortalPage = () => {
           <div className="space-y-6">
             <GroomerDailyBriefing staffId={staffId} groomerName={staffName} careerTotal={0} />
             <UnpaidDepositsAlert staffId={staffId} />
+            <MyDayWidget staffId={staffId} />
             <TodayStatsBar staffId={staffId} />
             <CustomerMilestoneCard staffId={staffId} />
             <TodayPrepNotes staffId={staffId} />

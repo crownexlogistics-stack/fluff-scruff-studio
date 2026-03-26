@@ -78,7 +78,8 @@ import PublicPackagesPage from "./pages/PublicPackagesPage";
 import BookPackagePage from "./pages/BookPackagePage";
 import PackageBookingConfirmedPage from "./pages/PackageBookingConfirmedPage";
 import DirectorAssistantPage from "./pages/DirectorAssistantPage";
-
+import GroomerAssistantPage from "./pages/GroomerAssistantPage";
+import ActivityLogPage from "./pages/ActivityLogPage";
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -125,6 +126,7 @@ const App = () => (
           <Route path="/portal/breeds" element={<ProtectedRoute allowedRoles={["groomer"]}><GroomerPortalPage /></ProtectedRoute>} />
           <Route path="/portal/finance" element={<ProtectedRoute allowedRoles={["groomer"]}><GroomerPortalPage /></ProtectedRoute>} />
           <Route path="/portal/documents" element={<ProtectedRoute allowedRoles={["groomer"]}><GroomerPortalPage /></ProtectedRoute>} />
+          <Route path="/portal/assistant" element={<ProtectedRoute allowedRoles={["groomer"]}><GroomerAssistantPage /></ProtectedRoute>} />
 
           {/* Manager only */}
           <Route path="/admin" element={<ProtectedRoute allowedRoles={["manager", "director"]}><AdminDashboard /></ProtectedRoute>} />
@@ -160,6 +162,7 @@ const App = () => (
           <Route path="/admin/duplicate-report" element={<ProtectedRoute allowedRoles={["director"]}><DuplicateReportPage /></ProtectedRoute>} />
           <Route path="/admin/director-assistant" element={<ProtectedRoute allowedRoles={["director"]}><DirectorAssistantPage /></ProtectedRoute>} />
           <Route path="/admin/academy" element={<ProtectedRoute allowedRoles={["director", "manager"]}><AcademyEnquiriesPage /></ProtectedRoute>} />
+          <Route path="/admin/activity-log" element={<ProtectedRoute allowedRoles={["director"]}><ActivityLogPage /></ProtectedRoute>} />
 
           <Route path="*" element={<NotFound />} />
         </Routes>
