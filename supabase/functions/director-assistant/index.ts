@@ -7,6 +7,41 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const PREBOOKED_STATUSES = new Set(["Pending", "Confirmed"]);
+
+function isPrebookedStatus(status: string | null | undefined) {
+  return status ? PREBOOKED_STATUSES.has(status) : false;
+}
+
+async function selectAllPaginated(
+  supabaseAdmin: any,
+  table: string,
+  selectColumns: string,
+  orderColumn: string,
+  ascending = false,
+) {
+  const pageSize = 1000;
+  let from = 0;
+  const rows: any[] = [];
+
+  while (true) {
+    const { data, error } = await supabaseAdmin
+      .from(table)
+      .select(selectColumns)
+      .order(orderColumn, { ascending })
+      .range(from, from + pageSize - 1);
+
+    if (error) throw error;
+    if (!data?.length) break;
+
+    rows.push(...data);
+    if (data.length < pageSize) break;
+    from += pageSize;
+  }
+
+  return { data: rows };
+}
+
 function getDateContext() {
   const now = new Date();
   const today = now.toISOString().split("T")[0];
@@ -83,31 +118,33 @@ async function fetchAllContext(supabaseAdmin: any) {
     allMigratedCustomers,
   ] = await Promise.all([
     // ALL bookings — no date filter
-    supabaseAdmin
-      .from("bookings")
-      .select(
-        "id, customer_name, dog_name, booking_date, booking_time, status, total_price, deposit_paid, final_charge, staff_id, service_id, booking_source, customer_email, stripe_payment_id, notes, created_at",
-      )
-      .order("booking_date", { ascending: false })
-      .limit(2000),
+    selectAllPaginated(
+      supabaseAdmin,
+      "bookings",
+      "id, customer_name, dog_name, booking_date, booking_time, status, total_price, deposit_paid, final_charge, staff_id, service_id, booking_source, customer_email, stripe_payment_id, notes, created_at",
+      "booking_date",
+      false,
+    ),
 
     // ALL migrated bookings — no date filter
-    supabaseAdmin
-      .from("migrated_bookings")
-      .select(
-        "id, migrated_customer_id, dog_name, dog_breed, service_name, staff_name, booking_date, booking_time, duration_minutes, payment_status, total_price, deposit_paid, amount_due, notes",
-      )
-      .order("booking_date", { ascending: false })
-      .limit(2000),
+    selectAllPaginated(
+      supabaseAdmin,
+      "migrated_bookings",
+      "id, migrated_customer_id, dog_name, dog_breed, service_name, staff_name, booking_date, booking_time, duration_minutes, payment_status, total_price, deposit_paid, amount_due, notes, is_future_booking",
+      "booking_date",
+      false,
+    ),
 
     supabaseAdmin.from("staff").select("id, name, commission_rate, is_active"),
 
     // ALL commissions — no date filter
-    supabaseAdmin
-      .from("commission_records")
-      .select("staff_id, groomer_pay, studio_share, total_price, booking_source, commission_rate, created_at")
-      .order("created_at", { ascending: false })
-      .limit(2000),
+    selectAllPaginated(
+      supabaseAdmin,
+      "commission_records",
+      "staff_id, groomer_pay, studio_share, total_price, booking_source, commission_rate, created_at",
+      "created_at",
+      false,
+    ),
 
     supabaseAdmin
       .from("package_bookings")
@@ -116,30 +153,43 @@ async function fetchAllContext(supabaseAdmin: any) {
       )
       .eq("status", "active"),
 
-    supabaseAdmin
-      .from("package_bookings")
-      .select("id, customer_name, dog_name, package_type, sessions_count, total_paid, status, tc_signed, created_at")
-      .order("created_at", { ascending: false }),
+    selectAllPaginated(
+      supabaseAdmin,
+      "package_bookings",
+      "id, customer_name, dog_name, package_type, sessions_count, total_paid, status, tc_signed, created_at",
+      "created_at",
+      false,
+    ),
 
-    supabaseAdmin.from("package_sessions").select("package_booking_id, status, booking_id"),
+    selectAllPaginated(
+      supabaseAdmin,
+      "package_sessions",
+      "id, package_booking_id, status, booking_id",
+      "id",
+      false,
+    ),
 
-    supabaseAdmin
-      .from("email_campaigns")
-      .select("id, subject, status, emails_sent, opens, clicks, unique_opens, unique_clicks, sent_at, segment")
-      .order("created_at", { ascending: false })
-      .limit(20),
+    selectAllPaginated(
+      supabaseAdmin,
+      "email_campaigns",
+      "id, subject, status, emails_sent, opens, clicks, unique_opens, unique_clicks, sent_at, segment, created_at",
+      "created_at",
+      false,
+    ),
 
-    supabaseAdmin
-      .from("bulk_sms_log")
-      .select("campaign_name, status, delivery_status, sent_at, phone, error_message")
-      .order("sent_at", { ascending: false })
-      .limit(200),
+    selectAllPaginated(
+      supabaseAdmin,
+      "bulk_sms_log",
+      "id, campaign_name, status, delivery_status, sent_at, phone, error_message",
+      "sent_at",
+      false,
+    ),
 
-    supabaseAdmin.from("bookings").select("customer_email").order("created_at", { ascending: true }),
+    selectAllPaginated(supabaseAdmin, "bookings", "id, customer_email, created_at", "created_at", true),
 
     supabaseAdmin.from("add_ons").select("id, name, price"),
 
-    supabaseAdmin.from("booking_addons").select("booking_id, addon_id"),
+    selectAllPaginated(supabaseAdmin, "booking_addons", "id, booking_id, addon_id", "id", true),
 
     // Monthly revenue — scoped to this month only (for monthly summaries)
     supabaseAdmin
@@ -164,22 +214,31 @@ async function fetchAllContext(supabaseAdmin: any) {
       .eq("payment_status", "Completed")
       .eq("booking_date", today),
 
-    supabaseAdmin
-      .from("package_tc_signatures")
-      .select("id, package_booking_id, signed_at, status, created_at")
-      .order("created_at", { ascending: false }),
+    selectAllPaginated(
+      supabaseAdmin,
+      "package_tc_signatures",
+      "id, package_booking_id, signed_at, status, created_at",
+      "created_at",
+      false,
+    ),
 
-    supabaseAdmin
-      .from("academy_enquiries")
-      .select("id, first_name, last_name, email, phone, programme_interest, status, created_at")
-      .order("created_at", { ascending: false }),
+    selectAllPaginated(
+      supabaseAdmin,
+      "academy_enquiries",
+      "id, first_name, last_name, email, phone, programme_interest, status, created_at",
+      "created_at",
+      false,
+    ),
 
     supabaseAdmin.from("services").select("id, name"),
 
-    supabaseAdmin
-      .from("migrated_customers")
-      .select("id, full_name, email, phone, sms_opt_out, sms_unreachable")
-      .limit(500),
+    selectAllPaginated(
+      supabaseAdmin,
+      "migrated_customers",
+      "id, full_name, email, phone, sms_opt_out, sms_unreachable, created_at",
+      "created_at",
+      false,
+    ),
   ]);
 
   const allBookings = allBookingsResult.data || [];
@@ -262,9 +321,23 @@ async function fetchAllContext(supabaseAdmin: any) {
     revenueForPeriod(allMigrated, yearStart, yearEnd, "payment_status");
 
   // Future bookings
-  const futureConfirmed = allBookings.filter(
-    (b: any) => b.booking_date >= today && (b.status === "Confirmed" || b.status === "Pending"),
+  const futureConfirmedLive = allBookings.filter(
+    (b: any) => b.booking_date >= today && isPrebookedStatus(b.status),
   );
+  const futureConfirmedMigrated = allMigrated
+    .filter(
+      (b: any) =>
+        b.booking_date >= today &&
+        (b.is_future_booking === true || isPrebookedStatus(b.payment_status)),
+    )
+    .map((b: any) => ({
+      ...b,
+      status: b.payment_status || "Confirmed",
+      customer_name: migratedCustomerMap[b.migrated_customer_id] || "Unknown",
+      source: "wix_migrated",
+    }));
+
+  const futureConfirmed = [...futureConfirmedLive, ...futureConfirmedMigrated];
   const futureRestOfYear = futureConfirmed.filter((b: any) => b.booking_date <= yearEnd);
   const futureThisMonth = futureConfirmed.filter((b: any) => b.booking_date >= today && b.booking_date <= monthEnd);
   const futureNextMonth = futureConfirmed.filter(
@@ -274,6 +347,23 @@ async function fetchAllContext(supabaseAdmin: any) {
   const projectedThisMonth =
     completedRevenueExact + futureThisMonth.reduce((s: number, b: any) => s + Number(b.total_price || 0), 0);
   const projectedNextMonth = futureNextMonth.reduce((s: number, b: any) => s + Number(b.total_price || 0), 0);
+
+  const bookingsThisYear = allBookings.filter((b: any) => b.booking_date >= yearStart && b.booking_date <= yearEnd);
+  const migratedBookingsThisYear = allMigrated.filter(
+    (b: any) => b.booking_date >= yearStart && b.booking_date <= yearEnd,
+  );
+
+  const prebookedThisYearLive = bookingsThisYear.filter((b: any) => isPrebookedStatus(b.status));
+  const prebookedThisYearMigrated = migratedBookingsThisYear.filter(
+    (b: any) => b.is_future_booking === true || isPrebookedStatus(b.payment_status),
+  );
+
+  const prebookedByMonth: Record<string, number> = {};
+  [...prebookedThisYearLive, ...prebookedThisYearMigrated].forEach((b: any) => {
+    const month = b.booking_date?.substring(0, 7);
+    if (!month) return;
+    prebookedByMonth[month] = (prebookedByMonth[month] || 0) + 1;
+  });
 
   // Group future by month
   const futureByMonth: Record<string, { count: number; revenue: number }> = {};
@@ -329,6 +419,20 @@ async function fetchAllContext(supabaseAdmin: any) {
         count: data.count,
         projected_revenue: `£${data.revenue.toFixed(2)}`,
       })),
+  };
+
+  context.prebooked_appointments = {
+    this_year_total_prebooked: prebookedThisYearLive.length + prebookedThisYearMigrated.length,
+    this_year_rest_of_year_prebooked: futureRestOfYear.length,
+    this_month_prebooked: futureThisMonth.length,
+    next_month_prebooked: futureNextMonth.length,
+    this_year_total_appointments: bookingsThisYear.length + migratedBookingsThisYear.length,
+    this_year_completed_appointments:
+      bookingsThisYear.filter((b: any) => b.status === "Completed").length +
+      migratedBookingsThisYear.filter((b: any) => b.payment_status === "Completed").length,
+    by_month: Object.entries(prebookedByMonth)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([month, count]) => ({ month, prebooked_count: count })),
   };
 
   // ── THIS MONTH DETAIL ──
@@ -422,15 +526,16 @@ async function fetchAllContext(supabaseAdmin: any) {
   );
 
   // Future bookings detail
-  context.future_bookings_detail = futureConfirmed.slice(0, 200).map((b: any) => ({
+  context.future_bookings_detail = futureConfirmed.slice(0, 250).map((b: any) => ({
     customer_name: b.customer_name,
     dog_name: b.dog_name,
     date: b.booking_date,
     time: b.booking_time,
     status: b.status,
     total_price: Number(b.total_price || 0),
-    groomer: staffMap[b.staff_id] || "Unassigned",
-    service_name: serviceMap[b.service_id] || "Unknown",
+    groomer: b.staff_id ? staffMap[b.staff_id] || "Unassigned" : b.staff_name || "Unassigned",
+    service_name: serviceMap[b.service_id] || b.service_name || "Unknown",
+    source: b.source || "live",
   }));
 
   // ── STAFF PERFORMANCE ──
@@ -569,6 +674,17 @@ async function fetchAllContext(supabaseAdmin: any) {
     cancelled: pkgBookings.filter((p: any) => p.status === "cancelled").length,
     total_revenue: `£${pkgBookings.reduce((s: number, p: any) => s + Number(p.total_paid || 0), 0).toFixed(2)}`,
     unsigned_tc: pkgBookings.filter((p: any) => !p.tc_signed && p.status === "active").length,
+  };
+
+  const tcSigRows = packageTcSigs.data || [];
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const sevenDaysAgoIso = sevenDaysAgo.toISOString();
+
+  context.system_health = {
+    package_tc_pending_over_7_days: tcSigRows.filter(
+      (sig: any) => sig.status === "pending" && sig.created_at < sevenDaysAgoIso,
+    ).length,
   };
 
   // ── CAMPAIGNS ──
@@ -741,10 +857,12 @@ CRITICAL REVENUE RULES:
 CRITICAL DATE RULES:
 - Always use current_date_context for exact date ranges.
 - future_bookings_summary contains the count and projected revenue for rest of year and by month.
+- prebooked_appointments contains full-year pre-booked counts and month-by-month totals.
 - future_bookings_detail contains individual future appointments.
 - When asked "rest of the year" use future_bookings_summary.rest_of_year_count.
+- When asked "whole year pre-booked" use prebooked_appointments.this_year_total_prebooked.
 
-Always be direct, specific and use real numbers from the data provided. Never say you cannot access something that is in the context. Always refer to money in pounds (£). Always call the director Sevak. Flag urgent issues with 🚨. Use ✅ for good news.
+Always be direct, specific and use real numbers from the data provided. Never say you cannot access something that is in the context. Never claim data is restricted to a single month when historical data exists in context. Always refer to money in pounds (£). Always call the director Sevak. Flag urgent issues with 🚨. Use ✅ for good news.
 
 Here is the complete live data:
 ${JSON.stringify(contextData, null, 2)}`;

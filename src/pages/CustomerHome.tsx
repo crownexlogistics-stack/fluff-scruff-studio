@@ -205,9 +205,8 @@ const CustomerHome = () => {
                 <p className="text-sm text-muted-foreground font-body leading-relaxed">138 Hillview Avenue, Hornchurch RM11 2DL</p>
               </div>
             </a>
-            <a
-              href="tel:01708606655"
-              className="bg-card p-5 flex items-start gap-4 hover:shadow-lg transition-all duration-300 no-underline shadow-[0_4px_20px_rgba(0,0,0,0.06)]"
+            <div
+              className="bg-card p-5 flex items-start gap-4 hover:shadow-lg transition-all duration-300 shadow-[0_4px_20px_rgba(0,0,0,0.06)]"
               style={{ borderRadius: '20px' }}
             >
               <div className="flex h-11 w-11 shrink-0 items-center justify-center bg-accent/10" style={{ borderRadius: '12px' }}>
@@ -215,10 +214,20 @@ const CustomerHome = () => {
               </div>
               <div>
                 <h3 className="font-heading text-sm text-foreground mb-1">📞 Call Us</h3>
-                <p className="text-sm text-muted-foreground font-body leading-relaxed">01708 606655</p>
-                <p className="text-xs text-muted-foreground mt-0.5 font-body">WhatsApp: +44 7476 452782</p>
+                <a href="tel:01708606655" className="block text-sm text-muted-foreground font-body leading-relaxed hover:underline">
+                  01708 606655
+                </a>
+                <a href="tel:+447476452782" className="block text-xs text-muted-foreground mt-0.5 font-body hover:underline">
+                  WhatsApp: +44 7476 452782
+                </a>
+                <a
+                  href="mailto:info@fluffandscruff.co.uk"
+                  className="inline-block text-xs text-accent mt-1 font-body hover:underline"
+                >
+                  info@fluffandscruff.co.uk
+                </a>
               </div>
-            </a>
+            </div>
             <div
               className="bg-card p-5 flex items-start gap-4 shadow-[0_4px_20px_rgba(0,0,0,0.06)]"
               style={{ borderRadius: '20px' }}
