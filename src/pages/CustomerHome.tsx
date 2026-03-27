@@ -217,6 +217,12 @@ const CustomerHome = () => {
                 <h3 className="font-heading text-sm text-foreground mb-1">📞 Call Us</h3>
                 <p className="text-sm text-muted-foreground font-body leading-relaxed">01708 606655</p>
                 <p className="text-xs text-muted-foreground mt-0.5 font-body">WhatsApp: +44 7476 452782</p>
+                <a
+                  href="mailto:info@fluffandscruff.co.uk"
+                  className="inline-block text-xs text-accent mt-1 font-body hover:underline"
+                >
+                  info@fluffandscruff.co.uk
+                </a>
               </div>
             </a>
             <div
