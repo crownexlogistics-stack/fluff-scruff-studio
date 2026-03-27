@@ -13,6 +13,35 @@ function isPrebookedStatus(status: string | null | undefined) {
   return status ? PREBOOKED_STATUSES.has(status) : false;
 }
 
+async function selectAllPaginated(
+  supabaseAdmin: any,
+  table: string,
+  selectColumns: string,
+  orderColumn: string,
+  ascending = false,
+) {
+  const pageSize = 1000;
+  let from = 0;
+  const rows: any[] = [];
+
+  while (true) {
+    const { data, error } = await supabaseAdmin
+      .from(table)
+      .select(selectColumns)
+      .order(orderColumn, { ascending })
+      .range(from, from + pageSize - 1);
+
+    if (error) throw error;
+    if (!data?.length) break;
+
+    rows.push(...data);
+    if (data.length < pageSize) break;
+    from += pageSize;
+  }
+
+  return { data: rows };
+}
+
 function getDateContext() {
   const now = new Date();
   const today = now.toISOString().split("T")[0];
@@ -89,31 +118,33 @@ async function fetchAllContext(supabaseAdmin: any) {
     allMigratedCustomers,
   ] = await Promise.all([
     // ALL bookings — no date filter
-    supabaseAdmin
-      .from("bookings")
-      .select(
-        "id, customer_name, dog_name, booking_date, booking_time, status, total_price, deposit_paid, final_charge, staff_id, service_id, booking_source, customer_email, stripe_payment_id, notes, created_at",
-      )
-      .order("booking_date", { ascending: false })
-      .limit(2000),
+    selectAllPaginated(
+      supabaseAdmin,
+      "bookings",
+      "id, customer_name, dog_name, booking_date, booking_time, status, total_price, deposit_paid, final_charge, staff_id, service_id, booking_source, customer_email, stripe_payment_id, notes, created_at",
+      "booking_date",
+      false,
+    ),
 
     // ALL migrated bookings — no date filter
-    supabaseAdmin
-      .from("migrated_bookings")
-      .select(
-        "id, migrated_customer_id, dog_name, dog_breed, service_name, staff_name, booking_date, booking_time, duration_minutes, payment_status, total_price, deposit_paid, amount_due, notes, is_future_booking",
-      )
-      .order("booking_date", { ascending: false })
-      .limit(2000),
+    selectAllPaginated(
+      supabaseAdmin,
+      "migrated_bookings",
+      "id, migrated_customer_id, dog_name, dog_breed, service_name, staff_name, booking_date, booking_time, duration_minutes, payment_status, total_price, deposit_paid, amount_due, notes, is_future_booking",
+      "booking_date",
+      false,
+    ),
 
     supabaseAdmin.from("staff").select("id, name, commission_rate, is_active"),
 
     // ALL commissions — no date filter
-    supabaseAdmin
-      .from("commission_records")
-      .select("staff_id, groomer_pay, studio_share, total_price, booking_source, commission_rate, created_at")
-      .order("created_at", { ascending: false })
-      .limit(2000),
+    selectAllPaginated(
+      supabaseAdmin,
+      "commission_records",
+      "staff_id, groomer_pay, studio_share, total_price, booking_source, commission_rate, created_at",
+      "created_at",
+      false,
+    ),
 
     supabaseAdmin
       .from("package_bookings")
@@ -122,30 +153,43 @@ async function fetchAllContext(supabaseAdmin: any) {
       )
       .eq("status", "active"),
 
-    supabaseAdmin
-      .from("package_bookings")
-      .select("id, customer_name, dog_name, package_type, sessions_count, total_paid, status, tc_signed, created_at")
-      .order("created_at", { ascending: false }),
+    selectAllPaginated(
+      supabaseAdmin,
+      "package_bookings",
+      "id, customer_name, dog_name, package_type, sessions_count, total_paid, status, tc_signed, created_at",
+      "created_at",
+      false,
+    ),
 
-    supabaseAdmin.from("package_sessions").select("package_booking_id, status, booking_id"),
+    selectAllPaginated(
+      supabaseAdmin,
+      "package_sessions",
+      "id, package_booking_id, status, booking_id",
+      "id",
+      false,
+    ),
 
-    supabaseAdmin
-      .from("email_campaigns")
-      .select("id, subject, status, emails_sent, opens, clicks, unique_opens, unique_clicks, sent_at, segment")
-      .order("created_at", { ascending: false })
-      .limit(20),
+    selectAllPaginated(
+      supabaseAdmin,
+      "email_campaigns",
+      "id, subject, status, emails_sent, opens, clicks, unique_opens, unique_clicks, sent_at, segment, created_at",
+      "created_at",
+      false,
+    ),
 
-    supabaseAdmin
-      .from("bulk_sms_log")
-      .select("campaign_name, status, delivery_status, sent_at, phone, error_message")
-      .order("sent_at", { ascending: false })
-      .limit(200),
+    selectAllPaginated(
+      supabaseAdmin,
+      "bulk_sms_log",
+      "id, campaign_name, status, delivery_status, sent_at, phone, error_message",
+      "sent_at",
+      false,
+    ),
 
-    supabaseAdmin.from("bookings").select("customer_email").order("created_at", { ascending: true }),
+    selectAllPaginated(supabaseAdmin, "bookings", "id, customer_email, created_at", "created_at", true),
 
     supabaseAdmin.from("add_ons").select("id, name, price"),
 
-    supabaseAdmin.from("booking_addons").select("booking_id, addon_id"),
+    selectAllPaginated(supabaseAdmin, "booking_addons", "id, booking_id, addon_id", "id", true),
 
     // Monthly revenue — scoped to this month only (for monthly summaries)
     supabaseAdmin
@@ -170,22 +214,31 @@ async function fetchAllContext(supabaseAdmin: any) {
       .eq("payment_status", "Completed")
       .eq("booking_date", today),
 
-    supabaseAdmin
-      .from("package_tc_signatures")
-      .select("id, package_booking_id, signed_at, status, created_at")
-      .order("created_at", { ascending: false }),
+    selectAllPaginated(
+      supabaseAdmin,
+      "package_tc_signatures",
+      "id, package_booking_id, signed_at, status, created_at",
+      "created_at",
+      false,
+    ),
 
-    supabaseAdmin
-      .from("academy_enquiries")
-      .select("id, first_name, last_name, email, phone, programme_interest, status, created_at")
-      .order("created_at", { ascending: false }),
+    selectAllPaginated(
+      supabaseAdmin,
+      "academy_enquiries",
+      "id, first_name, last_name, email, phone, programme_interest, status, created_at",
+      "created_at",
+      false,
+    ),
 
     supabaseAdmin.from("services").select("id, name"),
 
-    supabaseAdmin
-      .from("migrated_customers")
-      .select("id, full_name, email, phone, sms_opt_out, sms_unreachable")
-      .limit(500),
+    selectAllPaginated(
+      supabaseAdmin,
+      "migrated_customers",
+      "id, full_name, email, phone, sms_opt_out, sms_unreachable, created_at",
+      "created_at",
+      false,
+    ),
   ]);
 
   const allBookings = allBookingsResult.data || [];
