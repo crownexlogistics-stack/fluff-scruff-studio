@@ -1,4 +1,4 @@
-import { CalendarDays, MessageSquare, Dog, PoundSterling, FileText, LogOut, PawPrint, Package, ShoppingCart } from "lucide-react";
+import { CalendarDays, MessageSquare, Dog, PoundSterling, FileText, LogOut, PawPrint, Package, ShoppingCart, Sparkles } from "lucide-react";
 import { useNavigate, Link, useLocation } from "react-router-dom";
 import logo from "@/assets/logo-transparent.png";
 import { useAuth } from "@/hooks/useAuth";
@@ -11,6 +11,7 @@ interface GroomerLayoutProps {
 
 const groomerNavItems = [
   { title: "My Portal", url: "/portal", icon: CalendarDays },
+  { title: "Groomer Assistant", url: "/portal/assistant", icon: Sparkles },
   { title: "Bookings", url: "/portal/bookings", icon: CalendarDays },
   { title: "Messages", url: "/portal/messages", icon: MessageSquare },
   { title: "Package Deals", url: "/admin/packages", icon: Package },
