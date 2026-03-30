@@ -80,6 +80,8 @@ import PackageBookingConfirmedPage from "./pages/PackageBookingConfirmedPage";
 import DirectorAssistantPage from "./pages/DirectorAssistantPage";
 import GroomerAssistantPage from "./pages/GroomerAssistantPage";
 import ActivityLogPage from "./pages/ActivityLogPage";
+import AdminInboxPage from "./pages/AdminInboxPage";
+import GroomerInboxPage from "./pages/GroomerInboxPage";
 const queryClient = new QueryClient();
 
 const App = () => (
