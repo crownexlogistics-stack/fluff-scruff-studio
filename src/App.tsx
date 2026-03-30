@@ -166,6 +166,7 @@ const App = () => (
           <Route path="/admin/director-assistant" element={<ProtectedRoute allowedRoles={["director"]}><DirectorAssistantPage /></ProtectedRoute>} />
           <Route path="/admin/academy" element={<ProtectedRoute allowedRoles={["director", "manager"]}><AcademyEnquiriesPage /></ProtectedRoute>} />
           <Route path="/admin/activity-log" element={<ProtectedRoute allowedRoles={["director"]}><ActivityLogPage /></ProtectedRoute>} />
+          <Route path="/admin/inbox" element={<ProtectedRoute allowedRoles={["manager", "director"]}><AdminInboxPage /></ProtectedRoute>} />
 
           <Route path="*" element={<NotFound />} />
         </Routes>

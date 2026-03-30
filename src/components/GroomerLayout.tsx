@@ -19,6 +19,7 @@ const groomerNavItems = [
   { title: "Breeds", url: "/portal/breeds", icon: Dog },
   { title: "Finance", url: "/portal/finance", icon: PoundSterling },
   { title: "Documents", url: "/portal/documents", icon: FileText },
+  { title: "My Messages", url: "/portal/inbox", icon: Inbox },
 ];
 
 export function GroomerLayout({ children }: GroomerLayoutProps) {
