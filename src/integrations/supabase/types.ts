@@ -1240,6 +1240,45 @@ export type Database = {
           },
         ]
       }
+      email_replies: {
+        Row: {
+          email_id: string
+          id: string
+          replied_at: string
+          replied_by: string | null
+          reply_body: string
+        }
+        Insert: {
+          email_id: string
+          id?: string
+          replied_at?: string
+          replied_by?: string | null
+          reply_body: string
+        }
+        Update: {
+          email_id?: string
+          id?: string
+          replied_at?: string
+          replied_by?: string | null
+          reply_body?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_replies_email_id_fkey"
+            columns: ["email_id"]
+            isOneToOne: false
+            referencedRelation: "salon_emails"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_replies_replied_by_fkey"
+            columns: ["replied_by"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_unsubscribes: {
         Row: {
           email: string
@@ -2592,6 +2631,50 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      salon_emails: {
+        Row: {
+          assigned_staff_id: string | null
+          body: string | null
+          created_at: string
+          customer_email: string
+          customer_name: string | null
+          id: string
+          last_reply_body: string | null
+          status: string
+          subject: string | null
+        }
+        Insert: {
+          assigned_staff_id?: string | null
+          body?: string | null
+          created_at?: string
+          customer_email: string
+          customer_name?: string | null
+          id?: string
+          last_reply_body?: string | null
+          status?: string
+          subject?: string | null
+        }
+        Update: {
+          assigned_staff_id?: string | null
+          body?: string | null
+          created_at?: string
+          customer_email?: string
+          customer_name?: string | null
+          id?: string
+          last_reply_body?: string | null
+          status?: string
+          subject?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "salon_emails_assigned_staff_id_fkey"
+            columns: ["assigned_staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       saved_advice: {
         Row: {

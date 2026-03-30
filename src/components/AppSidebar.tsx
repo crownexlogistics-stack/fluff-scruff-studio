@@ -43,6 +43,7 @@ const mainNavItems = [
   { title: "Package Deals", url: "/admin/packages", icon: Package },
   { title: "Finance", url: "/finance", icon: PoundSterling },
   { title: "Messages", url: "/messages", icon: Inbox },
+  { title: "Shared Inbox", url: "/admin/inbox", icon: Mail },
   { title: "Add-Ons", url: "/add-ons", icon: Sparkles },
 ];
 

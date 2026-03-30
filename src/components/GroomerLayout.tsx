@@ -1,4 +1,4 @@
-import { CalendarDays, MessageSquare, Dog, PoundSterling, FileText, LogOut, PawPrint, Package, ShoppingCart, Sparkles } from "lucide-react";
+import { CalendarDays, MessageSquare, Dog, PoundSterling, FileText, LogOut, PawPrint, Package, ShoppingCart, Sparkles, Inbox } from "lucide-react";
 import { useNavigate, Link, useLocation } from "react-router-dom";
 import logo from "@/assets/logo-transparent.png";
 import { useAuth } from "@/hooks/useAuth";
@@ -19,6 +19,7 @@ const groomerNavItems = [
   { title: "Breeds", url: "/portal/breeds", icon: Dog },
   { title: "Finance", url: "/portal/finance", icon: PoundSterling },
   { title: "Documents", url: "/portal/documents", icon: FileText },
+  { title: "My Messages", url: "/portal/inbox", icon: Inbox },
 ];
 
 export function GroomerLayout({ children }: GroomerLayoutProps) {
