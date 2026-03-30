@@ -1,4 +1,4 @@
-import { CalendarDays, MessageSquare, Dog, PoundSterling, FileText, LogOut, PawPrint, Package, ShoppingCart, Sparkles } from "lucide-react";
+import { CalendarDays, MessageSquare, Dog, PoundSterling, FileText, LogOut, PawPrint, Package, ShoppingCart, Sparkles, Inbox } from "lucide-react";
 import { useNavigate, Link, useLocation } from "react-router-dom";
 import logo from "@/assets/logo-transparent.png";
 import { useAuth } from "@/hooks/useAuth";
