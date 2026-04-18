@@ -1,49 +1,47 @@
 
 
-You're right. Every session's date/time picker must show only genuinely available slots for the chosen groomer (or for "any" mode, slots where at least one groomer can cover all remaining sessions). No mid-checkout race-condition refund logic — if it was offered, it must be honoured.
+The "Welcome to your first day!" greeting is showing because the AI briefing is failing silently and falling back to a generic message — OR the prompt isn't getting the right context about the groomer's history.
 
-## Plan: Package Booking = Real Availability On Every Session
+Let me investigate the briefing component and edge function to confirm.
+<lov-tool-use id="toolu_vrtx_01Gpwk5PJ9ZD1fiS78oyXZc6" name="code--view" integration-id="code" data="{\"file_path\": \"src/components/groomer/overview/MyDayWidget.tsx\"}">
+</lov-tool-use>
 
-### Part A — Anca's existing booking (data fix)
-Assign her 4 Saturday 11:30 sessions (18 Apr, 23 May, 11 Jul, 8 Aug 2026) to **Oksana** via SQL update + audit log entry. T&C untouched.
+<lov-tool-use id="toolu_vrtx_01XRqsiTyJfb6RPGNzhuauao" name="code--search_files" integration-id="code" data="{\"query\": \"GroomerDailyBriefing\", \"include_patterns\": \"*.tsx\"}">
+</lov-tool-use>
 
-### Part B — Front-end (`BookPackagePage.tsx`): every session uses real availability
+<lov-tool-use id="toolu_vrtx_01LuQGE2RYXNnbbJgtFrVjSx" name="code--search_files" integration-id="code" data="{\"query\": \"GroomerDailyBriefing\", \"include_patterns\": \"*.tsx,*.ts\"}">
+</lov-tool-use>
 
-For **every session** in the package (1, 2, 3, 4...), the date+time picker calls the same `check-availability` edge function the normal booking flow uses. Only slots that pass these checks are shown:
+<lov-tool-use id="toolu_vrtx_01BuTjX6jNKXhgCgTBMRw6kh" name="code--view" integration-id="code" data="{\"file_path\": \"src/components/groomer/overview/CareerStats.tsx\"}">
+</lov-tool-use>
+Found it. `GroomerPortalPage.tsx` line 255 hardcodes `careerTotal={0}` — so the AI always thinks it's the groomer's first day and produces a "welcome to your first day" greeting. Let me confirm.
+<lov-tool-use id="toolu_vrtx_01REm6KJwmCrsfyRaPyVvfbj" name="code--view" integration-id="code" data="{\"file_path\": \"src/pages/GroomerPortalPage.tsx\", \"lines\": \"240-270\"}">
+</lov-tool-use>
+Confirmed. The bug is exactly what I expected.
 
-1. Salon open that day (staff schedule + no full-day override block)
-2. Selected groomer has a working schedule for that day-of-week
-3. No overlapping booking (real or migrated, excluding Cancelled/No Show/Refunded)
-4. No partial override block covering the slot
-5. Full session duration fits before closing
+<lov-plan>
 
-**"Specific groomer" mode:** every session picker filters to slots where that groomer is genuinely free. No refund risk — if it's shown, it's bookable.
+## Bug found
 
-**"Any available groomer" mode:** the system locks the groomer at session 1 confirmation:
-- Session 1 picker: shows slots where at least one active groomer is free
-- When customer picks session 1's date/time, system identifies eligible groomers, ranks by `booking_priority`, and picks the top one — this is the "package groomer"
-- Sessions 2, 3, 4 pickers then filter to slots where **that same groomer** is free
-- Hint shown: *"To keep things consistent for your dog, sessions 2–4 will only show times when [Groomer Name] is available."*
+`GroomerPortalPage.tsx` line 255 passes `careerTotal={0}` as a hardcoded zero to `GroomerDailyBriefing`. That gets sent to the `groomer-briefing` edge function, which tells Claude "Career total dogs groomed: 0" — so the AI naturally writes a "welcome to your first day!" greeting for everyone, including groomers with hundreds of completed bookings.
 
-This means a customer can never select a slot the salon can't actually fulfil.
+The real career total is already calculated inside `CareerStats.tsx` (combining native `bookings` with status `Completed` + migrated Wix bookings). We just never pass it to the briefing.
 
-### Part C — Backend (`process-package-payment`): trust + final guard
+## Fix
 
-The backend re-runs `check-availability` for every session as a final guard right before insert (same belt-and-braces the normal booking flow uses). Because the front-end already filtered properly, this should always pass.
+**1. `GroomerPortalPage.tsx`** — compute `careerTotal` once at the page level (so both `GroomerDailyBriefing` and `CareerStats` use the same number), then pass it down:
+- Query `bookings` count where `staff_id = staffId` and `status = 'Completed'`
+- Add migrated bookings count via the existing `useMigratedBookings(staffId)` hook
+- Sum them, pass to `<GroomerDailyBriefing ... careerTotal={combinedTotal} />`
 
-For "Any" mode, the front-end now sends the resolved `groomer_id` for all sessions (locked in at session 1 confirmation), so the backend just inserts what it's given — no more null `staff_id`, ever.
+**2. `groomer-briefing/index.ts` (edge function)** — tighten the system prompt so it doesn't default to "first day" language when career total is 0 or missing. Only mention "first day" / "welcome to the team" if `careerTotal === 0` AND it's the groomer's actual first appointment ever. Otherwise just a normal warm morning greeting based on today's load.
 
-If the final guard fails (extreme race: someone booked the exact same slot in the last 30 seconds), abort with a clear error and refund. This is the genuine edge case, not the everyday flow.
-
-### Part D — DB safety net
-Add a `NOT NULL` enforcement: if `booking_source = 'package_online'` then `staff_id` cannot be null. Defensive layer so a future bug can't repeat this.
+**3. Optional polish** — also fix `CareerStats.tsx` to not double-query the same data (small refactor: lift the query up). Skip if it adds complexity — the briefing fix alone solves the user's complaint.
 
 ### Files changed
-1. **DB update** — assign Anca's 4 bookings to Oksana + audit log
-2. **DB migration** — `staff_id` not-null guard for `booking_source = 'package_online'`
-3. `src/pages/BookPackagePage.tsx` — wire every session's date/time picker through `check-availability`; lock groomer at session 1 in "Any" mode; filter sessions 2+ to that groomer's real availability
-4. `supabase/functions/process-package-payment/index.ts` — final availability re-check + insert with the front-end-resolved `staff_id` (never null)
+- `src/pages/GroomerPortalPage.tsx` — query career total, pass real number
+- `supabase/functions/groomer-briefing/index.ts` — smarter prompt so 0/unknown ≠ "first day"
 
 ### Out of scope
-T&C checkbox flow, normal booking flow, mid-checkout auto-refund logic (only used as last-resort race-condition guard).
+Director's `DailyBriefingCard`, weather widget, other dashboard sections.
 
