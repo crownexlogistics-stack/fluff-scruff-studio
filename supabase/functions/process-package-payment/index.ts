@@ -91,10 +91,43 @@ Deno.serve(async (req) => {
       if (lower.includes("teeth") || lower.includes("ultrasonic")) serviceMap["teeth_cleaning"] = svc.id;
     }
 
+    // Helper: invoke check-availability for a single session
+    async function isAvailable(staffId: string, date: string, time: string, durationMinutes: number): Promise<{ ok: boolean; reason?: string }> {
+      const { data, error } = await supabase.functions.invoke("check-availability", {
+        body: { groomer_id: staffId, date, start_time: time, duration_minutes: durationMinutes },
+      });
+      if (error) return { ok: false, reason: error.message || "availability check failed" };
+      if (!data?.available) return { ok: false, reason: data?.reason || "slot unavailable" };
+      return { ok: true };
+    }
+
+    // Resolve duration per session (teeth = 30, otherwise breed default or 90)
+    let breedDuration = 90;
+    if (breedId) {
+      const { data: breedRow } = await supabase.from("breeds").select("duration_minutes").eq("id", breedId).maybeSingle();
+      if (breedRow?.duration_minutes) breedDuration = Number(breedRow.duration_minutes);
+    }
+    const durationFor = (serviceType: string) => serviceType === "teeth_cleaning" ? 30 : breedDuration;
+
     // Create individual bookings
     for (const session of sessionsData) {
       const sessionPrice = totalPaid / pkg.session_count;
       const serviceId = serviceMap[session.service_type] || null;
+      const sessionStaffId: string | null = session.groomer_id || null;
+
+      // SAFETY GUARD: package_online bookings must always have a staff_id
+      if (!sessionStaffId) {
+        console.error(`[process-package-payment] Session ${session.session_number} arrived with null groomer_id — refusing to insert. Front-end must resolve groomer before checkout.`);
+        continue;
+      }
+
+      // Final availability re-check (race-condition guard) — should always pass because front-end already filtered
+      const dur = durationFor(session.service_type);
+      const avail = await isAvailable(sessionStaffId, session.date, session.time, dur);
+      if (!avail.ok) {
+        console.error(`[process-package-payment] Session ${session.session_number} failed availability re-check: ${avail.reason}. Skipping insert.`);
+        continue;
+      }
 
       const { data: booking, error: bErr } = await supabase.from("bookings").insert({
         booking_date: session.date,
@@ -105,7 +138,7 @@ Deno.serve(async (req) => {
         dog_name: dogName,
         breed_id: breedId || null,
         service_id: serviceId,
-        staff_id: session.groomer_id || null,
+        staff_id: sessionStaffId,
         status: "Confirmed",
         booking_source: "package_online",
         total_price: sessionPrice,
