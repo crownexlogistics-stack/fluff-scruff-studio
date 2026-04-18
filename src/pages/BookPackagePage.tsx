@@ -16,7 +16,7 @@ import { Check, ChevronRight, ArrowLeft, Calendar, Clock, Dog, Package, Loader2,
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { generateAvailableSlots, dateHasAnyAvailability } from "@/lib/availability";
+import { generateAvailableSlots, dateHasAnyAvailability, findFreeGroomer } from "@/lib/availability";
 import type { StaffAvailability, ScheduleOverride, ExistingBooking, Groomer } from "@/lib/availability";
 import logo from "@/assets/logo-transparent.png";
 
@@ -240,6 +240,9 @@ export default function BookPackagePage() {
   const [slotsBySession, setSlotsBySession] = useState<Record<number, string[]>>({});
   const [loadingSlots, setLoadingSlots] = useState<Record<number, boolean>>({});
 
+  // The groomer locked-in by session 1 in "any" mode (the package groomer for sessions 2+)
+  const [packageGroomerId, setPackageGroomerId] = useState<string | null>(null);
+
   const fetchSlotsForSession = useCallback(async (idx: number, date: string, groomerId: string) => {
     if (!date || !baseSchedules || !groomers) return;
     setLoadingSlots(prev => ({ ...prev, [idx]: true }));
@@ -247,7 +250,7 @@ export default function BookPackagePage() {
     const dateObj = new Date(date + "T00:00:00");
     const duration = isTeethPackage ? 30 : (selectedBreed?.duration_minutes || 90);
 
-    // Fetch overrides and bookings for this date
+    // Fetch overrides + real bookings + migrated bookings for this date — same data check-availability uses
     const [overridesRes, bookingsRes, migratedRes] = await Promise.all([
       supabase.from("staff_schedule_overrides").select("staff_id, override_date, start_time, end_time, is_working").eq("override_date", date),
       supabase.from("bookings").select("staff_id, booking_time, duration_minutes, services(duration_minutes), breeds(duration_minutes)").eq("booking_date", date).not("status", "in", "(Cancelled,No Show,Refunded)"),
@@ -255,13 +258,74 @@ export default function BookPackagePage() {
     ]);
 
     const overrides = (overridesRes.data || []) as ScheduleOverride[];
-    const existingBookings = (bookingsRes.data || []) as ExistingBooking[];
+    const realBookings = (bookingsRes.data || []) as ExistingBooking[];
 
-    const filteredGroomers = groomerId === "any" ? groomers : groomers.filter(g => g.id === groomerId);
+    // Convert migrated bookings to ExistingBooking shape (match staff_name → staff_id)
+    const migratedAsBookings: ExistingBooking[] = ((migratedRes.data || []) as any[]).flatMap((mb: any) => {
+      if (!mb.staff_name || !mb.booking_time) return [];
+      const matchedStaff = groomers.find(g => {
+        const fullLower = (g.name || "").toLowerCase().trim();
+        const firstLower = fullLower.split(" ")[0];
+        const mbLower = (mb.staff_name || "").toLowerCase().trim();
+        return mbLower === fullLower || mbLower.startsWith(firstLower);
+      });
+      if (!matchedStaff) return [];
+      return [{
+        staff_id: matchedStaff.id,
+        booking_time: mb.booking_time,
+        duration_minutes: mb.duration_minutes || 90,
+      }];
+    });
+    const existingBookings = [...realBookings, ...migratedAsBookings];
+
+    // Resolve which groomers to consider for this session's slots:
+    // - explicit groomer chosen → just that one
+    // - "any" + this is session 1 (or no package groomer locked yet) → all active groomers
+    // - "any" + package groomer is locked → only the locked one (so sessions 2+ stay consistent)
+    let filteredGroomers: Groomer[];
+    if (groomerId !== "any") {
+      filteredGroomers = groomers.filter(g => g.id === groomerId);
+    } else if (packageGroomerId && idx > 0) {
+      filteredGroomers = groomers.filter(g => g.id === packageGroomerId);
+    } else {
+      filteredGroomers = groomers;
+    }
+
     const slots = generateAvailableSlots(dateObj, duration, filteredGroomers, baseSchedules, overrides, existingBookings, 30);
 
     setSlotsBySession(prev => ({ ...prev, [idx]: slots }));
     setLoadingSlots(prev => ({ ...prev, [idx]: false }));
+  }, [baseSchedules, groomers, selectedBreed, isTeethPackage, packageGroomerId]);
+
+  // When session 1's date+time is picked in "any" mode, lock the highest-priority free groomer
+  // for the rest of the package. This guarantees consistency and that we never insert null staff_id.
+  const lockPackageGroomerFromSession1 = useCallback(async (date: string, time: string) => {
+    if (!date || !time || !baseSchedules || !groomers) return;
+    const dateObj = new Date(date + "T00:00:00");
+    const duration = isTeethPackage ? 30 : (selectedBreed?.duration_minutes || 90);
+
+    const [overridesRes, bookingsRes, migratedRes] = await Promise.all([
+      supabase.from("staff_schedule_overrides").select("staff_id, override_date, start_time, end_time, is_working").eq("override_date", date),
+      supabase.from("bookings").select("staff_id, booking_time, duration_minutes, services(duration_minutes), breeds(duration_minutes)").eq("booking_date", date).not("status", "in", "(Cancelled,No Show,Refunded)"),
+      supabase.from("migrated_bookings").select("staff_name, booking_time, duration_minutes").eq("booking_date", date).eq("is_future_booking", true),
+    ]);
+    const overrides = (overridesRes.data || []) as ScheduleOverride[];
+    const realBookings = (bookingsRes.data || []) as ExistingBooking[];
+    const migratedAsBookings: ExistingBooking[] = ((migratedRes.data || []) as any[]).flatMap((mb: any) => {
+      if (!mb.staff_name || !mb.booking_time) return [];
+      const matched = groomers.find(g => {
+        const fullLower = (g.name || "").toLowerCase().trim();
+        const firstLower = fullLower.split(" ")[0];
+        const mbLower = (mb.staff_name || "").toLowerCase().trim();
+        return mbLower === fullLower || mbLower.startsWith(firstLower);
+      });
+      if (!matched) return [];
+      return [{ staff_id: matched.id, booking_time: mb.booking_time, duration_minutes: mb.duration_minutes || 90 }];
+    });
+    const existingBookings = [...realBookings, ...migratedAsBookings];
+
+    const chosen = findFreeGroomer(time, duration, dateObj, groomers, baseSchedules, overrides, existingBookings);
+    setPackageGroomerId(chosen?.id || null);
   }, [baseSchedules, groomers, selectedBreed, isTeethPackage]);
 
   // ── Overrides for date availability ──
@@ -292,14 +356,56 @@ export default function BookPackagePage() {
     setSessions(prev => {
       const updated = [...prev];
       updated[idx] = { ...updated[idx], [field]: value };
+
+      // If session 1's groomer choice or date changes, the locked package groomer must be re-evaluated
+      // and all subsequent sessions cleared (their slots depended on the old locked groomer).
+      if (idx === 0 && (field === "groomerId" || field === "date" || field === "time")) {
+        if (field === "groomerId" || field === "date") {
+          // Reset lock & clear sessions 2+
+          setPackageGroomerId(null);
+          for (let i = 1; i < updated.length; i++) {
+            updated[i] = { ...updated[i], date: "", time: "" };
+          }
+        }
+      }
+
       if (field === "date" || field === "groomerId") {
         updated[idx].time = "";
         fetchSlotsForSession(idx, updated[idx].date, updated[idx].groomerId);
       }
+
+      // When session 1's TIME is picked: if "any", lock the package groomer
+      if (idx === 0 && field === "time" && value) {
+        if (updated[0].groomerId === "any") {
+          lockPackageGroomerFromSession1(updated[0].date, value);
+        } else {
+          // explicit groomer chosen — they ARE the package groomer
+          setPackageGroomerId(updated[0].groomerId);
+        }
+      }
+
       if (field === "date") checkDateWarnings(updated);
       return updated;
     });
-  }, [fetchSlotsForSession, checkDateWarnings]);
+  }, [fetchSlotsForSession, checkDateWarnings, lockPackageGroomerFromSession1]);
+
+  // When packageGroomerId changes (locked after session 1), refresh slot lists for sessions 2+
+  // that already have a date set, so the time options reflect the locked groomer's availability.
+  useEffect(() => {
+    if (!packageGroomerId) return;
+    sessions.forEach((s, idx) => {
+      if (idx === 0) return;
+      if (s.date) {
+        fetchSlotsForSession(idx, s.date, s.groomerId);
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [packageGroomerId]);
+
+  const packageGroomerName = useMemo(() => {
+    if (!packageGroomerId || !groomers) return null;
+    return groomers.find(g => g.id === packageGroomerId)?.name || null;
+  }, [packageGroomerId, groomers]);
 
   // ── Breed search filter ──
   const filteredBreeds = useMemo(() => {
@@ -347,6 +453,12 @@ export default function BookPackagePage() {
       setPaying(false);
     }
   };
+
+  // For payload — resolve every session's groomer_id (never null in "any" mode after session 1 lock)
+  const resolveSessionGroomerId = useCallback((s: SessionRow): string | null => {
+    if (s.groomerId !== "any") return s.groomerId;
+    return packageGroomerId; // locked by session 1; null only if session 1 itself hasn't been picked yet
+  }, [packageGroomerId]);
 
   // ── Date availability check ──
   const isDateAvailable = useCallback((dateStr: string) => {
