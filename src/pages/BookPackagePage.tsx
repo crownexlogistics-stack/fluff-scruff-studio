@@ -435,7 +435,7 @@ export default function BookPackagePage() {
           sessions: sessions.map((s, i) => ({
             session_number: i + 1,
             service_type: s.serviceType,
-            groomer_id: s.groomerId === "any" ? null : s.groomerId,
+            groomer_id: resolveSessionGroomerId(s),
             date: s.date,
             time: s.time,
           })),
