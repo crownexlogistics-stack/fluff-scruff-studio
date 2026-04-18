@@ -227,6 +227,23 @@ const GroomerPortalPage = () => {
     fetchStaff();
   }, [user]);
 
+  const { data: nativeCompletedCount = 0 } = useQuery({
+    queryKey: ["groomer-portal-career-native", staffId],
+    queryFn: async () => {
+      if (!staffId) return 0;
+      const { count, error } = await supabase
+        .from("bookings")
+        .select("id", { count: "exact", head: true })
+        .eq("staff_id", staffId)
+        .eq("status", "Completed");
+      if (error) throw error;
+      return count ?? 0;
+    },
+    enabled: !!staffId,
+  });
+  const { data: migratedBookings = [] } = useMigratedBookings(staffId ?? "");
+  const careerTotal = nativeCompletedCount + migratedBookings.length;
+
   if (loading) {
     return (
       <GroomerLayout>
