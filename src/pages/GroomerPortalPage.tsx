@@ -30,6 +30,7 @@ import { ActivePackages } from "@/components/packages/ActivePackages";
 import { MyDayWidget } from "@/components/groomer/overview/MyDayWidget";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addWeeks, addMonths } from "date-fns";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useMigratedBookings } from "@/hooks/useMigratedBookings";
 
 function GroomerFinanceView({ staffId }: { staffId: string }) {
   const [period, setPeriod] = useState<"weekly" | "monthly">("weekly");
@@ -226,6 +227,23 @@ const GroomerPortalPage = () => {
     fetchStaff();
   }, [user]);
 
+  const { data: nativeCompletedCount = 0 } = useQuery({
+    queryKey: ["groomer-portal-career-native", staffId],
+    queryFn: async () => {
+      if (!staffId) return 0;
+      const { count, error } = await supabase
+        .from("bookings")
+        .select("id", { count: "exact", head: true })
+        .eq("staff_id", staffId)
+        .eq("status", "Completed");
+      if (error) throw error;
+      return count ?? 0;
+    },
+    enabled: !!staffId,
+  });
+  const { data: migratedBookings = [] } = useMigratedBookings(staffId ?? "");
+  const careerTotal = nativeCompletedCount + migratedBookings.length;
+
   if (loading) {
     return (
       <GroomerLayout>
@@ -252,7 +270,7 @@ const GroomerPortalPage = () => {
       case "overview":
         return (
           <div className="space-y-6">
-            <GroomerDailyBriefing staffId={staffId} groomerName={staffName} careerTotal={0} />
+            <GroomerDailyBriefing staffId={staffId} groomerName={staffName} careerTotal={careerTotal} />
             <UnpaidDepositsAlert staffId={staffId} />
             <MyDayWidget staffId={staffId} />
             <TodayStatsBar staffId={staffId} />
