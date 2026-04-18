@@ -270,7 +270,7 @@ const GroomerPortalPage = () => {
       case "overview":
         return (
           <div className="space-y-6">
-            <GroomerDailyBriefing staffId={staffId} groomerName={staffName} careerTotal={0} />
+            <GroomerDailyBriefing staffId={staffId} groomerName={staffName} careerTotal={careerTotal} />
             <UnpaidDepositsAlert staffId={staffId} />
             <MyDayWidget staffId={staffId} />
             <TodayStatsBar staffId={staffId} />
