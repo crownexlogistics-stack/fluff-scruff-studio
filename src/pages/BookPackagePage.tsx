@@ -344,6 +344,16 @@ export default function BookPackagePage() {
     const dateObj = new Date(date + "T00:00:00");
     const duration = isTeethPackage ? 30 : (selectedBreed?.duration_minutes || 90);
 
+    // Session 1's service drives the lock — only consider groomers who can perform it
+    const sess0Type = sessions[0]?.serviceType;
+    const serviceName = isTeethPackage
+      ? "Ultrasonic Teeth Cleaning"
+      : sess0Type === "bath_brush"
+        ? "Bath & Brush"
+        : "Full Groom";
+    const session1ServiceId =
+      (servicesCatalog || []).find(s => s.name === serviceName)?.id ?? null;
+
     const [overridesRes, bookingsRes, migratedRes] = await Promise.all([
       supabase.from("staff_schedule_overrides").select("staff_id, override_date, start_time, end_time, is_working").eq("override_date", date),
       supabase.from("bookings").select("staff_id, booking_time, duration_minutes, services(duration_minutes), breeds(duration_minutes)").eq("booking_date", date).not("status", "in", "(Cancelled,No Show,Refunded)"),
@@ -364,9 +374,12 @@ export default function BookPackagePage() {
     });
     const existingBookings = [...realBookings, ...migratedAsBookings];
 
-    const chosen = findFreeGroomer(time, duration, dateObj, groomers, baseSchedules, overrides, existingBookings);
+    const chosen = findFreeGroomer(
+      time, duration, dateObj, groomers, baseSchedules, overrides, existingBookings,
+      staffServices, session1ServiceId
+    );
     setPackageGroomerId(chosen?.id || null);
-  }, [baseSchedules, groomers, selectedBreed, isTeethPackage]);
+  }, [baseSchedules, groomers, selectedBreed, isTeethPackage, sessions, servicesCatalog, staffServices]);
 
   // ── Overrides for date availability ──
   const [dateOverrides, setDateOverrides] = useState<ScheduleOverride[]>([]);
