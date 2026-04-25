@@ -39,11 +39,11 @@ export function ContractContent({ staff }: { staff: StaffMember }) {
       </div>
 
       <h2 className="font-heading text-lg font-bold text-center">
-        Contract for Self-Employed Dog Groomer
+        Agreement for Self-Employed Dog Groomer
       </h2>
 
       <p>
-        This contract ("Contract") is entered into between{" "}
+        This agreement ("Agreement") is entered into between{" "}
         <strong>Fluff and Scruff Studio</strong>, located at 138 Hillview Ave,
         Hornchurch RM11 2DL and <strong>{staff.name}</strong> ("Contractor") for
         the provision of dog grooming services under the following terms and
@@ -56,7 +56,7 @@ export function ContractContent({ staff }: { staff: StaffMember }) {
       </div>
       <div className="space-y-2">
         <h3 className="font-heading font-semibold">2. Term</h3>
-        <p>This Contract shall commence on <strong>{startDateFormatted}</strong> and shall be considered a temporary (probationary) agreement for the first two months. At the end of this period, an evaluation of the contractor's job performance, contribution to Fluff and Scruff Studio, and compatibility with Fluff and Scruff's Values and Code of Conduct will be conducted. The contract will only become permanent upon successful completion of this evaluation.</p>
+        <p>This Agreement shall commence on <strong>{startDateFormatted}</strong> and shall be considered a temporary (probationary) agreement for the first two months. At the end of this period, an evaluation of the contractor's job performance, contribution to Fluff and Scruff Studio, and compatibility with Fluff and Scruff's Values and Code of Conduct will be conducted. The agreement will only become permanent upon successful completion of this evaluation.</p>
       </div>
       <div className="space-y-2">
         <h3 className="font-heading font-semibold">3. Scope of Work</h3>
@@ -65,7 +65,7 @@ export function ContractContent({ staff }: { staff: StaffMember }) {
       <div className="space-y-2">
         <h3 className="font-heading font-semibold">4. Compensation</h3>
         <p>The Contractor shall receive <strong>40%</strong> of the revenue generated from dog grooming services provided by the Contractor. Payment shall be made upon submission of an invoice by the Contractor.</p>
-        <p>The compensation rate of 40% is subject to review and potential adjustment at the time of contract renewal, which occurs every two (2) years. Any adjustments to the percentage may be based on factors such as the Contractor's tenure with Fluff and Scruff Studio and the level of expertise or experience gained during the term of the contract.</p>
+        <p>The compensation rate of 40% is subject to review and potential adjustment at the time of agreement renewal, which occurs every two (2) years. Any adjustments to the percentage may be based on factors such as the Contractor's tenure with Fluff and Scruff Studio and the level of expertise or experience gained during the term of the agreement.</p>
       </div>
       <div className="space-y-2">
         <h3 className="font-heading font-semibold">5. Taxes and Insurance</h3>
@@ -81,8 +81,8 @@ export function ContractContent({ staff }: { staff: StaffMember }) {
       </div>
       <div className="space-y-2">
         <h3 className="font-heading font-semibold">8. Termination</h3>
-        <p>Either party may terminate this Contract by providing 30 days written notice to the other party. In the event of termination, the Contractor shall be compensated for any outstanding dog grooming services provided up to the date of termination.</p>
-        <p>In the event of the termination of this contract, the contractor agrees that they will not solicit or take with them any clients or customers that they have met or worked with during their time with Fluff and Scruff Studio to another salon or grooming service for a period of <strong>36 months</strong> following the termination of this contract.</p>
+        <p>Either party may terminate this Agreement by providing 30 days written notice to the other party. In the event of termination, the Contractor shall be compensated for any outstanding dog grooming services provided up to the date of termination.</p>
+        <p>In the event of the termination of this agreement, the contractor agrees that they will not solicit or take with them any clients or customers that they have met or worked with during their time with Fluff and Scruff Studio to another salon or grooming service for a period of <strong>36 months</strong> following the termination of this agreement.</p>
       </div>
       <div className="space-y-2">
         <h3 className="font-heading font-semibold">9. Independent Contractor Status</h3>
@@ -93,39 +93,32 @@ export function ContractContent({ staff }: { staff: StaffMember }) {
         <p>The Contractor acknowledges that they have undergone appropriate health and safety training and agrees to comply with all health and safety regulations and policies established by Fluff and Scruff Studio. This includes but is not limited to maintaining a safe working environment, following proper grooming procedures to prevent injury to themselves and pets, and reporting any health and safety concerns to the Company promptly.</p>
       </div>
       <div className="space-y-2">
-        <h3 className="font-heading font-semibold">11. Renewal of Contract</h3>
-        <p>This Contract shall automatically renew every two years unless terminated by either party in accordance with Clause 8. Prior to the expiration of each term, both parties shall review the terms of this Contract and negotiate any necessary amendments or changes in writing. The Contractor acknowledges and agrees to the automatic renewal provision of this Contract.</p>
+        <h3 className="font-heading font-semibold">11. Renewal of Agreement</h3>
+        <p>This Agreement shall automatically renew every two years unless terminated by either party in accordance with Clause 8. Prior to the expiration of each term, both parties shall review the terms of this Agreement and negotiate any necessary amendments or changes in writing. The Contractor acknowledges and agrees to the automatic renewal provision of this Agreement.</p>
       </div>
 
       <div className="pt-6 space-y-6 border-t">
         <p className="font-heading font-semibold">Fluff and Scruff Studio</p>
-        <div className="grid grid-cols-2 gap-8">
-          <div className="space-y-2">
-            <p className="text-xs text-muted-foreground">By:</p>
-            <div className="border-b border-dashed h-8" />
-            <p className="text-xs text-muted-foreground">Date: _______________</p>
-            <p className="text-xs text-muted-foreground">Signature: _______________</p>
-          </div>
-          <div className="space-y-2">
-            <p className="text-xs text-muted-foreground">Contractor: {staff.name}</p>
-            {staff.contract_status === "signed" && staff.signed_at ? (
-              <>
-                <p className="text-xs text-muted-foreground">Signature:</p>
-                {(staff as any).contract_signature_data ? (
-                  <img src={(staff as any).contract_signature_data} alt="Signature" className="max-h-16 border rounded bg-white p-1" />
-                ) : (
-                  <p className="text-lg italic font-serif text-foreground">{staff.name}</p>
-                )}
-                <p className="text-xs text-muted-foreground">Date: {format(new Date(staff.signed_at), "PPP 'at' p")}</p>
-                {staff.signed_ip && <p className="text-xs text-muted-foreground">IP: {staff.signed_ip}</p>}
-              </>
-            ) : (
-              <>
-                <p className="text-xs text-muted-foreground">Signature: _______________</p>
-                <p className="text-xs text-muted-foreground">Date: _______________</p>
-              </>
-            )}
-          </div>
+        <p className="text-xs text-muted-foreground">138 Hillview Avenue, Hornchurch RM11 2DL</p>
+        <div className="space-y-2">
+          <p className="text-xs text-muted-foreground">Contractor: {staff.name}</p>
+          {staff.contract_status === "signed" && staff.signed_at ? (
+            <>
+              <p className="text-xs text-muted-foreground">Signature:</p>
+              {(staff as any).contract_signature_data ? (
+                <img src={(staff as any).contract_signature_data} alt="Signature" className="max-h-16 border rounded bg-white p-1" />
+              ) : (
+                <p className="text-lg italic font-serif text-foreground">{staff.name}</p>
+              )}
+              <p className="text-xs text-muted-foreground">Date: {format(new Date(staff.signed_at), "PPP 'at' p")}</p>
+              {staff.signed_ip && <p className="text-xs text-muted-foreground">IP: {staff.signed_ip}</p>}
+            </>
+          ) : (
+            <>
+              <p className="text-xs text-muted-foreground">Signature: _______________</p>
+              <p className="text-xs text-muted-foreground">Date: _______________</p>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -140,9 +133,9 @@ export function ContractPreviewDialog({ staff, open, onOpenChange }: Props) {
     try {
       await downloadDocumentPdf(
         "contract-pdf-content",
-        `${staff.name.replace(/\s+/g, "_")}_Contract.pdf`
+        `${staff.name.replace(/\s+/g, "_")}_Agreement.pdf`
       );
-      toast.success("Contract downloaded");
+      toast.success("Agreement downloaded");
     } catch {
       toast.error("Failed to generate PDF");
     } finally {
@@ -156,7 +149,7 @@ export function ContractPreviewDialog({ staff, open, onOpenChange }: Props) {
         <DialogHeader>
           <div className="flex items-center justify-between gap-2">
             <DialogTitle className="font-heading">
-              Self-Employed Groomer Contract
+              Self-Employed Groomer Agreement
             </DialogTitle>
             <Button size="sm" variant="outline" onClick={handleDownload} disabled={downloading} className="shrink-0">
               {downloading ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Download className="mr-2 h-3.5 w-3.5" />}
