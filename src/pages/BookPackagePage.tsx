@@ -204,6 +204,26 @@ export default function BookPackagePage() {
     },
   });
 
+  // Service catalogue (id <-> name) so we can resolve session.serviceType to a service_id
+  const { data: servicesCatalog } = useQuery({
+    queryKey: ["services-catalog-pkg"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("services").select("id, name");
+      if (error) throw error;
+      return data as { id: string; name: string }[];
+    },
+  });
+
+  // Staff <-> Service assignments (used to filter groomers by what they can perform)
+  const { data: staffServices } = useQuery({
+    queryKey: ["staff-services-pkg"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("staff_services").select("staff_id, service_id");
+      if (error) throw error;
+      return data as { staff_id: string; service_id: string }[];
+    },
+  });
+
   const selectedPkg = useMemo(() => packages?.find((p: any) => p.id === selectedPackageId), [packages, selectedPackageId]);
 
   // ── Pricing ──
@@ -250,6 +270,16 @@ export default function BookPackagePage() {
     const dateObj = new Date(date + "T00:00:00");
     const duration = isTeethPackage ? 30 : (selectedBreed?.duration_minutes || 90);
 
+    // Resolve which service this session is for, so we can filter by staff_services
+    const sessionServiceType = sessions[idx]?.serviceType;
+    const serviceNameForSession = isTeethPackage
+      ? "Ultrasonic Teeth Cleaning"
+      : sessionServiceType === "bath_brush"
+        ? "Bath & Brush"
+        : "Full Groom";
+    const sessionServiceId =
+      (servicesCatalog || []).find(s => s.name === serviceNameForSession)?.id ?? null;
+
     // Fetch overrides + real bookings + migrated bookings for this date — same data check-availability uses
     const [overridesRes, bookingsRes, migratedRes] = await Promise.all([
       supabase.from("staff_schedule_overrides").select("staff_id, override_date, start_time, end_time, is_working").eq("override_date", date),
@@ -291,11 +321,21 @@ export default function BookPackagePage() {
       filteredGroomers = groomers;
     }
 
-    const slots = generateAvailableSlots(dateObj, duration, filteredGroomers, baseSchedules, overrides, existingBookings, 30);
+    const slots = generateAvailableSlots(
+      dateObj,
+      duration,
+      filteredGroomers,
+      baseSchedules,
+      overrides,
+      existingBookings,
+      30,
+      staffServices,
+      sessionServiceId
+    );
 
     setSlotsBySession(prev => ({ ...prev, [idx]: slots }));
     setLoadingSlots(prev => ({ ...prev, [idx]: false }));
-  }, [baseSchedules, groomers, selectedBreed, isTeethPackage, packageGroomerId]);
+  }, [baseSchedules, groomers, selectedBreed, isTeethPackage, packageGroomerId, sessions, servicesCatalog, staffServices]);
 
   // When session 1's date+time is picked in "any" mode, lock the highest-priority free groomer
   // for the rest of the package. This guarantees consistency and that we never insert null staff_id.
@@ -303,6 +343,16 @@ export default function BookPackagePage() {
     if (!date || !time || !baseSchedules || !groomers) return;
     const dateObj = new Date(date + "T00:00:00");
     const duration = isTeethPackage ? 30 : (selectedBreed?.duration_minutes || 90);
+
+    // Session 1's service drives the lock — only consider groomers who can perform it
+    const sess0Type = sessions[0]?.serviceType;
+    const serviceName = isTeethPackage
+      ? "Ultrasonic Teeth Cleaning"
+      : sess0Type === "bath_brush"
+        ? "Bath & Brush"
+        : "Full Groom";
+    const session1ServiceId =
+      (servicesCatalog || []).find(s => s.name === serviceName)?.id ?? null;
 
     const [overridesRes, bookingsRes, migratedRes] = await Promise.all([
       supabase.from("staff_schedule_overrides").select("staff_id, override_date, start_time, end_time, is_working").eq("override_date", date),
@@ -324,9 +374,12 @@ export default function BookPackagePage() {
     });
     const existingBookings = [...realBookings, ...migratedAsBookings];
 
-    const chosen = findFreeGroomer(time, duration, dateObj, groomers, baseSchedules, overrides, existingBookings);
+    const chosen = findFreeGroomer(
+      time, duration, dateObj, groomers, baseSchedules, overrides, existingBookings,
+      staffServices, session1ServiceId
+    );
     setPackageGroomerId(chosen?.id || null);
-  }, [baseSchedules, groomers, selectedBreed, isTeethPackage]);
+  }, [baseSchedules, groomers, selectedBreed, isTeethPackage, sessions, servicesCatalog, staffServices]);
 
   // ── Overrides for date availability ──
   const [dateOverrides, setDateOverrides] = useState<ScheduleOverride[]>([]);

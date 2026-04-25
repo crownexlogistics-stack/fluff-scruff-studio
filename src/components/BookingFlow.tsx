@@ -428,6 +428,18 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
     },
   });
 
+  // Staff <-> Service assignments (used to filter groomers by what they can perform)
+  const { data: staffServices } = useQuery({
+    queryKey: ["staff-services-all"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("staff_services")
+        .select("staff_id, service_id");
+      if (error) throw error;
+      return data as { staff_id: string; service_id: string }[];
+    },
+  });
+
   const weekEndDate = useMemo(() => {
     const end = new Date(weekStart);
     end.setDate(end.getDate() + 6);
@@ -829,7 +841,9 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
           groomers,
           baseSchedules,
           freshOverrides,
-          freshBookings
+          freshBookings,
+          staffServices,
+          currentServiceRecord?.id ?? null
         );
 
         if (!freeGroomer) {
@@ -851,6 +865,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
           date: selectedDate,
           start_time: selectedTime,
           duration_minutes: serviceDuration,
+          service_id: currentServiceRecord?.id ?? null,
         },
       });
       if (availErr) {
@@ -1054,9 +1069,11 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
       baseSchedules,
       allOverridesForDate || [],
       existingBookingsForDate || [],
-      30
+      30,
+      staffServices,
+      currentServiceRecord?.id ?? null
     );
-  }, [selectedDate, groomers, baseSchedules, allOverridesForDate, existingBookingsForDate, serviceDuration, isExistingCustomer, selectedStaffId]);
+  }, [selectedDate, groomers, baseSchedules, allOverridesForDate, existingBookingsForDate, serviceDuration, isExistingCustomer, selectedStaffId, staffServices, currentServiceRecord?.id]);
 
   // Server-side verification of every slot via check-availability edge function
   useEffect(() => {
@@ -1096,6 +1113,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
                   date: selectedDate,
                   start_time: time,
                   duration_minutes: serviceDuration,
+                  service_id: currentServiceRecord?.id ?? null,
                 },
               });
               if (data?.available) return time;

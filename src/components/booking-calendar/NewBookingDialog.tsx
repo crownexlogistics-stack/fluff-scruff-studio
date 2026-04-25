@@ -125,6 +125,18 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
     },
   });
 
+  // Staff <-> Service assignments. Empty rows for a staff_id means "can do all services".
+  const { data: staffServices } = useQuery({
+    queryKey: ["staff-services-newbooking"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("staff_services")
+        .select("staff_id, service_id");
+      if (error) throw error;
+      return data as { staff_id: string; service_id: string }[];
+    },
+  });
+
   const { data: services } = useQuery({
     queryKey: ["services-list-full"],
     queryFn: async () => {
@@ -176,6 +188,37 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
     // If no service links, available for all; otherwise check match
     return links.length === 0 || links.some(l => l.service_id === form.service_id);
   });
+
+  // Filter staff dropdown by which services each staff member is assigned to.
+  // Safe fallback: a staff member with NO rows in staff_services is treated as
+  // able to perform ALL services (so existing groomers without explicit
+  // assignments keep working as before).
+  const filteredStaff = (staff || []).filter((s: any) => {
+    if (!form.service_id) return true; // no service picked yet → show all
+    const rows = (staffServices || []).filter(ss => ss.staff_id === s.id);
+    if (rows.length === 0) return true; // unrestricted
+    return rows.some(ss => ss.service_id === form.service_id);
+  });
+
+  // If service changes and the previously selected groomer can no longer
+  // perform it, clear the selection and show a one-shot warning.
+  const [groomerInvalidWarning, setGroomerInvalidWarning] = useState<string | null>(null);
+  useEffect(() => {
+    if (mode !== "appointment") return;
+    if (!form.service_id || !form.staff_id) {
+      setGroomerInvalidWarning(null);
+      return;
+    }
+    const stillValid = filteredStaff.some((s: any) => s.id === form.staff_id);
+    if (!stillValid) {
+      const groomerName = (staff || []).find((s: any) => s.id === form.staff_id)?.name || "Selected groomer";
+      setGroomerInvalidWarning(`${groomerName} does not perform this service — please select another groomer`);
+      setForm(prev => ({ ...prev, staff_id: "" }));
+    } else {
+      setGroomerInvalidWarning(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.service_id, staffServices, mode]);
 
   // Auto-fill price when service or breed changes
   useEffect(() => {
@@ -598,9 +641,12 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
                     <Select value={form.staff_id} onValueChange={(v) => setForm({ ...form, staff_id: v })}>
                       <SelectTrigger><SelectValue placeholder="Select staff" /></SelectTrigger>
                       <SelectContent>
-                        {staff?.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                        {filteredStaff.map((s: any) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
                       </SelectContent>
                     </Select>
+                    {groomerInvalidWarning && (
+                      <p className="text-xs text-destructive">{groomerInvalidWarning}</p>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">

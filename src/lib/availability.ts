@@ -45,6 +45,38 @@ export interface Groomer {
   employment_end_date?: string | null;
 }
 
+export interface StaffServiceLink {
+  staff_id: string;
+  service_id: string;
+}
+
+/**
+ * Filter groomers by service assignment.
+ *
+ * Rule (safe fallback):
+ *  - A groomer with NO rows in staff_services is treated as able to perform
+ *    ALL services (no restriction). This protects existing groomers that have
+ *    never had services explicitly assigned.
+ *  - A groomer with at least one row is restricted to ONLY the services
+ *    listed for them.
+ *
+ * If staffServices is undefined (caller hasn't fetched it), no filtering
+ * is applied — returns input unchanged.
+ * If serviceId is null/undefined, no filtering is applied either.
+ */
+export function filterGroomersByService<T extends { id: string }>(
+  groomers: T[],
+  serviceId: string | null | undefined,
+  staffServices: StaffServiceLink[] | null | undefined
+): T[] {
+  if (!staffServices || !serviceId) return groomers;
+  return groomers.filter((g) => {
+    const rows = staffServices.filter((ss) => ss.staff_id === g.id);
+    if (rows.length === 0) return true; // no restrictions
+    return rows.some((ss) => ss.service_id === serviceId);
+  });
+}
+
 export function parseTimeToMinutes(time: string): number {
   const [h, m] = (time || "00:00").split(":");
   return parseInt(h || "0", 10) * 60 + parseInt(m || "0", 10);
@@ -180,11 +212,15 @@ export function generateAvailableSlots(
   baseSchedules: StaffAvailability[],
   overrides: ScheduleOverride[],
   existingBookings: ExistingBooking[],
-  slotIntervalMins: number = 30
+  slotIntervalMins: number = 30,
+  staffServices?: StaffServiceLink[] | null,
+  serviceId?: string | null
 ): string[] {
   // Filter out groomers whose employment has ended by this date
   const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-  const activeGroomers = groomers.filter(g => !g.employment_end_date || g.employment_end_date >= dateStr);
+  let activeGroomers = groomers.filter(g => !g.employment_end_date || g.employment_end_date >= dateStr);
+  // Apply staff_services restriction (safe fallback: empty → no restriction)
+  activeGroomers = filterGroomersByService(activeGroomers, serviceId, staffServices);
   if (!activeGroomers.length) return [];
 
   // Convert JS getDay() (0=Sun,1=Mon,...,6=Sat) to DB format (0=Mon,1=Tue,...,6=Sun)
@@ -290,11 +326,14 @@ export function findFreeGroomer(
   groomers: Groomer[],
   baseSchedules: StaffAvailability[],
   overrides: ScheduleOverride[],
-  existingBookings: ExistingBooking[]
+  existingBookings: ExistingBooking[],
+  staffServices?: StaffServiceLink[] | null,
+  serviceId?: string | null
 ): Groomer | null {
   const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
   // Filter by end date and sort by priority
-  const sorted = [...groomers]
+  const eligible = filterGroomersByService(groomers, serviceId, staffServices);
+  const sorted = [...eligible]
     .filter(g => !g.employment_end_date || g.employment_end_date >= dateStr)
     .sort((a, b) => {
       const pa = a.booking_priority ?? 999;
