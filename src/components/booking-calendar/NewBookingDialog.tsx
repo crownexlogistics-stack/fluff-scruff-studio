@@ -641,9 +641,12 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
                     <Select value={form.staff_id} onValueChange={(v) => setForm({ ...form, staff_id: v })}>
                       <SelectTrigger><SelectValue placeholder="Select staff" /></SelectTrigger>
                       <SelectContent>
-                        {staff?.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                        {filteredStaff.map((s: any) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
                       </SelectContent>
                     </Select>
+                    {groomerInvalidWarning && (
+                      <p className="text-xs text-destructive">{groomerInvalidWarning}</p>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
