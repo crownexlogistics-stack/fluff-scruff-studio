@@ -233,16 +233,18 @@ const SalonSummaryCard = () => {
     },
   });
 
-  // 8. Bills due this week (one-off between today and Saturday)
+  // 8. One-off expenses in the next 35 days — filtered client-side to match
+  //    CashHealthSection's <= 7 day "due this week" window exactly.
+  const horizonStr = format(addDays(todayStart, 35), "yyyy-MM-dd");
   const billsThisWeekQ = useQuery({
-    queryKey: ["salon-summary-week-bills", todayStr, weekEndStr],
+    queryKey: ["salon-summary-week-bills", todayStr, horizonStr],
     queryFn: async () => {
       const { data } = await supabase
         .from("expenses")
-        .select("amount")
+        .select("amount, expense_date")
         .eq("expense_type", "one_off")
         .gte("expense_date", todayStr)
-        .lte("expense_date", weekEndStr);
+        .lte("expense_date", horizonStr);
       return (data ?? []) as any[];
     },
   });
@@ -326,27 +328,22 @@ const SalonSummaryCard = () => {
   const bottomLineKind: "good" | "tight" | "bad" =
     bottomLine >= 0 ? "good" : bottomLine >= -200 ? "tight" : "bad";
 
-  // This week alert
+  // This week alert — match CashHealthSection's logic exactly so the two
+  // cards always display the same "Bills due this week" figure.
+  // CashHealthSection filters expanded bills with `daysUntilDue <= 7` and
+  // sums their amounts, covering recurring (monthly/weekly/annual) plus
+  // one-off expenses.
   const bankBalance = Number(bankQ.data?.balance ?? 0);
-  const billsDueThisWeekOneOff = (billsThisWeekQ.data ?? []).reduce(
-    (s, e: any) => s + Number(e.amount || 0),
-    0,
-  );
-  // Recurring bills falling due this week (approx by recurring_start_date day-of-month)
-  const billsDueThisWeekRecurring = (recurringQ.data ?? []).reduce((s, e: any) => {
-    if ((e.frequency || "monthly") !== "monthly") return s;
-    const startD = e.recurring_start_date as string | null;
-    const endD = e.recurring_end_date as string | null;
-    if (startD && parseISO(startD) > monthEnd) return s;
-    if (endD && parseISO(endD) < monthStart) return s;
-    const dueDay = startD ? parseISO(startD).getDate() : 1;
-    const dueThisMonth = new Date(today.getFullYear(), today.getMonth(), dueDay);
-    if (dueThisMonth >= todayStart && dueThisMonth <= weekEnd) {
-      return s + Number(e.amount || 0);
-    }
-    return s;
-  }, 0);
-  const billsDueThisWeek = billsDueThisWeekOneOff + billsDueThisWeekRecurring;
+  const billsDueThisWeek = useMemo(() => {
+    const expanded = expandUpcomingBills(
+      recurringQ.data ?? [],
+      billsThisWeekQ.data ?? [],
+      todayStart,
+    );
+    return expanded
+      .filter((b) => b.daysUntilDue <= 7)
+      .reduce((s, b) => s + b.amount, 0);
+  }, [recurringQ.data, billsThisWeekQ.data, todayStart]);
   const afterBills = bankBalance - billsDueThisWeek;
 
   // Next month preview
