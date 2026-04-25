@@ -204,6 +204,26 @@ export default function BookPackagePage() {
     },
   });
 
+  // Service catalogue (id <-> name) so we can resolve session.serviceType to a service_id
+  const { data: servicesCatalog } = useQuery({
+    queryKey: ["services-catalog-pkg"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("services").select("id, name");
+      if (error) throw error;
+      return data as { id: string; name: string }[];
+    },
+  });
+
+  // Staff <-> Service assignments (used to filter groomers by what they can perform)
+  const { data: staffServices } = useQuery({
+    queryKey: ["staff-services-pkg"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("staff_services").select("staff_id, service_id");
+      if (error) throw error;
+      return data as { staff_id: string; service_id: string }[];
+    },
+  });
+
   const selectedPkg = useMemo(() => packages?.find((p: any) => p.id === selectedPackageId), [packages, selectedPackageId]);
 
   // ── Pricing ──
