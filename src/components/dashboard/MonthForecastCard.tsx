@@ -212,6 +212,20 @@ const MonthForecastCard = () => {
   const earnedRevenue = completedBookings.reduce((s: number, b: any) => s + Number(b.total_price || 0), 0)
     + migratedCompleted.reduce((s: number, b: any) => s + Number(b.total_price || 0), 0);
 
+  // Of the "earned" figure: how much has actually been collected (deposit_paid)
+  // vs how much is still outstanding (balance owed by customer)?
+  // Only count truly Completed native bookings — Confirmed/Pending past-dated rows
+  // haven't been checked out yet so their balance hasn't been collected either.
+  const completedOnly = completedBookings.filter((b: any) => b.status === "Completed");
+  const collectedFromCompleted = completedOnly.reduce(
+    (s: number, b: any) => s + Math.min(Number(b.deposit_paid || 0), Number(b.total_price || 0)),
+    0,
+  );
+  const stillToCollectFromCompleted = completedOnly.reduce(
+    (s: number, b: any) => s + Math.max(0, Number(b.total_price || 0) - Number(b.deposit_paid || 0)),
+    0,
+  );
+
   const upcomingRevenue = upcomingBookings.reduce((s: number, b: any) => s + Number(b.total_price || 0), 0)
     + migratedUpcoming.reduce((s: number, b: any) => s + Number(b.total_price || 0), 0);
 
@@ -326,6 +340,14 @@ const MonthForecastCard = () => {
             <div className="flex items-center justify-between text-sm">
               <span className="flex items-center gap-2"><CheckCircle2 className="h-3.5 w-3.5 text-green-600" /> Earned so far</span>
               <span className="font-semibold">£{Math.round(earnedRevenue).toLocaleString()}</span>
+            </div>
+            <div className="flex items-center justify-between text-xs pl-6 text-muted-foreground">
+              <span>↳ of which collected</span>
+              <span className="font-medium text-green-700 dark:text-green-400">£{Math.round(collectedFromCompleted).toLocaleString()}</span>
+            </div>
+            <div className="flex items-center justify-between text-xs pl-6 text-muted-foreground">
+              <span>↳ still to collect</span>
+              <span className="font-medium text-amber-700 dark:text-amber-400">£{Math.round(stillToCollectFromCompleted).toLocaleString()}</span>
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="flex items-center gap-2"><CalendarDays className="h-3.5 w-3.5 text-blue-500" /> Confirmed upcoming</span>
