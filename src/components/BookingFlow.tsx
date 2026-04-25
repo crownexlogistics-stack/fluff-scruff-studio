@@ -428,6 +428,18 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
     },
   });
 
+  // Staff <-> Service assignments (used to filter groomers by what they can perform)
+  const { data: staffServices } = useQuery({
+    queryKey: ["staff-services-all"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("staff_services")
+        .select("staff_id, service_id");
+      if (error) throw error;
+      return data as { staff_id: string; service_id: string }[];
+    },
+  });
+
   const weekEndDate = useMemo(() => {
     const end = new Date(weekStart);
     end.setDate(end.getDate() + 6);
