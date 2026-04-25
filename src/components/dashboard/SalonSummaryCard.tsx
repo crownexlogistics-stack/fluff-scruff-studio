@@ -10,10 +10,14 @@ import {
   addDays,
   parseISO,
   formatDistanceToNow,
+  getDate,
+  isAfter,
+  isBefore,
+  differenceInDays,
 } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { calcDateAwareExpenses } from "@/lib/expenseCalc";
 
@@ -23,6 +27,76 @@ interface CashFlowResponse {
 
 const fmt0 = (n: number) =>
   `£${Math.round(Number(n) || 0).toLocaleString("en-GB")}`;
+
+/**
+ * Expand recurring + one-off expenses into individual due-date entries within
+ * the next 35 days. Mirrors the logic in CashHealthSection so the two cards
+ * always agree on "bills due this week".
+ */
+function expandUpcomingBills(
+  recurring: any[],
+  oneOff: any[],
+  today: Date,
+): { dueDate: Date; amount: number; daysUntilDue: number }[] {
+  const horizon = addDays(today, 35);
+  const out: { dueDate: Date; amount: number; daysUntilDue: number }[] = [];
+
+  for (const exp of recurring) {
+    const freq = exp.frequency || "monthly";
+    const amount = Number(exp.amount || 0);
+    if (amount <= 0) continue;
+
+    const startDate = exp.recurring_start_date ? parseISO(exp.recurring_start_date) : null;
+    const endDate = exp.recurring_end_date ? parseISO(exp.recurring_end_date) : null;
+    if (endDate && isBefore(endDate, today)) continue;
+
+    if (freq === "monthly") {
+      const dueDay = startDate ? getDate(startDate) : 1;
+      for (let offset = 0; offset <= 1; offset++) {
+        const refMonth = addMonths(today, offset);
+        const ms = startOfMonth(refMonth);
+        const me = endOfMonth(refMonth);
+        if (startDate && isAfter(startDate, me)) continue;
+        if (endDate && isBefore(endDate, ms)) continue;
+        const lastDay = getDate(me);
+        const actualDay = Math.min(dueDay, lastDay);
+        const dueDate = new Date(refMonth.getFullYear(), refMonth.getMonth(), actualDay);
+        if (dueDate >= today && dueDate <= horizon) {
+          out.push({ dueDate, amount, daysUntilDue: differenceInDays(dueDate, today) });
+        }
+      }
+    } else if (freq === "weekly") {
+      let d = new Date(today);
+      const targetDow = startDate ? startDate.getDay() : 1;
+      while (d.getDay() !== targetDow) d = addDays(d, 1);
+      while (d <= horizon) {
+        if (startDate && isBefore(d, startDate)) { d = addDays(d, 7); continue; }
+        if (endDate && isAfter(d, endDate)) break;
+        out.push({ dueDate: new Date(d), amount, daysUntilDue: differenceInDays(d, today) });
+        d = addDays(d, 7);
+      }
+    } else if (freq === "annual") {
+      if (!startDate) continue;
+      for (let yearOff = 0; yearOff <= 1; yearOff++) {
+        const annDate = new Date(today.getFullYear() + yearOff, startDate.getMonth(), getDate(startDate));
+        if (annDate >= today && annDate <= horizon) {
+          out.push({ dueDate: annDate, amount, daysUntilDue: differenceInDays(annDate, today) });
+        }
+      }
+    }
+  }
+
+  for (const e of oneOff) {
+    const amount = Number(e.amount || 0);
+    if (amount <= 0 || !e.expense_date) continue;
+    const dueDate = parseISO(e.expense_date);
+    if (dueDate >= today && dueDate <= addDays(today, 35)) {
+      out.push({ dueDate, amount, daysUntilDue: differenceInDays(dueDate, today) });
+    }
+  }
+
+  return out;
+}
 
 const SalonSummaryCard = () => {
   const today = useMemo(() => new Date(), []);
@@ -40,12 +114,6 @@ const SalonSummaryCard = () => {
   const nextEndStr = format(nextMonthEnd, "yyyy-MM-dd");
   const monthName = format(today, "MMMM");
   const nextMonthName = format(nextMonth, "MMMM");
-
-  // End of this week (Saturday)
-  const dayIdx = today.getDay(); // 0 Sun ... 6 Sat
-  const daysUntilSat = (6 - dayIdx + 7) % 7;
-  const weekEnd = addDays(todayStart, daysUntilSat);
-  const weekEndStr = format(weekEnd, "yyyy-MM-dd");
 
   const [refreshing, setRefreshing] = useState(false);
 
@@ -157,16 +225,18 @@ const SalonSummaryCard = () => {
     },
   });
 
-  // 8. Bills due this week (one-off between today and Saturday)
+  // 8. One-off expenses in the next 35 days — filtered client-side to match
+  //    CashHealthSection's <= 7 day "due this week" window exactly.
+  const horizonStr = format(addDays(todayStart, 35), "yyyy-MM-dd");
   const billsThisWeekQ = useQuery({
-    queryKey: ["salon-summary-week-bills", todayStr, weekEndStr],
+    queryKey: ["salon-summary-week-bills", todayStr, horizonStr],
     queryFn: async () => {
       const { data } = await supabase
         .from("expenses")
-        .select("amount")
+        .select("amount, expense_date")
         .eq("expense_type", "one_off")
         .gte("expense_date", todayStr)
-        .lte("expense_date", weekEndStr);
+        .lte("expense_date", horizonStr);
       return (data ?? []) as any[];
     },
   });
@@ -250,27 +320,22 @@ const SalonSummaryCard = () => {
   const bottomLineKind: "good" | "tight" | "bad" =
     bottomLine >= 0 ? "good" : bottomLine >= -200 ? "tight" : "bad";
 
-  // This week alert
+  // This week alert — match CashHealthSection's logic exactly so the two
+  // cards always display the same "Bills due this week" figure.
+  // CashHealthSection filters expanded bills with `daysUntilDue <= 7` and
+  // sums their amounts, covering recurring (monthly/weekly/annual) plus
+  // one-off expenses.
   const bankBalance = Number(bankQ.data?.balance ?? 0);
-  const billsDueThisWeekOneOff = (billsThisWeekQ.data ?? []).reduce(
-    (s, e: any) => s + Number(e.amount || 0),
-    0,
-  );
-  // Recurring bills falling due this week (approx by recurring_start_date day-of-month)
-  const billsDueThisWeekRecurring = (recurringQ.data ?? []).reduce((s, e: any) => {
-    if ((e.frequency || "monthly") !== "monthly") return s;
-    const startD = e.recurring_start_date as string | null;
-    const endD = e.recurring_end_date as string | null;
-    if (startD && parseISO(startD) > monthEnd) return s;
-    if (endD && parseISO(endD) < monthStart) return s;
-    const dueDay = startD ? parseISO(startD).getDate() : 1;
-    const dueThisMonth = new Date(today.getFullYear(), today.getMonth(), dueDay);
-    if (dueThisMonth >= todayStart && dueThisMonth <= weekEnd) {
-      return s + Number(e.amount || 0);
-    }
-    return s;
-  }, 0);
-  const billsDueThisWeek = billsDueThisWeekOneOff + billsDueThisWeekRecurring;
+  const billsDueThisWeek = useMemo(() => {
+    const expanded = expandUpcomingBills(
+      recurringQ.data ?? [],
+      billsThisWeekQ.data ?? [],
+      todayStart,
+    );
+    return expanded
+      .filter((b) => b.daysUntilDue <= 7)
+      .reduce((s, b) => s + b.amount, 0);
+  }, [recurringQ.data, billsThisWeekQ.data, todayStart]);
   const afterBills = bankBalance - billsDueThisWeek;
 
   // Next month preview
@@ -406,17 +471,36 @@ const SalonSummaryCard = () => {
         </div>
 
         {/* THIS WEEK ALERT */}
-        <div className="rounded-md bg-card border p-3 text-sm flex flex-wrap items-center gap-x-4 gap-y-1">
-          <span>🏦 Bank balance: <strong>{fmt0(bankBalance)}</strong></span>
-          <span className="text-muted-foreground">|</span>
-          <span>Bills due this week: <strong>{fmt0(billsDueThisWeek)}</strong></span>
-          <span className="text-muted-foreground">|</span>
-          <span>
-            After bills:{" "}
-            <strong className={cn(afterBills < 0 ? "text-red-600" : "text-green-600")}>
-              {afterBills < 0 ? `-${fmt0(Math.abs(afterBills))}` : fmt0(afterBills)}
-            </strong>
-          </span>
+        <div
+          className={cn(
+            "rounded-md border p-3 text-sm",
+            afterBills < 0
+              ? "bg-red-50 border-red-300 dark:bg-red-950/20"
+              : "bg-card",
+          )}
+        >
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+            <span>🏦 Bank balance: <strong>{fmt0(bankBalance)}</strong></span>
+            <span className="text-muted-foreground">|</span>
+            <span>Bills due this week: <strong>{fmt0(billsDueThisWeek)}</strong></span>
+            <span className="text-muted-foreground">|</span>
+            <span>
+              After bills:{" "}
+              <strong className={cn(afterBills < 0 ? "text-red-700 dark:text-red-400" : "text-green-700 dark:text-green-400")}>
+                {afterBills < 0 ? `-${fmt0(Math.abs(afterBills))}` : fmt0(afterBills)}
+              </strong>
+            </span>
+          </div>
+          {afterBills < 0 && (
+            <p className="mt-2 flex items-start gap-2 text-xs font-medium text-red-700 dark:text-red-400">
+              <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+              <span>
+                ⚠️ Bank balance won't cover bills due this week — short by{" "}
+                {fmt0(Math.abs(afterBills))}. Chase outstanding customer balances or
+                delay non-essential spending.
+              </span>
+            </p>
+          )}
         </div>
 
         {/* NEXT MONTH PREVIEW */}
