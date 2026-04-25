@@ -746,6 +746,9 @@ const Index = () => {
                   📊 £{Math.round(projectedProfit).toLocaleString()} projected end of month
                 </p>
               )}
+              <p className="text-[10px] text-muted-foreground mt-1 leading-snug">
+                Based on revenue vs expenses. See Cash Flow above for actual bank position.
+              </p>
               <DeltaBadge current={netProfit} previous={prevStudioShare} />
             </CardContent>
           </Card>
