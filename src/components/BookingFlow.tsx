@@ -841,7 +841,9 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
           groomers,
           baseSchedules,
           freshOverrides,
-          freshBookings
+          freshBookings,
+          staffServices,
+          currentServiceRecord?.id ?? null
         );
 
         if (!freeGroomer) {
