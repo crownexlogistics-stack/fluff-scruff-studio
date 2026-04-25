@@ -479,17 +479,36 @@ const SalonSummaryCard = () => {
         </div>
 
         {/* THIS WEEK ALERT */}
-        <div className="rounded-md bg-card border p-3 text-sm flex flex-wrap items-center gap-x-4 gap-y-1">
-          <span>🏦 Bank balance: <strong>{fmt0(bankBalance)}</strong></span>
-          <span className="text-muted-foreground">|</span>
-          <span>Bills due this week: <strong>{fmt0(billsDueThisWeek)}</strong></span>
-          <span className="text-muted-foreground">|</span>
-          <span>
-            After bills:{" "}
-            <strong className={cn(afterBills < 0 ? "text-red-600" : "text-green-600")}>
-              {afterBills < 0 ? `-${fmt0(Math.abs(afterBills))}` : fmt0(afterBills)}
-            </strong>
-          </span>
+        <div
+          className={cn(
+            "rounded-md border p-3 text-sm",
+            afterBills < 0
+              ? "bg-red-50 border-red-300 dark:bg-red-950/20"
+              : "bg-card",
+          )}
+        >
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+            <span>🏦 Bank balance: <strong>{fmt0(bankBalance)}</strong></span>
+            <span className="text-muted-foreground">|</span>
+            <span>Bills due this week: <strong>{fmt0(billsDueThisWeek)}</strong></span>
+            <span className="text-muted-foreground">|</span>
+            <span>
+              After bills:{" "}
+              <strong className={cn(afterBills < 0 ? "text-red-700 dark:text-red-400" : "text-green-700 dark:text-green-400")}>
+                {afterBills < 0 ? `-${fmt0(Math.abs(afterBills))}` : fmt0(afterBills)}
+              </strong>
+            </span>
+          </div>
+          {afterBills < 0 && (
+            <p className="mt-2 flex items-start gap-2 text-xs font-medium text-red-700 dark:text-red-400">
+              <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+              <span>
+                ⚠️ Bank balance won't cover bills due this week — short by{" "}
+                {fmt0(Math.abs(afterBills))}. Chase outstanding customer balances or
+                delay non-essential spending.
+              </span>
+            </p>
+          )}
         </div>
 
         {/* NEXT MONTH PREVIEW */}
