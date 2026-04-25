@@ -82,6 +82,8 @@ import { WebsiteAnalyticsSection } from "@/components/dashboard/WebsiteAnalytics
 import { UnavailableBookingsWarning } from "@/components/dashboard/UnavailableBookingsWarning";
 import MonthForecastCard from "@/components/dashboard/MonthForecastCard";
 import { DailyBriefingCard } from "@/components/dashboard/DailyBriefingCard";
+import CashFlowCard from "@/components/dashboard/CashFlowCard";
+import BankDangerBanner from "@/components/dashboard/BankDangerBanner";
 import { usePermissions } from "@/config/rolePermissions";
 
 // ── Types ───────────────────────────────────────────────────
@@ -618,6 +620,12 @@ const Index = () => {
   return (
     <AppLayout>
       <div className="space-y-6 max-w-[1600px] mx-auto">
+        {/* Danger banner — only renders when projected balance is negative */}
+        <BankDangerBanner />
+
+        {/* Cash flow — actual money received this calendar month */}
+        <CashFlowCard />
+
         {/* Warning banner for bookings with unavailable groomers */}
         <UnavailableBookingsWarning />
         {/* Header + Period Selector */}
