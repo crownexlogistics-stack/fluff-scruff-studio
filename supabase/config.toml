@@ -152,3 +152,6 @@ verify_jwt = false
 
 [functions.process-package-payment]
 verify_jwt = false
+
+[functions.get-cash-flow]
+verify_jwt = false

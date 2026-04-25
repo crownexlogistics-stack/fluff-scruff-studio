@@ -82,6 +82,8 @@ import { WebsiteAnalyticsSection } from "@/components/dashboard/WebsiteAnalytics
 import { UnavailableBookingsWarning } from "@/components/dashboard/UnavailableBookingsWarning";
 import MonthForecastCard from "@/components/dashboard/MonthForecastCard";
 import { DailyBriefingCard } from "@/components/dashboard/DailyBriefingCard";
+import CashFlowCard from "@/components/dashboard/CashFlowCard";
+import BankDangerBanner from "@/components/dashboard/BankDangerBanner";
 import { usePermissions } from "@/config/rolePermissions";
 
 // ── Types ───────────────────────────────────────────────────
@@ -618,6 +620,12 @@ const Index = () => {
   return (
     <AppLayout>
       <div className="space-y-6 max-w-[1600px] mx-auto">
+        {/* Danger banner — only renders when projected balance is negative */}
+        <BankDangerBanner />
+
+        {/* Cash flow — actual money received this calendar month */}
+        <CashFlowCard />
+
         {/* Warning banner for bookings with unavailable groomers */}
         <UnavailableBookingsWarning />
         {/* Header + Period Selector */}
@@ -674,6 +682,9 @@ const Index = () => {
               <span className="text-xs text-muted-foreground">Compare to previous period</span>
               <Switch checked={compareOn} onCheckedChange={setCompareOn} />
             </div>
+            <p className="text-[11px] text-muted-foreground">
+              Showing: <span className="font-medium text-foreground">{format(start, "d MMM")} – {format(end, "d MMM yyyy")}</span>
+            </p>
           </div>
         </div>
 
@@ -688,7 +699,9 @@ const Index = () => {
               </div>
               <p className="text-2xl font-bold font-heading">£{combinedRevenue.toLocaleString()}</p>
               <p className="text-xs text-muted-foreground">£{projectedGross.toLocaleString()} projected upcoming</p>
-              <p className="text-[10px] text-amber-600 mt-1">For accurate figures see Month Forecast below</p>
+              <p className="text-[10px] text-muted-foreground mt-1 leading-snug">
+                Revenue from completed appointments this month. Does not reflect cash timing — see Cash Flow above for actual money received.
+              </p>
               <DeltaBadge current={totalRevenue} previous={prevRevenue} />
             </CardContent>
           </Card>
@@ -704,7 +717,6 @@ const Index = () => {
               <p className="text-xs text-muted-foreground">
                 {completed.length + migratedCompleted.length} completed · {upcomingInPeriod.length} upcoming · {cancelled.length} cancelled
               </p>
-              <p className="text-[10px] text-amber-600 mt-1">For accurate figures see Month Forecast below</p>
               <DeltaBadge current={bookings.length} previous={prevBookings.length} />
             </CardContent>
           </Card>
@@ -734,6 +746,9 @@ const Index = () => {
                   📊 £{Math.round(projectedProfit).toLocaleString()} projected end of month
                 </p>
               )}
+              <p className="text-[10px] text-muted-foreground mt-1 leading-snug">
+                Based on revenue vs expenses. See Cash Flow above for actual bank position.
+              </p>
               <DeltaBadge current={netProfit} previous={prevStudioShare} />
             </CardContent>
           </Card>
