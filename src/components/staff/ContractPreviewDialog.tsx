@@ -65,7 +65,7 @@ export function ContractContent({ staff }: { staff: StaffMember }) {
       <div className="space-y-2">
         <h3 className="font-heading font-semibold">4. Compensation</h3>
         <p>The Contractor shall receive <strong>40%</strong> of the revenue generated from dog grooming services provided by the Contractor. Payment shall be made upon submission of an invoice by the Contractor.</p>
-        <p>The compensation rate of 40% is subject to review and potential adjustment at the time of contract renewal, which occurs every two (2) years. Any adjustments to the percentage may be based on factors such as the Contractor's tenure with Fluff and Scruff Studio and the level of expertise or experience gained during the term of the contract.</p>
+        <p>The compensation rate of 40% is subject to review and potential adjustment at the time of agreement renewal, which occurs every two (2) years. Any adjustments to the percentage may be based on factors such as the Contractor's tenure with Fluff and Scruff Studio and the level of expertise or experience gained during the term of the agreement.</p>
       </div>
       <div className="space-y-2">
         <h3 className="font-heading font-semibold">5. Taxes and Insurance</h3>
