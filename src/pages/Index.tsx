@@ -682,6 +682,9 @@ const Index = () => {
               <span className="text-xs text-muted-foreground">Compare to previous period</span>
               <Switch checked={compareOn} onCheckedChange={setCompareOn} />
             </div>
+            <p className="text-[11px] text-muted-foreground">
+              Showing: <span className="font-medium text-foreground">{format(start, "d MMM")} – {format(end, "d MMM yyyy")}</span>
+            </p>
           </div>
         </div>
 
