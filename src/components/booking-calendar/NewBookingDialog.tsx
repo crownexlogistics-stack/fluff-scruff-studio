@@ -189,6 +189,37 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
     return links.length === 0 || links.some(l => l.service_id === form.service_id);
   });
 
+  // Filter staff dropdown by which services each staff member is assigned to.
+  // Safe fallback: a staff member with NO rows in staff_services is treated as
+  // able to perform ALL services (so existing groomers without explicit
+  // assignments keep working as before).
+  const filteredStaff = (staff || []).filter((s: any) => {
+    if (!form.service_id) return true; // no service picked yet → show all
+    const rows = (staffServices || []).filter(ss => ss.staff_id === s.id);
+    if (rows.length === 0) return true; // unrestricted
+    return rows.some(ss => ss.service_id === form.service_id);
+  });
+
+  // If service changes and the previously selected groomer can no longer
+  // perform it, clear the selection and show a one-shot warning.
+  const [groomerInvalidWarning, setGroomerInvalidWarning] = useState<string | null>(null);
+  useEffect(() => {
+    if (mode !== "appointment") return;
+    if (!form.service_id || !form.staff_id) {
+      setGroomerInvalidWarning(null);
+      return;
+    }
+    const stillValid = filteredStaff.some((s: any) => s.id === form.staff_id);
+    if (!stillValid) {
+      const groomerName = (staff || []).find((s: any) => s.id === form.staff_id)?.name || "Selected groomer";
+      setGroomerInvalidWarning(`${groomerName} does not perform this service — please select another groomer`);
+      setForm(prev => ({ ...prev, staff_id: "" }));
+    } else {
+      setGroomerInvalidWarning(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.service_id, staffServices, mode]);
+
   // Auto-fill price when service or breed changes
   useEffect(() => {
     if (!form.service_id) return;
