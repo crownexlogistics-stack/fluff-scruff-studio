@@ -347,6 +347,31 @@ const SalonSummaryCard = () => {
 
   const lastUpdated = cashFlowQ.dataUpdatedAt ? new Date(cashFlowQ.dataUpdatedAt) : null;
 
+  // ── First of Month Cover (only shown in last 10 days of month) ──
+  const showFirstOfMonth = today.getDate() >= 20;
+  const firstOfMonthBillsList = useMemo(() => {
+    if (!showFirstOfMonth) return [] as { name: string; amount: number }[];
+    return (recurringQ.data ?? [])
+      .filter((e: any) => {
+        const freq = e.frequency || "monthly";
+        if (freq !== "monthly") return false;
+        const startD = e.recurring_start_date as string | null;
+        if (!startD) return false;
+        if (parseISO(startD).getDate() !== 1) return false;
+        const endD = e.recurring_end_date as string | null;
+        if (endD && parseISO(endD) < nextMonthStart) return false;
+        return Number(e.amount || 0) > 0;
+      })
+      .map((e: any) => ({ name: e.name as string, amount: Number(e.amount || 0) }))
+      .sort((a, b) => b.amount - a.amount);
+  }, [recurringQ.data, showFirstOfMonth, nextMonthStart]);
+  const firstOfMonthBillsTotal = firstOfMonthBillsList.reduce((s, b) => s + b.amount, 0);
+  const estimatedBalanceOn1st =
+    bankBalance + confirmedUpcoming - groomerPayProjected - billsStillToPay;
+  const firstOfMonthGap = firstOfMonthBillsTotal - estimatedBalanceOn1st;
+  const suggestedLoan = firstOfMonthGap > 0 ? Math.ceil(firstOfMonthGap / 100) * 100 : 0;
+  const nextMonthDay1Label = format(nextMonthStart, "d MMMM");
+
   return (
     <Card className="rounded-xl border-2 border-orange-200 bg-orange-50/40 dark:bg-orange-950/10">
       <CardHeader className="p-5 pb-3">
@@ -522,6 +547,94 @@ const SalonSummaryCard = () => {
               : "⚠️ Next month looks quiet — consider sending a marketing campaign to fill the calendar"}
           </p>
         </div>
+
+        {/* FIRST OF MONTH COVER — only in last 10 days of month */}
+        {showFirstOfMonth && (
+          <div
+            className={cn(
+              "rounded-md border p-4 space-y-2",
+              firstOfMonthGap <= 0
+                ? "bg-blue-50/60 border-blue-200 dark:bg-blue-950/20"
+                : suggestedLoan >= 1000
+                ? "bg-red-50/60 border-red-200 dark:bg-red-950/20"
+                : "bg-amber-50/60 border-amber-200 dark:bg-amber-950/20",
+            )}
+          >
+            <p className="text-sm font-semibold flex items-center gap-2">
+              🏦 First of Month Planning
+            </p>
+
+            {/* Step 1 — bills due on the 1st */}
+            <div className="text-sm space-y-1">
+              <div className="flex items-center justify-between">
+                <span>Fixed bills due on 1st {nextMonthName}</span>
+                <strong>{fmt0(firstOfMonthBillsTotal)}</strong>
+              </div>
+              {firstOfMonthBillsList.length > 0 && (
+                <p className="text-xs text-muted-foreground pl-1">
+                  {firstOfMonthBillsList
+                    .map((b) => `${b.name} ${fmt0(b.amount)}`)
+                    .join(" · ")}
+                </p>
+              )}
+            </div>
+
+            {/* Step 2 — estimated balance on the 1st */}
+            <div className="flex items-center justify-between text-sm">
+              <span>Estimated balance on {nextMonthDay1Label}</span>
+              <strong
+                className={cn(
+                  estimatedBalanceOn1st < 0
+                    ? "text-red-700 dark:text-red-400"
+                    : "text-green-700 dark:text-green-400",
+                )}
+              >
+                {estimatedBalanceOn1st < 0
+                  ? `-${fmt0(Math.abs(estimatedBalanceOn1st))}`
+                  : fmt0(estimatedBalanceOn1st)}
+              </strong>
+            </div>
+
+            {/* Step 3 — gap and suggested loan */}
+            {firstOfMonthGap <= 0 ? (
+              <p className="text-sm text-green-700 dark:text-green-400 font-medium pt-1 border-t border-blue-200/60 dark:border-blue-900/40">
+                ✅ You should be able to cover the 1st of the month bills without borrowing.
+              </p>
+            ) : (
+              <div className="pt-1 border-t border-amber-200/60 dark:border-amber-900/40 space-y-1">
+                <p
+                  className={cn(
+                    "text-sm font-semibold",
+                    suggestedLoan >= 1000
+                      ? "text-red-700 dark:text-red-400"
+                      : "text-amber-800 dark:text-amber-300",
+                  )}
+                >
+                  💳 To cover your 1st of {nextMonthName} bills you may need to borrow approximately{" "}
+                  {fmt0(suggestedLoan)}
+                </p>
+                <ul className="text-xs text-muted-foreground space-y-0.5 pl-1">
+                  <li>Bills due on 1st: <strong>{fmt0(firstOfMonthBillsTotal)}</strong></li>
+                  <li>
+                    Estimated balance:{" "}
+                    <strong>
+                      {estimatedBalanceOn1st < 0
+                        ? `-${fmt0(Math.abs(estimatedBalanceOn1st))}`
+                        : fmt0(estimatedBalanceOn1st)}
+                    </strong>
+                  </li>
+                  <li>Shortfall: <strong>{fmt0(firstOfMonthGap)}</strong></li>
+                  <li>Suggested: borrow <strong>{fmt0(suggestedLoan)}</strong></li>
+                </ul>
+              </div>
+            )}
+
+            <p className="text-[11px] text-muted-foreground italic pt-1">
+              This is an estimate based on confirmed bookings and known bills. Actual figure
+              depends on appointments completed and balances collected before month end.
+            </p>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
