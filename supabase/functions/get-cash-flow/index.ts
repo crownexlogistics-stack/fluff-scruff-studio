@@ -146,7 +146,6 @@ serve(async (req) => {
     );
 
     let worldpayCard = 0;
-    let worldpayCash = 0;
     let worldpayHasData = false;
     try {
       const { data: runs } = await supabase
@@ -168,16 +167,16 @@ serve(async (req) => {
           if (seenOrderTimes.has(key)) continue;
           seenOrderTimes.add(key);
           worldpayHasData = true;
-          if (r.type === "cash") worldpayCash += r.amount;
-          else worldpayCard += r.amount;
+          worldpayCard += r.amount;
         }
       }
     } catch (_e) {
       // ignore — fall through with zeros
     }
 
-    // ── 3. CASH at checkout from commissions / bookings ───
+    // ── 3. SALON CARD MACHINE from commissions / bookings ───
     // Use commission_records.created_at (when checkout was completed)
+    // This is the card-machine total taken in salon — we do not take cash.
     let salonCashCollected = 0;
     try {
       const { data: comms } = await supabase
@@ -195,6 +194,8 @@ serve(async (req) => {
     } catch (_e) {
       // ignore
     }
+
+    const salonCardTotal = worldpayCard + salonCashCollected;
 
     // ── 4. REVENUE this month (for comparison) ─────
     let revenue = 0;
