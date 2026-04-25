@@ -264,12 +264,7 @@ serve(async (req) => {
           count: stripeCount,
           error: stripeError,
         },
-        worldpay: {
-          card: Math.round(worldpayCard * 100) / 100,
-          cash: Math.round(worldpayCash * 100) / 100,
-          has_data: worldpayHasData,
-        },
-        salon_cash_collected: Math.round(salonCashCollected * 100) / 100,
+        salon_card: Math.round(salonCardTotal * 100) / 100,
         total_cash: Math.round(totalCash * 100) / 100,
         revenue: Math.round(revenue * 100) / 100,
         difference: Math.round((totalCash - revenue) * 100) / 100,
