@@ -865,6 +865,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
           date: selectedDate,
           start_time: selectedTime,
           duration_minutes: serviceDuration,
+          service_id: currentServiceRecord?.id ?? null,
         },
       });
       if (availErr) {
@@ -1112,6 +1113,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
                   date: selectedDate,
                   start_time: time,
                   duration_minutes: serviceDuration,
+                  service_id: currentServiceRecord?.id ?? null,
                 },
               });
               if (data?.available) return time;
