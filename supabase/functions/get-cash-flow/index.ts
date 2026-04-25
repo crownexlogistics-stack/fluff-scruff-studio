@@ -253,7 +253,7 @@ serve(async (req) => {
       // ignore
     }
 
-    const totalCash = stripePounds + worldpayCard + worldpayCash + salonCashCollected;
+    const totalCash = stripePounds + salonCardTotal;
 
     return new Response(
       JSON.stringify({
