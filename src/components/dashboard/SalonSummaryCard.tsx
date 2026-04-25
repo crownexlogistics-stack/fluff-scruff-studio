@@ -10,10 +10,16 @@ import {
   addDays,
   parseISO,
   formatDistanceToNow,
+  getDate,
+  isAfter,
+  isBefore,
+  differenceInDays,
+  nextSaturday,
+  isSaturday,
 } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { calcDateAwareExpenses } from "@/lib/expenseCalc";
 
@@ -23,6 +29,76 @@ interface CashFlowResponse {
 
 const fmt0 = (n: number) =>
   `£${Math.round(Number(n) || 0).toLocaleString("en-GB")}`;
+
+/**
+ * Expand recurring + one-off expenses into individual due-date entries within
+ * the next 35 days. Mirrors the logic in CashHealthSection so the two cards
+ * always agree on "bills due this week".
+ */
+function expandUpcomingBills(
+  recurring: any[],
+  oneOff: any[],
+  today: Date,
+): { dueDate: Date; amount: number; daysUntilDue: number }[] {
+  const horizon = addDays(today, 35);
+  const out: { dueDate: Date; amount: number; daysUntilDue: number }[] = [];
+
+  for (const exp of recurring) {
+    const freq = exp.frequency || "monthly";
+    const amount = Number(exp.amount || 0);
+    if (amount <= 0) continue;
+
+    const startDate = exp.recurring_start_date ? parseISO(exp.recurring_start_date) : null;
+    const endDate = exp.recurring_end_date ? parseISO(exp.recurring_end_date) : null;
+    if (endDate && isBefore(endDate, today)) continue;
+
+    if (freq === "monthly") {
+      const dueDay = startDate ? getDate(startDate) : 1;
+      for (let offset = 0; offset <= 1; offset++) {
+        const refMonth = addMonths(today, offset);
+        const ms = startOfMonth(refMonth);
+        const me = endOfMonth(refMonth);
+        if (startDate && isAfter(startDate, me)) continue;
+        if (endDate && isBefore(endDate, ms)) continue;
+        const lastDay = getDate(me);
+        const actualDay = Math.min(dueDay, lastDay);
+        const dueDate = new Date(refMonth.getFullYear(), refMonth.getMonth(), actualDay);
+        if (dueDate >= today && dueDate <= horizon) {
+          out.push({ dueDate, amount, daysUntilDue: differenceInDays(dueDate, today) });
+        }
+      }
+    } else if (freq === "weekly") {
+      let d = new Date(today);
+      const targetDow = startDate ? startDate.getDay() : 1;
+      while (d.getDay() !== targetDow) d = addDays(d, 1);
+      while (d <= horizon) {
+        if (startDate && isBefore(d, startDate)) { d = addDays(d, 7); continue; }
+        if (endDate && isAfter(d, endDate)) break;
+        out.push({ dueDate: new Date(d), amount, daysUntilDue: differenceInDays(d, today) });
+        d = addDays(d, 7);
+      }
+    } else if (freq === "annual") {
+      if (!startDate) continue;
+      for (let yearOff = 0; yearOff <= 1; yearOff++) {
+        const annDate = new Date(today.getFullYear() + yearOff, startDate.getMonth(), getDate(startDate));
+        if (annDate >= today && annDate <= horizon) {
+          out.push({ dueDate: annDate, amount, daysUntilDue: differenceInDays(annDate, today) });
+        }
+      }
+    }
+  }
+
+  for (const e of oneOff) {
+    const amount = Number(e.amount || 0);
+    if (amount <= 0 || !e.expense_date) continue;
+    const dueDate = parseISO(e.expense_date);
+    if (dueDate >= today && dueDate <= addDays(today, 35)) {
+      out.push({ dueDate, amount, daysUntilDue: differenceInDays(dueDate, today) });
+    }
+  }
+
+  return out;
+}
 
 const SalonSummaryCard = () => {
   const today = useMemo(() => new Date(), []);
