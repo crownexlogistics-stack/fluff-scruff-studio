@@ -270,6 +270,16 @@ export default function BookPackagePage() {
     const dateObj = new Date(date + "T00:00:00");
     const duration = isTeethPackage ? 30 : (selectedBreed?.duration_minutes || 90);
 
+    // Resolve which service this session is for, so we can filter by staff_services
+    const sessionServiceType = sessions[idx]?.serviceType;
+    const serviceNameForSession = isTeethPackage
+      ? "Ultrasonic Teeth Cleaning"
+      : sessionServiceType === "bath_brush"
+        ? "Bath & Brush"
+        : "Full Groom";
+    const sessionServiceId =
+      (servicesCatalog || []).find(s => s.name === serviceNameForSession)?.id ?? null;
+
     // Fetch overrides + real bookings + migrated bookings for this date — same data check-availability uses
     const [overridesRes, bookingsRes, migratedRes] = await Promise.all([
       supabase.from("staff_schedule_overrides").select("staff_id, override_date, start_time, end_time, is_working").eq("override_date", date),
@@ -311,11 +321,21 @@ export default function BookPackagePage() {
       filteredGroomers = groomers;
     }
 
-    const slots = generateAvailableSlots(dateObj, duration, filteredGroomers, baseSchedules, overrides, existingBookings, 30);
+    const slots = generateAvailableSlots(
+      dateObj,
+      duration,
+      filteredGroomers,
+      baseSchedules,
+      overrides,
+      existingBookings,
+      30,
+      staffServices,
+      sessionServiceId
+    );
 
     setSlotsBySession(prev => ({ ...prev, [idx]: slots }));
     setLoadingSlots(prev => ({ ...prev, [idx]: false }));
-  }, [baseSchedules, groomers, selectedBreed, isTeethPackage, packageGroomerId]);
+  }, [baseSchedules, groomers, selectedBreed, isTeethPackage, packageGroomerId, sessions, servicesCatalog, staffServices]);
 
   // When session 1's date+time is picked in "any" mode, lock the highest-priority free groomer
   // for the rest of the package. This guarantees consistency and that we never insert null staff_id.
