@@ -347,6 +347,31 @@ const SalonSummaryCard = () => {
 
   const lastUpdated = cashFlowQ.dataUpdatedAt ? new Date(cashFlowQ.dataUpdatedAt) : null;
 
+  // ── First of Month Cover (only shown in last 10 days of month) ──
+  const showFirstOfMonth = today.getDate() >= 20;
+  const firstOfMonthBillsList = useMemo(() => {
+    if (!showFirstOfMonth) return [] as { name: string; amount: number }[];
+    return (recurringQ.data ?? [])
+      .filter((e: any) => {
+        const freq = e.frequency || "monthly";
+        if (freq !== "monthly") return false;
+        const startD = e.recurring_start_date as string | null;
+        if (!startD) return false;
+        if (parseISO(startD).getDate() !== 1) return false;
+        const endD = e.recurring_end_date as string | null;
+        if (endD && parseISO(endD) < nextMonthStart) return false;
+        return Number(e.amount || 0) > 0;
+      })
+      .map((e: any) => ({ name: e.name as string, amount: Number(e.amount || 0) }))
+      .sort((a, b) => b.amount - a.amount);
+  }, [recurringQ.data, showFirstOfMonth, nextMonthStart]);
+  const firstOfMonthBillsTotal = firstOfMonthBillsList.reduce((s, b) => s + b.amount, 0);
+  const estimatedBalanceOn1st =
+    bankBalance + confirmedUpcoming - groomerPayProjected - billsStillToPay;
+  const firstOfMonthGap = firstOfMonthBillsTotal - estimatedBalanceOn1st;
+  const suggestedLoan = firstOfMonthGap > 0 ? Math.ceil(firstOfMonthGap / 100) * 100 : 0;
+  const nextMonthDay1Label = format(nextMonthStart, "d MMMM");
+
   return (
     <Card className="rounded-xl border-2 border-orange-200 bg-orange-50/40 dark:bg-orange-950/10">
       <CardHeader className="p-5 pb-3">
