@@ -14,8 +14,6 @@ import {
   isAfter,
   isBefore,
   differenceInDays,
-  nextSaturday,
-  isSaturday,
 } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -116,12 +114,6 @@ const SalonSummaryCard = () => {
   const nextEndStr = format(nextMonthEnd, "yyyy-MM-dd");
   const monthName = format(today, "MMMM");
   const nextMonthName = format(nextMonth, "MMMM");
-
-  // End of this week (Saturday)
-  const dayIdx = today.getDay(); // 0 Sun ... 6 Sat
-  const daysUntilSat = (6 - dayIdx + 7) % 7;
-  const weekEnd = addDays(todayStart, daysUntilSat);
-  const weekEndStr = format(weekEnd, "yyyy-MM-dd");
 
   const [refreshing, setRefreshing] = useState(false);
 
