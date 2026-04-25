@@ -99,33 +99,26 @@ export function ContractContent({ staff }: { staff: StaffMember }) {
 
       <div className="pt-6 space-y-6 border-t">
         <p className="font-heading font-semibold">Fluff and Scruff Studio</p>
-        <div className="grid grid-cols-2 gap-8">
-          <div className="space-y-2">
-            <p className="text-xs text-muted-foreground">By:</p>
-            <div className="border-b border-dashed h-8" />
-            <p className="text-xs text-muted-foreground">Date: _______________</p>
-            <p className="text-xs text-muted-foreground">Signature: _______________</p>
-          </div>
-          <div className="space-y-2">
-            <p className="text-xs text-muted-foreground">Contractor: {staff.name}</p>
-            {staff.contract_status === "signed" && staff.signed_at ? (
-              <>
-                <p className="text-xs text-muted-foreground">Signature:</p>
-                {(staff as any).contract_signature_data ? (
-                  <img src={(staff as any).contract_signature_data} alt="Signature" className="max-h-16 border rounded bg-white p-1" />
-                ) : (
-                  <p className="text-lg italic font-serif text-foreground">{staff.name}</p>
-                )}
-                <p className="text-xs text-muted-foreground">Date: {format(new Date(staff.signed_at), "PPP 'at' p")}</p>
-                {staff.signed_ip && <p className="text-xs text-muted-foreground">IP: {staff.signed_ip}</p>}
-              </>
-            ) : (
-              <>
-                <p className="text-xs text-muted-foreground">Signature: _______________</p>
-                <p className="text-xs text-muted-foreground">Date: _______________</p>
-              </>
-            )}
-          </div>
+        <p className="text-xs text-muted-foreground">138 Hillview Avenue, Hornchurch RM11 2DL</p>
+        <div className="space-y-2">
+          <p className="text-xs text-muted-foreground">Contractor: {staff.name}</p>
+          {staff.contract_status === "signed" && staff.signed_at ? (
+            <>
+              <p className="text-xs text-muted-foreground">Signature:</p>
+              {(staff as any).contract_signature_data ? (
+                <img src={(staff as any).contract_signature_data} alt="Signature" className="max-h-16 border rounded bg-white p-1" />
+              ) : (
+                <p className="text-lg italic font-serif text-foreground">{staff.name}</p>
+              )}
+              <p className="text-xs text-muted-foreground">Date: {format(new Date(staff.signed_at), "PPP 'at' p")}</p>
+              {staff.signed_ip && <p className="text-xs text-muted-foreground">IP: {staff.signed_ip}</p>}
+            </>
+          ) : (
+            <>
+              <p className="text-xs text-muted-foreground">Signature: _______________</p>
+              <p className="text-xs text-muted-foreground">Date: _______________</p>
+            </>
+          )}
         </div>
       </div>
     </div>
