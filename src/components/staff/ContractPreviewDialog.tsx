@@ -133,9 +133,9 @@ export function ContractPreviewDialog({ staff, open, onOpenChange }: Props) {
     try {
       await downloadDocumentPdf(
         "contract-pdf-content",
-        `${staff.name.replace(/\s+/g, "_")}_Contract.pdf`
+        `${staff.name.replace(/\s+/g, "_")}_Agreement.pdf`
       );
-      toast.success("Contract downloaded");
+      toast.success("Agreement downloaded");
     } catch {
       toast.error("Failed to generate PDF");
     } finally {
@@ -149,7 +149,7 @@ export function ContractPreviewDialog({ staff, open, onOpenChange }: Props) {
         <DialogHeader>
           <div className="flex items-center justify-between gap-2">
             <DialogTitle className="font-heading">
-              Self-Employed Groomer Contract
+              Self-Employed Groomer Agreement
             </DialogTitle>
             <Button size="sm" variant="outline" onClick={handleDownload} disabled={downloading} className="shrink-0">
               {downloading ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Download className="mr-2 h-3.5 w-3.5" />}
