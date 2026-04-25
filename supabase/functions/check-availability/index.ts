@@ -17,7 +17,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { groomer_id, date, start_time, duration_minutes } = await req.json();
+    const { groomer_id, date, start_time, duration_minutes, service_id } = await req.json();
 
     if (!groomer_id || !date || !start_time || !duration_minutes) {
       return new Response(
@@ -72,6 +72,28 @@ Deno.serve(async (req) => {
         JSON.stringify({ available: false, reason: "This groomer is no longer available" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // ── 1b. Check staff_services restriction ──
+    // Rule: a groomer with NO rows in staff_services is treated as able to do
+    // ALL services (safe fallback for legacy groomers). A groomer with at least
+    // one row is restricted to those service_ids only.
+    if (service_id) {
+      const { data: assigned } = await supabase
+        .from("staff_services")
+        .select("service_id")
+        .eq("staff_id", groomer_id);
+      const rows = assigned || [];
+      if (rows.length > 0) {
+        const allowed = rows.some((r: any) => r.service_id === service_id);
+        if (!allowed) {
+          console.log(`[check-availability] BLOCKED: groomer ${staff.name} not assigned to service ${service_id}`);
+          return new Response(
+            JSON.stringify({ available: false, reason: "This groomer does not perform this service" }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      }
     }
 
     // ── 2. Check schedule overrides (blocks / days off) ──
