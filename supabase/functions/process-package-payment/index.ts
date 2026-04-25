@@ -92,9 +92,9 @@ Deno.serve(async (req) => {
     }
 
     // Helper: invoke check-availability for a single session
-    async function isAvailable(staffId: string, date: string, time: string, durationMinutes: number): Promise<{ ok: boolean; reason?: string }> {
+    async function isAvailable(staffId: string, date: string, time: string, durationMinutes: number, serviceId?: string | null): Promise<{ ok: boolean; reason?: string }> {
       const { data, error } = await supabase.functions.invoke("check-availability", {
-        body: { groomer_id: staffId, date, start_time: time, duration_minutes: durationMinutes },
+        body: { groomer_id: staffId, date, start_time: time, duration_minutes: durationMinutes, service_id: serviceId ?? null },
       });
       if (error) return { ok: false, reason: error.message || "availability check failed" };
       if (!data?.available) return { ok: false, reason: data?.reason || "slot unavailable" };
@@ -123,7 +123,7 @@ Deno.serve(async (req) => {
 
       // Final availability re-check (race-condition guard) — should always pass because front-end already filtered
       const dur = durationFor(session.service_type);
-      const avail = await isAvailable(sessionStaffId, session.date, session.time, dur);
+      const avail = await isAvailable(sessionStaffId, session.date, session.time, dur, serviceId);
       if (!avail.ok) {
         console.error(`[process-package-payment] Session ${session.session_number} failed availability re-check: ${avail.reason}. Skipping insert.`);
         continue;
