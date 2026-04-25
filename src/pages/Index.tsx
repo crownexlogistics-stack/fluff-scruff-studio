@@ -699,7 +699,9 @@ const Index = () => {
               </div>
               <p className="text-2xl font-bold font-heading">£{combinedRevenue.toLocaleString()}</p>
               <p className="text-xs text-muted-foreground">£{projectedGross.toLocaleString()} projected upcoming</p>
-              <p className="text-[10px] text-amber-600 mt-1">For accurate figures see Month Forecast below</p>
+              <p className="text-[10px] text-muted-foreground mt-1 leading-snug">
+                Revenue from completed appointments this month. Does not reflect cash timing — see Cash Flow above for actual money received.
+              </p>
               <DeltaBadge current={totalRevenue} previous={prevRevenue} />
             </CardContent>
           </Card>
@@ -715,7 +717,6 @@ const Index = () => {
               <p className="text-xs text-muted-foreground">
                 {completed.length + migratedCompleted.length} completed · {upcomingInPeriod.length} upcoming · {cancelled.length} cancelled
               </p>
-              <p className="text-[10px] text-amber-600 mt-1">For accurate figures see Month Forecast below</p>
               <DeltaBadge current={bookings.length} previous={prevBookings.length} />
             </CardContent>
           </Card>
