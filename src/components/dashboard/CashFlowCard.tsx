@@ -4,15 +4,14 @@ import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, startOfMonth, endOfMonth, formatDistanceToNow } from "date-fns";
-import { RefreshCw, CreditCard, Monitor, Banknote, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { RefreshCw, CreditCard, Monitor, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface CashFlowResponse {
   month_start: string;
   month_end: string;
   stripe: { total: number; count: number; error: string | null };
-  worldpay: { card: number; cash: number; has_data: boolean };
-  salon_cash_collected: number;
+  salon_card: number;
   total_cash: number;
   revenue: number;
   difference: number;
@@ -52,14 +51,14 @@ const CashFlowCard = () => {
   }, [refetch]);
 
   const stripeTotal = data?.stripe.total ?? 0;
-  const worldpayCard = data?.worldpay.card ?? 0;
-  const cashCollected = (data?.worldpay.cash ?? 0) + (data?.salon_cash_collected ?? 0);
+  const salonCard = data?.salon_card ?? 0;
   const totalCash = data?.total_cash ?? 0;
   const revenue = data?.revenue ?? 0;
   const difference = data?.difference ?? 0;
   const billsDue = data?.bills_due_this_month ?? 0;
+  const gap = billsDue - totalCash;
 
-  const cashLessThanBills = totalCash > 0 && billsDue > 0 && totalCash < billsDue;
+  const showWarning = totalCash > 0 && billsDue > 0 && gap > 100;
 
   return (
     <div className="space-y-3">
@@ -96,7 +95,7 @@ const CashFlowCard = () => {
                 <div className="flex items-center justify-between">
                   <span className="flex items-center gap-2">
                     <CreditCard className="h-3.5 w-3.5 text-blue-500" />
-                    Online (Stripe)
+                    Paid online (website &amp; app)
                     {data?.stripe.error && (
                       <span className="text-[10px] text-destructive ml-1">({data.stripe.error})</span>
                     )}
@@ -106,60 +105,44 @@ const CashFlowCard = () => {
                 <div className="flex items-center justify-between">
                   <span className="flex items-center gap-2">
                     <Monitor className="h-3.5 w-3.5 text-purple-500" />
-                    Card machine (Worldpay)
-                    {!data?.worldpay.has_data && (
-                      <span className="text-[10px] text-muted-foreground ml-1">
-                        (upload CSV in Finance › Reconciliation)
-                      </span>
-                    )}
+                    Paid in salon (card machine)
                   </span>
-                  <span className="font-semibold tabular-nums">{fmt(worldpayCard)}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-2">
-                    <Banknote className="h-3.5 w-3.5 text-green-600" />
-                    Cash collected
-                  </span>
-                  <span className="font-semibold tabular-nums">{fmt(cashCollected)}</span>
+                  <span className="font-semibold tabular-nums">{fmt(salonCard)}</span>
                 </div>
                 <div className="border-t pt-2 mt-1 flex items-center justify-between text-base font-bold">
-                  <span>💰 Total cash this month</span>
+                  <span>💰 Total received this month</span>
                   <span className="tabular-nums text-green-600">{fmt(totalCash)}</span>
                 </div>
               </div>
 
+              {/* Explanation */}
+              <p className="text-xs text-muted-foreground pt-1">
+                This is the actual money your salon received in {format(today, "MMMM")} — from customers paying online and paying by card in the salon.
+              </p>
+
               {/* Comparison */}
               <div className="space-y-1 pt-2 border-t text-sm">
-                <div className="flex items-center justify-between text-muted-foreground">
-                  <span>vs Revenue this month</span>
-                  <span className="tabular-nums">{fmt(revenue)}</span>
-                </div>
-                <div className="flex items-center justify-between font-medium">
-                  <span>Difference</span>
-                  <span
-                    className={cn(
-                      "tabular-nums",
-                      difference < 0 ? "text-amber-600" : "text-green-600",
-                    )}
-                  >
-                    {difference >= 0 ? "+" : ""}
-                    {fmt(difference)}
-                  </span>
-                </div>
-                {revenue > 0 && difference < 0 && (
-                  <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">
-                    ⚠️ {fmt(Math.abs(difference))} less collected than revenue — some appointments
-                    were pre-paid in previous months or balances still outstanding.
+                {revenue > 0 && Math.abs(difference) <= 50 && (
+                  <p className="text-xs text-green-700 dark:text-green-400">
+                    ✅ Money collected matches appointments completed this month.
                   </p>
                 )}
-                {revenue > 0 && difference > 0 && (
-                  <p className="text-xs text-green-700 dark:text-green-400 mt-1 flex items-start gap-1">
-                    <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                    More cash collected than revenue this month — includes advance payments for
-                    future bookings.
+                {revenue > 0 && difference > 50 && (
+                  <p className="text-xs text-green-700 dark:text-green-400">
+                    ✅ You collected more money than you earned this month. The extra {fmt(difference)} came from customers paying deposits for future appointments — it will be used next month.
+                  </p>
+                )}
+                {revenue > 0 && difference < -50 && (
+                  <p className="text-xs text-amber-700 dark:text-amber-400">
+                    ⚠️ You earned {fmt(revenue)} from appointments this month but only collected {fmt(totalCash)} so far. {fmt(Math.abs(difference))} is still owed by customers who have been seen but not fully paid.
                   </p>
                 )}
               </div>
+
+              {/* Rent timing note */}
+              <p className="text-xs text-muted-foreground">
+                💡 Note: Your biggest bills (rent etc.) are paid on the 1st of each month from the previous month&apos;s income. This month&apos;s cash will cover next month&apos;s rent.
+              </p>
 
               <p className="text-[10px] text-muted-foreground pt-1">
                 Last updated:{" "}
@@ -172,17 +155,16 @@ const CashFlowCard = () => {
         </CardContent>
       </Card>
 
-      {cashLessThanBills && (
+      {showWarning && (
         <div className="rounded-lg border-2 border-destructive bg-destructive/10 p-4">
           <div className="flex items-start gap-2">
             <AlertTriangle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
             <div className="text-sm">
               <p className="font-semibold text-destructive">
-                🚨 Cash collected ({fmt(totalCash)}) is less than bills due this month (
-                {fmt(billsDue)}).
+                ⚠️ This month&apos;s income ({fmt(totalCash)}) is {fmt(gap)} short of covering this month&apos;s bills ({fmt(billsDue)}).
               </p>
               <p className="text-destructive/90 mt-1">
-                Gap: {fmt(billsDue - totalCash)}. Check bank balance and upcoming commitments.
+                Collecting any outstanding customer balances this week will help cover it.
               </p>
             </div>
           </div>

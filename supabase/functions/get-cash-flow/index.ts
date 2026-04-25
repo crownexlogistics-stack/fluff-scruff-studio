@@ -146,7 +146,6 @@ serve(async (req) => {
     );
 
     let worldpayCard = 0;
-    let worldpayCash = 0;
     let worldpayHasData = false;
     try {
       const { data: runs } = await supabase
@@ -168,16 +167,16 @@ serve(async (req) => {
           if (seenOrderTimes.has(key)) continue;
           seenOrderTimes.add(key);
           worldpayHasData = true;
-          if (r.type === "cash") worldpayCash += r.amount;
-          else worldpayCard += r.amount;
+          worldpayCard += r.amount;
         }
       }
     } catch (_e) {
       // ignore — fall through with zeros
     }
 
-    // ── 3. CASH at checkout from commissions / bookings ───
+    // ── 3. SALON CARD MACHINE from commissions / bookings ───
     // Use commission_records.created_at (when checkout was completed)
+    // This is the card-machine total taken in salon — we do not take cash.
     let salonCashCollected = 0;
     try {
       const { data: comms } = await supabase
@@ -195,6 +194,8 @@ serve(async (req) => {
     } catch (_e) {
       // ignore
     }
+
+    const salonCardTotal = worldpayCard + salonCashCollected;
 
     // ── 4. REVENUE this month (for comparison) ─────
     let revenue = 0;
@@ -252,7 +253,7 @@ serve(async (req) => {
       // ignore
     }
 
-    const totalCash = stripePounds + worldpayCard + worldpayCash + salonCashCollected;
+    const totalCash = stripePounds + salonCardTotal;
 
     return new Response(
       JSON.stringify({
@@ -263,12 +264,7 @@ serve(async (req) => {
           count: stripeCount,
           error: stripeError,
         },
-        worldpay: {
-          card: Math.round(worldpayCard * 100) / 100,
-          cash: Math.round(worldpayCash * 100) / 100,
-          has_data: worldpayHasData,
-        },
-        salon_cash_collected: Math.round(salonCashCollected * 100) / 100,
+        salon_card: Math.round(salonCardTotal * 100) / 100,
         total_cash: Math.round(totalCash * 100) / 100,
         revenue: Math.round(revenue * 100) / 100,
         difference: Math.round((totalCash - revenue) * 100) / 100,
