@@ -39,7 +39,7 @@ export function ContractContent({ staff }: { staff: StaffMember }) {
       </div>
 
       <h2 className="font-heading text-lg font-bold text-center">
-        Contract for Self-Employed Dog Groomer
+        Agreement for Self-Employed Dog Groomer
       </h2>
 
       <p>
