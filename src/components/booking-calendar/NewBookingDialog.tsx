@@ -125,6 +125,18 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
     },
   });
 
+  // Staff <-> Service assignments. Empty rows for a staff_id means "can do all services".
+  const { data: staffServices } = useQuery({
+    queryKey: ["staff-services-newbooking"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("staff_services")
+        .select("staff_id, service_id");
+      if (error) throw error;
+      return data as { staff_id: string; service_id: string }[];
+    },
+  });
+
   const { data: services } = useQuery({
     queryKey: ["services-list-full"],
     queryFn: async () => {
