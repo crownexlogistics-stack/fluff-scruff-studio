@@ -84,6 +84,7 @@ import MonthForecastCard from "@/components/dashboard/MonthForecastCard";
 import { DailyBriefingCard } from "@/components/dashboard/DailyBriefingCard";
 import CashFlowCard from "@/components/dashboard/CashFlowCard";
 import BankDangerBanner from "@/components/dashboard/BankDangerBanner";
+import SalonSummaryCard from "@/components/dashboard/SalonSummaryCard";
 import { usePermissions } from "@/config/rolePermissions";
 
 // ── Types ───────────────────────────────────────────────────
@@ -620,6 +621,9 @@ const Index = () => {
   return (
     <AppLayout>
       <div className="space-y-6 max-w-[1600px] mx-auto">
+        {/* TOP: at-a-glance salon summary — must render first */}
+        <SalonSummaryCard />
+
         {/* Danger banner — only renders when projected balance is negative */}
         <BankDangerBanner />
 

@@ -234,30 +234,25 @@ const MonthForecastCard = () => {
   const confirmedCount = completedBookings.length + upcomingBookings.length
     + migratedCompleted.length + migratedUpcoming.length;
 
-  // Groomer pay from commission records (already checked out)
-  const commissionBookingIds = useMemo(() => new Set(commissions.map((c: any) => c.booking_id).filter(Boolean)), [commissions]);
+  // Groomer pay actually paid this month — read from commission_records.
+  // This is the source of truth: commissions are calculated per booking at
+  // checkout using the correct rate (40% / 50%), so summing groomer_pay is
+  // strictly accurate for completed work.
   const groomerPayPaid = commissions.reduce((s: number, c: any) => s + Number(c.groomer_pay || 0), 0);
+  const groomerPayCompletedEstimate = 0;
 
-  // Estimate groomer pay for past bookings that have NO commission record yet
-  const groomerPayCompletedEstimate = useMemo(() => {
-    return completedBookings
-      .filter((b: any) => !commissionBookingIds.has(b.id))
-      .reduce((s: number, b: any) => {
-        const rate = b.is_groomers_own_customer ? 0.5 : 0.4;
-        return s + Number(b.total_price || 0) * rate;
-      }, 0);
-  }, [completedBookings, commissionBookingIds]);
-
-  // Estimate groomer pay on upcoming bookings (both main + migrated)
+  // Estimate groomer pay on upcoming (not yet completed) bookings.
+  // Use a flat 0.42 conservative blend (slightly above 40% to allow for
+  // own-customer bookings at 50%).
   const groomerPayUpcoming = useMemo(() => {
-    const mainPay = upcomingBookings.reduce((s: number, b: any) => {
-      const rate = b.is_groomers_own_customer ? 0.5 : 0.4;
-      return s + Number(b.total_price || 0) * rate;
-    }, 0);
-    // Migrated bookings don't have is_groomers_own_customer, default to 40%
-    const migratedPay = migratedUpcoming.reduce((s: number, b: any) => {
-      return s + Number(b.total_price || 0) * 0.4;
-    }, 0);
+    const mainPay = upcomingBookings.reduce(
+      (s: number, b: any) => s + Number(b.total_price || 0) * 0.42,
+      0,
+    );
+    const migratedPay = migratedUpcoming.reduce(
+      (s: number, b: any) => s + Number(b.total_price || 0) * 0.42,
+      0,
+    );
     return mainPay + migratedPay;
   }, [upcomingBookings, migratedUpcoming]);
 
