@@ -1066,9 +1066,11 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
       baseSchedules,
       allOverridesForDate || [],
       existingBookingsForDate || [],
-      30
+      30,
+      staffServices,
+      currentServiceRecord?.id ?? null
     );
-  }, [selectedDate, groomers, baseSchedules, allOverridesForDate, existingBookingsForDate, serviceDuration, isExistingCustomer, selectedStaffId]);
+  }, [selectedDate, groomers, baseSchedules, allOverridesForDate, existingBookingsForDate, serviceDuration, isExistingCustomer, selectedStaffId, staffServices, currentServiceRecord?.id]);
 
   // Server-side verification of every slot via check-availability edge function
   useEffect(() => {
