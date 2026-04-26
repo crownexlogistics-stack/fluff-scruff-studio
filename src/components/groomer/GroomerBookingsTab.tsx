@@ -263,9 +263,9 @@ export function GroomerBookingsTab({ staffId, userRole, elevated = false }: Groo
 
   const ownBookings = useMemo(() =>
     bookings
-      .filter(b => b.is_own && !b.is_block)
+      .filter(b => (elevated || b.is_own) && !b.is_block)
       .sort((a, b) => `${a.booking_date}${a.booking_time}`.localeCompare(`${b.booking_date}${b.booking_time}`)),
-    [bookings]
+    [bookings, elevated]
   );
 
   const today = format(new Date(), "yyyy-MM-dd");
@@ -640,7 +640,7 @@ export function GroomerBookingsTab({ staffId, userRole, elevated = false }: Groo
           staff={allStaff}
           bookings={calendarBookings}
           staffIndexMap={staffIndexMap}
-          currentStaffId={staffId}
+          currentStaffId={elevated ? undefined : staffId}
           onBook={handleBook}
           onBlock={handleBlock}
           onOvertime={handleOvertime}
