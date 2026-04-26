@@ -7,12 +7,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Send, Sparkles, Plus, Paperclip, X, Loader2,
   CalendarCheck, AlertTriangle, PoundSterling, Users,
-  Package, BarChart3, UserPlus, ShieldAlert, CreditCard, Trash2,
+  Package, BarChart3, UserPlus, ShieldAlert, Trash2,
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
-import { StripeTransactionsTab } from "@/components/director/StripeTransactionsTab";
 
 const STORAGE_KEY = "director_assistant_messages";
 
@@ -227,10 +226,6 @@ export default function DirectorAssistantPage() {
     localStorage.removeItem(STORAGE_KEY);
   };
 
-  const handleInvestigate = (message: string) => {
-    sendMessage(message);
-  };
-
   return (
     <AppLayout>
       <div className="p-4 md:p-6 h-[calc(100vh-3.5rem)] flex flex-col">
@@ -259,10 +254,6 @@ export default function DirectorAssistantPage() {
             <TabsTrigger value="assistant" className="gap-1.5">
               <Sparkles className="h-3.5 w-3.5" />
               AI Assistant
-            </TabsTrigger>
-            <TabsTrigger value="stripe" className="gap-1.5">
-              <CreditCard className="h-3.5 w-3.5" />
-              Stripe Transactions
             </TabsTrigger>
           </TabsList>
 
@@ -419,10 +410,6 @@ export default function DirectorAssistantPage() {
                 ))}
               </div>
             </div>
-          </TabsContent>
-
-          <TabsContent value="stripe" className="flex-1 min-h-0 mt-0 overflow-y-auto">
-            <StripeTransactionsTab onInvestigate={handleInvestigate} />
           </TabsContent>
         </Tabs>
       </div>
