@@ -31,6 +31,7 @@ import { MyDayWidget } from "@/components/groomer/overview/MyDayWidget";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addWeeks, addMonths } from "date-fns";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useMigratedBookings } from "@/hooks/useMigratedBookings";
+import { useFullCalendarAccess } from "@/hooks/useFullCalendarAccess";
 
 function GroomerFinanceView({ staffId }: { staffId: string }) {
   const [period, setPeriod] = useState<"weekly" | "monthly">("weekly");
@@ -202,6 +203,7 @@ const sectionCards: { id: Section; icon: React.ElementType; title: string; subti
 const GroomerPortalPage = () => {
   const { user } = useAuth();
   const { role: userRole } = useUserRole(user?.id);
+  const { hasFullCalendarAccess } = useFullCalendarAccess(user?.id);
   const [staffId, setStaffId] = useState<string | null>(null);
   const [staffName, setStaffName] = useState("");
   const [loading, setLoading] = useState(true);
@@ -300,8 +302,8 @@ const GroomerPortalPage = () => {
             )}
           </div>
         );
-      case "bookings": return <GroomerBookingsTab staffId={staffId} userRole={userRole} />;
-      case "messages": return <GroomerMessagesTab staffId={staffId} />;
+      case "bookings": return <GroomerBookingsTab staffId={staffId} userRole={userRole} elevated={hasFullCalendarAccess} />;
+      case "messages": return <GroomerMessagesTab staffId={staffId} elevated={hasFullCalendarAccess} />;
       case "breeds": return <GroomerBreedsTab />;
       case "documents": return <GroomerDocumentsTab staffId={staffId} />;
       case "finance": return <GroomerFinanceView staffId={staffId} />;
