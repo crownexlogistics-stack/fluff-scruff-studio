@@ -1,9 +1,8 @@
-import { CalendarDays, MessageSquare, Dog, PoundSterling, FileText, LogOut, PawPrint, Package, ShoppingCart, Sparkles, Inbox, Calendar, Users } from "lucide-react";
+import { CalendarDays, MessageSquare, Dog, PoundSterling, FileText, LogOut, PawPrint, Package, ShoppingCart, Sparkles, Inbox } from "lucide-react";
 import { useNavigate, Link, useLocation } from "react-router-dom";
 import logo from "@/assets/logo-transparent.png";
 import { useAuth } from "@/hooks/useAuth";
 import { useStaffIsCustomer } from "@/hooks/useStaffIsCustomer";
-import { useFullCalendarAccess } from "@/hooks/useFullCalendarAccess";
 import { Button } from "@/components/ui/button";
 
 interface GroomerLayoutProps {
