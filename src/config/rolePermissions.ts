@@ -16,6 +16,7 @@
 
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole, type AppRole } from "@/hooks/useUserRole";
+import { useFullCalendarAccess } from "@/hooks/useFullCalendarAccess";
 
 // ─── Feature permission map per role ────────────────────────────
 
@@ -231,12 +232,20 @@ export const canAccess = (role: string | null | undefined, feature: string): boo
 export function usePermissions() {
   const { user } = useAuth();
   const { role, loading } = useUserRole(user?.id);
+  const { hasFullCalendarAccess, loading: fcaLoading } = useFullCalendarAccess(user?.id);
 
   const r = role as string | null;
+  // A groomer with the per-profile "Full Calendar Access" toggle ON.
+  // This grants elevated calendar / customer / messaging access only —
+  // it does NOT grant any admin / settings / system permissions.
+  const elevatedGroomer = r === "groomer" && hasFullCalendarAccess;
 
   return {
     role: r as AppRole | null,
-    loading,
+    loading: loading || fcaLoading,
+
+    // ── Full Calendar Access flag (per-groomer toggle) ──
+    hasFullCalendarAccess,
 
     // ── Identity checks ──
     isCustomer: r === "customer",
@@ -247,13 +256,13 @@ export function usePermissions() {
     isManagement: r === "manager" || r === "director",
 
     // ── Booking visibility ──
-    canSeeAllBookings: r === "director" || r === "manager",
-    canSeeOwnBookingsOnly: r === "groomer",
-    canEditAnyBooking: r === "director" || r === "manager",
+    canSeeAllBookings: r === "director" || r === "manager" || elevatedGroomer,
+    canSeeOwnBookingsOnly: r === "groomer" && !elevatedGroomer,
+    canEditAnyBooking: r === "director" || r === "manager" || elevatedGroomer,
 
     // ── Customer visibility ──
-    canSeeOtherGroomersDetails: r === "director" || r === "manager",
-    canSeeCustomerPaymentDetails: r === "director" || r === "manager",
+    canSeeOtherGroomersDetails: r === "director" || r === "manager" || elevatedGroomer,
+    canSeeCustomerPaymentDetails: r === "director" || r === "manager" || elevatedGroomer,
     canSearchCustomers: r === "director" || r === "manager" || r === "groomer",
 
     // ── Finance ──
@@ -271,7 +280,10 @@ export function usePermissions() {
     canSeeAuditLogs: r === "director",
 
     // ── Messaging ──
+    // Elevated groomers can message ANY customer, but bulk-broadcast tools
+    // remain manager/director only by design.
     canBulkMessage: r === "director" || r === "manager",
+    canMessageAnyCustomer: r === "director" || r === "manager" || elevatedGroomer,
 
     // ── Migration ──
     canSeeMigration: r === "director" || r === "manager",

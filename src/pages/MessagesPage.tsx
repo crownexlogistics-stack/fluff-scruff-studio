@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useFullCalendarAccess } from "@/hooks/useFullCalendarAccess";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AppLayout } from "@/components/AppLayout";
@@ -22,8 +23,13 @@ type MobilePanel = "list" | "chat" | "info";
 export default function MessagesPage() {
   const { user } = useAuth();
   const { role } = useUserRole(user?.id);
+  const { hasFullCalendarAccess } = useFullCalendarAccess(user?.id);
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
+
+  // Treat groomers with the per-profile "Full Calendar Access" toggle as
+  // elevated for messaging — they see ALL customer threads, not just their own.
+  const groomerScoped = role === "groomer" && !hasFullCalendarAccess;
 
   const { data: profile } = useQuery({
     queryKey: ["my-profile", user?.id],
@@ -49,7 +55,7 @@ export default function MessagesPage() {
         .maybeSingle();
       return data;
     },
-    enabled: !!user?.id && role === "groomer",
+    enabled: !!user?.id && groomerScoped,
   });
 
   // Groomer's staff name for matching migrated bookings
@@ -59,12 +65,12 @@ export default function MessagesPage() {
       const { data } = await supabase.from("staff").select("name").eq("id", myStaff!.id).maybeSingle();
       return data;
     },
-    enabled: !!myStaff?.id && role === "groomer",
+    enabled: !!myStaff?.id && groomerScoped,
   });
 
   // Customer list from bookings + migrated customers
   const { data: rawCustomers } = useQuery({
-    queryKey: ["msg-customers", role, myStaff?.id, myStaffRecord?.name],
+    queryKey: ["msg-customers", role, hasFullCalendarAccess, myStaff?.id, myStaffRecord?.name],
     queryFn: async () => {
       // 1. Fetch from bookings
       let query = supabase
@@ -73,7 +79,7 @@ export default function MessagesPage() {
         .not("customer_phone", "is", null)
         .order("booking_date", { ascending: false });
 
-      if (role === "groomer" && myStaff?.id) {
+      if (groomerScoped && myStaff?.id) {
         query = query.eq("staff_id", myStaff.id);
       }
 
@@ -92,7 +98,7 @@ export default function MessagesPage() {
       });
 
       // 2. Fetch from migrated_customers
-      if (role === "groomer" && myStaffRecord?.name) {
+      if (groomerScoped && myStaffRecord?.name) {
         // For groomers: only migrated customers whose bookings match this groomer's name
         const { data: migratedBookings } = await supabase
           .from("migrated_bookings")
@@ -117,8 +123,8 @@ export default function MessagesPage() {
             }
           });
         }
-      } else if (role !== "groomer") {
-        // For admin/manager: all migrated customers with phone numbers
+      } else if (!groomerScoped) {
+        // For admin/manager AND elevated groomers: all migrated customers
         const { data: migratedCustomers } = await supabase
           .from("migrated_customers")
           .select("full_name, phone, email")
@@ -137,7 +143,7 @@ export default function MessagesPage() {
 
       return Array.from(map.values());
     },
-    enabled: !!role && (role !== "groomer" || (!!myStaff?.id && !!myStaffRecord?.name)),
+    enabled: !!role && (!groomerScoped || (!!myStaff?.id && !!myStaffRecord?.name)),
   });
 
   // Last messages per phone for list preview

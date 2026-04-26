@@ -33,6 +33,7 @@ import { format, parseISO } from "date-fns";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useFullCalendarAccess } from "@/hooks/useFullCalendarAccess";
 import { logAudit } from "@/lib/auditLog";
 import { NewAppointmentDialog } from "@/components/customer-profile/NewAppointmentDialog";
 import { ViewOrderDialog } from "@/components/booking-calendar/ViewOrderDialog";
@@ -43,8 +44,12 @@ export default function CustomerProfilePage() {
   const decodedEmail = decodeURIComponent(email || "");
   const { user } = useAuth();
   const { role } = useUserRole(user?.id);
+  const { hasFullCalendarAccess } = useFullCalendarAccess(user?.id);
   const queryClient = useQueryClient();
   const isGroomer = role === "groomer";
+  // Groomers with the per-profile "Full Calendar Access" toggle ON are
+  // treated like managers for customer visibility & messaging on this page.
+  const isElevatedGroomer = isGroomer && hasFullCalendarAccess;
 
   const [newNote, setNewNote] = useState("");
   const [isEditing, setIsEditing] = useState(false);
@@ -199,7 +204,7 @@ export default function CustomerProfilePage() {
     return mb.staff_name.trim().toLowerCase() === groomerStaff.name.trim().toLowerCase();
   });
 
-  const isOwnCustomer = !isGroomer || hasLiveAssignedAccess || hasWixAssignedAccess;
+  const isOwnCustomer = !isGroomer || isElevatedGroomer || hasLiveAssignedAccess || hasWixAssignedAccess;
   const canManageCustomer = !isGroomer || isOwnCustomer;
 
   const { data: customerUserId } = useQuery({
