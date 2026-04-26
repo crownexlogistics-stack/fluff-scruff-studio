@@ -538,6 +538,51 @@ const StaffDetailPage = () => {
 
                       <Separator />
 
+                      {/* Full Calendar Access — groomers only */}
+                      {(staff as any).role === "groomer" && (
+                        <>
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="flex-1 min-w-0">
+                                <Label className="flex items-center gap-2">
+                                  <CalendarIcon className="h-4 w-4" /> Full Calendar Access
+                                </Label>
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                  When ON, this groomer can see the full salon calendar, view all customers,
+                                  amend / cancel / rebook any appointment, and message any customer in the
+                                  system. When OFF (default), they only see and manage their own appointments
+                                  and customers. The audit trail on every appointment is preserved either way.
+                                </p>
+                              </div>
+                              <Switch
+                                checked={(staff as any).full_calendar_access || false}
+                                onCheckedChange={async (checked) => {
+                                  const { error } = await supabase
+                                    .from("staff")
+                                    .update({ full_calendar_access: checked } as any)
+                                    .eq("id", id!);
+                                  if (error) { toast.error(error.message); return; }
+                                  queryClient.invalidateQueries({ queryKey: ["staff", id] });
+                                  queryClient.invalidateQueries({ queryKey: ["staff-full-calendar-access"] });
+                                  toast.success(
+                                    checked
+                                      ? `Full Calendar Access enabled — ${staff.name} now sees the entire salon calendar ✅`
+                                      : `Full Calendar Access disabled — ${staff.name} now only sees their own appointments`
+                                  );
+                                }}
+                              />
+                            </div>
+                            {(staff as any).full_calendar_access && (
+                              <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/15">
+                                Full Calendar Access ON
+                              </Badge>
+                            )}
+                          </div>
+
+                          <Separator />
+                        </>
+                      )}
+
                       <div className="space-y-3">
                         <div className="flex items-center justify-between">
                           <span className="text-sm font-medium">Contract Status</span>
