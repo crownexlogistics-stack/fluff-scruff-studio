@@ -1,9 +1,8 @@
-import { CalendarDays, MessageSquare, Dog, PoundSterling, FileText, LogOut, PawPrint, Package, ShoppingCart, Sparkles, Inbox, Calendar, Users } from "lucide-react";
+import { CalendarDays, MessageSquare, Dog, PoundSterling, FileText, LogOut, PawPrint, Package, ShoppingCart, Sparkles, Inbox } from "lucide-react";
 import { useNavigate, Link, useLocation } from "react-router-dom";
 import logo from "@/assets/logo-transparent.png";
 import { useAuth } from "@/hooks/useAuth";
 import { useStaffIsCustomer } from "@/hooks/useStaffIsCustomer";
-import { useFullCalendarAccess } from "@/hooks/useFullCalendarAccess";
 import { Button } from "@/components/ui/button";
 
 interface GroomerLayoutProps {
@@ -28,7 +27,6 @@ export function GroomerLayout({ children }: GroomerLayoutProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { hasCustomerBookings } = useStaffIsCustomer(user?.email ?? undefined);
-  const { hasFullCalendarAccess } = useFullCalendarAccess(user?.id);
 
   const handleSignOut = async () => {
     await signOut();
@@ -63,27 +61,9 @@ export function GroomerLayout({ children }: GroomerLayoutProps) {
               {item.title}
             </Link>
           ))}
-          {hasFullCalendarAccess && (
-            <>
-              <div className="pt-3 pb-1 px-3 text-[10px] uppercase tracking-wider text-sidebar-foreground/40">
-                Full Calendar Access
-              </div>
-              <Link
-                to="/bookings"
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${isActive("/bookings") ? "bg-sidebar-accent text-sidebar-primary-foreground font-medium" : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50"}`}
-              >
-                <Calendar className="h-4 w-4" />
-                Full Calendar
-              </Link>
-              <Link
-                to="/messages"
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${location.pathname === "/messages" ? "bg-sidebar-accent text-sidebar-primary-foreground font-medium" : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50"}`}
-              >
-                <Users className="h-4 w-4" />
-                All Customer Messages
-              </Link>
-            </>
-          )}
+          {/* Full Calendar Access is integrated directly into the Bookings
+              and Messages tabs below — no separate sidebar entries are added,
+              so the groomer never sees admin/management navigation. */}
           {hasCustomerBookings && (
             <Link
               to="/my-pets"

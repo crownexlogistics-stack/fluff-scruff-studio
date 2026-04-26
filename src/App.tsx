@@ -147,12 +147,12 @@ const App = () => (
           <Route path="/staff/incidents" element={<ProtectedRoute allowedRoles={["manager", "director"]}><IncidentReportsPage /></ProtectedRoute>} />
           <Route path="/staff/risk-assessments" element={<ProtectedRoute allowedRoles={["manager", "director"]}><RiskAssessmentsPage /></ProtectedRoute>} />
           <Route path="/staff/rules" element={<ProtectedRoute allowedRoles={["manager", "director", "groomer", "volunteer", "work_placement"]}><RulesPage /></ProtectedRoute>} />
-          <Route path="/bookings" element={<ProtectedRoute allowedRoles={["manager", "director"]} allowFullCalendarGroomer><BookingsPage /></ProtectedRoute>} />
+          <Route path="/bookings" element={<ProtectedRoute allowedRoles={["manager", "director"]}><BookingsPage /></ProtectedRoute>} />
           <Route path="/purchase-orders" element={<ProtectedRoute allowedRoles={["manager", "director"]}><PurchaseOrdersPage /></ProtectedRoute>} />
           <Route path="/admin/packages" element={<ProtectedRoute allowedRoles={["manager", "director", "groomer"]}><PackagesPage /></ProtectedRoute>} />
           <Route path="/admin/packages/health" element={<ProtectedRoute allowedRoles={["manager", "director"]}><PackageHealthPage /></ProtectedRoute>} />
           <Route path="/finance" element={<ProtectedRoute allowedRoles={["manager", "director"]}><FinancePage /></ProtectedRoute>} />
-          <Route path="/messages" element={<ProtectedRoute allowedRoles={["manager", "director", "groomer"]}><MessagesPage /></ProtectedRoute>} />
+          <Route path="/messages" element={<ProtectedRoute allowedRoles={["manager", "director"]}><MessagesPage /></ProtectedRoute>} />
           <Route path="/admin/customers/:email" element={<ProtectedRoute allowedRoles={["manager", "director", "groomer"]}><CustomerProfilePage /></ProtectedRoute>} />
           <Route path="/marketing/*" element={<ProtectedRoute allowedRoles={["manager", "director"]}><MarketingPage /></ProtectedRoute>} />
           <Route path="/admin/error-reports" element={<ProtectedRoute allowedRoles={["manager", "director"]}><ErrorReportsPage /></ProtectedRoute>} />

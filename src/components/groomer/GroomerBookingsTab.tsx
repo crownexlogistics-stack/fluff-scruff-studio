@@ -40,11 +40,23 @@ import {
 interface GroomerBookingsTabProps {
   staffId: string;
   userRole?: string | null;
+  /**
+   * When true, this groomer has the per-profile "Full Calendar Access" toggle
+   * enabled. The bookings tab then behaves like the management calendar:
+   * - other groomers' bookings are no longer privacy-masked
+   * - the popover shows full edit/cancel/rebook/checkout actions
+   * - the list view shows ALL appointments, not just their own
+   */
+  elevated?: boolean;
 }
 
 type ViewMode = "1day" | "3day" | "7day" | "list";
 
-export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProps) {
+export function GroomerBookingsTab({ staffId, userRole, elevated = false }: GroomerBookingsTabProps) {
+  // When elevated, treat the groomer as a manager for downstream UI checks
+  // (popover edit actions, calendar privacy mask, etc.) without changing their
+  // actual stored role.
+  const effectiveRole = elevated ? "manager" : userRole;
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const queryClient = useQueryClient();
@@ -251,9 +263,9 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
 
   const ownBookings = useMemo(() =>
     bookings
-      .filter(b => b.is_own && !b.is_block)
+      .filter(b => (elevated || b.is_own) && !b.is_block)
       .sort((a, b) => `${a.booking_date}${a.booking_time}`.localeCompare(`${b.booking_date}${b.booking_time}`)),
-    [bookings]
+    [bookings, elevated]
   );
 
   const today = format(new Date(), "yyyy-MM-dd");
@@ -628,7 +640,7 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
           staff={allStaff}
           bookings={calendarBookings}
           staffIndexMap={staffIndexMap}
-          currentStaffId={staffId}
+          currentStaffId={elevated ? undefined : staffId}
           onBook={handleBook}
           onBlock={handleBlock}
           onOvertime={handleOvertime}
@@ -708,7 +720,7 @@ export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProp
                     <BookingPopoverCard
                       booking={bookingData}
                       staffIndex={sIdx >= 0 ? sIdx : 0}
-                      userRole={userRole}
+                      userRole={effectiveRole}
                       onEditBlock={b.is_block ? (bd) => handleEditBlock(b) : undefined}
                       onCancelBlock={b.is_block ? (bd) => handleCancelBlock(b) : undefined}
                       onViewOrder={(bd) => handleViewOrder(b)}
