@@ -27,7 +27,6 @@ export function GroomerLayout({ children }: GroomerLayoutProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { hasCustomerBookings } = useStaffIsCustomer(user?.email ?? undefined);
-  const { hasFullCalendarAccess } = useFullCalendarAccess(user?.id);
 
   const handleSignOut = async () => {
     await signOut();
