@@ -10,11 +10,17 @@ import type { CustomerContact } from "@/pages/MessagesPage";
 
 interface GroomerMessagesTabProps {
   staffId: string;
+  /**
+   * When true, this groomer has the per-profile "Full Calendar Access"
+   * toggle enabled, so they see ALL salon customer threads — not just the
+   * customers attached to their own bookings.
+   */
+  elevated?: boolean;
 }
 
 type MobilePanel = "list" | "chat" | "info";
 
-export function GroomerMessagesTab({ staffId }: GroomerMessagesTabProps) {
+export function GroomerMessagesTab({ staffId, elevated = false }: GroomerMessagesTabProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
@@ -34,15 +40,18 @@ export function GroomerMessagesTab({ staffId }: GroomerMessagesTabProps) {
 
   // Customers from groomer's bookings + migrated bookings
   const { data: rawCustomers } = useQuery({
-    queryKey: ["groomer-msg-customers", staffId, staffRecord?.name],
+    queryKey: ["groomer-msg-customers", staffId, staffRecord?.name, elevated],
     queryFn: async () => {
-      // 1. From bookings table
-      const { data, error } = await supabase
+      // 1. From bookings table — scope to this groomer unless elevated
+      let bookingsQuery = supabase
         .from("bookings")
         .select("customer_name, customer_phone, customer_email")
-        .eq("staff_id", staffId)
         .not("customer_phone", "is", null)
         .order("booking_date", { ascending: false });
+      if (!elevated) {
+        bookingsQuery = bookingsQuery.eq("staff_id", staffId);
+      }
+      const { data, error } = await bookingsQuery;
       if (error) throw error;
 
       const map = new Map<string, CustomerContact>();
@@ -56,8 +65,22 @@ export function GroomerMessagesTab({ staffId }: GroomerMessagesTabProps) {
         }
       });
 
-      // 2. From migrated_bookings matching this groomer's name
-      if (staffRecord?.name) {
+      // 2. From migrated_bookings — scope to this groomer's name unless elevated
+      if (elevated) {
+        const { data: allMigrated } = await supabase
+          .from("migrated_customers")
+          .select("full_name, phone, email")
+          .not("phone", "is", null);
+        allMigrated?.forEach((mc) => {
+          if (mc.phone && !map.has(mc.phone)) {
+            map.set(mc.phone, {
+              customer_name: mc.full_name || "Unknown",
+              customer_phone: mc.phone,
+              customer_email: mc.email,
+            });
+          }
+        });
+      } else if (staffRecord?.name) {
         const { data: migratedBookings } = await supabase
           .from("migrated_bookings")
           .select("migrated_customer_id")
