@@ -720,7 +720,7 @@ export function GroomerBookingsTab({ staffId, userRole, elevated = false }: Groo
                     <BookingPopoverCard
                       booking={bookingData}
                       staffIndex={sIdx >= 0 ? sIdx : 0}
-                      userRole={userRole}
+                      userRole={effectiveRole}
                       onEditBlock={b.is_block ? (bd) => handleEditBlock(b) : undefined}
                       onCancelBlock={b.is_block ? (bd) => handleCancelBlock(b) : undefined}
                       onViewOrder={(bd) => handleViewOrder(b)}
