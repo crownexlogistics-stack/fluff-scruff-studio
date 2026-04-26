@@ -40,11 +40,23 @@ import {
 interface GroomerBookingsTabProps {
   staffId: string;
   userRole?: string | null;
+  /**
+   * When true, this groomer has the per-profile "Full Calendar Access" toggle
+   * enabled. The bookings tab then behaves like the management calendar:
+   * - other groomers' bookings are no longer privacy-masked
+   * - the popover shows full edit/cancel/rebook/checkout actions
+   * - the list view shows ALL appointments, not just their own
+   */
+  elevated?: boolean;
 }
 
 type ViewMode = "1day" | "3day" | "7day" | "list";
 
-export function GroomerBookingsTab({ staffId, userRole }: GroomerBookingsTabProps) {
+export function GroomerBookingsTab({ staffId, userRole, elevated = false }: GroomerBookingsTabProps) {
+  // When elevated, treat the groomer as a manager for downstream UI checks
+  // (popover edit actions, calendar privacy mask, etc.) without changing their
+  // actual stored role.
+  const effectiveRole = elevated ? "manager" : userRole;
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const queryClient = useQueryClient();
