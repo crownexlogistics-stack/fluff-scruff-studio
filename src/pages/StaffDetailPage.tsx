@@ -539,7 +539,7 @@ const StaffDetailPage = () => {
                       <Separator />
 
                       {/* Full Calendar Access — groomers only */}
-                      {(staff as any).role === "groomer" && (
+                      {((staff as any).role || "").toLowerCase() === "groomer" && (
                         <>
                           <div className="space-y-2">
                             <div className="flex items-center justify-between gap-3">
