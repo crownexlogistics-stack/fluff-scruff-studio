@@ -24,6 +24,7 @@ import ExpensesTab from "@/components/finance/ExpensesTab";
 import AnomaliesTab from "@/components/finance/AnomaliesTab";
 import PayoutHistoryTab from "@/components/finance/PayoutHistoryTab";
 import ReconciliationTab from "@/components/finance/ReconciliationTab";
+import { StripeTransactionsTab } from "@/components/director/StripeTransactionsTab";
 
 type Period = "weekly" | "monthly";
 
@@ -660,6 +661,7 @@ const FinancePage = () => {
             <TabsTrigger value="anomalies">🚨 Anomalies</TabsTrigger>
             <TabsTrigger value="payout-history">💳 Payout History</TabsTrigger>
             <TabsTrigger value="reconciliation">🏦 Reconciliation</TabsTrigger>
+            <TabsTrigger value="stripe-transactions">💳 Stripe Transactions</TabsTrigger>
           </TabsList>
 
           <TabsContent value="payouts" className="space-y-4 mt-4">
@@ -754,6 +756,10 @@ const FinancePage = () => {
 
           <TabsContent value="reconciliation" className="mt-4">
             <ReconciliationTab />
+          </TabsContent>
+
+          <TabsContent value="stripe-transactions" className="mt-4">
+            <StripeTransactionsTab />
           </TabsContent>
         </Tabs>
       </div>
