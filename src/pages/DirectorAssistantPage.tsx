@@ -255,10 +255,6 @@ export default function DirectorAssistantPage() {
               <Sparkles className="h-3.5 w-3.5" />
               AI Assistant
             </TabsTrigger>
-            <TabsTrigger value="stripe" className="gap-1.5">
-              <CreditCard className="h-3.5 w-3.5" />
-              Stripe Transactions
-            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="assistant" className="flex-1 min-h-0 mt-0">
@@ -414,10 +410,6 @@ export default function DirectorAssistantPage() {
                 ))}
               </div>
             </div>
-          </TabsContent>
-
-          <TabsContent value="stripe" className="flex-1 min-h-0 mt-0 overflow-y-auto">
-            <StripeTransactionsTab onInvestigate={handleInvestigate} />
           </TabsContent>
         </Tabs>
       </div>
