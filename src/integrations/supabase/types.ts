@@ -3015,6 +3015,7 @@ export type Database = {
           description: string | null
           email: string | null
           employment_end_date: string | null
+          full_calendar_access: boolean
           hs_signature_data: string | null
           hs_signed_at: string | null
           hs_signed_ip: string | null
@@ -3041,6 +3042,7 @@ export type Database = {
           description?: string | null
           email?: string | null
           employment_end_date?: string | null
+          full_calendar_access?: boolean
           hs_signature_data?: string | null
           hs_signed_at?: string | null
           hs_signed_ip?: string | null
@@ -3067,6 +3069,7 @@ export type Database = {
           description?: string | null
           email?: string | null
           employment_end_date?: string | null
+          full_calendar_access?: boolean
           hs_signature_data?: string | null
           hs_signed_at?: string | null
           hs_signed_ip?: string | null
@@ -3350,6 +3353,7 @@ export type Database = {
         Args: { _customer_user_id: string }
         Returns: boolean
       }
+      has_full_calendar_access: { Args: { _user_id: string }; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
