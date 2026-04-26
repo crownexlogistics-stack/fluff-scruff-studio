@@ -7,12 +7,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Send, Sparkles, Plus, Paperclip, X, Loader2,
   CalendarCheck, AlertTriangle, PoundSterling, Users,
-  Package, BarChart3, UserPlus, ShieldAlert, CreditCard, Trash2,
+  Package, BarChart3, UserPlus, ShieldAlert, Trash2,
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
-import { StripeTransactionsTab } from "@/components/director/StripeTransactionsTab";
 
 const STORAGE_KEY = "director_assistant_messages";
 
@@ -225,10 +224,6 @@ export default function DirectorAssistantPage() {
     setInput("");
     setAttachment(null);
     localStorage.removeItem(STORAGE_KEY);
-  };
-
-  const handleInvestigate = (message: string) => {
-    sendMessage(message);
   };
 
   return (
