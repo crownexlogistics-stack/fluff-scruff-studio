@@ -578,6 +578,9 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
   const serviceDuration = isFixedPrice
     ? (dbService!.duration_minutes ?? 60)
     : (selectedBreed?.duration_minutes ?? 60);
+  const bathBrushDuration = isFixedPrice
+    ? serviceDuration
+    : Math.min(serviceDuration, 60);
   const addOnsTotal = selectedAddOns.reduce((sum, id) => {
     const addon = dbAddOns?.find(a => a.id === id);
     return sum + (addon ? Number(addon.price) : 0);
