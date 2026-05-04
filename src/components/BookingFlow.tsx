@@ -206,6 +206,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
   const [verifyingSlots, setVerifyingSlots] = useState(false);
   const [packagePromptDismissed, setPackagePromptDismissed] = useState(false);
   const [showPackagePopup, setShowPackagePopup] = useState(false);
+  const [bbSuggestionDismissed, setBbSuggestionDismissed] = useState(false);
 
   const effectiveService = puppySwitched ? "Puppy Special" : service;
 
@@ -1142,6 +1143,177 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
   // Use server-verified slots for display; fall back to empty while verifying
   const availableTimeSlots = serverVerifiedSlots ?? [];
 
+  // ─── Earlier Bath & Brush suggestion ─────────────────────────────
+  // Only relevant when the customer is booking a Full Groom.
+  const isFullGroomFlow = serviceType === "Full Groom";
+
+  const { data: bbServiceRecord } = useQuery({
+    queryKey: ["service-record", "Bath & Brush"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("services")
+        .select("id, duration_minutes")
+        .eq("name", "Bath & Brush")
+        .maybeSingle();
+      return data as { id: string; duration_minutes: number | null } | null;
+    },
+    enabled: isFullGroomFlow,
+  });
+
+  // 14-day lookahead window for scanning earlier B&B availability.
+  const lookaheadStart = useMemo(() => {
+    const d = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    d.setDate(d.getDate() + 1);
+    return d;
+  }, [today]);
+  const lookaheadEnd = useMemo(() => {
+    const d = new Date(lookaheadStart);
+    d.setDate(d.getDate() + 14);
+    return d;
+  }, [lookaheadStart]);
+  const fmtDate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+  const { data: lookaheadOverrides } = useQuery({
+    queryKey: ["bb-lookahead-overrides", fmtDate(lookaheadStart), fmtDate(lookaheadEnd)],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("staff_schedule_overrides")
+        .select("staff_id, override_date, start_time, end_time, is_working")
+        .gte("override_date", fmtDate(lookaheadStart))
+        .lte("override_date", fmtDate(lookaheadEnd));
+      if (error) throw error;
+      return (data || []) as ScheduleOverride[];
+    },
+    enabled: isFullGroomFlow,
+  });
+
+  const { data: lookaheadBookings } = useQuery({
+    queryKey: ["bb-lookahead-bookings", fmtDate(lookaheadStart), fmtDate(lookaheadEnd)],
+    queryFn: async () => {
+      const [bookingsRes, migratedRes] = await Promise.all([
+        supabase
+          .from("bookings")
+          .select("booking_date, booking_time, staff_id, duration_minutes, services(duration_minutes), breeds(duration_minutes)")
+          .gte("booking_date", fmtDate(lookaheadStart))
+          .lte("booking_date", fmtDate(lookaheadEnd))
+          .not("status", "in", "(Cancelled,No Show,Refunded)"),
+        supabase
+          .from("migrated_bookings")
+          .select("booking_date, booking_time, staff_name, duration_minutes")
+          .gte("booking_date", fmtDate(lookaheadStart))
+          .lte("booking_date", fmtDate(lookaheadEnd))
+          .eq("is_future_booking", true),
+      ]);
+      const real = (bookingsRes.data || []) as Array<ExistingBooking & { booking_date: string }>;
+      const migrated = (migratedRes.data || [])
+        .map((mb: any) => {
+          const firstName = mb.staff_name?.split(" ")[0]?.toLowerCase() || "";
+          const matched = groomers?.find(g => g.name.split(" ")[0].toLowerCase() === firstName);
+          if (!matched || !mb.booking_time) return null;
+          return {
+            booking_date: mb.booking_date,
+            staff_id: matched.id,
+            booking_time: mb.booking_time,
+            services: { duration_minutes: mb.duration_minutes || 60 },
+          } as ExistingBooking & { booking_date: string };
+        })
+        .filter(Boolean) as Array<ExistingBooking & { booking_date: string }>;
+      return [...real, ...migrated];
+    },
+    enabled: isFullGroomFlow && !!groomers?.length,
+  });
+
+  const earlierBBSuggestion = useMemo(() => {
+    if (!isFullGroomFlow) return null;
+    if (!bbServiceRecord?.id) return null;
+    if (!groomers?.length || !baseSchedules) return null;
+    if (!lookaheadOverrides || !lookaheadBookings) return null;
+    if (isExistingCustomer && selectedStaffId) return null; // customer chose specific groomer
+
+    const bbDuration = bbServiceRecord.duration_minutes ?? 60;
+    // Earliest Full Groom date — for selectedBreed use its duration, otherwise use current serviceDuration.
+    const fgDuration = serviceDuration;
+
+    let earliestFG: string | null = null;
+    let bbHit: { date: string; time: string; groomerName: string } | null = null;
+
+    const cursor = new Date(lookaheadStart);
+    for (let i = 0; i <= 14; i++) {
+      const dateStr = fmtDate(cursor);
+      const overridesForDay = lookaheadOverrides.filter(o => o.override_date === dateStr);
+      const bookingsForDay = lookaheadBookings.filter(b => (b as any).booking_date === dateStr);
+
+      // Check Full Groom availability
+      if (!earliestFG) {
+        const fgSlots = generateAvailableSlots(
+          cursor,
+          fgDuration,
+          groomers,
+          baseSchedules,
+          overridesForDay,
+          bookingsForDay,
+          30,
+          staffServices,
+          currentServiceRecord?.id ?? null,
+        );
+        if (fgSlots.length > 0) earliestFG = dateStr;
+      }
+
+      // Check Bath & Brush availability (only if we haven't found an earlier hit)
+      if (!bbHit) {
+        const bbSlots = generateAvailableSlots(
+          cursor,
+          bbDuration,
+          groomers,
+          baseSchedules,
+          overridesForDay,
+          bookingsForDay,
+          30,
+          staffServices,
+          bbServiceRecord.id,
+        );
+        if (bbSlots.length > 0) {
+          // Find which groomer is free for that first slot
+          const g = findFreeGroomer(
+            bbSlots[0],
+            bbDuration,
+            cursor,
+            groomers,
+            baseSchedules,
+            overridesForDay,
+            bookingsForDay,
+            staffServices,
+            bbServiceRecord.id,
+          );
+          bbHit = { date: dateStr, time: bbSlots[0], groomerName: g?.name || "one of our groomers" };
+        }
+      }
+
+      if (earliestFG && bbHit) break;
+      cursor.setDate(cursor.getDate() + 1);
+    }
+
+    if (!bbHit || !earliestFG) return null;
+    // Only suggest if B&B is at least 2 days earlier than Full Groom.
+    const fg = new Date(earliestFG + "T00:00:00").getTime();
+    const bb = new Date(bbHit.date + "T00:00:00").getTime();
+    const diffDays = Math.round((fg - bb) / 86_400_000);
+    if (diffDays < 2) return null;
+    return { ...bbHit, fullGroomDate: earliestFG, daysSooner: diffDays };
+  }, [isFullGroomFlow, bbServiceRecord, groomers, baseSchedules, lookaheadOverrides, lookaheadBookings, isExistingCustomer, selectedStaffId, serviceDuration, staffServices, currentServiceRecord?.id, lookaheadStart]);
+
+  const handleSwitchToBathBrush = () => {
+    if (!earlierBBSuggestion) return;
+    setSelectedSub("Bath & Brush");
+    setSelectedDate(earlierBBSuggestion.date);
+    setSelectedTime(null);
+    // Jump calendar week to the suggested date if needed
+    const suggested = new Date(earlierBBSuggestion.date + "T00:00:00");
+    const monday = getMonday(suggested);
+    setWeekStart(monday);
+    toast.success(`Switched to Bath & Brush — pick your time on ${earlierBBSuggestion.date}`);
+  };
+
   const isDateSelectableDate = (d: Date) => {
     const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     if (d <= todayStart) return false;
@@ -1495,6 +1667,62 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
             {/* Calendar + time slots */}
             {step === "calendar" && (
               <div className="max-w-lg mx-auto">
+                {/* Earlier Bath & Brush suggestion (Full Groom only) */}
+                {isFullGroomFlow && earlierBBSuggestion && !bbSuggestionDismissed && (
+                  <div className="px-5 mb-4">
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.35 }}
+                      className="relative bg-card border-2 border-accent/60 p-4 space-y-3 shadow-md"
+                      style={{ borderRadius: '20px' }}
+                    >
+                      <button
+                        onClick={() => setBbSuggestionDismissed(true)}
+                        className="absolute top-2 right-2 p-1 text-muted-foreground hover:text-foreground transition-colors"
+                        aria-label="Dismiss"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-accent text-white text-[0.65rem] font-bold uppercase tracking-wide font-body" style={{ borderRadius: '999px' }}>
+                        🛁 Different service
+                      </div>
+                      <div>
+                        <p className="font-heading text-base text-foreground leading-snug pr-6">
+                          Earlier opening — but it's a <span className="text-accent">Bath &amp; Brush</span>, not a Full Groom
+                        </p>
+                      </div>
+                      <div className="font-body text-sm text-foreground/90 space-y-2 leading-relaxed">
+                        <p>
+                          The next <strong>Full Groom</strong> we have is <strong>{formatSelectedDate(earlierBBSuggestion.fullGroomDate)}</strong>.
+                        </p>
+                        <p>
+                          We do have a <strong>Bath &amp; Brush</strong> available <strong>{earlierBBSuggestion.daysSooner} day{earlierBBSuggestion.daysSooner === 1 ? "" : "s"} sooner</strong> — on <strong>{formatSelectedDate(earlierBBSuggestion.date)} at {earlierBBSuggestion.time}</strong> with {earlierBBSuggestion.groomerName}.
+                        </p>
+                        <p className="text-xs text-muted-foreground bg-muted/40 p-2.5" style={{ borderRadius: '12px' }}>
+                          ℹ️ A Bath &amp; Brush is a wash, blow-dry and brush-out. It does <strong>not</strong> include a haircut, scissor work or styling.
+                        </p>
+                      </div>
+                      <div className="flex flex-col sm:flex-row gap-2 pt-1">
+                        <button
+                          onClick={handleSwitchToBathBrush}
+                          className="font-body font-bold text-xs px-4 py-2.5 bg-accent text-white hover:bg-accent/90 transition-all active:scale-[0.97]"
+                          style={{ borderRadius: '30px' }}
+                        >
+                          Switch to Bath &amp; Brush
+                        </button>
+                        <button
+                          onClick={() => setBbSuggestionDismissed(true)}
+                          className="font-body font-semibold text-xs px-4 py-2.5 bg-muted text-muted-foreground hover:bg-muted/80 transition-all active:scale-[0.97]"
+                          style={{ borderRadius: '30px' }}
+                        >
+                          No thanks, keep Full Groom
+                        </button>
+                      </div>
+                    </motion.div>
+                  </div>
+                )}
+
                 {/* Sticky service summary with puppy pop effect */}
                 <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-xl px-5 pt-5 pb-3">
                   <div className="rounded-2xl bg-card border border-border/40 p-4 flex items-center gap-3 shadow-sm">
