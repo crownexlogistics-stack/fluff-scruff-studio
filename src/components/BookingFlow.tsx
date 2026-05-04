@@ -1228,80 +1228,77 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
     enabled: isFullGroomFlow && !!groomers?.length,
   });
 
-  const earlierBBSuggestion = useMemo(() => {
-    if (!isFullGroomFlow) return null;
-    if (!bbServiceRecord?.id || !currentServiceRecord?.id) return null;
-    if (!groomers?.length || !baseSchedules) return null;
-    if (!lookaheadOverrides || !lookaheadBookings) return null;
-    if (isExistingCustomer && selectedStaffId) return null; // customer chose specific groomer
+  const { data: earlierBBSuggestion } = useQuery({
+    queryKey: ["verified-earlier-bb-suggestion", selectedBreed?.id, serviceDuration, bathBrushDuration, currentServiceRecord?.id, bbServiceRecord?.id, fmtDate(lookaheadStart), fmtDate(lookaheadEnd), isExistingCustomer, selectedStaffId],
+    queryFn: async () => {
+      if (!isFullGroomFlow) return null;
+      if (!bbServiceRecord?.id || !currentServiceRecord?.id) return null;
+      if (!groomers?.length || !baseSchedules || !staffServices) return null;
+      if (!lookaheadOverrides || !lookaheadBookings) return null;
+      if (isExistingCustomer && selectedStaffId) return null; // customer chose specific groomer
 
-    const bbDuration = bbServiceRecord.duration_minutes ?? 60;
-    const fgDuration = serviceDuration;
+      const fgGroomers = filterGroomersByService(groomers, currentServiceRecord.id, staffServices);
+      const bbGroomers = filterGroomersByService(groomers, bbServiceRecord.id, staffServices);
+      const fgGroomerIds = new Set(fgGroomers.map(g => g.id));
+      const bbOnlyGroomers = bbGroomers.filter(g => !fgGroomerIds.has(g.id));
+      if (!fgGroomers.length || !bbOnlyGroomers.length) return null;
 
-    let bbCandidate: { date: string; time: string; groomerName: string } | null = null;
-    const cursor = new Date(lookaheadStart);
-
-    for (let i = 0; i <= 14; i++) {
-      const dateStr = fmtDate(cursor);
-      const overridesForDay = lookaheadOverrides.filter(o => o.override_date === dateStr);
-      const bookingsForDay = lookaheadBookings.filter(b => (b as any).booking_date === dateStr);
-
-      // Does Full Groom fit today? If yes, stop — earliest FG day found.
-      const fgSlots = generateAvailableSlots(
-        cursor,
-        fgDuration,
-        groomers,
-        baseSchedules,
-        overridesForDay,
-        bookingsForDay,
-        30,
-        staffServices,
-        currentServiceRecord.id,
-      );
-      if (fgSlots.length > 0) {
-        if (!bbCandidate) return null; // FG available today/sooner — nothing earlier to suggest
-        const diff = Math.round(
-          (new Date(dateStr + "T00:00:00").getTime() -
-           new Date(bbCandidate.date + "T00:00:00").getTime()) / 86_400_000
-        );
-        if (diff < 1) return null;
-        return { ...bbCandidate, fullGroomDate: dateStr, daysSooner: diff };
-      }
-
-      // No FG today — capture earliest B&B option if not already captured
-      if (!bbCandidate) {
-        const bbSlots = generateAvailableSlots(
-          cursor,
-          bbDuration,
-          groomers,
-          baseSchedules,
-          overridesForDay,
-          bookingsForDay,
-          30,
-          staffServices,
-          bbServiceRecord.id,
-        );
-        if (bbSlots.length > 0) {
-          const g = findFreeGroomer(
-            bbSlots[0],
-            bbDuration,
-            cursor,
-            groomers,
-            baseSchedules,
-            overridesForDay,
-            bookingsForDay,
-            staffServices,
-            bbServiceRecord.id,
-          );
-          bbCandidate = { date: dateStr, time: bbSlots[0], groomerName: g?.name || "one of our groomers" };
+      const findVerifiedSlot = async (
+        dateStr: string,
+        slots: string[],
+        eligibleGroomers: typeof groomers,
+        duration: number,
+        serviceId: string,
+      ) => {
+        for (const time of slots) {
+          const results = await Promise.all(eligibleGroomers.map(async (g) => {
+            try {
+              const { data } = await supabase.functions.invoke("check-availability", {
+                body: { groomer_id: g.id, date: dateStr, start_time: time, duration_minutes: duration, service_id: serviceId },
+              });
+              return data?.available ? g : null;
+            } catch {
+              return null;
+            }
+          }));
+          const groomer = results.find(Boolean);
+          if (groomer) return { time, groomer };
         }
+        return null;
+      };
+
+      let bbCandidate: { date: string; time: string; groomerName: string } | null = null;
+      const cursor = new Date(lookaheadStart);
+
+      for (let i = 0; i <= 14; i++) {
+        const dateStr = fmtDate(cursor);
+        const overridesForDay = lookaheadOverrides.filter(o => o.override_date === dateStr);
+        const bookingsForDay = lookaheadBookings.filter(b => (b as any).booking_date === dateStr);
+
+        const fgSlots = generateAvailableSlots(cursor, serviceDuration, fgGroomers, baseSchedules, overridesForDay, bookingsForDay, 30, staffServices, currentServiceRecord.id);
+        const verifiedFg = await findVerifiedSlot(dateStr, fgSlots, fgGroomers, serviceDuration, currentServiceRecord.id);
+        if (verifiedFg) {
+          if (!bbCandidate) return null;
+          const diff = Math.round((new Date(dateStr + "T00:00:00").getTime() - new Date(bbCandidate.date + "T00:00:00").getTime()) / 86_400_000);
+          return diff >= 1 ? { ...bbCandidate, fullGroomDate: dateStr, daysSooner: diff } : null;
+        }
+
+        if (!bbCandidate) {
+          const bbSlots = generateAvailableSlots(cursor, bathBrushDuration, bbOnlyGroomers, baseSchedules, overridesForDay, bookingsForDay, 30, staffServices, bbServiceRecord.id);
+          const verifiedBb = await findVerifiedSlot(dateStr, bbSlots, bbOnlyGroomers, bathBrushDuration, bbServiceRecord.id);
+          if (verifiedBb) {
+            bbCandidate = { date: dateStr, time: verifiedBb.time, groomerName: verifiedBb.groomer.name || "one of our groomers" };
+          }
+        }
+
+        cursor.setDate(cursor.getDate() + 1);
       }
 
-      cursor.setDate(cursor.getDate() + 1);
-    }
-
-    return null;
-  }, [isFullGroomFlow, bbServiceRecord, groomers, baseSchedules, lookaheadOverrides, lookaheadBookings, isExistingCustomer, selectedStaffId, serviceDuration, staffServices, currentServiceRecord?.id, lookaheadStart]);
+      return null;
+    },
+    enabled: isFullGroomFlow && !!bbServiceRecord?.id && !!currentServiceRecord?.id && !!groomers?.length && !!baseSchedules && !!staffServices && !!lookaheadOverrides && !!lookaheadBookings && !(isExistingCustomer && selectedStaffId),
+    staleTime: 30_000,
+  });
 
   const handleSwitchToBathBrush = () => {
     if (!earlierBBSuggestion) return;
