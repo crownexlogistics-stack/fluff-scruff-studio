@@ -1225,42 +1225,46 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
 
   const earlierBBSuggestion = useMemo(() => {
     if (!isFullGroomFlow) return null;
-    if (!bbServiceRecord?.id) return null;
+    if (!bbServiceRecord?.id || !currentServiceRecord?.id) return null;
     if (!groomers?.length || !baseSchedules) return null;
     if (!lookaheadOverrides || !lookaheadBookings) return null;
     if (isExistingCustomer && selectedStaffId) return null; // customer chose specific groomer
 
     const bbDuration = bbServiceRecord.duration_minutes ?? 60;
-    // Earliest Full Groom date — for selectedBreed use its duration, otherwise use current serviceDuration.
     const fgDuration = serviceDuration;
 
-    let earliestFG: string | null = null;
-    let bbHit: { date: string; time: string; groomerName: string } | null = null;
-
+    let bbCandidate: { date: string; time: string; groomerName: string } | null = null;
     const cursor = new Date(lookaheadStart);
+
     for (let i = 0; i <= 14; i++) {
       const dateStr = fmtDate(cursor);
       const overridesForDay = lookaheadOverrides.filter(o => o.override_date === dateStr);
       const bookingsForDay = lookaheadBookings.filter(b => (b as any).booking_date === dateStr);
 
-      // Check Full Groom availability
-      if (!earliestFG) {
-        const fgSlots = generateAvailableSlots(
-          cursor,
-          fgDuration,
-          groomers,
-          baseSchedules,
-          overridesForDay,
-          bookingsForDay,
-          30,
-          staffServices,
-          currentServiceRecord?.id ?? null,
+      // Does Full Groom fit today? If yes, stop — earliest FG day found.
+      const fgSlots = generateAvailableSlots(
+        cursor,
+        fgDuration,
+        groomers,
+        baseSchedules,
+        overridesForDay,
+        bookingsForDay,
+        30,
+        staffServices,
+        currentServiceRecord.id,
+      );
+      if (fgSlots.length > 0) {
+        if (!bbCandidate) return null; // FG available today/sooner — nothing earlier to suggest
+        const diff = Math.round(
+          (new Date(dateStr + "T00:00:00").getTime() -
+           new Date(bbCandidate.date + "T00:00:00").getTime()) / 86_400_000
         );
-        if (fgSlots.length > 0) earliestFG = dateStr;
+        if (diff < 1) return null;
+        return { ...bbCandidate, fullGroomDate: dateStr, daysSooner: diff };
       }
 
-      // Check Bath & Brush availability (only if we haven't found an earlier hit)
-      if (!bbHit) {
+      // No FG today — capture earliest B&B option if not already captured
+      if (!bbCandidate) {
         const bbSlots = generateAvailableSlots(
           cursor,
           bbDuration,
@@ -1273,7 +1277,6 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
           bbServiceRecord.id,
         );
         if (bbSlots.length > 0) {
-          // Find which groomer is free for that first slot
           const g = findFreeGroomer(
             bbSlots[0],
             bbDuration,
@@ -1285,21 +1288,14 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
             staffServices,
             bbServiceRecord.id,
           );
-          bbHit = { date: dateStr, time: bbSlots[0], groomerName: g?.name || "one of our groomers" };
+          bbCandidate = { date: dateStr, time: bbSlots[0], groomerName: g?.name || "one of our groomers" };
         }
       }
 
-      if (earliestFG && bbHit) break;
       cursor.setDate(cursor.getDate() + 1);
     }
 
-    if (!bbHit || !earliestFG) return null;
-    // Only suggest if B&B is at least 2 days earlier than Full Groom.
-    const fg = new Date(earliestFG + "T00:00:00").getTime();
-    const bb = new Date(bbHit.date + "T00:00:00").getTime();
-    const diffDays = Math.round((fg - bb) / 86_400_000);
-    if (diffDays < 2) return null;
-    return { ...bbHit, fullGroomDate: earliestFG, daysSooner: diffDays };
+    return null;
   }, [isFullGroomFlow, bbServiceRecord, groomers, baseSchedules, lookaheadOverrides, lookaheadBookings, isExistingCustomer, selectedStaffId, serviceDuration, staffServices, currentServiceRecord?.id, lookaheadStart]);
 
   const handleSwitchToBathBrush = () => {
