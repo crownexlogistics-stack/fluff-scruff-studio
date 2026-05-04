@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ArrowLeft, Search, Dog, ChevronRight, PawPrint, Save, Move, Sparkles, Check, ChevronLeft, Calendar, Info, X, Lock, Ticket } from "lucide-react";
-import { generateAvailableSlots, dateHasAnyAvailability, findFreeGroomer, parseTimeToMinutes } from "@/lib/availability";
+import { generateAvailableSlots, dateHasAnyAvailability, findFreeGroomer, parseTimeToMinutes, filterGroomersByService } from "@/lib/availability";
 import type { StaffAvailability, ScheduleOverride, ExistingBooking, Groomer } from "@/lib/availability";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -578,6 +578,9 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
   const serviceDuration = isFixedPrice
     ? (dbService!.duration_minutes ?? 60)
     : (selectedBreed?.duration_minutes ?? 60);
+  const bathBrushDuration = isFixedPrice
+    ? serviceDuration
+    : Math.min(serviceDuration, 60);
   const addOnsTotal = selectedAddOns.reduce((sum, id) => {
     const addon = dbAddOns?.find(a => a.id === id);
     return sum + (addon ? Number(addon.price) : 0);
@@ -773,6 +776,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
     }
 
     let assignedStaffId: string | null = null;
+    const bookingDuration = serviceType === "Bath & Brush" ? bathBrushDuration : serviceDuration;
 
     // ALWAYS re-fetch fresh data at submission time to prevent double-bookings
     if (groomers && groomers.length > 0 && baseSchedules) {
@@ -814,7 +818,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
       if (isExistingCustomer && selectedStaffId) {
         // Customer selected a specific groomer — verify THAT groomer is still free
         const slotStart = parseTimeToMinutes(selectedTime!);
-        const slotEnd = slotStart + serviceDuration;
+        const slotEnd = slotStart + bookingDuration;
 
         // Check the selected groomer has no booking conflict at this time
 
@@ -837,7 +841,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
         // No preference — find any free groomer by priority
         const freeGroomer = findFreeGroomer(
           selectedTime!,
-          serviceDuration,
+          bookingDuration,
           bookingDate,
           groomers,
           baseSchedules,
@@ -858,14 +862,14 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
     }
 
     // ── Server-side availability check via edge function ──
-    console.log(`[booking] Server-side availability check: groomer=${assignedStaffId} date=${selectedDate} time=${selectedTime} duration=${serviceDuration}`);
+    console.log(`[booking] Server-side availability check: groomer=${assignedStaffId} date=${selectedDate} time=${selectedTime} duration=${bookingDuration}`);
     try {
       const { data: availCheck, error: availErr } = await supabase.functions.invoke("check-availability", {
         body: {
           groomer_id: assignedStaffId,
           date: selectedDate,
           start_time: selectedTime,
-          duration_minutes: serviceDuration,
+          duration_minutes: bookingDuration,
           service_id: currentServiceRecord?.id ?? null,
         },
       });
@@ -900,7 +904,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
       booking_time: selectedTime!,
       total_price: totalPrice,
       deposit_paid: 0,
-      duration_minutes: serviceDuration,
+      duration_minutes: bookingDuration,
       notes: guestForm.notes.trim() || null,
       status: "Pending",
       campaign_id: utmCampaignId,
@@ -1061,11 +1065,12 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
     const groomersForSlots = (isExistingCustomer && selectedStaffId)
       ? groomers.filter(g => g.id === selectedStaffId)
       : groomers;
+    const serviceDurationForSlots = serviceType === "Bath & Brush" ? bathBrushDuration : serviceDuration;
     if (!groomersForSlots.length) return [];
-    console.log(`[availability] Generating slots: duration=${serviceDuration}min, groomers=${groomersForSlots.length}, bookings=${(existingBookingsForDate || []).length}`);
+    console.log(`[availability] Generating slots: duration=${serviceDurationForSlots}min, groomers=${groomersForSlots.length}, bookings=${(existingBookingsForDate || []).length}`);
     return generateAvailableSlots(
       date,
-      serviceDuration,
+      serviceDurationForSlots,
       groomersForSlots,
       baseSchedules,
       allOverridesForDate || [],
@@ -1074,7 +1079,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
       staffServices,
       currentServiceRecord?.id ?? null
     );
-  }, [selectedDate, groomers, baseSchedules, allOverridesForDate, existingBookingsForDate, serviceDuration, isExistingCustomer, selectedStaffId, staffServices, currentServiceRecord?.id]);
+  }, [selectedDate, groomers, baseSchedules, allOverridesForDate, existingBookingsForDate, serviceDuration, bathBrushDuration, serviceType, isExistingCustomer, selectedStaffId, staffServices, currentServiceRecord?.id]);
 
   // Server-side verification of every slot via check-availability edge function
   useEffect(() => {
@@ -1113,7 +1118,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
                   groomer_id: gid,
                   date: selectedDate,
                   start_time: time,
-                  duration_minutes: serviceDuration,
+                  duration_minutes: serviceType === "Bath & Brush" ? bathBrushDuration : serviceDuration,
                   service_id: currentServiceRecord?.id ?? null,
                 },
               });
@@ -1138,7 +1143,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
     })();
 
     return () => { cancelled = true; };
-  }, [clientSideSlots, selectedDate, serviceDuration, groomers, isExistingCustomer, selectedStaffId]);
+  }, [clientSideSlots, selectedDate, serviceDuration, bathBrushDuration, serviceType, groomers, isExistingCustomer, selectedStaffId, currentServiceRecord?.id]);
 
   // Use server-verified slots for display; fall back to empty while verifying
   const availableTimeSlots = serverVerifiedSlots ?? [];
@@ -1223,80 +1228,77 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
     enabled: isFullGroomFlow && !!groomers?.length,
   });
 
-  const earlierBBSuggestion = useMemo(() => {
-    if (!isFullGroomFlow) return null;
-    if (!bbServiceRecord?.id || !currentServiceRecord?.id) return null;
-    if (!groomers?.length || !baseSchedules) return null;
-    if (!lookaheadOverrides || !lookaheadBookings) return null;
-    if (isExistingCustomer && selectedStaffId) return null; // customer chose specific groomer
+  const { data: earlierBBSuggestion } = useQuery({
+    queryKey: ["verified-earlier-bb-suggestion", selectedBreed?.id, serviceDuration, bathBrushDuration, currentServiceRecord?.id, bbServiceRecord?.id, fmtDate(lookaheadStart), fmtDate(lookaheadEnd), isExistingCustomer, selectedStaffId],
+    queryFn: async () => {
+      if (!isFullGroomFlow) return null;
+      if (!bbServiceRecord?.id || !currentServiceRecord?.id) return null;
+      if (!groomers?.length || !baseSchedules || !staffServices) return null;
+      if (!lookaheadOverrides || !lookaheadBookings) return null;
+      if (isExistingCustomer && selectedStaffId) return null; // customer chose specific groomer
 
-    const bbDuration = bbServiceRecord.duration_minutes ?? 60;
-    const fgDuration = serviceDuration;
+      const fgGroomers = filterGroomersByService(groomers, currentServiceRecord.id, staffServices);
+      const bbGroomers = filterGroomersByService(groomers, bbServiceRecord.id, staffServices);
+      const fgGroomerIds = new Set(fgGroomers.map(g => g.id));
+      const bbOnlyGroomers = bbGroomers.filter(g => !fgGroomerIds.has(g.id));
+      if (!fgGroomers.length || !bbOnlyGroomers.length) return null;
 
-    let bbCandidate: { date: string; time: string; groomerName: string } | null = null;
-    const cursor = new Date(lookaheadStart);
-
-    for (let i = 0; i <= 14; i++) {
-      const dateStr = fmtDate(cursor);
-      const overridesForDay = lookaheadOverrides.filter(o => o.override_date === dateStr);
-      const bookingsForDay = lookaheadBookings.filter(b => (b as any).booking_date === dateStr);
-
-      // Does Full Groom fit today? If yes, stop — earliest FG day found.
-      const fgSlots = generateAvailableSlots(
-        cursor,
-        fgDuration,
-        groomers,
-        baseSchedules,
-        overridesForDay,
-        bookingsForDay,
-        30,
-        staffServices,
-        currentServiceRecord.id,
-      );
-      if (fgSlots.length > 0) {
-        if (!bbCandidate) return null; // FG available today/sooner — nothing earlier to suggest
-        const diff = Math.round(
-          (new Date(dateStr + "T00:00:00").getTime() -
-           new Date(bbCandidate.date + "T00:00:00").getTime()) / 86_400_000
-        );
-        if (diff < 1) return null;
-        return { ...bbCandidate, fullGroomDate: dateStr, daysSooner: diff };
-      }
-
-      // No FG today — capture earliest B&B option if not already captured
-      if (!bbCandidate) {
-        const bbSlots = generateAvailableSlots(
-          cursor,
-          bbDuration,
-          groomers,
-          baseSchedules,
-          overridesForDay,
-          bookingsForDay,
-          30,
-          staffServices,
-          bbServiceRecord.id,
-        );
-        if (bbSlots.length > 0) {
-          const g = findFreeGroomer(
-            bbSlots[0],
-            bbDuration,
-            cursor,
-            groomers,
-            baseSchedules,
-            overridesForDay,
-            bookingsForDay,
-            staffServices,
-            bbServiceRecord.id,
-          );
-          bbCandidate = { date: dateStr, time: bbSlots[0], groomerName: g?.name || "one of our groomers" };
+      const findVerifiedSlot = async (
+        dateStr: string,
+        slots: string[],
+        eligibleGroomers: typeof groomers,
+        duration: number,
+        serviceId: string,
+      ) => {
+        for (const time of slots) {
+          const results = await Promise.all(eligibleGroomers.map(async (g) => {
+            try {
+              const { data } = await supabase.functions.invoke("check-availability", {
+                body: { groomer_id: g.id, date: dateStr, start_time: time, duration_minutes: duration, service_id: serviceId },
+              });
+              return data?.available ? g : null;
+            } catch {
+              return null;
+            }
+          }));
+          const groomer = results.find(Boolean);
+          if (groomer) return { time, groomer };
         }
+        return null;
+      };
+
+      let bbCandidate: { date: string; time: string; groomerName: string } | null = null;
+      const cursor = new Date(lookaheadStart);
+
+      for (let i = 0; i <= 14; i++) {
+        const dateStr = fmtDate(cursor);
+        const overridesForDay = lookaheadOverrides.filter(o => o.override_date === dateStr);
+        const bookingsForDay = lookaheadBookings.filter(b => (b as any).booking_date === dateStr);
+
+        const fgSlots = generateAvailableSlots(cursor, serviceDuration, fgGroomers, baseSchedules, overridesForDay, bookingsForDay, 30, staffServices, currentServiceRecord.id);
+        const verifiedFg = await findVerifiedSlot(dateStr, fgSlots, fgGroomers, serviceDuration, currentServiceRecord.id);
+        if (verifiedFg) {
+          if (!bbCandidate) return null;
+          const diff = Math.round((new Date(dateStr + "T00:00:00").getTime() - new Date(bbCandidate.date + "T00:00:00").getTime()) / 86_400_000);
+          return diff >= 1 ? { ...bbCandidate, fullGroomDate: dateStr, daysSooner: diff } : null;
+        }
+
+        if (!bbCandidate) {
+          const bbSlots = generateAvailableSlots(cursor, bathBrushDuration, bbOnlyGroomers, baseSchedules, overridesForDay, bookingsForDay, 30, staffServices, bbServiceRecord.id);
+          const verifiedBb = await findVerifiedSlot(dateStr, bbSlots, bbOnlyGroomers, bathBrushDuration, bbServiceRecord.id);
+          if (verifiedBb) {
+            bbCandidate = { date: dateStr, time: verifiedBb.time, groomerName: verifiedBb.groomer.name || "one of our groomers" };
+          }
+        }
+
+        cursor.setDate(cursor.getDate() + 1);
       }
 
-      cursor.setDate(cursor.getDate() + 1);
-    }
-
-    return null;
-  }, [isFullGroomFlow, bbServiceRecord, groomers, baseSchedules, lookaheadOverrides, lookaheadBookings, isExistingCustomer, selectedStaffId, serviceDuration, staffServices, currentServiceRecord?.id, lookaheadStart]);
+      return null;
+    },
+    enabled: isFullGroomFlow && !!bbServiceRecord?.id && !!currentServiceRecord?.id && !!groomers?.length && !!baseSchedules && !!staffServices && !!lookaheadOverrides && !!lookaheadBookings && !(isExistingCustomer && selectedStaffId),
+    staleTime: 30_000,
+  });
 
   const handleSwitchToBathBrush = () => {
     if (!earlierBBSuggestion) return;
