@@ -1168,9 +1168,10 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
     if (availableTimeSlots.length > 0) return empty;
     if (!bathBrushService) return empty;
     const date = new Date(selectedDate + "T00:00:00");
+    const bathDuration = Number(bathBrushService.duration_minutes) || 60;
     const bathSlots = generateAvailableSlots(
       date,
-      serviceDuration,
+      bathDuration,
       groomers,
       baseSchedules,
       allOverridesForDate || [],
@@ -1180,7 +1181,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
       bathBrushService.id
     );
     return { bathBrush: bathSlots.length > 0 };
-  }, [selectedDate, groomers, baseSchedules, allOverridesForDate, existingBookingsForDate, serviceDuration, staffServices, bathBrushService, isFullGroomSelection, verifyingSlots, availableTimeSlots.length]);
+  }, [selectedDate, groomers, baseSchedules, allOverridesForDate, existingBookingsForDate, staffServices, bathBrushService, isFullGroomSelection, verifyingSlots, availableTimeSlots.length]);
 
   const switchToBathBrush = () => {
     setSelectedSub("Bath & Brush");
