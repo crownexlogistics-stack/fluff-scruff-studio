@@ -558,7 +558,8 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
   const filteredAddOns = dbAddOns?.filter((addon) => {
     // Bath & Brush only allows Nail Clipping and Teeth Cleaning extras —
     // other extras are full-groom only.
-    if (serviceType === "Bath & Brush") {
+    const effectiveServiceType = puppySwitched ? "Puppy Special" : (selectedSub ?? service);
+    if (effectiveServiceType === "Bath & Brush") {
       const n = (addon.name || "").toLowerCase();
       const isNail = n.includes("nail");
       const isTeeth = n.includes("teeth");
