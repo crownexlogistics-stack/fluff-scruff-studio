@@ -556,6 +556,14 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
   });
 
   const filteredAddOns = dbAddOns?.filter((addon) => {
+    // Bath & Brush only allows Nail Clipping and Teeth Cleaning extras —
+    // other extras are full-groom only.
+    if (serviceType === "Bath & Brush") {
+      const n = (addon.name || "").toLowerCase();
+      const isNail = n.includes("nail");
+      const isTeeth = n.includes("teeth");
+      if (!isNail && !isTeeth) return false;
+    }
     const links = addOnServiceLinks?.filter((l) => l.add_on_id === addon.id) ?? [];
     if (links.length === 0) return true;
     if (!currentServiceRecord?.id) return true;
