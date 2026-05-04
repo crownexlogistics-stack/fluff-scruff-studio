@@ -1064,11 +1064,12 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
     const groomersForSlots = (isExistingCustomer && selectedStaffId)
       ? groomers.filter(g => g.id === selectedStaffId)
       : groomers;
+    const serviceDurationForSlots = serviceType === "Bath & Brush" ? bathBrushDuration : serviceDuration;
     if (!groomersForSlots.length) return [];
-    console.log(`[availability] Generating slots: duration=${serviceDuration}min, groomers=${groomersForSlots.length}, bookings=${(existingBookingsForDate || []).length}`);
+    console.log(`[availability] Generating slots: duration=${serviceDurationForSlots}min, groomers=${groomersForSlots.length}, bookings=${(existingBookingsForDate || []).length}`);
     return generateAvailableSlots(
       date,
-      serviceDuration,
+      serviceDurationForSlots,
       groomersForSlots,
       baseSchedules,
       allOverridesForDate || [],
@@ -1077,7 +1078,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
       staffServices,
       currentServiceRecord?.id ?? null
     );
-  }, [selectedDate, groomers, baseSchedules, allOverridesForDate, existingBookingsForDate, serviceDuration, isExistingCustomer, selectedStaffId, staffServices, currentServiceRecord?.id]);
+  }, [selectedDate, groomers, baseSchedules, allOverridesForDate, existingBookingsForDate, serviceDuration, bathBrushDuration, serviceType, isExistingCustomer, selectedStaffId, staffServices, currentServiceRecord?.id]);
 
   // Server-side verification of every slot via check-availability edge function
   useEffect(() => {
@@ -1116,7 +1117,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
                   groomer_id: gid,
                   date: selectedDate,
                   start_time: time,
-                  duration_minutes: serviceDuration,
+                  duration_minutes: serviceType === "Bath & Brush" ? bathBrushDuration : serviceDuration,
                   service_id: currentServiceRecord?.id ?? null,
                 },
               });
@@ -1141,7 +1142,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
     })();
 
     return () => { cancelled = true; };
-  }, [clientSideSlots, selectedDate, serviceDuration, groomers, isExistingCustomer, selectedStaffId]);
+  }, [clientSideSlots, selectedDate, serviceDuration, bathBrushDuration, serviceType, groomers, isExistingCustomer, selectedStaffId, currentServiceRecord?.id]);
 
   // Use server-verified slots for display; fall back to empty while verifying
   const availableTimeSlots = serverVerifiedSlots ?? [];
