@@ -1680,7 +1680,38 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
                             );
                           })}
                           {availableTimeSlots.length === 0 && (
-                            <p className="col-span-2 text-center text-sm text-muted-foreground py-4">We're fully booked on this date — please choose another day</p>
+                            <div className="col-span-2 py-2">
+                              <p className="text-center text-sm text-muted-foreground py-2">
+                                We're fully booked on this date for {selectedSub === "Bath & Brush" ? "Bath & Brush" : "Full Groom"} — please choose another day
+                              </p>
+                              {(altSuggestions.bathBrush || altSuggestions.nailTrim) && (
+                                <div className="mt-3 rounded-2xl bg-accent/10 border border-accent/20 p-4 space-y-3">
+                                  <p className="text-sm font-body text-foreground leading-relaxed">
+                                    ✨ Good news — we still have space on this day for:
+                                  </p>
+                                  <div className="flex flex-col gap-2">
+                                    {altSuggestions.bathBrush && selectedSub !== "Bath & Brush" && (
+                                      <button
+                                        onClick={switchToBathBrush}
+                                        className="w-full text-left rounded-xl bg-card border border-border/60 hover:border-accent/60 hover:shadow-sm px-4 py-3 transition-all active:scale-[0.98]"
+                                      >
+                                        <p className="font-heading font-semibold text-foreground text-sm">🛁 Bath & Brush</p>
+                                        <p className="text-xs text-muted-foreground mt-0.5">Luxurious wash, conditioner & full brush-out — switch and pick a time</p>
+                                      </button>
+                                    )}
+                                    {altSuggestions.nailTrim && (
+                                      <button
+                                        onClick={switchToNailTrim}
+                                        className="w-full text-left rounded-xl bg-card border border-border/60 hover:border-accent/60 hover:shadow-sm px-4 py-3 transition-all active:scale-[0.98]"
+                                      >
+                                        <p className="font-heading font-semibold text-foreground text-sm">✂️ Nail Trim & Filing — £15</p>
+                                        <p className="text-xs text-muted-foreground mt-0.5">Quick 10-min trim & file — book this instead</p>
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
                           )}
                         </div>
                       )}
