@@ -1237,39 +1237,34 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
     enabled: isFullGroomFlow && !!groomers?.length,
   });
 
-  const { data: earlierBBSuggestion } = useQuery({
-    queryKey: ["verified-earlier-bb-suggestion-v2", serviceDuration, bathBrushDuration, currentServiceRecord?.id, bbServiceRecord?.id, fmtDate(lookaheadStart), isExistingCustomer, selectedStaffId],
-    queryFn: async () => {
-      if (!isFullGroomFlow) return null;
-      if (!bbServiceRecord?.id || !currentServiceRecord?.id) return null;
-      if (isExistingCustomer && selectedStaffId) return null;
-      const { data, error } = await supabase.functions.invoke("find-earlier-bb-suggestion", {
-        body: {
-          fg_service_id: currentServiceRecord.id,
-          bb_service_id: bbServiceRecord.id,
-          fg_duration: serviceDuration,
-          bb_duration: bathBrushDuration,
-          start_date: fmtDate(lookaheadStart),
-          days: 14,
-        },
-      });
-      if (error) return null;
-      return (data?.suggestion ?? null) as { date: string; time: string; groomerName: string; fullGroomDate: string; daysSooner: number } | null;
-    },
-    enabled: isFullGroomFlow && !!bbServiceRecord?.id && !!currentServiceRecord?.id && !(isExistingCustomer && selectedStaffId),
-    staleTime: 60_000,
-  });
+  // Compute Bath & Brush availability on the SAME selected date (no cross-date suggestion).
+  const bbSlotsOnSelectedDate = useMemo(() => {
+    if (!isFullGroomFlow || !selectedDate || !groomers?.length || !baseSchedules) return [];
+    if (!bbServiceRecord?.id) return [];
+    if (isExistingCustomer && selectedStaffId) return [];
+    const date = new Date(selectedDate + "T00:00:00");
+    return generateAvailableSlots(
+      date,
+      bathBrushDuration,
+      groomers,
+      baseSchedules,
+      allOverridesForDate || [],
+      existingBookingsForDate || [],
+      30,
+      staffServices,
+      bbServiceRecord.id
+    );
+  }, [isFullGroomFlow, selectedDate, groomers, baseSchedules, allOverridesForDate, existingBookingsForDate, bathBrushDuration, staffServices, bbServiceRecord?.id, isExistingCustomer, selectedStaffId]);
+
+  // Reset per-date dismissal whenever the user picks a different date.
+  useEffect(() => {
+    setBbSuggestionDismissed(false);
+  }, [selectedDate]);
 
   const handleSwitchToBathBrush = () => {
-    if (!earlierBBSuggestion) return;
     setSelectedSub("Bath & Brush");
-    setSelectedDate(earlierBBSuggestion.date);
     setSelectedTime(null);
-    // Jump calendar week to the suggested date if needed
-    const suggested = new Date(earlierBBSuggestion.date + "T00:00:00");
-    const monday = getMonday(suggested);
-    setWeekStart(monday);
-    toast.success(`Switched to Bath & Brush — pick your time on ${earlierBBSuggestion.date}`);
+    toast.success("Switched to Bath & Brush — pick your time");
   };
 
   const isDateSelectableDate = (d: Date) => {
