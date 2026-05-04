@@ -1256,6 +1256,50 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
     );
   }, [isFullGroomFlow, selectedDate, groomers, baseSchedules, allOverridesForDate, existingBookingsForDate, bathBrushDuration, staffServices, bbServiceRecord?.id, isExistingCustomer, selectedStaffId]);
 
+  // Server-verify the BB slots (mirrors Full Groom verification) so we don't
+  // suggest Bath & Brush on a date where no groomer can actually take it
+  // (e.g. blocked, not assigned to BB, employment ended, etc.).
+  const [bbVerifiedSlots, setBbVerifiedSlots] = useState<string[]>([]);
+  const [bbVerifying, setBbVerifying] = useState(false);
+  useEffect(() => {
+    if (!isFullGroomFlow || !selectedDate || !bbServiceRecord?.id || !bbSlotsOnSelectedDate.length) {
+      setBbVerifiedSlots([]);
+      setBbVerifying(false);
+      return;
+    }
+    const groomerIdsToCheck = (groomers || []).map(g => g.id);
+    if (!groomerIdsToCheck.length) { setBbVerifiedSlots([]); return; }
+    let cancelled = false;
+    setBbVerifying(true);
+    (async () => {
+      const results = await Promise.all(
+        bbSlotsOnSelectedDate.map(async (time) => {
+          for (const gid of groomerIdsToCheck) {
+            try {
+              const { data } = await supabase.functions.invoke("check-availability", {
+                body: {
+                  groomer_id: gid,
+                  date: selectedDate,
+                  start_time: time,
+                  duration_minutes: bathBrushDuration,
+                  service_id: bbServiceRecord.id,
+                },
+              });
+              if (data?.available) return time;
+            } catch (err) {
+              console.warn(`[bb-verify] Edge fn error for ${time}/${gid}:`, err);
+            }
+          }
+          return null;
+        })
+      );
+      if (cancelled) return;
+      setBbVerifiedSlots(results.filter((r): r is string => !!r));
+      setBbVerifying(false);
+    })();
+    return () => { cancelled = true; };
+  }, [isFullGroomFlow, selectedDate, bbSlotsOnSelectedDate, bbServiceRecord?.id, bathBrushDuration, groomers]);
+
   // Reset per-date dismissal whenever the user picks a different date.
   useEffect(() => {
     setBbSuggestionDismissed(false);
