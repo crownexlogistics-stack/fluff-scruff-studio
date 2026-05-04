@@ -1646,7 +1646,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
                           The next <strong>Full Groom</strong> we have is <strong>{formatSelectedDate(earlierBBSuggestion.fullGroomDate)}</strong>.
                         </p>
                         <p>
-                          We do have a <strong>Bath &amp; Brush</strong> available <strong>{earlierBBSuggestion.daysSooner} day{earlierBBSuggestion.daysSooner === 1 ? "" : "s"} sooner</strong> — on <strong>{formatSelectedDate(earlierBBSuggestion.date)} at {earlierBBSuggestion.time}</strong> with {earlierBBSuggestion.groomerName}.
+                          We do have a <strong>Bath &amp; Brush</strong> available <strong>{earlierBBSuggestion.daysSooner} day{earlierBBSuggestion.daysSooner === 1 ? "" : "s"} sooner</strong> — on <strong>{formatSelectedDate(earlierBBSuggestion.date)} at {earlierBBSuggestion.time}</strong>.
                         </p>
                         <p className="text-xs text-muted-foreground bg-muted/40 p-2.5" style={{ borderRadius: '12px' }}>
                           ℹ️ A Bath &amp; Brush is a wash, blow-dry and brush-out. It does <strong>not</strong> include a haircut, scissor work or styling.
