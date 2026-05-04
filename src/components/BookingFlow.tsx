@@ -1142,6 +1142,76 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
   // Use server-verified slots for display; fall back to empty while verifying
   const availableTimeSlots = serverVerifiedSlots ?? [];
 
+  // ─── Alternative service suggestions when Full Groom is fully booked ─────
+  // Fetch service IDs for Bath & Brush and Nail Trim once
+  const { data: alternativeServices } = useQuery({
+    queryKey: ["alt-services-bath-nail"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("services")
+        .select("id, name, fixed_price, duration_minutes")
+        .eq("is_active", true)
+        .in("name", ["Bath & Brush", "Nail Trim & Filing"]);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const bathBrushService = alternativeServices?.find((s: any) => s.name === "Bath & Brush") || null;
+  const nailTrimService = alternativeServices?.find((s: any) => s.name === "Nail Trim & Filing") || null;
+
+  const isFullGroomSelection = (selectedSub === "Full Groom") || (effectiveService === "Grooming" && !selectedSub);
+
+  const altSuggestions = useMemo(() => {
+    if (!selectedDate || !groomers?.length || !baseSchedules) return { bathBrush: false, nailTrim: false };
+    if (!isFullGroomSelection) return { bathBrush: false, nailTrim: false };
+    if (verifyingSlots) return { bathBrush: false, nailTrim: false };
+    if (availableTimeSlots.length > 0) return { bathBrush: false, nailTrim: false };
+    const date = new Date(selectedDate + "T00:00:00");
+    // Bath & Brush: same breed duration as Full Groom in current schema
+    const bathSlots = bathBrushService
+      ? generateAvailableSlots(
+          date,
+          serviceDuration,
+          groomers,
+          baseSchedules,
+          allOverridesForDate || [],
+          existingBookingsForDate || [],
+          30,
+          staffServices,
+          bathBrushService.id
+        )
+      : [];
+    const nailDuration = nailTrimService?.duration_minutes ?? 10;
+    const nailSlots = nailTrimService
+      ? generateAvailableSlots(
+          date,
+          nailDuration,
+          groomers,
+          baseSchedules,
+          allOverridesForDate || [],
+          existingBookingsForDate || [],
+          30,
+          staffServices,
+          nailTrimService.id
+        )
+      : [];
+    return { bathBrush: bathSlots.length > 0, nailTrim: nailSlots.length > 0 };
+  }, [selectedDate, groomers, baseSchedules, allOverridesForDate, existingBookingsForDate, serviceDuration, staffServices, bathBrushService, nailTrimService, isFullGroomSelection, verifyingSlots, availableTimeSlots.length]);
+
+  const switchToBathBrush = () => {
+    setSelectedSub("Bath & Brush");
+    setSelectedDate(null);
+    setSelectedTime(null);
+    setServerVerifiedSlots(null);
+    toast.success("Switched to Bath & Brush — pick a time");
+  };
+
+  const switchToNailTrim = () => {
+    onClose();
+    window.location.href = `/book?service=${encodeURIComponent("Nail Trim & Filing")}`;
+  };
+
   const isDateSelectableDate = (d: Date) => {
     const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     if (d <= todayStart) return false;
