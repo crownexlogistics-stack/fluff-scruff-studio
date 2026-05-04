@@ -1256,6 +1256,50 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
     );
   }, [isFullGroomFlow, selectedDate, groomers, baseSchedules, allOverridesForDate, existingBookingsForDate, bathBrushDuration, staffServices, bbServiceRecord?.id, isExistingCustomer, selectedStaffId]);
 
+  // Server-verify the BB slots (mirrors Full Groom verification) so we don't
+  // suggest Bath & Brush on a date where no groomer can actually take it
+  // (e.g. blocked, not assigned to BB, employment ended, etc.).
+  const [bbVerifiedSlots, setBbVerifiedSlots] = useState<string[]>([]);
+  const [bbVerifying, setBbVerifying] = useState(false);
+  useEffect(() => {
+    if (!isFullGroomFlow || !selectedDate || !bbServiceRecord?.id || !bbSlotsOnSelectedDate.length) {
+      setBbVerifiedSlots([]);
+      setBbVerifying(false);
+      return;
+    }
+    const groomerIdsToCheck = (groomers || []).map(g => g.id);
+    if (!groomerIdsToCheck.length) { setBbVerifiedSlots([]); return; }
+    let cancelled = false;
+    setBbVerifying(true);
+    (async () => {
+      const results = await Promise.all(
+        bbSlotsOnSelectedDate.map(async (time) => {
+          for (const gid of groomerIdsToCheck) {
+            try {
+              const { data } = await supabase.functions.invoke("check-availability", {
+                body: {
+                  groomer_id: gid,
+                  date: selectedDate,
+                  start_time: time,
+                  duration_minutes: bathBrushDuration,
+                  service_id: bbServiceRecord.id,
+                },
+              });
+              if (data?.available) return time;
+            } catch (err) {
+              console.warn(`[bb-verify] Edge fn error for ${time}/${gid}:`, err);
+            }
+          }
+          return null;
+        })
+      );
+      if (cancelled) return;
+      setBbVerifiedSlots(results.filter((r): r is string => !!r));
+      setBbVerifying(false);
+    })();
+    return () => { cancelled = true; };
+  }, [isFullGroomFlow, selectedDate, bbSlotsOnSelectedDate, bbServiceRecord?.id, bathBrushDuration, groomers]);
+
   // Reset per-date dismissal whenever the user picks a different date.
   useEffect(() => {
     setBbSuggestionDismissed(false);
@@ -1740,36 +1784,36 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
                         </div>
                       )}
                       {/* Same-day Bath & Brush suggestion when Full Groom is fully booked on the picked date */}
-                      {isFullGroomFlow && !verifyingSlots && availableTimeSlots.length === 0 && bbSlotsOnSelectedDate.length > 0 && !bbSuggestionDismissed && (
+                      {isFullGroomFlow && !verifyingSlots && !bbVerifying && availableTimeSlots.length === 0 && bbVerifiedSlots.length > 0 && !bbSuggestionDismissed && (
                         <motion.div
                           initial={{ opacity: 0, y: 8 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ duration: 0.25 }}
-                          className="relative bg-card border-2 border-accent/60 p-3 mt-4 flex items-center gap-3"
+                          className="relative bg-card border-2 border-accent/60 p-4 mt-4"
                           style={{ borderRadius: '16px' }}
                         >
-                          <div className="flex-1 min-w-0 pr-5">
-                            <p className="font-heading text-sm text-foreground leading-snug">
-                              Try a <span className="text-accent">Bath &amp; Brush</span> today instead?
-                            </p>
-                            <p className="font-body text-xs text-muted-foreground mt-0.5">
-                              Wash, blow-dry &amp; brush-out (no haircut).
-                            </p>
-                          </div>
-                          <button
-                            onClick={handleSwitchToBathBrush}
-                            className="font-body font-bold text-xs px-3 py-2 bg-accent text-white hover:bg-accent/90 transition-all active:scale-[0.97] whitespace-nowrap"
-                            style={{ borderRadius: '999px' }}
-                          >
-                            Switch
-                          </button>
                           <button
                             onClick={() => setBbSuggestionDismissed(true)}
-                            className="absolute top-1.5 right-1.5 p-1 text-muted-foreground hover:text-foreground transition-colors"
+                            className="absolute top-2 right-2 p-1 text-muted-foreground hover:text-foreground transition-colors"
                             aria-label="Dismiss"
                           >
                             <X className="h-3.5 w-3.5" />
                           </button>
+                          <div className="pr-6">
+                            <p className="font-heading text-sm text-foreground leading-snug">
+                              No Full Groom slots on {formatSelectedDate(selectedDate!)} — but a <span className="text-accent">Bath &amp; Brush</span> is still available.
+                            </p>
+                            <p className="font-body text-xs text-muted-foreground mt-1.5 leading-relaxed">
+                              A groomer is free for a wash, blow-dry &amp; brush-out (no haircut) on this same day. It's a great way to keep your pup fresh and tide them over until a Full Groom slot opens up.
+                            </p>
+                            <button
+                              onClick={handleSwitchToBathBrush}
+                              className="mt-3 font-body font-bold text-xs px-4 py-2 bg-accent text-white hover:bg-accent/90 transition-all active:scale-[0.97]"
+                              style={{ borderRadius: '999px' }}
+                            >
+                              Switch to Bath &amp; Brush
+                            </button>
+                          </div>
                         </motion.div>
                       )}
                     </div>
