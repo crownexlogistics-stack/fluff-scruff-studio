@@ -206,6 +206,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
   const [verifyingSlots, setVerifyingSlots] = useState(false);
   const [packagePromptDismissed, setPackagePromptDismissed] = useState(false);
   const [showPackagePopup, setShowPackagePopup] = useState(false);
+  const [bbSuggestionDismissed, setBbSuggestionDismissed] = useState(false);
 
   const effectiveService = puppySwitched ? "Puppy Special" : service;
 
