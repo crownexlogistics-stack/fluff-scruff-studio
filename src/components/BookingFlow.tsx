@@ -776,6 +776,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
     }
 
     let assignedStaffId: string | null = null;
+    const bookingDuration = serviceType === "Bath & Brush" ? bathBrushDuration : serviceDuration;
 
     // ALWAYS re-fetch fresh data at submission time to prevent double-bookings
     if (groomers && groomers.length > 0 && baseSchedules) {
@@ -817,7 +818,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
       if (isExistingCustomer && selectedStaffId) {
         // Customer selected a specific groomer — verify THAT groomer is still free
         const slotStart = parseTimeToMinutes(selectedTime!);
-        const slotEnd = slotStart + serviceDuration;
+        const slotEnd = slotStart + bookingDuration;
 
         // Check the selected groomer has no booking conflict at this time
 
@@ -840,7 +841,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
         // No preference — find any free groomer by priority
         const freeGroomer = findFreeGroomer(
           selectedTime!,
-          serviceDuration,
+          bookingDuration,
           bookingDate,
           groomers,
           baseSchedules,
@@ -861,14 +862,14 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
     }
 
     // ── Server-side availability check via edge function ──
-    console.log(`[booking] Server-side availability check: groomer=${assignedStaffId} date=${selectedDate} time=${selectedTime} duration=${serviceDuration}`);
+    console.log(`[booking] Server-side availability check: groomer=${assignedStaffId} date=${selectedDate} time=${selectedTime} duration=${bookingDuration}`);
     try {
       const { data: availCheck, error: availErr } = await supabase.functions.invoke("check-availability", {
         body: {
           groomer_id: assignedStaffId,
           date: selectedDate,
           start_time: selectedTime,
-          duration_minutes: serviceDuration,
+          duration_minutes: bookingDuration,
           service_id: currentServiceRecord?.id ?? null,
         },
       });
@@ -903,7 +904,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
       booking_time: selectedTime!,
       total_price: totalPrice,
       deposit_paid: 0,
-      duration_minutes: serviceDuration,
+      duration_minutes: bookingDuration,
       notes: guestForm.notes.trim() || null,
       status: "Pending",
       campaign_id: utmCampaignId,
