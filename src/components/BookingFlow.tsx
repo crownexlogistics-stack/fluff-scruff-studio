@@ -1142,8 +1142,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
   // Use server-verified slots for display; fall back to empty while verifying
   const availableTimeSlots = serverVerifiedSlots ?? [];
 
-  // ─── Alternative service suggestions when Full Groom is fully booked ─────
-  // Fetch service IDs for Bath & Brush and Nail Trim once
+  // ─── Alternative service suggestion when Full Groom is fully booked ─────
   const { data: alternativeServices } = useQuery({
     queryKey: ["alt-services-bath-nail"],
     queryFn: async () => {
@@ -1151,65 +1150,44 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
         .from("services")
         .select("id, name, fixed_price, duration_minutes")
         .eq("is_active", true)
-        .in("name", ["Bath & Brush", "Nail Trim & Filing"]);
+        .in("name", ["Bath & Brush"]);
       if (error) throw error;
       return data || [];
     },
   });
 
   const bathBrushService = alternativeServices?.find((s: any) => s.name === "Bath & Brush") || null;
-  const nailTrimService = alternativeServices?.find((s: any) => s.name === "Nail Trim & Filing") || null;
 
   const isFullGroomSelection = (selectedSub === "Full Groom") || (effectiveService === "Grooming" && !selectedSub);
 
   const altSuggestions = useMemo(() => {
-    if (!selectedDate || !groomers?.length || !baseSchedules) return { bathBrush: false, nailTrim: false };
-    if (!isFullGroomSelection) return { bathBrush: false, nailTrim: false };
-    if (verifyingSlots) return { bathBrush: false, nailTrim: false };
-    if (availableTimeSlots.length > 0) return { bathBrush: false, nailTrim: false };
+    const empty = { bathBrush: false };
+    if (!selectedDate || !groomers?.length || !baseSchedules) return empty;
+    if (!isFullGroomSelection) return empty;
+    if (verifyingSlots) return empty;
+    if (availableTimeSlots.length > 0) return empty;
+    if (!bathBrushService) return empty;
     const date = new Date(selectedDate + "T00:00:00");
-    // Bath & Brush: same breed duration as Full Groom in current schema
-    const bathSlots = bathBrushService
-      ? generateAvailableSlots(
-          date,
-          serviceDuration,
-          groomers,
-          baseSchedules,
-          allOverridesForDate || [],
-          existingBookingsForDate || [],
-          30,
-          staffServices,
-          bathBrushService.id
-        )
-      : [];
-    const nailDuration = nailTrimService?.duration_minutes ?? 10;
-    const nailSlots = nailTrimService
-      ? generateAvailableSlots(
-          date,
-          nailDuration,
-          groomers,
-          baseSchedules,
-          allOverridesForDate || [],
-          existingBookingsForDate || [],
-          30,
-          staffServices,
-          nailTrimService.id
-        )
-      : [];
-    return { bathBrush: bathSlots.length > 0, nailTrim: nailSlots.length > 0 };
-  }, [selectedDate, groomers, baseSchedules, allOverridesForDate, existingBookingsForDate, serviceDuration, staffServices, bathBrushService, nailTrimService, isFullGroomSelection, verifyingSlots, availableTimeSlots.length]);
+    const bathSlots = generateAvailableSlots(
+      date,
+      serviceDuration,
+      groomers,
+      baseSchedules,
+      allOverridesForDate || [],
+      existingBookingsForDate || [],
+      30,
+      staffServices,
+      bathBrushService.id
+    );
+    return { bathBrush: bathSlots.length > 0 };
+  }, [selectedDate, groomers, baseSchedules, allOverridesForDate, existingBookingsForDate, serviceDuration, staffServices, bathBrushService, isFullGroomSelection, verifyingSlots, availableTimeSlots.length]);
 
   const switchToBathBrush = () => {
     setSelectedSub("Bath & Brush");
     setSelectedDate(null);
     setSelectedTime(null);
     setServerVerifiedSlots(null);
-    toast.success("Switched to Bath & Brush — pick a time");
-  };
-
-  const switchToNailTrim = () => {
-    onClose();
-    window.location.href = `/book?service=${encodeURIComponent("Nail Trim & Filing")}`;
+    toast.success("Switched to Bath & Brush — pick a time. You can add Nail Clipping in extras.");
   };
 
   const isDateSelectableDate = (d: Date) => {
@@ -1684,31 +1662,18 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
                               <p className="text-center text-sm text-muted-foreground py-2">
                                 We're fully booked on this date for {selectedSub === "Bath & Brush" ? "Bath & Brush" : "Full Groom"} — please choose another day
                               </p>
-                              {(altSuggestions.bathBrush || altSuggestions.nailTrim) && (
+                              {altSuggestions.bathBrush && selectedSub !== "Bath & Brush" && (
                                 <div className="mt-3 rounded-2xl bg-accent/10 border border-accent/20 p-4 space-y-3">
                                   <p className="text-sm font-body text-foreground leading-relaxed">
                                     ✨ Good news — we still have space on this day for:
                                   </p>
-                                  <div className="flex flex-col gap-2">
-                                    {altSuggestions.bathBrush && selectedSub !== "Bath & Brush" && (
-                                      <button
-                                        onClick={switchToBathBrush}
-                                        className="w-full text-left rounded-xl bg-card border border-border/60 hover:border-accent/60 hover:shadow-sm px-4 py-3 transition-all active:scale-[0.98]"
-                                      >
-                                        <p className="font-heading font-semibold text-foreground text-sm">🛁 Bath & Brush</p>
-                                        <p className="text-xs text-muted-foreground mt-0.5">Luxurious wash, conditioner & full brush-out — switch and pick a time</p>
-                                      </button>
-                                    )}
-                                    {altSuggestions.nailTrim && (
-                                      <button
-                                        onClick={switchToNailTrim}
-                                        className="w-full text-left rounded-xl bg-card border border-border/60 hover:border-accent/60 hover:shadow-sm px-4 py-3 transition-all active:scale-[0.98]"
-                                      >
-                                        <p className="font-heading font-semibold text-foreground text-sm">✂️ Nail Trim & Filing — £15</p>
-                                        <p className="text-xs text-muted-foreground mt-0.5">Quick 10-min trim & file — book this instead</p>
-                                      </button>
-                                    )}
-                                  </div>
+                                  <button
+                                    onClick={switchToBathBrush}
+                                    className="w-full text-left rounded-xl bg-card border border-border/60 hover:border-accent/60 hover:shadow-sm px-4 py-3 transition-all active:scale-[0.98]"
+                                  >
+                                    <p className="font-heading font-semibold text-foreground text-sm">🛁 Bath & Brush + Nail Clipping (optional)</p>
+                                    <p className="text-xs text-muted-foreground mt-0.5">Luxurious wash, conditioner & full brush-out. Add Nail Clipping for just £5 in extras.</p>
+                                  </button>
                                 </div>
                               )}
                             </div>
