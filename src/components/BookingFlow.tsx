@@ -1739,57 +1739,37 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
                           )}
                         </div>
                       )}
-                      {/* Soft Bath & Brush suggestion — only when Full Groom flow has no slots on the picked date */}
-                      {isFullGroomFlow && !verifyingSlots && availableTimeSlots.length === 0 && earlierBBSuggestion && !bbSuggestionDismissed && (
+                      {/* Same-day Bath & Brush suggestion when Full Groom is fully booked on the picked date */}
+                      {isFullGroomFlow && !verifyingSlots && availableTimeSlots.length === 0 && bbSlotsOnSelectedDate.length > 0 && !bbSuggestionDismissed && (
                         <motion.div
-                          initial={{ opacity: 0, y: 10 }}
+                          initial={{ opacity: 0, y: 8 }}
                           animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.35 }}
-                          className="relative bg-card border-2 border-accent/60 p-4 space-y-3 shadow-md mt-4"
-                          style={{ borderRadius: '20px' }}
+                          transition={{ duration: 0.25 }}
+                          className="relative bg-card border-2 border-accent/60 p-3 mt-4 flex items-center gap-3"
+                          style={{ borderRadius: '16px' }}
                         >
+                          <div className="flex-1 min-w-0 pr-5">
+                            <p className="font-heading text-sm text-foreground leading-snug">
+                              Try a <span className="text-accent">Bath &amp; Brush</span> today instead?
+                            </p>
+                            <p className="font-body text-xs text-muted-foreground mt-0.5">
+                              Wash, blow-dry &amp; brush-out (no haircut).
+                            </p>
+                          </div>
+                          <button
+                            onClick={handleSwitchToBathBrush}
+                            className="font-body font-bold text-xs px-3 py-2 bg-accent text-white hover:bg-accent/90 transition-all active:scale-[0.97] whitespace-nowrap"
+                            style={{ borderRadius: '999px' }}
+                          >
+                            Switch
+                          </button>
                           <button
                             onClick={() => setBbSuggestionDismissed(true)}
-                            className="absolute top-2 right-2 p-1 text-muted-foreground hover:text-foreground transition-colors"
+                            className="absolute top-1.5 right-1.5 p-1 text-muted-foreground hover:text-foreground transition-colors"
                             aria-label="Dismiss"
                           >
-                            <X className="h-4 w-4" />
+                            <X className="h-3.5 w-3.5" />
                           </button>
-                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-accent text-white text-[0.65rem] font-bold uppercase tracking-wide font-body" style={{ borderRadius: '999px' }}>
-                            🛁 Different service
-                          </div>
-                          <div>
-                            <p className="font-heading text-base text-foreground leading-snug pr-6">
-                              Earlier opening — but it's a <span className="text-accent">Bath &amp; Brush</span>, not a Full Groom
-                            </p>
-                          </div>
-                          <div className="font-body text-sm text-foreground/90 space-y-2 leading-relaxed">
-                            <p>
-                              The next <strong>Full Groom</strong> we have is <strong>{formatSelectedDate(earlierBBSuggestion.fullGroomDate)}</strong>.
-                            </p>
-                            <p>
-                              We do have a <strong>Bath &amp; Brush</strong> available <strong>{earlierBBSuggestion.daysSooner} day{earlierBBSuggestion.daysSooner === 1 ? "" : "s"} sooner</strong> — on <strong>{formatSelectedDate(earlierBBSuggestion.date)} at {earlierBBSuggestion.time}</strong>.
-                            </p>
-                            <p className="text-xs text-muted-foreground bg-muted/40 p-2.5" style={{ borderRadius: '12px' }}>
-                              ℹ️ A Bath &amp; Brush is a wash, blow-dry and brush-out. It does <strong>not</strong> include a haircut, scissor work or styling.
-                            </p>
-                          </div>
-                          <div className="flex flex-col sm:flex-row gap-2 pt-1">
-                            <button
-                              onClick={handleSwitchToBathBrush}
-                              className="font-body font-bold text-xs px-4 py-2.5 bg-accent text-white hover:bg-accent/90 transition-all active:scale-[0.97]"
-                              style={{ borderRadius: '30px' }}
-                            >
-                              Switch to Bath &amp; Brush
-                            </button>
-                            <button
-                              onClick={() => setBbSuggestionDismissed(true)}
-                              className="font-body font-semibold text-xs px-4 py-2.5 bg-muted text-muted-foreground hover:bg-muted/80 transition-all active:scale-[0.97]"
-                              style={{ borderRadius: '30px' }}
-                            >
-                              No thanks, keep Full Groom
-                            </button>
-                          </div>
                         </motion.div>
                       )}
                     </div>
