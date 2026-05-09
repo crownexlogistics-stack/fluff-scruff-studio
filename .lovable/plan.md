@@ -1,33 +1,27 @@
-## Change the Bath & Brush suggestion to be date-specific and shorter
+## What
 
-### Problem
-The current banner runs a 14-day server sweep and suggests a different (earlier) date for Bath & Brush. When the user clicks "Switch", it jumps them to that other date, forcing them to re-pick the date they originally wanted. The banner is also too long.
+Dan Mills' appointment on Sat 9 May at 10:00 (Full Groom Cockapoo Special with Oksana) is currently showing as **Completed / NOT PAID**. You want to roll it back so the groomer sees it as an actionable upcoming booking again (so she can mark it Completed + record the £57 payment, or No-Show, etc.).
 
-### New behaviour
-When the customer clicks a specific date in the calendar and there are **no Full Groom slots** on that exact date, check whether **Bath & Brush has slots on that same date**. If yes, show a short banner offering to switch the service (keeping the same date).
+## Findings
 
-If Bath & Brush is also unavailable on that date, show nothing extra (just the existing "fully booked" message).
+This is a **Wix-migrated booking** (the orange "W — Wix Booking" badge), not a native booking. It lives in the `migrated_bookings` table:
 
-### Implementation (in `src/components/BookingFlow.tsx`)
+- Row id: `ab1d9557-8c69-4294-9a04-3a5ce8ed3f70`
+- `payment_status`: `"Completed"` → this is what drives the "Completed" badge in the calendar
+- `total_price`: £57, `deposit_paid`: £0
 
-1. **Replace the `earlierBBSuggestion` query** with a client-side computation tied to `selectedDate`:
-   - Reuse `generateAvailableSlots` from `@/lib/availability` with `bathBrushDuration`, `bbServiceRecord.id`, the same `groomers`, `baseSchedules`, `allOverridesForDate`, `existingBookingsForDate`, and `staffServices` already loaded for the picked date.
-   - Result: `bbSlotsOnSelectedDate: string[]`. Suggestion exists when `isFullGroomFlow && availableTimeSlots.length === 0 && bbSlotsOnSelectedDate.length > 0`.
-   - Pick the earliest BB time as the headline time.
-   - Reset `bbSuggestionDismissed` to false whenever `selectedDate` changes (so dismissal applies per date).
+In `BookingsPage.tsx` the calendar maps `payment_status = "Completed"` to status `Completed`; anything else (e.g. `"Not paid"`) maps to `Confirmed`, which is the actionable state where the groomer's "Mark Completed / No Show" buttons reappear.
 
-2. **Update `handleSwitchToBathBrush`** to keep `selectedDate` and `weekStart` unchanged — only set `setSelectedSub("Bath & Brush")` and clear `selectedTime`. Toast: "Switched to Bath & Brush — pick your time".
+## Change
 
-3. **Shorten the banner** (the block at lines ~1748–1799):
-   - Remove the "Different service" pill, the long explanatory paragraph about Full Groom dates / days sooner, and the info box about what Bath & Brush includes.
-   - New compact content:
-     - Headline (one line): "No Full Groom available on {date} — but Bath & Brush is."
-     - Sub-line (small): "Wash, blow-dry & brush-out (no haircut). From {earliest BB time}."
-     - Two small buttons: "Switch to Bath & Brush" (primary) and a small "X" dismiss in the corner. Drop the wide "No thanks, keep Full Groom" button (the X handles dismissal).
-   - Tighter padding (`p-3`), smaller heading (`text-sm`), single column layout.
+Single data update — no code changes:
 
-4. **Delete the `find-earlier-bb-suggestion` edge function** (`supabase/functions/find-earlier-bb-suggestion/index.ts`) since it's no longer used.
+- Update `migrated_bookings` row `ab1d9557-8c69-4294-9a04-3a5ce8ed3f70`
+  - Set `payment_status` from `"Completed"` to `"Not paid"`
 
-### Files touched
-- `src/components/BookingFlow.tsx` — replace query, update handler, shorten banner, reset dismissal on date change.
-- `supabase/functions/find-earlier-bb-suggestion/index.ts` — delete.
+After this:
+- Calendar card flips from grey "Completed" back to orange "Confirmed"
+- The "NOT PAID" badge stays (deposit_paid is still 0)
+- Oksana can re-action it from her booking popover (Mark Completed, take payment, No Show, etc.)
+
+No financial records exist for this one yet (no Stripe payment, no `final_charge`), so nothing else needs unwinding.
