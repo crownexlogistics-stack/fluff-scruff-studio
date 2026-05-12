@@ -471,7 +471,15 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} modal={mode !== "block"}>
-      <DialogContent className={contentClassName}>
+      <DialogContent
+        className={contentClassName}
+        onOpenAutoFocus={(event) => {
+          if (mode === "block") event.preventDefault();
+        }}
+        onCloseAutoFocus={() => {
+          document.body.style.pointerEvents = "";
+        }}
+      >
         <DialogHeader>
           <DialogTitle>{mode === "block" ? "Block Time" : bookAgainData ? `Book Again — ${bookAgainData.customer_name}` : "New Appointment"}</DialogTitle>
         </DialogHeader>
