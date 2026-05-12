@@ -469,6 +469,99 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
     ? "left-0 top-0 h-[100dvh] max-h-[100dvh] w-full max-w-none translate-x-0 translate-y-0 overflow-y-auto rounded-none sm:left-[50%] sm:top-[50%] sm:h-auto sm:max-h-[90vh] sm:max-w-lg sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-lg"
     : "max-w-lg max-h-[90vh] overflow-y-auto";
 
+  if (mode === "block") {
+    if (!open) return null;
+
+    return (
+      <div className="fixed inset-0 z-50 bg-background overflow-y-auto p-6 sm:grid sm:place-items-center sm:bg-black/80">
+        <div className="mx-auto w-full max-w-lg space-y-4 sm:rounded-lg sm:border sm:bg-background sm:p-6 sm:shadow-lg">
+          <div className="flex items-center justify-between gap-4">
+            <h2 className="text-lg font-semibold leading-none tracking-tight font-heading">Block Time</h2>
+            <button
+              type="button"
+              className="rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+              onClick={() => onOpenChange(false)}
+              aria-label="Close"
+            >
+              ×
+            </button>
+          </div>
+
+          <div className="rounded-lg border bg-muted/30 p-3 space-y-1">
+            <p className="text-sm font-medium">
+              {defaultDate ? format(defaultDate, "EEEE, dd MMM yyyy") : ""}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Starting at {form.booking_time.slice(0, 5)}
+            </p>
+          </div>
+
+          <Button
+            type="button"
+            variant="secondary"
+            className="w-full"
+            onClick={() => setForm({ ...form, booking_time: "08:00", end_time: "23:59" })}
+          >
+            Block All Day
+          </Button>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label>Start Time</Label>
+              <Input type="time" value={form.booking_time} onChange={(e) => setForm({ ...form, booking_time: e.target.value })} />
+            </div>
+            <div className="space-y-1">
+              <Label>End Time</Label>
+              <Input type="time" value={form.end_time} onChange={(e) => setForm({ ...form, end_time: e.target.value })} />
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <Label>Staff Member</Label>
+            <Select value={form.staff_id} onValueChange={(v) => setForm({ ...form, staff_id: v })}>
+              <SelectTrigger><SelectValue placeholder="Select staff" /></SelectTrigger>
+              <SelectContent>
+                {staff?.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1">
+            <Label>Reason / Notes <span className="text-destructive">*</span></Label>
+            <Input
+              type="text"
+              value={form.notes}
+              onChange={(e) => setForm({ ...form, notes: e.target.value })}
+              placeholder="Why is this time being blocked? (required)"
+              inputMode="text"
+              autoComplete="off"
+              autoCorrect="on"
+              enterKeyHint="done"
+              className="h-14 text-base"
+            />
+            {blockDisabled && form.notes === "" && (
+              <p className="text-xs text-destructive">A reason must be provided to block time.</p>
+            )}
+          </div>
+
+          <p className="text-xs text-muted-foreground">
+            This block will be logged to the audit trail for record keeping.
+          </p>
+
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+            <Button
+              onClick={() => createBooking.mutate()}
+              disabled={createBooking.isPending || blockDisabled}
+            >
+              Block Time
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange} modal={mode !== "block"}>
       <DialogContent
