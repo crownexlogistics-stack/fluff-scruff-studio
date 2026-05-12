@@ -746,19 +746,18 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
                 </>
               )}
             </>
-          )}
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button
             onClick={() => {
-              console.log("[CreateBooking] clicked", { isNewCustomer, customerSelected, mode, form, isPending: createBooking.isPending, blockDisabled });
+              console.log("[CreateBooking] clicked", { isNewCustomer, customerSelected, mode, form, isPending: createBooking.isPending });
               createBooking.mutate();
             }}
-            disabled={createBooking.isPending || blockDisabled || (mode === "appointment" && !customerSelected && !isNewCustomer)}
+            disabled={createBooking.isPending || (!customerSelected && !isNewCustomer)}
           >
-            {mode === "block" ? "Block Time" : "Create Booking"}
+            Create Booking
           </Button>
         </DialogFooter>
       </DialogContent>
