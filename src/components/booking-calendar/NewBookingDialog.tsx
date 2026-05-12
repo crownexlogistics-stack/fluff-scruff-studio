@@ -464,10 +464,22 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
   });
 
   const blockDisabled = mode === "block" && !form.notes.trim();
+  const blockReasonRef = useRef<HTMLTextAreaElement | null>(null);
+  const contentClassName = mode === "block"
+    ? "left-0 top-0 h-[100dvh] max-h-[100dvh] w-full max-w-none translate-x-0 translate-y-0 overflow-y-auto rounded-none sm:left-[50%] sm:top-[50%] sm:h-auto sm:max-h-[90vh] sm:max-w-lg sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-lg"
+    : "max-w-lg max-h-[90vh] overflow-y-auto";
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+    <Dialog open={open} onOpenChange={onOpenChange} modal={mode !== "block"}>
+      <DialogContent
+        className={contentClassName}
+        onOpenAutoFocus={(event) => {
+          if (mode === "block") event.preventDefault();
+        }}
+        onCloseAutoFocus={() => {
+          document.body.style.pointerEvents = "";
+        }}
+      >
         <DialogHeader>
           <DialogTitle>{mode === "block" ? "Block Time" : bookAgainData ? `Book Again — ${bookAgainData.customer_name}` : "New Appointment"}</DialogTitle>
         </DialogHeader>
@@ -517,9 +529,16 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
               <div className="space-y-1">
                 <Label>Reason / Notes <span className="text-destructive">*</span></Label>
                 <Textarea
+                  ref={blockReasonRef}
                   value={form.notes}
                   onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                  onTouchStart={(e) => e.currentTarget.focus({ preventScroll: true })}
+                  onClick={() => blockReasonRef.current?.focus({ preventScroll: true })}
                   placeholder="Why is this time being blocked? (required)"
+                  inputMode="text"
+                  autoComplete="off"
+                  autoCorrect="on"
+                  enterKeyHint="done"
                   rows={3}
                 />
                 {blockDisabled && form.notes === "" && (
