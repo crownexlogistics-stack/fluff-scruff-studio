@@ -464,10 +464,6 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
   });
 
   const blockDisabled = mode === "block" && !form.notes.trim();
-  const blockReasonRef = useRef<HTMLTextAreaElement | null>(null);
-  const contentClassName = mode === "block"
-    ? "left-0 top-0 h-[100dvh] max-h-[100dvh] w-full max-w-none translate-x-0 translate-y-0 overflow-y-auto rounded-none sm:left-[50%] sm:top-[50%] sm:h-auto sm:max-h-[90vh] sm:max-w-lg sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-lg"
-    : "max-w-lg max-h-[90vh] overflow-y-auto";
 
   if (mode === "block") {
     if (!open) return null;
@@ -563,88 +559,19 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange} modal={mode !== "block"}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className={contentClassName}
-        onOpenAutoFocus={(event) => {
-          if (mode === "block") event.preventDefault();
-        }}
+        className="max-w-lg max-h-[90vh] overflow-y-auto"
         onCloseAutoFocus={() => {
           document.body.style.pointerEvents = "";
         }}
       >
         <DialogHeader>
-          <DialogTitle>{mode === "block" ? "Block Time" : bookAgainData ? `Book Again — ${bookAgainData.customer_name}` : "New Appointment"}</DialogTitle>
+          <DialogTitle>{bookAgainData ? `Book Again — ${bookAgainData.customer_name}` : "New Appointment"}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
-          {mode === "block" ? (
-            <>
-              <div className="rounded-lg border bg-muted/30 p-3 space-y-1">
-                <p className="text-sm font-medium">
-                  {defaultDate ? format(defaultDate, "EEEE, dd MMM yyyy") : ""}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  Starting at {form.booking_time.slice(0, 5)}
-                </p>
-              </div>
-
-              <Button
-                type="button"
-                variant="secondary"
-                className="w-full"
-                onClick={() => setForm({ ...form, booking_time: "08:00", end_time: "23:59" })}
-              >
-                Block All Day
-              </Button>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label>Start Time</Label>
-                  <Input type="time" value={form.booking_time} onChange={(e) => setForm({ ...form, booking_time: e.target.value })} />
-                </div>
-                <div className="space-y-1">
-                  <Label>End Time</Label>
-                  <Input type="time" value={form.end_time} onChange={(e) => setForm({ ...form, end_time: e.target.value })} />
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <Label>Staff Member</Label>
-                <Select value={form.staff_id} onValueChange={(v) => setForm({ ...form, staff_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="Select staff" /></SelectTrigger>
-                  <SelectContent>
-                    {staff?.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-1">
-                <Label>Reason / Notes <span className="text-destructive">*</span></Label>
-                <Textarea
-                  ref={blockReasonRef}
-                  value={form.notes}
-                  onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                  onTouchStart={(e) => e.currentTarget.focus({ preventScroll: true })}
-                  onClick={() => blockReasonRef.current?.focus({ preventScroll: true })}
-                  placeholder="Why is this time being blocked? (required)"
-                  inputMode="text"
-                  autoComplete="off"
-                  autoCorrect="on"
-                  enterKeyHint="done"
-                  rows={3}
-                />
-                {blockDisabled && form.notes === "" && (
-                  <p className="text-xs text-destructive">A reason must be provided to block time.</p>
-                )}
-              </div>
-
-              <p className="text-xs text-muted-foreground">
-                This block will be logged to the audit trail for record keeping.
-              </p>
-            </>
-          ) : (
-            <>
+          <>
               {/* Book Again: locked customer display */}
               {bookAgainData && customerSelected && (
                 <div className="rounded-lg border bg-muted/30 p-3 space-y-0.5">
