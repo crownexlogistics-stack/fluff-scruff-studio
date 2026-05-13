@@ -11,7 +11,7 @@ const TWILIO_ACCOUNT_SID = Deno.env.get("TWILIO_ACCOUNT_SID");
 const TWILIO_PHONE_NUMBER = Deno.env.get("TWILIO_PHONE_NUMBER");
 
 const FN_BASE = `${SUPABASE_URL}/functions/v1/ai-receptionist`;
-const VOICE = "Polly.Joanna";
+const VOICE = "Polly.Amy-Neural";
 const HAIKU_MODEL = "claude-haiku-4-5-20251001";
 const SONNET_MODEL = "claude-sonnet-4-6";
 
@@ -346,6 +346,14 @@ Deno.serve(async (req) => {
         return twiml(transferTwiml(transferNumber, callSid, "One moment, connecting you to the salon."));
       }
 
+      // Build and cache system prompt once for the whole call
+      try {
+        const sys = await buildSystemPrompt();
+        await supabase.from("ai_call_logs").update({ cached_system_prompt: sys }).eq("call_sid", callSid);
+      } catch (e) {
+        console.error("[ai-receptionist] cache prompt failed", e);
+      }
+
       const greeting = settings.greeting || "Fluff and Scruff Studio, how can I help?";
       await appendTranscript(callSid, "ai", greeting);
       return twiml(gatherTwiml(greeting, callSid));
@@ -363,9 +371,17 @@ Deno.serve(async (req) => {
 
       await appendTranscript(callSid, "caller", speech);
 
-      const { data: log } = await supabase.from("ai_call_logs").select("transcript").eq("call_sid", callSid).maybeSingle();
+      const { data: log } = await supabase
+        .from("ai_call_logs")
+        .select("transcript,cached_system_prompt")
+        .eq("call_sid", callSid)
+        .maybeSingle();
       const messages = transcriptToMessages(Array.isArray(log?.transcript) ? log!.transcript : []);
-      const system = await buildSystemPrompt();
+      let system = log?.cached_system_prompt as string | null;
+      if (!system) {
+        system = await buildSystemPrompt();
+        await supabase.from("ai_call_logs").update({ cached_system_prompt: system }).eq("call_sid", callSid);
+      }
 
       let aiText = "";
       try {
