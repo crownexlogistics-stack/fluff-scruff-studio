@@ -170,6 +170,7 @@ export type Database = {
       ai_call_logs: {
         Row: {
           booking_id: string | null
+          cached_system_prompt: string | null
           call_sid: string | null
           caller_name: string | null
           caller_number: string | null
@@ -186,6 +187,7 @@ export type Database = {
         }
         Insert: {
           booking_id?: string | null
+          cached_system_prompt?: string | null
           call_sid?: string | null
           caller_name?: string | null
           caller_number?: string | null
@@ -202,6 +204,7 @@ export type Database = {
         }
         Update: {
           booking_id?: string | null
+          cached_system_prompt?: string | null
           call_sid?: string | null
           caller_name?: string | null
           caller_number?: string | null
