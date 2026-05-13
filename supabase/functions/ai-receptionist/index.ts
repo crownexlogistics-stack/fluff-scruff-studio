@@ -40,7 +40,7 @@ function twiml(body: string): Response {
 }
 
 function gatherTwiml(sayText: string, callSid: string, hint?: string): string {
-  const action = `${FN_BASE}?action=conversation&CallSid=${encodeURIComponent(callSid)}`;
+  const action = `${FN_BASE}?action=conversation&amp;CallSid=${encodeURIComponent(callSid)}`;
   return `
     <Gather input="speech" action="${action}" method="POST" speechTimeout="auto" language="en-GB" actionOnEmptyResult="true">
       <Say voice="${VOICE}">${escapeXml(sayText)}</Say>
