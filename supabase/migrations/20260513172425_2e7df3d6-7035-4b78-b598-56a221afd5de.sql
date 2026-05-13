@@ -1,0 +1,1 @@
+ALTER TABLE public.ai_call_logs ADD COLUMN IF NOT EXISTS cached_system_prompt text;
