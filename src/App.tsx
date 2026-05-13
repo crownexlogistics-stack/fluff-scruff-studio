@@ -83,6 +83,7 @@ import GroomerAssistantPage from "./pages/GroomerAssistantPage";
 import ActivityLogPage from "./pages/ActivityLogPage";
 import AdminInboxPage from "./pages/AdminInboxPage";
 import GroomerInboxPage from "./pages/GroomerInboxPage";
+import AIReceptionistPage from "./pages/AIReceptionistPage";
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -169,6 +170,7 @@ const App = () => (
           <Route path="/admin/academy" element={<ProtectedRoute allowedRoles={["director", "manager"]}><AcademyEnquiriesPage /></ProtectedRoute>} />
           <Route path="/admin/activity-log" element={<ProtectedRoute allowedRoles={["director"]}><ActivityLogPage /></ProtectedRoute>} />
           <Route path="/admin/inbox" element={<ProtectedRoute allowedRoles={["manager", "director"]}><AdminInboxPage /></ProtectedRoute>} />
+          <Route path="/admin/ai-receptionist" element={<ProtectedRoute allowedRoles={["director"]}><AIReceptionistPage /></ProtectedRoute>} />
 
           <Route path="*" element={<NotFound />} />
         </Routes>

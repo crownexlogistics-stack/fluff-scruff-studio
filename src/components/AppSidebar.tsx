@@ -5,7 +5,7 @@ import {
   UsersRound, BarChart3, Mail,
   LogOut, Sparkles, AlertTriangle, ShieldCheck, BookOpen,
   Inbox, FileText, Ticket, PoundSterling, Bug, Activity, ArrowRightLeft,
-  PawPrint, Bot, MessageSquare, PhoneForwarded, Settings, Search,
+  PawPrint, Bot, MessageSquare, PhoneForwarded, Settings, Search, Phone,
   BookOpen as HistoryBook, ShoppingCart, Package, HeartPulse,
 } from "lucide-react";
 import logo from "@/assets/logo-transparent.png";
@@ -74,6 +74,10 @@ const scruffSubItems = [
   { title: "Conversations", url: "/admin/scruff/conversations", icon: MessageSquare },
   { title: "Handoffs", url: "/admin/scruff/handoffs", icon: PhoneForwarded },
   { title: "Settings", url: "/admin/scruff/settings", icon: Settings },
+];
+
+const aiReceptionistSubItems = [
+  { title: "Control Panel", url: "/admin/ai-receptionist", icon: Phone },
 ];
 
 const directorOnlyItems = [
@@ -276,6 +280,45 @@ export function AppSidebar() {
             </CollapsibleContent>
           </Collapsible>
         </SidebarGroup>
+
+        {/* AI Receptionist — director only */}
+        {role === "director" && (
+          <SidebarGroup>
+            <Collapsible defaultOpen className="group/airx">
+              <SidebarGroupLabel className="text-sidebar-foreground/50 text-xs uppercase tracking-wider p-0">
+                <CollapsibleTrigger className="flex w-full items-center justify-between px-2 py-1.5 hover:bg-sidebar-accent/30 rounded-md transition-colors">
+                  <span className="flex items-center gap-2">
+                    <Phone className="h-3.5 w-3.5" />
+                    {!collapsed && "AI Receptionist"}
+                  </span>
+                  {!collapsed && (
+                    <ChevronDown className="h-3.5 w-3.5 transition-transform group-data-[state=open]/airx:rotate-180" />
+                  )}
+                </CollapsibleTrigger>
+              </SidebarGroupLabel>
+              <CollapsibleContent>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    {aiReceptionistSubItems.map((item) => (
+                      <SidebarMenuItem key={item.title}>
+                        <SidebarMenuButton asChild>
+                          <NavLink
+                            to={item.url}
+                            className="hover:bg-sidebar-accent/50 transition-colors pl-6"
+                            activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
+                          >
+                            <item.icon className="mr-2 h-4 w-4" />
+                            {!collapsed && <span>{item.title}</span>}
+                          </NavLink>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    ))}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </CollapsibleContent>
+            </Collapsible>
+          </SidebarGroup>
+        )}
 
         {/* Academy Section — director/manager only */}
         {(role === "director" || role === "manager") && (
