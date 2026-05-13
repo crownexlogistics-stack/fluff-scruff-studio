@@ -355,7 +355,7 @@ Deno.serve(async (req) => {
 
       const greeting = settings.greeting || "Fluff and Scruff Studio, how can I help?";
       await appendTranscript(callSid, "ai", greeting);
-      return twiml(gatherTwiml(greeting, callSid));
+      return twiml(`<Say language="en-GB">.</Say><Pause length="1"/>` + gatherTwiml(greeting, callSid));
     }
 
     // ---- Conversation turn ----
