@@ -426,7 +426,7 @@ Deno.serve(async (req) => {
         await sendSms(transferNumber, `Missed call from AI receptionist. Caller: ${fromNumber || "unknown"}. Dial status: ${dialStatus}.`);
         return twiml(`
           <Say voice="${VOICE}">Sorry, no one is available right now. Please leave a brief message after the tone, including your name and number.</Say>
-          <Record maxLength="60" playBeep="true" action="${FN_BASE}?action=complete&CallSid=${encodeURIComponent(callSid)}"/>
+          <Record maxLength="60" playBeep="true" action="${FN_BASE}?action=complete&amp;CallSid=${encodeURIComponent(callSid)}"/>
           <Hangup/>
         `);
       }
