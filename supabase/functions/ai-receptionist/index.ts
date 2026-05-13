@@ -11,7 +11,6 @@ const TWILIO_ACCOUNT_SID = Deno.env.get("TWILIO_ACCOUNT_SID");
 const TWILIO_PHONE_NUMBER = Deno.env.get("TWILIO_PHONE_NUMBER");
 
 const FN_BASE = `${SUPABASE_URL}/functions/v1/ai-receptionist`;
-const VOICE = "Polly.Amy-Neural";
 const HAIKU_MODEL = "claude-haiku-4-5-20251001";
 const SONNET_MODEL = "claude-sonnet-4-6";
 
@@ -43,16 +42,16 @@ function gatherTwiml(sayText: string, callSid: string, hint?: string): string {
   const action = `${FN_BASE}?action=conversation&amp;CallSid=${encodeURIComponent(callSid)}`;
   return `
     <Gather input="speech" action="${action}" method="POST" speechTimeout="auto" language="en-GB" actionOnEmptyResult="true">
-      <Say voice="${VOICE}">${escapeXml(sayText)}</Say>
+      <Say language="en-GB">${escapeXml(sayText)}</Say>
     </Gather>
-    <Say voice="${VOICE}">I didn't hear anything. Goodbye.</Say>
+    <Say language="en-GB">I didn't hear anything. Goodbye.</Say>
     <Hangup/>
   `;
 }
 
 function transferTwiml(transferNumber: string, callSid: string, intro?: string): string {
   const action = `${FN_BASE}?action=transfer_complete&amp;CallSid=${encodeURIComponent(callSid)}`;
-  const intoSay = intro ? `<Say voice="${VOICE}">${escapeXml(intro)}</Say>` : "";
+  const intoSay = intro ? `<Say language="en-GB">${escapeXml(intro)}</Say>` : "";
   return `
     ${intoSay}
     <Dial action="${action}" method="POST" timeout="25" callerId="${escapeXml(TWILIO_PHONE_NUMBER || "")}">
@@ -63,7 +62,7 @@ function transferTwiml(transferNumber: string, callSid: string, intro?: string):
 
 function errorTransferTwiml(transferNumber: string): string {
   return `
-    <Say voice="${VOICE}">I'm sorry, I'm having a technical difficulty. Let me transfer you to the salon directly.</Say>
+    <Say language="en-GB">I'm sorry, I'm having a technical difficulty. Let me transfer you to the salon directly.</Say>
     <Dial timeout="30" callerId="${escapeXml(TWILIO_PHONE_NUMBER || "")}">
       <Number>${escapeXml(transferNumber)}</Number>
     </Dial>
@@ -337,7 +336,7 @@ Deno.serve(async (req) => {
     // ---- Initial call ----
     if (action === "incoming" || action === "initial") {
       if (!callSid) {
-        return twiml(`<Say voice="${VOICE}">Sorry, I couldn't start the call.</Say><Hangup/>`);
+        return twiml(`<Say language="en-GB">Sorry, I couldn't start the call.</Say><Hangup/>`);
       }
       await getOrCreateCallLog(callSid, fromNumber);
 
@@ -356,7 +355,7 @@ Deno.serve(async (req) => {
 
       const greeting = settings.greeting || "Fluff and Scruff Studio, how can I help?";
       await appendTranscript(callSid, "ai", greeting);
-      return twiml(gatherTwiml(greeting, callSid));
+      return twiml(`<Say language="en-GB">.</Say><Pause length="1"/>` + gatherTwiml(greeting, callSid));
     }
 
     // ---- Conversation turn ----
@@ -416,14 +415,14 @@ Deno.serve(async (req) => {
         await supabase.from("ai_call_logs").update({ outcome: "voicemail", caller_name: fields.caller || null }).eq("call_sid", callSid);
         await sendSms(transferNumber, `Missed call message via AI receptionist:\nCaller: ${fields.caller || "?"}\nNumber: ${fields.number || fromNumber || "?"}\nMessage: ${fields.message || "(no message)"}`);
         const goodbye = sayText || "Thanks, I've passed your message on. Have a lovely day. Goodbye.";
-        return twiml(`<Say voice="${VOICE}">${escapeXml(goodbye)}</Say><Hangup/>`);
+        return twiml(`<Say language="en-GB">${escapeXml(goodbye)}</Say><Hangup/>`);
       }
 
       if (tag === "END") {
         const goodbye = sayText || "Thanks for calling Fluff and Scruff. Goodbye.";
         // Fire-and-forget summary
         finalizeCall(callSid, summaryEmail).catch((e) => console.error("[ai-receptionist] finalize err", e));
-        return twiml(`<Say voice="${VOICE}">${escapeXml(goodbye)}</Say><Hangup/>`);
+        return twiml(`<Say language="en-GB">${escapeXml(goodbye)}</Say><Hangup/>`);
       }
 
       return twiml(gatherTwiml(sayText, callSid));
@@ -441,7 +440,7 @@ Deno.serve(async (req) => {
       if (!successful) {
         await sendSms(transferNumber, `Missed call from AI receptionist. Caller: ${fromNumber || "unknown"}. Dial status: ${dialStatus}.`);
         return twiml(`
-          <Say voice="${VOICE}">Sorry, no one is available right now. Please leave a brief message after the tone, including your name and number.</Say>
+          <Say language="en-GB">Sorry, no one is available right now. Please leave a brief message after the tone, including your name and number.</Say>
           <Record maxLength="60" playBeep="true" action="${FN_BASE}?action=complete&amp;CallSid=${encodeURIComponent(callSid)}"/>
           <Hangup/>
         `);
