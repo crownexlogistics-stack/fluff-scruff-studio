@@ -51,7 +51,7 @@ function gatherTwiml(sayText: string, callSid: string, hint?: string): string {
 }
 
 function transferTwiml(transferNumber: string, callSid: string, intro?: string): string {
-  const action = `${FN_BASE}?action=transfer_complete&CallSid=${encodeURIComponent(callSid)}`;
+  const action = `${FN_BASE}?action=transfer_complete&amp;CallSid=${encodeURIComponent(callSid)}`;
   const intoSay = intro ? `<Say voice="${VOICE}">${escapeXml(intro)}</Say>` : "";
   return `
     ${intoSay}
