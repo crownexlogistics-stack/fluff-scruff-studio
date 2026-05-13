@@ -40,7 +40,7 @@ function twiml(body: string): Response {
 }
 
 function gatherTwiml(sayText: string, callSid: string, hint?: string): string {
-  const action = `${FN_BASE}?action=conversation&CallSid=${encodeURIComponent(callSid)}`;
+  const action = `${FN_BASE}?action=conversation&amp;CallSid=${encodeURIComponent(callSid)}`;
   return `
     <Gather input="speech" action="${action}" method="POST" speechTimeout="auto" language="en-GB" actionOnEmptyResult="true">
       <Say voice="${VOICE}">${escapeXml(sayText)}</Say>
@@ -51,7 +51,7 @@ function gatherTwiml(sayText: string, callSid: string, hint?: string): string {
 }
 
 function transferTwiml(transferNumber: string, callSid: string, intro?: string): string {
-  const action = `${FN_BASE}?action=transfer_complete&CallSid=${encodeURIComponent(callSid)}`;
+  const action = `${FN_BASE}?action=transfer_complete&amp;CallSid=${encodeURIComponent(callSid)}`;
   const intoSay = intro ? `<Say voice="${VOICE}">${escapeXml(intro)}</Say>` : "";
   return `
     ${intoSay}
@@ -426,7 +426,7 @@ Deno.serve(async (req) => {
         await sendSms(transferNumber, `Missed call from AI receptionist. Caller: ${fromNumber || "unknown"}. Dial status: ${dialStatus}.`);
         return twiml(`
           <Say voice="${VOICE}">Sorry, no one is available right now. Please leave a brief message after the tone, including your name and number.</Say>
-          <Record maxLength="60" playBeep="true" action="${FN_BASE}?action=complete&CallSid=${encodeURIComponent(callSid)}"/>
+          <Record maxLength="60" playBeep="true" action="${FN_BASE}?action=complete&amp;CallSid=${encodeURIComponent(callSid)}"/>
           <Hangup/>
         `);
       }
