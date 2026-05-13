@@ -11,7 +11,7 @@ const TWILIO_ACCOUNT_SID = Deno.env.get("TWILIO_ACCOUNT_SID");
 const TWILIO_PHONE_NUMBER = Deno.env.get("TWILIO_PHONE_NUMBER");
 
 const FN_BASE = `${SUPABASE_URL}/functions/v1/ai-receptionist`;
-const VOICE = "Polly.Amy-Neural";
+const VOICE = "Polly.Joanna";
 const HAIKU_MODEL = "claude-haiku-4-5-20251001";
 const SONNET_MODEL = "claude-sonnet-4-6";
 
