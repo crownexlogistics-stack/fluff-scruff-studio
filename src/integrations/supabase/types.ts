@@ -167,6 +167,149 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_call_logs: {
+        Row: {
+          booking_id: string | null
+          call_sid: string | null
+          caller_name: string | null
+          caller_number: string | null
+          created_at: string
+          duration_seconds: number | null
+          ended_at: string | null
+          id: string
+          outcome: string | null
+          started_at: string | null
+          summary: string | null
+          transcript: Json | null
+          transfer_attempted: boolean
+          transfer_successful: boolean
+        }
+        Insert: {
+          booking_id?: string | null
+          call_sid?: string | null
+          caller_name?: string | null
+          caller_number?: string | null
+          created_at?: string
+          duration_seconds?: number | null
+          ended_at?: string | null
+          id?: string
+          outcome?: string | null
+          started_at?: string | null
+          summary?: string | null
+          transcript?: Json | null
+          transfer_attempted?: boolean
+          transfer_successful?: boolean
+        }
+        Update: {
+          booking_id?: string | null
+          call_sid?: string | null
+          caller_name?: string | null
+          caller_number?: string | null
+          created_at?: string
+          duration_seconds?: number | null
+          ended_at?: string | null
+          id?: string
+          outcome?: string | null
+          started_at?: string | null
+          summary?: string | null
+          transcript?: Json | null
+          transfer_attempted?: boolean
+          transfer_successful?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_call_logs_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_receptionist_hours: {
+        Row: {
+          close_time: string | null
+          created_at: string
+          day_of_week: number
+          id: string
+          is_open: boolean
+          open_time: string | null
+        }
+        Insert: {
+          close_time?: string | null
+          created_at?: string
+          day_of_week: number
+          id?: string
+          is_open?: boolean
+          open_time?: string | null
+        }
+        Update: {
+          close_time?: string | null
+          created_at?: string
+          day_of_week?: number
+          id?: string
+          is_open?: boolean
+          open_time?: string | null
+        }
+        Relationships: []
+      }
+      ai_receptionist_knowledge: {
+        Row: {
+          answer: string
+          category: string
+          created_at: string
+          id: string
+          is_active: boolean
+          question: string
+        }
+        Insert: {
+          answer: string
+          category?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          question: string
+        }
+        Update: {
+          answer?: string
+          category?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          question?: string
+        }
+        Relationships: []
+      }
+      ai_receptionist_settings: {
+        Row: {
+          created_at: string
+          email_summary_to: string
+          greeting: string
+          id: string
+          is_active: boolean
+          transfer_number: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email_summary_to?: string
+          greeting?: string
+          id?: string
+          is_active?: boolean
+          transfer_number?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email_summary_to?: string
+          greeting?: string
+          id?: string
+          is_active?: boolean
+          transfer_number?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       audit_logs: {
         Row: {
           action: string
