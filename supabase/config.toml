@@ -155,3 +155,6 @@ verify_jwt = false
 
 [functions.get-cash-flow]
 verify_jwt = false
+
+[functions.ai-receptionist]
+verify_jwt = false
