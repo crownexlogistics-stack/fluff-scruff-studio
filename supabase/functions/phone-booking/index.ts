@@ -46,6 +46,56 @@ function normalizePhone(raw: string): string {
   return p;
 }
 
+const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const OPEN_DOW = [2, 3, 4, 5, 6]; // Tue-Sat
+
+function londonTodayIso(): string {
+  return new Date().toLocaleDateString("en-CA", { timeZone: "Europe/London" });
+}
+
+function addDaysIso(iso: string, days: number): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  dt.setUTCDate(dt.getUTCDate() + days);
+  return dt.toISOString().slice(0, 10);
+}
+
+function dowFromIso(iso: string): number {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+}
+
+function buildDateResponse() {
+  const today = londonTodayIso();
+  const todayDow = dowFromIso(today);
+  const tomorrow = addDaysIso(today, 1);
+
+  const this_week: { day: string; date: string }[] = [];
+  for (let offset = 1; offset <= 6 - todayDow; offset++) {
+    const iso = addDaysIso(today, offset);
+    const dow = (todayDow + offset) % 7;
+    if (OPEN_DOW.includes(dow)) {
+      this_week.push({ day: DAY_NAMES[dow], date: iso });
+    }
+  }
+
+  const next_week: { day: string; date: string }[] = [];
+  const daysToNextSunday = 7 - todayDow;
+  for (let offset = 2; offset <= 6; offset++) {
+    const iso = addDaysIso(today, daysToNextSunday + offset);
+    next_week.push({ day: DAY_NAMES[offset], date: iso });
+  }
+
+  return {
+    today,
+    today_name: DAY_NAMES[todayDow],
+    tomorrow,
+    this_week,
+    next_week,
+    timezone: "Europe/London",
+  };
+}
+
 interface Window { start: number; end: number }
 
 async function getGroomerWindows(
@@ -321,7 +371,10 @@ Deno.serve(async (req) => {
         .eq("is_active", true)
         .order("name");
       if (error) return json({ error: error.message }, 500);
-      return json({ services: (data || []).map((s: any) => s.name) });
+      return json({
+        services: (data || []).map((s: any) => s.name),
+        ...buildDateResponse(),
+      });
     }
 
     // ─────────────────────────── check_availability ───────────────────────────
