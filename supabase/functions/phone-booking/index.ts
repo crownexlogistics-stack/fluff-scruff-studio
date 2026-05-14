@@ -1138,10 +1138,10 @@ Deno.serve(async (req) => {
       const { customer_phone, booking_date, booking_time } = body;
       console.log("[cancel_booking] starting", JSON.stringify(body));
 
-      if (!customer_phone || !booking_date || !booking_time) {
+      if (!customer_phone || !booking_date) {
         return json({
           success: false,
-          message: "Missing required fields: customer_phone, booking_date, booking_time",
+          message: "Missing required fields: customer_phone, booking_date",
         }, 400);
       }
 
@@ -1158,22 +1158,31 @@ Deno.serve(async (req) => {
       if (raw.startsWith("0")) phoneCandidates.add(raw.slice(1));
       const phoneList = Array.from(phoneCandidates).filter(Boolean);
 
-      const timePrefix = String(booking_time).slice(0, 5);
+      const timePrefix = booking_time ? String(booking_time).slice(0, 5) : null;
+      console.log("[cancel_booking] searching for booking:", JSON.stringify({ phoneList, booking_date, timePrefix }));
+
       const { data: matches, error: findErr } = await supabase
         .from("bookings")
         .select("id, customer_name, customer_email, customer_phone, dog_name, breed_id, breeds(name), booking_date, booking_time, deposit_paid, total_price, stripe_payment_id, status, services(name)")
         .in("customer_phone", phoneList)
         .eq("booking_date", booking_date)
-        .like("booking_time", `${timePrefix}%`)
         .not("status", "in", '("Cancelled","No Show","Refunded")')
-        .limit(1);
+        .order("booking_time", { ascending: true });
 
       console.log("[cancel_booking] lookup result:", JSON.stringify({ matches, findErr }));
 
       if (findErr) {
         return json({ success: false, message: `Lookup error: ${findErr.message}` }, 500);
       }
-      const booking: any = matches && matches[0];
+      let booking: any = null;
+      if (matches && matches.length) {
+        if (timePrefix) {
+          booking = matches.find((m: any) => String(m.booking_time || "").slice(0, 5) === timePrefix) || null;
+        } else {
+          booking = matches[0];
+        }
+      }
+      console.log("[cancel_booking] booking found:", JSON.stringify(booking));
       if (!booking) {
         return json({
           success: false,
@@ -1285,6 +1294,59 @@ Deno.serve(async (req) => {
         deposit_refunded: depositRefunded,
         deposit_amount: depositRefunded ? refundAmount : depositPaid,
         message,
+      });
+    }
+
+    // ─────────────────────────── get_appointments ───────────────────────────
+    if (action === "get_appointments") {
+      const { customer_phone } = body;
+      console.log("[get_appointments] starting", JSON.stringify(body));
+      if (!customer_phone) {
+        return json({ found: false, message: "Missing customer_phone" }, 400);
+      }
+
+      const raw = String(customer_phone).trim().replace(/[\s\-\(\)]/g, "");
+      const phoneCandidates = new Set<string>([raw]);
+      const normalized = normalizePhone(raw);
+      phoneCandidates.add(normalized);
+      if (normalized.startsWith("+44")) {
+        phoneCandidates.add("0" + normalized.slice(3));
+        phoneCandidates.add(normalized.slice(3));
+        phoneCandidates.add(normalized.slice(1));
+      }
+      if (raw.startsWith("0")) phoneCandidates.add(raw.slice(1));
+      const phoneList = Array.from(phoneCandidates).filter(Boolean);
+
+      const today = new Date().toISOString().slice(0, 10);
+      const { data: appts, error: apptErr } = await supabase
+        .from("bookings")
+        .select("id, booking_date, booking_time, dog_name, deposit_paid, services(name), staff(name)")
+        .in("customer_phone", phoneList)
+        .gte("booking_date", today)
+        .not("status", "in", '("Cancelled","No Show","Refunded")')
+        .order("booking_date", { ascending: true })
+        .order("booking_time", { ascending: true });
+
+      console.log("[get_appointments] result:", JSON.stringify({ count: appts?.length, apptErr }));
+
+      if (apptErr) {
+        return json({ found: false, message: `Lookup error: ${apptErr.message}` }, 500);
+      }
+      if (!appts || appts.length === 0) {
+        return json({ found: false, message: "No upcoming appointments found" });
+      }
+
+      return json({
+        found: true,
+        appointments: appts.map((a: any) => ({
+          booking_id: a.id,
+          date: a.booking_date,
+          time: String(a.booking_time || "").slice(0, 5),
+          service: a.services?.name || "",
+          groomer: a.staff?.name || "",
+          dog_name: a.dog_name || "",
+          deposit_paid: Number(a.deposit_paid) || 0,
+        })),
       });
     }
 
