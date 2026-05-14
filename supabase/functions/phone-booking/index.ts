@@ -988,6 +988,151 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ─────────────────────────── reschedule_booking ───────────────────────────
+    if (action === "reschedule_booking") {
+      const {
+        customer_phone,
+        original_date,
+        original_time,
+        new_date,
+        new_time,
+        service_name,
+        groomer_name,
+      } = body;
+
+      console.log("[reschedule_booking] starting", JSON.stringify(body));
+
+      if (!customer_phone || !new_date || !new_time || !service_name || !groomer_name) {
+        return json({
+          success: false,
+          error: "Missing required fields: customer_phone, new_date, new_time, service_name, groomer_name",
+        }, 400);
+      }
+
+      // Build candidate phone formats
+      const raw = String(customer_phone).trim().replace(/[\s\-\(\)]/g, "");
+      const phoneCandidates = new Set<string>([raw]);
+      const normalized = normalizePhone(raw);
+      phoneCandidates.add(normalized);
+      if (normalized.startsWith("+44")) {
+        phoneCandidates.add("0" + normalized.slice(3));
+        phoneCandidates.add(normalized.slice(3));
+        phoneCandidates.add(normalized.slice(1));
+      }
+      if (raw.startsWith("0")) phoneCandidates.add(raw.slice(1));
+      const phoneList = Array.from(phoneCandidates).filter(Boolean);
+
+      // Find existing booking
+      let existing: any = null;
+      if (original_date && original_time) {
+        const timePrefix = String(original_time).slice(0, 5); // HH:MM
+        const { data: matches, error: findErr } = await supabase
+          .from("bookings")
+          .select("id, customer_name, customer_phone, dog_name, breed_id, breeds(name), notes, status")
+          .in("customer_phone", phoneList)
+          .eq("booking_date", original_date)
+          .like("booking_time", `${timePrefix}%`)
+          .not("status", "in", '("Cancelled","No Show","Refunded")')
+          .limit(1);
+        console.log("[reschedule_booking] existing lookup:", JSON.stringify({ matches, findErr }));
+        existing = (matches && matches[0]) || null;
+      }
+
+      let cancelledId: string | null = null;
+      if (existing) {
+        const { error: cancelErr } = await supabase
+          .from("bookings")
+          .update({ status: "Cancelled" })
+          .eq("id", existing.id);
+        if (cancelErr) {
+          console.error("[reschedule_booking] cancel failed", cancelErr);
+          return json({
+            success: false,
+            error: `Failed to cancel original booking: ${cancelErr.message}`,
+          }, 500);
+        }
+        cancelledId = existing.id;
+
+        await supabase.from("booking_audit_log").insert({
+          booking_id: existing.id,
+          event_type: "cancelled_by_ai",
+          performed_by: "AI Receptionist",
+          old_date: original_date,
+          old_time: original_time,
+          note: "Cancelled for rescheduling via phone call",
+        }).then(({ error }: any) => {
+          if (error) console.error("[reschedule_booking] audit log failed", error);
+        });
+      } else {
+        console.log("[reschedule_booking] original booking not found, creating new only");
+      }
+
+      // Build payload for create_booking re-dispatch
+      const customerName = existing?.customer_name || body.customer_name;
+      const dogName = existing?.dog_name || body.dog_name;
+      const breedName = existing?.breeds?.name || body.breed_name;
+      const phoneForBooking = existing?.customer_phone || normalized;
+
+      if (!customerName) {
+        return json({
+          success: false,
+          warning: cancelledId ? null : "Original booking not found",
+          cancelled_booking_id: cancelledId,
+          error: "Cannot create new booking: customer_name unknown (original booking not found and not provided)",
+        }, 400);
+      }
+
+      const createPayload = {
+        action: "create_booking",
+        customer_name: customerName,
+        customer_phone: phoneForBooking,
+        dog_name: dogName,
+        breed_name: breedName,
+        service_name,
+        date: new_date,
+        time: new_time,
+        groomer_name,
+        notes: `Rescheduled from ${original_date || "?"} ${original_time || "?"} via AI phone receptionist`,
+      };
+
+      const createRes = await fetch(
+        `${Deno.env.get("SUPABASE_URL")}/functions/v1/phone-booking`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+          },
+          body: JSON.stringify(createPayload),
+        },
+      );
+      const createJson = await createRes.json();
+      console.log("[reschedule_booking] create result:", JSON.stringify(createJson));
+
+      if (!createJson?.success) {
+        return json({
+          success: false,
+          cancelled_booking_id: cancelledId,
+          error: createJson?.error || "Failed to create new booking",
+        }, createRes.status || 500);
+      }
+
+      if (!cancelledId) {
+        return json({
+          success: true,
+          warning: "Original booking not found — new booking created",
+          new_booking_id: createJson.booking_id,
+        });
+      }
+
+      return json({
+        success: true,
+        cancelled_booking_id: cancelledId,
+        new_booking_id: createJson.booking_id,
+        message: "Rescheduled successfully",
+      });
+    }
+
     return json({ error: `Unknown action: ${action}` }, 400);
   } catch (err: any) {
     console.error("[phone-booking] error", err);
