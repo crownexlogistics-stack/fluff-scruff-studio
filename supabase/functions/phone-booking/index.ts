@@ -1032,18 +1032,26 @@ Deno.serve(async (req) => {
 
       // Find existing booking
       let existing: any = null;
-      if (original_date && original_time) {
-        const timePrefix = String(original_time).slice(0, 5); // HH:MM
+      console.log("[reschedule_booking] looking up original booking for phone:", JSON.stringify(phoneList), "date:", original_date, "time:", original_time);
+      if (original_date) {
         const { data: matches, error: findErr } = await supabase
           .from("bookings")
-          .select("id, customer_name, customer_phone, dog_name, breed_id, breeds(name), notes, status")
+          .select("id, customer_name, customer_phone, dog_name, breed_id, breeds(name), booking_time, notes, status")
           .in("customer_phone", phoneList)
           .eq("booking_date", original_date)
-          .like("booking_time", `${timePrefix}%`)
           .not("status", "in", '("Cancelled","No Show","Refunded")')
-          .limit(1);
+          .order("booking_time", { ascending: true });
         console.log("[reschedule_booking] existing lookup:", JSON.stringify({ matches, findErr }));
-        existing = (matches && matches[0]) || null;
+        if (findErr) {
+          return json({ success: false, error: `Lookup failed: ${findErr.message}` }, 500);
+        }
+        if (original_time && matches && matches.length) {
+          const timePrefix = String(original_time).slice(0, 5);
+          existing = matches.find((m: any) => String(m.booking_time).slice(0, 5) === timePrefix) || null;
+        } else {
+          existing = (matches && matches[0]) || null;
+        }
+        console.log("[reschedule_booking] original booking found:", JSON.stringify(existing));
       }
 
       let cancelledId: string | null = null;
@@ -1060,6 +1068,7 @@ Deno.serve(async (req) => {
           }, 500);
         }
         cancelledId = existing.id;
+        console.log("[reschedule_booking] cancelling original booking id:", cancelledId);
 
         await supabase.from("booking_audit_log").insert({
           booking_id: existing.id,
@@ -1102,6 +1111,7 @@ Deno.serve(async (req) => {
         groomer_name,
         notes: `Rescheduled from ${original_date || "?"} ${original_time || "?"} via AI phone receptionist`,
       };
+      console.log("[reschedule_booking] creating new booking with:", JSON.stringify(createPayload));
 
       const createRes = await fetch(
         `${Deno.env.get("SUPABASE_URL")}/functions/v1/phone-booking`,
