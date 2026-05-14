@@ -955,31 +955,53 @@ Deno.serve(async (req) => {
 
     // ─────────────────────────── lookup_customer ───────────────────────────
     if (action === "lookup_customer") {
-      const { phone } = body;
-      if (!phone) return json({ error: "phone is required" }, 400);
-
-      // Build candidate phone formats to match against stored values.
-      const raw = String(phone).trim().replace(/[\s\-\(\)]/g, "");
-      const candidates = new Set<string>([raw]);
-      const normalized = normalizePhone(raw);
-      candidates.add(normalized);
-      // +44XXXXXXXXXX -> 0XXXXXXXXXX
-      if (normalized.startsWith("+44")) {
-        candidates.add("0" + normalized.slice(3));
-        candidates.add(normalized.slice(3));        // bare national number
-        candidates.add(normalized.slice(1));        // 44XXXXXXXXXX
+      const { phone, email, customer_name } = body;
+      if (!phone && !email && !customer_name) {
+        return json({ error: "At least one of phone, email, or customer_name is required" }, 400);
       }
-      // 0XXXXXXXXXX -> +44XXXXXXXXXX (already covered) and bare 7XXXXXXXXX
-      if (raw.startsWith("0")) candidates.add(raw.slice(1));
 
-      const list = Array.from(candidates).filter(Boolean);
-      const { data: matches } = await supabase
-        .from("bookings")
-        .select(
-          "customer_name, customer_phone, dog_name, booking_date, breeds(name)",
-        )
-        .in("customer_phone", list)
-        .order("booking_date", { ascending: false });
+      let matches: any[] = [];
+
+      // 1. Search by phone if provided
+      if (phone) {
+        const raw = String(phone).trim().replace(/[\s\-\(\)]/g, "");
+        const candidates = new Set<string>([raw]);
+        const normalized = normalizePhone(raw);
+        candidates.add(normalized);
+        if (normalized.startsWith("+44")) {
+          candidates.add("0" + normalized.slice(3));
+          candidates.add(normalized.slice(3));
+          candidates.add(normalized.slice(1));
+        }
+        if (raw.startsWith("0")) candidates.add(raw.slice(1));
+        const list = Array.from(candidates).filter(Boolean);
+        const { data } = await supabase
+          .from("bookings")
+          .select("customer_name, customer_phone, dog_name, booking_date, breeds(name)")
+          .in("customer_phone", list)
+          .order("booking_date", { ascending: false });
+        if (data && data.length > 0) matches = data;
+      }
+
+      // 2. Search by email if no phone match and email provided
+      if (matches.length === 0 && email) {
+        const { data } = await supabase
+          .from("bookings")
+          .select("customer_name, customer_phone, dog_name, booking_date, breeds(name)")
+          .ilike("customer_email", String(email).trim())
+          .order("booking_date", { ascending: false });
+        if (data && data.length > 0) matches = data;
+      }
+
+      // 3. Search by customer_name ilike if still no match and name provided
+      if (matches.length === 0 && customer_name) {
+        const { data } = await supabase
+          .from("bookings")
+          .select("customer_name, customer_phone, dog_name, booking_date, breeds(name)")
+          .ilike("customer_name", `%${String(customer_name).trim()}%`)
+          .order("booking_date", { ascending: false });
+        if (data && data.length > 0) matches = data;
+      }
 
       if (!matches || matches.length === 0) {
         return json({ found: false });
@@ -1329,33 +1351,68 @@ Deno.serve(async (req) => {
 
     // ─────────────────────────── get_appointments ───────────────────────────
     if (action === "get_appointments") {
-      const { customer_phone } = body;
+      const { customer_phone, email, customer_name } = body;
       console.log("[get_appointments] starting", JSON.stringify(body));
-      if (!customer_phone) {
-        return json({ found: false, message: "Missing customer_phone" }, 400);
+      if (!customer_phone && !email && !customer_name) {
+        return json({ found: false, message: "At least one of customer_phone, email, or customer_name is required" }, 400);
       }
-
-      const raw = String(customer_phone).trim().replace(/[\s\-\(\)]/g, "");
-      const phoneCandidates = new Set<string>([raw]);
-      const normalized = normalizePhone(raw);
-      phoneCandidates.add(normalized);
-      if (normalized.startsWith("+44")) {
-        phoneCandidates.add("0" + normalized.slice(3));
-        phoneCandidates.add(normalized.slice(3));
-        phoneCandidates.add(normalized.slice(1));
-      }
-      if (raw.startsWith("0")) phoneCandidates.add(raw.slice(1));
-      const phoneList = Array.from(phoneCandidates).filter(Boolean);
 
       const today = new Date().toISOString().slice(0, 10);
-      const { data: appts, error: apptErr } = await supabase
-        .from("bookings")
-        .select("id, booking_date, booking_time, dog_name, deposit_paid, services(name), staff(name)")
-        .in("customer_phone", phoneList)
-        .gte("booking_date", today)
-        .not("status", "in", '("Cancelled","No Show","Refunded")')
-        .order("booking_date", { ascending: true })
-        .order("booking_time", { ascending: true });
+      let appts: any[] = [];
+      let apptErr: any = null;
+
+      // 1. Search by phone if provided
+      if (customer_phone) {
+        const raw = String(customer_phone).trim().replace(/[\s\-\(\)]/g, "");
+        const phoneCandidates = new Set<string>([raw]);
+        const normalized = normalizePhone(raw);
+        phoneCandidates.add(normalized);
+        if (normalized.startsWith("+44")) {
+          phoneCandidates.add("0" + normalized.slice(3));
+          phoneCandidates.add(normalized.slice(3));
+          phoneCandidates.add(normalized.slice(1));
+        }
+        if (raw.startsWith("0")) phoneCandidates.add(raw.slice(1));
+        const phoneList = Array.from(phoneCandidates).filter(Boolean);
+        const { data, error } = await supabase
+          .from("bookings")
+          .select("id, booking_date, booking_time, dog_name, deposit_paid, services(name), staff(name)")
+          .in("customer_phone", phoneList)
+          .gte("booking_date", today)
+          .not("status", "in", '("Cancelled","No Show","Refunded")')
+          .order("booking_date", { ascending: true })
+          .order("booking_time", { ascending: true });
+        if (error) apptErr = error;
+        else if (data && data.length > 0) appts = data;
+      }
+
+      // 2. Search by email if no phone match and email provided
+      if (appts.length === 0 && !apptErr && email) {
+        const { data, error } = await supabase
+          .from("bookings")
+          .select("id, booking_date, booking_time, dog_name, deposit_paid, services(name), staff(name)")
+          .ilike("customer_email", String(email).trim())
+          .gte("booking_date", today)
+          .not("status", "in", '("Cancelled","No Show","Refunded")')
+          .order("booking_date", { ascending: true })
+          .order("booking_time", { ascending: true });
+        if (error) apptErr = error;
+        else if (data && data.length > 0) appts = data;
+      }
+
+      // 3. Search by customer_name ilike if still no match and name provided
+      if (appts.length === 0 && !apptErr && customer_name) {
+        const { data, error } = await supabase
+          .from("bookings")
+          .select("id, booking_date, booking_time, dog_name, deposit_paid, services(name), staff(name)")
+          .ilike("customer_name", `%${String(customer_name).trim()}%`)
+          .gte("booking_date", today)
+          .not("status", "in", '("Cancelled","No Show","Refunded")')
+          .order("booking_date", { ascending: true })
+          .order("booking_time", { ascending: true });
+        if (error) apptErr = error;
+        else if (data && data.length > 0) appts = data;
+      }
 
       console.log("[get_appointments] result:", JSON.stringify({ count: appts?.length, apptErr }));
 
