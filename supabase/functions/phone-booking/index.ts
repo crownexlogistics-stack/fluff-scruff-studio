@@ -1134,6 +1134,8 @@ Deno.serve(async (req) => {
     }
 
     return json({ error: `Unknown action: ${action}` }, 400);
+
+    // (cancel_booking handled above via early return)
   } catch (err: any) {
     console.error("[phone-booking] error", err);
     return json({ error: err?.message || "Server error" }, 500);
