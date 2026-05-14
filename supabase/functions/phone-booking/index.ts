@@ -214,12 +214,22 @@ async function getGroomerBusy(
 ): Promise<Window[]> {
   const busy: Window[] = [];
 
-  const { data: bookings } = await supabase
+  const { data: bookings, error: bookingsErr } = await supabase
     .from("bookings")
     .select("booking_time, duration_minutes, services(duration_minutes), breeds(duration_minutes), status")
     .eq("booking_date", date)
     .eq("staff_id", staffId)
-    .not("status", "in", "(Cancelled,No Show,Refunded)");
+    .not("status", "in", '("Cancelled","No Show","Refunded")');
+
+  console.log(
+    "Existing bookings for date:",
+    date,
+    "staff:",
+    staffName,
+    "err:",
+    bookingsErr?.message || null,
+    JSON.stringify(bookings),
+  );
 
   for (const b of bookings || []) {
     const start = parseTime(b.booking_time);
@@ -233,12 +243,22 @@ async function getGroomerBusy(
   }
 
   const firstName = staffName.split(" ")[0] || staffName;
-  const { data: migrated } = await supabase
+  const { data: migrated, error: migErr } = await supabase
     .from("migrated_bookings")
-    .select("booking_time, duration_minutes, staff_name")
+    .select("booking_time, duration_minutes, staff_name, status")
     .eq("booking_date", date)
-    .eq("is_future_booking", true)
+    .not("status", "in", '("Cancelled","No Show","Refunded")')
     .or(`staff_name.eq.${staffName},staff_name.ilike.${staffName},staff_name.ilike.${firstName}%`);
+
+  console.log(
+    "Existing migrated_bookings for date:",
+    date,
+    "staff:",
+    staffName,
+    "err:",
+    migErr?.message || null,
+    JSON.stringify(migrated),
+  );
 
   for (const mb of migrated || []) {
     if (!mb.booking_time) continue;
@@ -247,6 +267,7 @@ async function getGroomerBusy(
     busy.push({ start, end: start + dur });
   }
 
+  console.log(`[getGroomerBusy] ${staffName} busy windows:`, JSON.stringify(busy));
   return busy;
 }
 
@@ -450,10 +471,12 @@ Deno.serve(async (req) => {
           const { data: breed, error: breedErr } = await supabase
             .from("breeds")
             .select("name, duration_minutes")
-            .ilike("name", String(breed_name))
-            .maybeSingle();
-          console.log("[check_availability] breed lookup:", { breed, breedErr });
-          if (breed?.duration_minutes) duration = Number(breed.duration_minutes);
+            .ilike("name", `%${String(breed_name).trim()}%`)
+            .order("duration_minutes", { ascending: false })
+            .limit(1);
+          const breedRow = Array.isArray(breed) ? breed[0] : breed;
+          console.log("[check_availability] breed lookup:", { breed_name, breedRow, breedErr });
+          if (breedRow?.duration_minutes) duration = Number(breedRow.duration_minutes);
         } else {
           console.log("[check_availability] no breed_name provided; using default duration");
         }
