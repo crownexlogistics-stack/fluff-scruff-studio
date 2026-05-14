@@ -96,6 +96,38 @@ function buildDateResponse() {
   };
 }
 
+const SERVICE_FUZZY: { keywords: string[]; canonical: string }[] = [
+  { keywords: ["full groom"], canonical: "Full Groom" },
+  { keywords: ["bath and brush", "bath brush", "bath & brush"], canonical: "Bath & Brush" },
+  { keywords: ["nail trim", "nail"], canonical: "Nail Trim & Filing" },
+  { keywords: ["teeth", "ultrasonic"], canonical: "Ultrasonic Teeth Cleaning" },
+  { keywords: ["puppy"], canonical: "Puppy Special" },
+];
+
+function fuzzyServiceName(input: string): string {
+  const s = (input || "").toLowerCase().trim();
+  for (const m of SERVICE_FUZZY) {
+    if (m.keywords.some((k) => s.includes(k))) return m.canonical;
+  }
+  return input;
+}
+
+function parseDateInput(input: string): string {
+  const s = (input || "").trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+
+  const lower = s.toLowerCase();
+  const dayIdx = DAY_NAMES.findIndex((d) => lower.includes(d.toLowerCase()));
+  if (dayIdx === -1) return s;
+
+  const today = londonTodayIso();
+  const todayDow = dowFromIso(today);
+  let diff = (dayIdx - todayDow + 7) % 7;
+  if (diff === 0) diff = 7; // never today; next occurrence
+  if (lower.includes("next")) diff += 7;
+  return addDaysIso(today, diff);
+}
+
 interface Window { start: number; end: number }
 
 async function getGroomerWindows(
@@ -279,10 +311,12 @@ async function findAvailableSlots(
 
   const result: { time: string; groomer: string; staff_id: string }[] = [];
   for (const g of eligible) {
+    console.log("[findAvailableSlots] checking groomer:", g.name, g.id);
     const windows = await getGroomerWindows(supabase, g.id, date);
     if (windows.length === 0) continue;
     const busy = await getGroomerBusy(supabase, g.id, g.name, date);
     const slots = findSlotsForGroomer(windows, busy, duration);
+    console.log(`[findAvailableSlots] ${g.name}: ${slots.length} slots`);
     for (const s of slots) {
       result.push({ time: fmtTime(s), groomer: g.name.split(" ")[0], staff_id: g.id });
     }
@@ -379,54 +413,83 @@ Deno.serve(async (req) => {
 
     // ─────────────────────────── check_availability ───────────────────────────
     if (action === "check_availability") {
-      const { date, service_name, breed_name } = body;
-      if (!date || !service_name) {
-        return json({ error: "date and service_name are required" }, 400);
-      }
-
-      const { data: service } = await supabase
-        .from("services")
-        .select("id, duration_minutes")
-        .ilike("name", service_name)
-        .eq("is_active", true)
-        .maybeSingle();
-      if (!service) return json({ error: `Service "${service_name}" not found` }, 404);
-
-      let duration = Number(service.duration_minutes || 0);
-      if (breed_name) {
-        const { data: breed } = await supabase
-          .from("breeds")
-          .select("duration_minutes")
-          .ilike("name", breed_name)
-          .maybeSingle();
-        if (breed?.duration_minutes) duration = Number(breed.duration_minutes);
-      }
-      // breed_name is OPTIONAL — if not provided (or unknown), fall back to 90 min
-      // so the AI can quote availability before the breed is mentioned.
-      if (!duration || duration <= 0) duration = 90;
-
-      const slots = await findAvailableSlots(supabase, date, duration, service.id);
-
-      if (slots.length > 0) {
-        return json({
-          available: true,
-          slots: slots.slice(0, 10).map((s) => ({ time: s.time, groomer: s.groomer })),
-        });
-      }
-
-      // Look ahead up to 14 days for next available
-      let nextAvail: string | null = null;
-      for (let i = 1; i <= 14; i++) {
-        const candidate = nextDate(date, i);
-        const s = await findAvailableSlots(supabase, candidate, duration, service.id);
-        if (s.length > 0) { nextAvail = candidate; break; }
-      }
-
-      return json({
+      const FALLBACK = {
         available: false,
-        message: "No availability on that date",
-        next_available: nextAvail,
-      });
+        slots: [],
+        message: "Unable to check availability for that date. Please try another date or call us on 01708 606655.",
+        error: false,
+      };
+      try {
+        console.log("[check_availability] incoming body:", body);
+        const { date: rawDate, service_name: rawServiceName, breed_name } = body;
+        if (!rawDate || !rawServiceName) {
+          console.log("[check_availability] missing date or service_name");
+          return json(FALLBACK);
+        }
+
+        const date = parseDateInput(String(rawDate));
+        const serviceName = fuzzyServiceName(String(rawServiceName));
+        console.log("[check_availability] resolved date:", date, "serviceName:", serviceName);
+
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+          console.log("[check_availability] could not parse date:", rawDate);
+          return json(FALLBACK);
+        }
+
+        const { data: service, error: svcErr } = await supabase
+          .from("services")
+          .select("id, duration_minutes, name")
+          .ilike("name", serviceName)
+          .eq("is_active", true)
+          .maybeSingle();
+        console.log("[check_availability] service lookup:", { service, svcErr });
+        if (!service) return json(FALLBACK);
+
+        let duration = Number(service.duration_minutes || 0);
+        if (breed_name) {
+          const { data: breed, error: breedErr } = await supabase
+            .from("breeds")
+            .select("name, duration_minutes")
+            .ilike("name", String(breed_name))
+            .maybeSingle();
+          console.log("[check_availability] breed lookup:", { breed, breedErr });
+          if (breed?.duration_minutes) duration = Number(breed.duration_minutes);
+        } else {
+          console.log("[check_availability] no breed_name provided; using default duration");
+        }
+        if (!duration || duration <= 0) duration = 90;
+        console.log("[check_availability] final duration:", duration);
+
+        const slots = await findAvailableSlots(supabase, date, duration, service.id);
+        console.log("[check_availability] final slots found:", slots.length, slots.slice(0, 5));
+
+        if (slots.length > 0) {
+          return json({
+            available: true,
+            slots: slots.slice(0, 10).map((s) => ({ time: s.time, groomer: s.groomer })),
+          });
+        }
+
+        let nextAvail: string | null = null;
+        for (let i = 1; i <= 14; i++) {
+          const candidate = nextDate(date, i);
+          const s = await findAvailableSlots(supabase, candidate, duration, service.id);
+          if (s.length > 0) { nextAvail = candidate; break; }
+        }
+        console.log("[check_availability] next available:", nextAvail);
+
+        return json({
+          available: false,
+          slots: [],
+          message: nextAvail
+            ? `No availability on that date. Next available: ${nextAvail}`
+            : "No availability on that date.",
+          next_available: nextAvail,
+        });
+      } catch (e: any) {
+        console.error("[check_availability] caught error:", e?.message || e);
+        return json(FALLBACK);
+      }
     }
 
     // ─────────────────────────── create_booking ───────────────────────────
