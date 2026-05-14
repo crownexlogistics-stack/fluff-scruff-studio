@@ -1301,9 +1301,11 @@ Deno.serve(async (req) => {
 
       const message = depositRefunded
         ? `Booking cancelled. Deposit of £${refundAmount.toFixed(2)} will be refunded within 3-5 working days.`
-        : refundEligible
-          ? "Booking cancelled. No deposit was on file to refund."
-          : "Booking cancelled. As this is within 48 hours of your appointment, the deposit cannot be refunded as per our cancellation policy.";
+        : depositPaid <= 0
+          ? "Booking cancelled. No deposit was collected so no refund is required."
+          : refundEligible
+            ? "Booking cancelled. No Stripe payment was found for the deposit — our team will handle this manually."
+            : "Booking cancelled. As this is within 48 hours of your appointment, the deposit cannot be refunded as per our cancellation policy.";
 
       console.log("[cancel_booking] returning success");
       return json({
