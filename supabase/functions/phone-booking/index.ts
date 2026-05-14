@@ -114,18 +114,29 @@ function fuzzyServiceName(input: string): string {
 
 function parseDateInput(input: string): string {
   const s = (input || "").trim();
-  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const originalInput = input;
+  const todayStr = londonTodayIso();
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    console.log("Date resolution:", "input:", originalInput, "today:", todayStr, "resolved:", s);
+    return s;
+  }
 
   const lower = s.toLowerCase();
   const dayIdx = DAY_NAMES.findIndex((d) => lower.includes(d.toLowerCase()));
-  if (dayIdx === -1) return s;
+  if (dayIdx === -1) {
+    console.log("Date resolution:", "input:", originalInput, "today:", todayStr, "resolved:", s);
+    return s;
+  }
 
-  const today = londonTodayIso();
-  const todayDow = dowFromIso(today);
+  const todayDow = dowFromIso(todayStr);
+  // Days forward from today to the requested day. If today, go to next week.
   let diff = (dayIdx - todayDow + 7) % 7;
-  if (diff === 0) diff = 7; // never today; next occurrence
+  if (diff === 0) diff = 7;
   if (lower.includes("next")) diff += 7;
-  return addDaysIso(today, diff);
+  const resolvedDate = addDaysIso(todayStr, diff);
+  console.log("Date resolution:", "input:", originalInput, "today:", todayStr, "resolved:", resolvedDate);
+  return resolvedDate;
 }
 
 interface Window { start: number; end: number }
@@ -245,9 +256,9 @@ async function getGroomerBusy(
   const firstName = staffName.split(" ")[0] || staffName;
   const { data: migrated, error: migErr } = await supabase
     .from("migrated_bookings")
-    .select("booking_time, duration_minutes, staff_name, status")
+    .select("booking_time, duration_minutes, staff_name, payment_status")
     .eq("booking_date", date)
-    .not("status", "in", '("Cancelled","No Show","Refunded")')
+    .not("payment_status", "in", '("Cancelled","Refunded")')
     .or(`staff_name.eq.${staffName},staff_name.ilike.${staffName},staff_name.ilike.${firstName}%`);
 
   console.log(
