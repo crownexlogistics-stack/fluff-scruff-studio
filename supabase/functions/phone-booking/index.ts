@@ -112,31 +112,111 @@ function fuzzyServiceName(input: string): string {
   return input;
 }
 
+function resolveDate(input: string): string {
+  // Get today in London timezone
+  const now = new Date();
+  const londonFormatter = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/London',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  });
+  const londonParts = londonFormatter.formatToParts(now);
+  const todayYear = parseInt(londonParts.find(p => p.type === 'year')!.value);
+  const todayMonth = parseInt(londonParts.find(p => p.type === 'month')!.value) - 1;
+  const todayDay = parseInt(londonParts.find(p => p.type === 'day')!.value);
+  const today = new Date(todayYear, todayMonth, todayDay);
+  const todayDow = today.getDay();
+
+  const lower = (input || "").toLowerCase().trim();
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(lower)) return lower;
+
+  if (lower === 'today') {
+    return today.toISOString().split('T')[0];
+  }
+  if (lower === 'tomorrow') {
+    const d = new Date(today);
+    d.setDate(d.getDate() + 1);
+    return d.toISOString().split('T')[0];
+  }
+
+  const dayMap: Record<string, number> = {
+    sunday: 0, sun: 0,
+    monday: 1, mon: 1,
+    tuesday: 2, tue: 2,
+    wednesday: 3, wed: 3,
+    thursday: 4, thu: 4,
+    friday: 5, fri: 5,
+    saturday: 6, sat: 6
+  };
+
+  const isNext = lower.startsWith('next ');
+  const dayWord = lower.replace(/^(next |this )/, '').trim();
+  const targetDow = dayMap[dayWord];
+  if (targetDow !== undefined) {
+    let daysAhead = targetDow - todayDow;
+    if (daysAhead <= 0) daysAhead += 7;
+    if (isNext) daysAhead += 7;
+    const d = new Date(today);
+    d.setDate(d.getDate() + daysAhead);
+    return d.toISOString().split('T')[0];
+  }
+
+  const dmyMatch = lower.match(/^(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?$/);
+  if (dmyMatch) {
+    const day = parseInt(dmyMatch[1]);
+    const month = parseInt(dmyMatch[2]) - 1;
+    const year = dmyMatch[3]
+      ? (dmyMatch[3].length === 2 ? 2000 + parseInt(dmyMatch[3]) : parseInt(dmyMatch[3]))
+      : todayYear;
+    const d = new Date(year, month, day);
+    return d.toISOString().split('T')[0];
+  }
+
+  const months: Record<string, number> = {
+    jan: 0, january: 0, feb: 1, february: 1,
+    mar: 2, march: 2, apr: 3, april: 3,
+    may: 4, jun: 5, june: 5, jul: 6, july: 6,
+    aug: 7, august: 7, sep: 8, september: 8,
+    oct: 9, october: 9, nov: 10, november: 10,
+    dec: 11, december: 11
+  };
+
+  const ordinalMatch = lower.match(/(\d{1,2})(?:st|nd|rd|th)?[\s,]+([a-z]+)/);
+  if (ordinalMatch) {
+    const day = parseInt(ordinalMatch[1]);
+    const monthKey = ordinalMatch[2];
+    const month = months[monthKey];
+    if (month !== undefined) {
+      const year = todayYear;
+      const d = new Date(year, month, day);
+      if (d < today) d.setFullYear(year + 1);
+      return d.toISOString().split('T')[0];
+    }
+  }
+
+  const monthFirstMatch = lower.match(/([a-z]+)[\s,]+(\d{1,2})/);
+  if (monthFirstMatch) {
+    const monthKey = monthFirstMatch[1];
+    const day = parseInt(monthFirstMatch[2]);
+    const month = months[monthKey];
+    if (month !== undefined) {
+      const year = todayYear;
+      const d = new Date(year, month, day);
+      if (d < today) d.setFullYear(year + 1);
+      return d.toISOString().split('T')[0];
+    }
+  }
+
+  const fallback = new Date(today);
+  fallback.setDate(fallback.getDate() + 1);
+  console.error("Could not parse date:", input, "falling back to tomorrow:", fallback.toISOString().split('T')[0]);
+  return fallback.toISOString().split('T')[0];
+}
+
 function parseDateInput(input: string): string {
-  const s = (input || "").trim();
-  const originalInput = input;
-  const todayStr = londonTodayIso();
-
-  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
-    console.log("Date resolution:", "input:", originalInput, "today:", todayStr, "resolved:", s);
-    return s;
-  }
-
-  const lower = s.toLowerCase();
-  const dayIdx = DAY_NAMES.findIndex((d) => lower.includes(d.toLowerCase()));
-  if (dayIdx === -1) {
-    console.log("Date resolution:", "input:", originalInput, "today:", todayStr, "resolved:", s);
-    return s;
-  }
-
-  const todayDow = dowFromIso(todayStr);
-  // Days forward from today to the requested day. If today, go to next week.
-  let diff = (dayIdx - todayDow + 7) % 7;
-  if (diff === 0) diff = 7;
-  if (lower.includes("next")) diff += 7;
-  const resolvedDate = addDaysIso(todayStr, diff);
-  console.log("Date resolution:", "input:", originalInput, "today:", todayStr, "resolved:", resolvedDate);
-  return resolvedDate;
+  return resolveDate(input);
 }
 
 interface Window { start: number; end: number }
@@ -454,6 +534,9 @@ Deno.serve(async (req) => {
       try {
         console.log("[check_availability] incoming body:", body);
         const { date: rawDate, service_name: rawServiceName, breed_name } = body;
+        console.log("check_availability called with:",
+          JSON.stringify({ action, date: rawDate, service_name: rawServiceName, breed_name }),
+          "today in London is:", resolveDate("today"));
         if (!rawDate || !rawServiceName) {
           console.log("[check_availability] missing date or service_name");
           return json(FALLBACK);
