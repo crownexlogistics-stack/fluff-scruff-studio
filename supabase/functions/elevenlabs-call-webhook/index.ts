@@ -83,6 +83,54 @@ Deno.serve(async (req) => {
       return json({ error: error.message }, 500);
     }
 
+    // Notify staff about missed opportunities
+    if (outcome !== "booking_made") {
+      const summaryLower = String(summary || "").toLowerCase();
+      const missedKeywords =
+        summaryLower.includes("technical difficulty") ||
+        summaryLower.includes("unable to help") ||
+        summaryLower.includes("call back");
+
+      if (missedKeywords || durationSeconds < 30) {
+        const resendKey = Deno.env.get("RESEND_API_KEY");
+        if (resendKey) {
+          const transcriptText = transcript
+            .map((t: any) => `${t.role === "ai" ? "AI" : "Caller"}: ${t.text}`)
+            .join("\n");
+
+          const callTime = new Date(startedAt).toLocaleString("en-GB", {
+            timeZone: "Europe/London",
+          });
+
+          const emailBody =
+            `The AI receptionist was unable to help a caller and they may have been lost.\n\n` +
+            `Caller: ${callerNumber || "Unknown"}\n` +
+            `Time: ${callTime}\n` +
+            `Duration: ${durationSeconds} seconds\n` +
+            `Outcome: ${outcome}\n\n` +
+            `Summary: ${summary || "N/A"}\n\n` +
+            `Transcript:\n${transcriptText || "N/A"}\n\n` +
+            `Action needed: Consider calling this customer back.`;
+
+          fetch("https://api.resend.com/emails", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${resendKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              from: "Fluff & Scruff Studio <info@fluffandscruff.co.uk>",
+              to: ["info@fluffandscruff.co.uk"],
+              subject: `⚠️ Missed Call Opportunity — AI Could Not Help — ${callerNumber || "Unknown"}`,
+              text: emailBody,
+            }),
+          }).catch((err) => {
+            console.error("[elevenlabs-call-webhook] email send error:", err);
+          });
+        }
+      }
+    }
+
     return json({ success: true });
   } catch (err: any) {
     console.error("[elevenlabs-call-webhook] error:", err);
