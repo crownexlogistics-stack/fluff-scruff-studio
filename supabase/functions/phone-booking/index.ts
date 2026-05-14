@@ -782,8 +782,9 @@ Deno.serve(async (req) => {
         }, 400);
       }
 
-      // Lookup price
-      let totalPrice = Number(service.fixed_price || 0);
+      // Lookup price — base service price ONLY. Never add unexplained amounts (e.g. add-ons not requested by caller).
+      let totalPrice = 0;
+      let priceSource = "none";
       let priceData: any = null;
       if (breedId) {
         const { data: priceRow, error: priceErr } = await supabase
@@ -793,10 +794,17 @@ Deno.serve(async (req) => {
           .eq("breed_id", breedId)
           .maybeSingle();
         priceData = { priceRow, priceErr };
-        if (priceRow?.price != null) totalPrice = Number(priceRow.price);
+        if (priceRow?.price != null && Number(priceRow.price) > 0) {
+          totalPrice = Number(priceRow.price);
+          priceSource = "service_prices";
+        }
       }
-      console.log("[create_booking] price lookup result:", JSON.stringify({ priceData, totalPrice }));
-      if (!totalPrice || totalPrice <= 0) totalPrice = 52; // estimate fallback
+      if (totalPrice <= 0 && service.fixed_price != null && Number(service.fixed_price) > 0) {
+        totalPrice = Number(service.fixed_price);
+        priceSource = "services.fixed_price";
+      }
+      console.log("[create_booking] price lookup result:", JSON.stringify({ priceData, totalPrice, priceSource }));
+      if (totalPrice <= 0) totalPrice = 52; // last-resort estimate fallback
 
       // Re-verify availability via the existing edge function for consistency
       const verifyRes = await fetch(
@@ -1249,14 +1257,24 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Audit log
+      // Audit log — phrase note to reflect whether a deposit was actually on file
+      let auditNote: string;
+      if (depositPaid <= 0) {
+        auditNote = "Cancelled via phone call. No deposit was collected so no refund required.";
+      } else if (depositRefunded) {
+        auditNote = `Cancelled via phone call. Deposit of £${refundAmount.toFixed(2)} refunded — more than 48 hours notice.`;
+      } else if (!refundEligible) {
+        auditNote = "Cancelled via phone call. Deposit retained — within 48 hours of appointment per cancellation policy.";
+      } else {
+        auditNote = "Cancelled via phone call. Deposit refund eligible but not yet processed.";
+      }
       await supabase.from("booking_audit_log").insert({
         booking_id: booking.id,
         event_type: "cancelled_by_ai",
         performed_by: "AI Receptionist",
         old_date: booking.booking_date,
         old_time: booking.booking_time,
-        note: `Cancelled via phone call. Deposit refund: ${depositRefunded ? "yes" : "no"}. Reason: ${reason}`,
+        note: auditNote,
       }).then(({ error }: any) => {
         if (error) console.error("[cancel_booking] audit log failed", error);
       });
@@ -1283,9 +1301,11 @@ Deno.serve(async (req) => {
 
       const message = depositRefunded
         ? `Booking cancelled. Deposit of £${refundAmount.toFixed(2)} will be refunded within 3-5 working days.`
-        : refundEligible
-          ? "Booking cancelled. No deposit was on file to refund."
-          : "Booking cancelled. As this is within 48 hours of your appointment, the deposit cannot be refunded as per our cancellation policy.";
+        : depositPaid <= 0
+          ? "Booking cancelled. No deposit was collected so no refund is required."
+          : refundEligible
+            ? "Booking cancelled. No Stripe payment was found for the deposit — our team will handle this manually."
+            : "Booking cancelled. As this is within 48 hours of your appointment, the deposit cannot be refunded as per our cancellation policy.";
 
       console.log("[cancel_booking] returning success");
       return json({
