@@ -311,10 +311,12 @@ async function findAvailableSlots(
 
   const result: { time: string; groomer: string; staff_id: string }[] = [];
   for (const g of eligible) {
+    console.log("[findAvailableSlots] checking groomer:", g.name, g.id);
     const windows = await getGroomerWindows(supabase, g.id, date);
     if (windows.length === 0) continue;
     const busy = await getGroomerBusy(supabase, g.id, g.name, date);
     const slots = findSlotsForGroomer(windows, busy, duration);
+    console.log(`[findAvailableSlots] ${g.name}: ${slots.length} slots`);
     for (const s of slots) {
       result.push({ time: fmtTime(s), groomer: g.name.split(" ")[0], staff_id: g.id });
     }
