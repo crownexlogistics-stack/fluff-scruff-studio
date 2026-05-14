@@ -686,20 +686,27 @@ Deno.serve(async (req) => {
     // ─────────────────────────── create_booking ───────────────────────────
     if (action === "create_booking") {
       const {
-        customer_name, customer_phone, dog_name, breed_name,
+        customer_name, customer_phone, breed_name,
         service_name, date, time, groomer_name, notes,
       } = body;
+      let { dog_name } = body;
+
+      // Fallback: ElevenLabs may not send dog_name as a separate field.
+      if (!dog_name || !String(dog_name).trim()) {
+        dog_name = breed_name ? String(breed_name) : "Dog";
+        console.log("[create_booking] dog_name missing, falling back to:", dog_name);
+      }
 
       console.log("[create_booking] starting", JSON.stringify({
         customer_name, customer_phone, dog_name, breed_name,
         service_name, date, time, groomer_name, notes,
       }));
 
-      if (!customer_name || !customer_phone || !dog_name || !service_name ||
+      if (!customer_name || !customer_phone || !service_name ||
           !date || !time || !groomer_name) {
         const missing = {
           customer_name: !customer_name, customer_phone: !customer_phone,
-          dog_name: !dog_name, service_name: !service_name,
+          service_name: !service_name,
           date: !date, time: !time, groomer_name: !groomer_name,
         };
         console.log("[create_booking] missing fields:", JSON.stringify(missing));
