@@ -1,0 +1,91 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+  );
+
+  let payload: any;
+  try {
+    payload = await req.json();
+  } catch {
+    return json({ error: "Invalid JSON body" }, 400);
+  }
+
+  try {
+    const data = payload?.data || {};
+    const metadata = data?.metadata || {};
+    const analysis = data?.analysis || {};
+    const phoneCall = metadata?.phone_call || {};
+
+    const callSid = data?.conversation_id || "";
+    const callerNumber = phoneCall?.from_phone_number || null;
+    const durationSeconds = Number(metadata?.call_duration_secs || 0);
+    const summary = analysis?.transcript_summary || null;
+
+    const startUnix = Number(metadata?.start_time_unix_secs || 0);
+    const startedAt = startUnix > 0
+      ? new Date(startUnix * 1000).toISOString()
+      : new Date().toISOString();
+
+    // Build transcript in our format
+    const rawTranscript = Array.isArray(data?.transcript) ? data.transcript : [];
+    const transcript = rawTranscript.map((t: any) => ({
+      role: t.role === "agent" ? "ai" : "caller",
+      text: String(t.message || ""),
+    }));
+
+    // Determine outcome from transcript text
+    const fullText = transcript.map((t: any) => t.text).join(" ").toLowerCase();
+    let outcome = "enquiry";
+    if (fullText.includes("booked") || fullText.includes("appointment")) {
+      outcome = "booking_made";
+    } else if (fullText.includes("transfer") || fullText.includes("put you through")) {
+      outcome = "transferred";
+    } else if (fullText.includes("message")) {
+      outcome = "voicemail";
+    }
+
+    const startedDate = new Date(startedAt);
+    const endedAt = new Date(startedDate.getTime() + durationSeconds * 1000).toISOString();
+
+    const { error } = await supabase
+      .from("ai_call_logs")
+      .upsert({
+        call_sid: callSid,
+        caller_number: callerNumber,
+        duration_seconds: durationSeconds,
+        transcript: transcript.length > 0 ? transcript : null,
+        summary,
+        started_at: startedAt,
+        ended_at: endedAt,
+        outcome,
+      }, { onConflict: "call_sid" });
+
+    if (error) {
+      console.error("[elevenlabs-call-webhook] upsert error:", error);
+      return json({ error: error.message }, 500);
+    }
+
+    return json({ success: true });
+  } catch (err: any) {
+    console.error("[elevenlabs-call-webhook] error:", err);
+    return json({ error: err?.message || "Server error" }, 500);
+  }
+});
