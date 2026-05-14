@@ -690,36 +690,76 @@ Deno.serve(async (req) => {
         service_name, date, time, groomer_name, notes,
       } = body;
 
+      console.log("[create_booking] starting", JSON.stringify({
+        customer_name, customer_phone, dog_name, breed_name,
+        service_name, date, time, groomer_name, notes,
+      }));
+
       if (!customer_name || !customer_phone || !dog_name || !service_name ||
           !date || !time || !groomer_name) {
-        return json({ error: "Missing required booking fields" }, 400);
+        const missing = {
+          customer_name: !customer_name, customer_phone: !customer_phone,
+          dog_name: !dog_name, service_name: !service_name,
+          date: !date, time: !time, groomer_name: !groomer_name,
+        };
+        console.log("[create_booking] missing fields:", JSON.stringify(missing));
+        return json({
+          success: false,
+          error: `Missing required booking fields: ${
+            Object.entries(missing).filter(([, v]) => v).map(([k]) => k).join(", ")
+          }`,
+        }, 400);
       }
 
-      const { data: service } = await supabase
+      const fuzzyService = fuzzyServiceName(String(service_name));
+      console.log("[create_booking] fuzzy service name:", service_name, "→", fuzzyService);
+
+      let { data: service, error: svcErr } = await supabase
         .from("services")
         .select("id, fixed_price, duration_minutes")
-        .ilike("name", service_name)
+        .ilike("name", fuzzyService)
         .eq("is_active", true)
         .maybeSingle();
-      if (!service) return json({ error: `Service "${service_name}" not found` }, 404);
+      if (!service) {
+        // Fallback: contains-match
+        const { data: svc2 } = await supabase
+          .from("services")
+          .select("id, fixed_price, duration_minutes, name")
+          .ilike("name", `%${fuzzyService}%`)
+          .eq("is_active", true)
+          .limit(1);
+        service = (svc2 && svc2[0]) || null;
+      }
+      console.log("[create_booking] service lookup result:", JSON.stringify({ service, svcErr }));
+      if (!service) {
+        return json({
+          success: false,
+          error: `Service not found: ${service_name}`,
+        }, 400);
+      }
 
       let breedId: string | null = null;
       let duration = Number(service.duration_minutes || 0);
+      let breedData: any = null;
       if (breed_name) {
-        const { data: breed } = await supabase
+        const { data: breed, error: breedErr } = await supabase
           .from("breeds")
           .select("id, duration_minutes")
-          .ilike("name", breed_name)
-          .maybeSingle();
-        if (breed) {
-          breedId = breed.id;
-          if (breed.duration_minutes) duration = Number(breed.duration_minutes);
+          .ilike("name", `%${String(breed_name).trim()}%`)
+          .order("duration_minutes", { ascending: false })
+          .limit(1);
+        breedData = { breed, breedErr };
+        const breedRow = Array.isArray(breed) ? breed[0] : breed;
+        if (breedRow) {
+          breedId = breedRow.id;
+          if (breedRow.duration_minutes) duration = Number(breedRow.duration_minutes);
         }
       }
+      console.log("[create_booking] breed lookup result:", JSON.stringify(breedData));
       if (!duration || duration <= 0) duration = 90;
 
       // Find groomer (match by full name or first name)
-      const { data: staffMatches } = await supabase
+      const { data: staffMatches, error: staffErr } = await supabase
         .from("staff")
         .select("id, name, is_accepting_bookings, block_new_bookings, employment_end_date")
         .or(`name.ilike.${groomer_name},name.ilike.${groomer_name}%`);
@@ -727,19 +767,28 @@ Deno.serve(async (req) => {
         s.is_accepting_bookings && !s.block_new_bookings &&
         (!s.employment_end_date || s.employment_end_date >= date),
       );
-      if (!groomer) return json({ error: `Groomer "${groomer_name}" not available` }, 404);
+      console.log("[create_booking] staff lookup result:", JSON.stringify({ staffMatches, staffErr, picked: groomer }));
+      if (!groomer) {
+        return json({
+          success: false,
+          error: `Groomer not available: ${groomer_name}`,
+        }, 400);
+      }
 
       // Lookup price
       let totalPrice = Number(service.fixed_price || 0);
+      let priceData: any = null;
       if (breedId) {
-        const { data: priceRow } = await supabase
+        const { data: priceRow, error: priceErr } = await supabase
           .from("service_prices")
           .select("price")
           .eq("service_id", service.id)
           .eq("breed_id", breedId)
           .maybeSingle();
+        priceData = { priceRow, priceErr };
         if (priceRow?.price != null) totalPrice = Number(priceRow.price);
       }
+      console.log("[create_booking] price lookup result:", JSON.stringify({ priceData, totalPrice }));
       if (!totalPrice || totalPrice <= 0) totalPrice = 52; // estimate fallback
 
       // Re-verify availability via the existing edge function for consistency
@@ -761,6 +810,7 @@ Deno.serve(async (req) => {
         },
       );
       const verify = await verifyRes.json();
+      console.log("[create_booking] availability verify:", JSON.stringify(verify));
       if (!verify?.available) {
         return json({
           success: false,
@@ -770,6 +820,7 @@ Deno.serve(async (req) => {
 
       const phoneNorm = normalizePhone(customer_phone);
 
+      console.log("[create_booking] inserting booking...");
       const { data: inserted, error: insertErr } = await supabase
         .from("bookings")
         .insert({
@@ -794,8 +845,12 @@ Deno.serve(async (req) => {
 
       if (insertErr) {
         console.error("[phone-booking] insert error", insertErr);
-        return json({ success: false, error: "Failed to create booking" }, 500);
+        return json({
+          success: false,
+          error: `Failed to create booking: ${insertErr.message || insertErr}`,
+        }, 500);
       }
+      console.log("[create_booking] booking created:", JSON.stringify(inserted));
 
       // Audit trail — booking created by AI
       supabase.from("booking_audit_log").insert({
