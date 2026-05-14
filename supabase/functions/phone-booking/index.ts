@@ -1133,9 +1133,162 @@ Deno.serve(async (req) => {
       });
     }
 
-    return json({ error: `Unknown action: ${action}` }, 400);
+    // ─────────────────────────── cancel_booking ───────────────────────────
+    if (action === "cancel_booking") {
+      const { customer_phone, booking_date, booking_time } = body;
+      console.log("[cancel_booking] starting", JSON.stringify(body));
 
-    // (cancel_booking handled above via early return)
+      if (!customer_phone || !booking_date || !booking_time) {
+        return json({
+          success: false,
+          message: "Missing required fields: customer_phone, booking_date, booking_time",
+        }, 400);
+      }
+
+      // Phone format candidates
+      const raw = String(customer_phone).trim().replace(/[\s\-\(\)]/g, "");
+      const phoneCandidates = new Set<string>([raw]);
+      const normalized = normalizePhone(raw);
+      phoneCandidates.add(normalized);
+      if (normalized.startsWith("+44")) {
+        phoneCandidates.add("0" + normalized.slice(3));
+        phoneCandidates.add(normalized.slice(3));
+        phoneCandidates.add(normalized.slice(1));
+      }
+      if (raw.startsWith("0")) phoneCandidates.add(raw.slice(1));
+      const phoneList = Array.from(phoneCandidates).filter(Boolean);
+
+      const timePrefix = String(booking_time).slice(0, 5);
+      const { data: matches, error: findErr } = await supabase
+        .from("bookings")
+        .select("id, customer_name, customer_email, customer_phone, dog_name, breed_id, breeds(name), booking_date, booking_time, deposit_paid, total_price, stripe_payment_id, status, services(name)")
+        .in("customer_phone", phoneList)
+        .eq("booking_date", booking_date)
+        .like("booking_time", `${timePrefix}%`)
+        .not("status", "in", '("Cancelled","No Show","Refunded")')
+        .limit(1);
+
+      console.log("[cancel_booking] lookup result:", JSON.stringify({ matches, findErr }));
+
+      if (findErr) {
+        return json({ success: false, message: `Lookup error: ${findErr.message}` }, 500);
+      }
+      const booking: any = matches && matches[0];
+      if (!booking) {
+        return json({
+          success: false,
+          message: "No upcoming booking found for that date and time. Please call us on 01708 606655 if you need further help.",
+        });
+      }
+
+      // Compute hours until appointment in Europe/London
+      const nowLondonStr = new Date().toLocaleString("en-US", { timeZone: "Europe/London" });
+      const nowLondon = new Date(nowLondonStr);
+      const apptTime = (booking.booking_time || "09:00:00").slice(0, 5);
+      const apptLondonStr = new Date(`${booking.booking_date}T${apptTime}:00`).toLocaleString("en-US", { timeZone: "Europe/London" });
+      const apptDt = new Date(`${booking.booking_date}T${apptTime}:00`);
+      const hoursUntil = (apptDt.getTime() - nowLondon.getTime()) / (1000 * 60 * 60);
+      const refundEligible = hoursUntil >= 48;
+      const reason = refundEligible ? "more than 48 hours notice" : "within 48 hours";
+      console.log("[cancel_booking] hoursUntil=", hoursUntil, "refundEligible=", refundEligible);
+
+      // Cancel the booking
+      const { error: cancelErr } = await supabase
+        .from("bookings")
+        .update({ status: "Cancelled" })
+        .eq("id", booking.id);
+      if (cancelErr) {
+        console.error("[cancel_booking] cancel update failed", cancelErr);
+        return json({ success: false, message: `Failed to cancel: ${cancelErr.message}` }, 500);
+      }
+
+      // Refund if eligible
+      const depositPaid = Number(booking.deposit_paid) || 0;
+      let depositRefunded = false;
+      let refundAmount = 0;
+      if (refundEligible && depositPaid > 0 && booking.stripe_payment_id) {
+        const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
+        if (stripeKey) {
+          try {
+            const refundRes = await fetch("https://api.stripe.com/v1/refunds", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${stripeKey}`,
+                "Content-Type": "application/x-www-form-urlencoded",
+              },
+              body: new URLSearchParams({
+                payment_intent: booking.stripe_payment_id,
+              }).toString(),
+            });
+            const refundJson = await refundRes.json();
+            console.log("[cancel_booking] stripe refund result:", JSON.stringify(refundJson));
+            if (refundRes.ok && refundJson?.id) {
+              depositRefunded = true;
+              refundAmount = (refundJson.amount || 0) / 100;
+              await supabase
+                .from("bookings")
+                .update({ deposit_paid: 0, status: "Refunded" })
+                .eq("id", booking.id);
+            } else {
+              console.error("[cancel_booking] stripe refund failed", refundJson);
+            }
+          } catch (e) {
+            console.error("[cancel_booking] stripe refund exception", e);
+          }
+        } else {
+          console.error("[cancel_booking] STRIPE_SECRET_KEY missing");
+        }
+      }
+
+      // Audit log
+      await supabase.from("booking_audit_log").insert({
+        booking_id: booking.id,
+        event_type: "cancelled_by_ai",
+        performed_by: "AI Receptionist",
+        old_date: booking.booking_date,
+        old_time: booking.booking_time,
+        note: `Cancelled via phone call. Deposit refund: ${depositRefunded ? "yes" : "no"}. Reason: ${reason}`,
+      }).then(({ error }: any) => {
+        if (error) console.error("[cancel_booking] audit log failed", error);
+      });
+
+      // Email notification
+      const serviceName = booking.services?.name || "Grooming";
+      const breedName = booking.breeds?.name || "";
+      const refundLine = depositRefunded
+        ? `Deposit of £${refundAmount.toFixed(2)} has been refunded via Stripe.`
+        : refundEligible
+          ? (depositPaid > 0 ? "Refund eligible but no Stripe payment found — manual handling needed." : "No deposit was paid.")
+          : `Within 48 hours — deposit of £${depositPaid.toFixed(2)} retained per policy.`;
+
+      await sendEmail(
+        `📞 Cancellation via AI — ${booking.customer_name} — ${booking.booking_date}`,
+        `<h2>Booking cancelled via AI Receptionist</h2>
+         <p><strong>Customer:</strong> ${booking.customer_name} (${booking.customer_phone})</p>
+         <p><strong>Dog:</strong> ${booking.dog_name || ""} ${breedName ? `(${breedName})` : ""}</p>
+         <p><strong>Service:</strong> ${serviceName}</p>
+         <p><strong>Date / Time:</strong> ${booking.booking_date} at ${apptTime}</p>
+         <p><strong>Hours notice:</strong> ${hoursUntil.toFixed(1)}</p>
+         <p><strong>${refundLine}</strong></p>`
+      ).catch((e) => console.error("[cancel_booking] email failed", e));
+
+      const message = depositRefunded
+        ? `Booking cancelled. Deposit of £${refundAmount.toFixed(2)} will be refunded within 3-5 working days.`
+        : refundEligible
+          ? "Booking cancelled. No deposit was on file to refund."
+          : "Booking cancelled. As this is within 48 hours of your appointment, the deposit cannot be refunded as per our cancellation policy.";
+
+      console.log("[cancel_booking] returning success");
+      return json({
+        success: true,
+        booking_id: booking.id,
+        deposit_refunded: depositRefunded,
+        deposit_amount: depositRefunded ? refundAmount : depositPaid,
+        message,
+      });
+    }
+
+    return json({ error: `Unknown action: ${action}` }, 400);
   } catch (err: any) {
     console.error("[phone-booking] error", err);
     return json({ error: err?.message || "Server error" }, 500);
