@@ -348,6 +348,8 @@ Deno.serve(async (req) => {
           .maybeSingle();
         if (breed?.duration_minutes) duration = Number(breed.duration_minutes);
       }
+      // breed_name is OPTIONAL — if not provided (or unknown), fall back to 90 min
+      // so the AI can quote availability before the breed is mentioned.
       if (!duration || duration <= 0) duration = 90;
 
       const slots = await findAvailableSlots(supabase, date, duration, service.id);
@@ -476,7 +478,8 @@ Deno.serve(async (req) => {
           total_price: totalPrice,
           deposit_paid: 0,
           status: "Pending",
-          booking_source: "phone",
+          booking_source: "phone_ai",
+          created_by_staff: "AI Receptionist",
           notes: notes || null,
         })
         .select("id")
@@ -485,6 +488,52 @@ Deno.serve(async (req) => {
       if (insertErr) {
         console.error("[phone-booking] insert error", insertErr);
         return json({ success: false, error: "Failed to create booking" }, 500);
+      }
+
+      // Audit trail — booking created by AI
+      supabase.from("booking_audit_log").insert({
+        booking_id: inserted.id,
+        event_type: "created_by_ai",
+        performed_by: "AI Receptionist",
+        new_date: date,
+        new_time: time,
+        note: "Booking created by AI phone receptionist",
+      }).then(({ error }: any) => {
+        if (error) console.error("[phone-booking] audit log failed", error);
+      });
+
+      // Groomer activity log
+      supabase.from("groomer_activity_log").insert({
+        staff_id: groomer.id,
+        action_type: "booking_created",
+        action_summary:
+          `AI Receptionist booked ${customer_name} (${dog_name}) for ` +
+          `${service_name} on ${date} at ${time} via phone call`,
+        booking_id: inserted.id,
+        customer_name,
+        dog_name,
+        booking_date: date,
+        booking_time: time,
+        service_name,
+        extra_details: { source: "phone_ai", performed_by: "AI Receptionist" },
+      }).then(({ error }: any) => {
+        if (error) console.error("[phone-booking] activity log failed", error);
+      });
+
+      // Queue a deposit-link SMS for ~3 minutes from now (sender cron picks it up).
+      let depositQueued = false;
+      const { error: queueErr } = await supabase
+        .from("phone_booking_deposit_queue")
+        .insert({
+          booking_id: inserted.id,
+          customer_phone: phoneNorm,
+          customer_name,
+          status: "pending",
+        });
+      if (queueErr) {
+        console.error("[phone-booking] deposit queue insert failed", queueErr);
+      } else {
+        depositQueued = true;
       }
 
       const groomerFirst = groomer.name.split(" ")[0] || groomer.name;
@@ -520,7 +569,53 @@ Deno.serve(async (req) => {
       return json({
         success: true,
         booking_id: inserted.id,
-        message: "Booking created successfully",
+        message: depositQueued
+          ? "Booking created. Deposit link will be sent by SMS shortly."
+          : "Booking created successfully",
+        deposit_link_queued: depositQueued,
+      });
+    }
+
+    // ─────────────────────────── lookup_customer ───────────────────────────
+    if (action === "lookup_customer") {
+      const { phone } = body;
+      if (!phone) return json({ error: "phone is required" }, 400);
+
+      // Build candidate phone formats to match against stored values.
+      const raw = String(phone).trim().replace(/[\s\-\(\)]/g, "");
+      const candidates = new Set<string>([raw]);
+      const normalized = normalizePhone(raw);
+      candidates.add(normalized);
+      // +44XXXXXXXXXX -> 0XXXXXXXXXX
+      if (normalized.startsWith("+44")) {
+        candidates.add("0" + normalized.slice(3));
+        candidates.add(normalized.slice(3));        // bare national number
+        candidates.add(normalized.slice(1));        // 44XXXXXXXXXX
+      }
+      // 0XXXXXXXXXX -> +44XXXXXXXXXX (already covered) and bare 7XXXXXXXXX
+      if (raw.startsWith("0")) candidates.add(raw.slice(1));
+
+      const list = Array.from(candidates).filter(Boolean);
+      const { data: matches } = await supabase
+        .from("bookings")
+        .select(
+          "customer_name, customer_phone, dog_name, booking_date, breeds(name)",
+        )
+        .in("customer_phone", list)
+        .order("booking_date", { ascending: false });
+
+      if (!matches || matches.length === 0) {
+        return json({ found: false });
+      }
+
+      const latest: any = matches[0];
+      return json({
+        found: true,
+        customer_name: latest.customer_name,
+        dog_name: latest.dog_name,
+        breed_name: latest.breeds?.name || null,
+        last_visit: latest.booking_date,
+        total_visits: matches.length,
       });
     }
 
