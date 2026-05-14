@@ -1257,14 +1257,24 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Audit log
+      // Audit log — phrase note to reflect whether a deposit was actually on file
+      let auditNote: string;
+      if (depositPaid <= 0) {
+        auditNote = "Cancelled via phone call. No deposit was collected so no refund required.";
+      } else if (depositRefunded) {
+        auditNote = `Cancelled via phone call. Deposit of £${refundAmount.toFixed(2)} refunded — more than 48 hours notice.`;
+      } else if (!refundEligible) {
+        auditNote = "Cancelled via phone call. Deposit retained — within 48 hours of appointment per cancellation policy.";
+      } else {
+        auditNote = "Cancelled via phone call. Deposit refund eligible but not yet processed.";
+      }
       await supabase.from("booking_audit_log").insert({
         booking_id: booking.id,
         event_type: "cancelled_by_ai",
         performed_by: "AI Receptionist",
         old_date: booking.booking_date,
         old_time: booking.booking_time,
-        note: `Cancelled via phone call. Deposit refund: ${depositRefunded ? "yes" : "no"}. Reason: ${reason}`,
+        note: auditNote,
       }).then(({ error }: any) => {
         if (error) console.error("[cancel_booking] audit log failed", error);
       });
