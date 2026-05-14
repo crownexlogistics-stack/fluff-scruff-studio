@@ -511,16 +511,90 @@ Deno.serve(async (req) => {
   try {
     // ─────────────────────────── get_services ───────────────────────────
     if (action === "get_services") {
-      const { data, error } = await supabase
-        .from("services")
-        .select("name")
-        .eq("is_active", true)
-        .order("name");
-      if (error) return json({ error: error.message }, 500);
-      return json({
-        services: (data || []).map((s: any) => s.name),
-        ...buildDateResponse(),
-      });
+      const FALLBACK_SERVICES = [
+        "Full Groom",
+        "Bath & Brush",
+        "Nail Trim & Filing",
+        "Ultrasonic Teeth Cleaning",
+        "Puppy Special",
+      ];
+
+      // Date calculation — hardcoded/independent, never relies on DB.
+      let dateInfo: any;
+      let todayStr = "";
+      let todayName = "";
+      try {
+        dateInfo = buildDateResponse();
+        todayStr = dateInfo.today;
+        todayName = dateInfo.today_name;
+      } catch (e) {
+        console.error("buildDateResponse failed, using manual fallback:", e);
+        try {
+          const fmt = new Intl.DateTimeFormat("en-CA", {
+            timeZone: "Europe/London",
+            year: "numeric", month: "2-digit", day: "2-digit",
+          });
+          todayStr = fmt.format(new Date());
+        } catch {
+          todayStr = new Date().toISOString().slice(0, 10);
+        }
+        const [yy, mm, dd] = todayStr.split("-").map(Number);
+        const dow = new Date(Date.UTC(yy, mm - 1, dd)).getUTCDay();
+        todayName = DAY_NAMES[dow];
+        const tomorrow = (() => {
+          const dt = new Date(Date.UTC(yy, mm - 1, dd));
+          dt.setUTCDate(dt.getUTCDate() + 1);
+          return dt.toISOString().slice(0, 10);
+        })();
+        const this_week: { day: string; date: string }[] = [];
+        for (let off = 1; off <= 6 - dow; off++) {
+          const dt = new Date(Date.UTC(yy, mm - 1, dd));
+          dt.setUTCDate(dt.getUTCDate() + off);
+          const d2 = (dow + off) % 7;
+          if (OPEN_DOW.includes(d2)) {
+            this_week.push({ day: DAY_NAMES[d2], date: dt.toISOString().slice(0, 10) });
+          }
+        }
+        const next_week: { day: string; date: string }[] = [];
+        const toNextSun = 7 - dow;
+        for (let off = 2; off <= 6; off++) {
+          const dt = new Date(Date.UTC(yy, mm - 1, dd));
+          dt.setUTCDate(dt.getUTCDate() + toNextSun + off);
+          next_week.push({ day: DAY_NAMES[off], date: dt.toISOString().slice(0, 10) });
+        }
+        dateInfo = {
+          today: todayStr,
+          today_name: todayName,
+          tomorrow,
+          this_week,
+          next_week,
+          timezone: "Europe/London",
+        };
+      }
+
+      console.log("get_services called, today is:", todayStr, "day:", todayName);
+
+      // Try DB; on ANY failure, use fallback list. Never throw.
+      let services: string[] = FALLBACK_SERVICES;
+      try {
+        const { data, error } = await supabase
+          .from("services")
+          .select("name")
+          .eq("is_active", true)
+          .order("name");
+        if (error) {
+          console.error("get_services db error, using fallback:", error.message);
+        } else if (Array.isArray(data) && data.length > 0) {
+          services = data.map((s: any) => s?.name).filter((n: any) => typeof n === "string" && n.length > 0);
+          if (services.length === 0) services = FALLBACK_SERVICES;
+        }
+      } catch (e) {
+        console.error("get_services threw, using fallback services:", e);
+        services = FALLBACK_SERVICES;
+      }
+
+      console.log("get_services returning successfully");
+      return json({ services, ...dateInfo });
     }
 
     // ─────────────────────────── check_availability ───────────────────────────
