@@ -96,6 +96,38 @@ function buildDateResponse() {
   };
 }
 
+const SERVICE_FUZZY: { keywords: string[]; canonical: string }[] = [
+  { keywords: ["full groom"], canonical: "Full Groom" },
+  { keywords: ["bath and brush", "bath brush", "bath & brush"], canonical: "Bath & Brush" },
+  { keywords: ["nail trim", "nail"], canonical: "Nail Trim & Filing" },
+  { keywords: ["teeth", "ultrasonic"], canonical: "Ultrasonic Teeth Cleaning" },
+  { keywords: ["puppy"], canonical: "Puppy Special" },
+];
+
+function fuzzyServiceName(input: string): string {
+  const s = (input || "").toLowerCase().trim();
+  for (const m of SERVICE_FUZZY) {
+    if (m.keywords.some((k) => s.includes(k))) return m.canonical;
+  }
+  return input;
+}
+
+function parseDateInput(input: string): string {
+  const s = (input || "").trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+
+  const lower = s.toLowerCase();
+  const dayIdx = DAY_NAMES.findIndex((d) => lower.includes(d.toLowerCase()));
+  if (dayIdx === -1) return s;
+
+  const today = londonTodayIso();
+  const todayDow = dowFromIso(today);
+  let diff = (dayIdx - todayDow + 7) % 7;
+  if (diff === 0) diff = 7; // never today; next occurrence
+  if (lower.includes("next")) diff += 7;
+  return addDaysIso(today, diff);
+}
+
 interface Window { start: number; end: number }
 
 async function getGroomerWindows(
