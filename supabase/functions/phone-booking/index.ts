@@ -371,7 +371,10 @@ Deno.serve(async (req) => {
         .eq("is_active", true)
         .order("name");
       if (error) return json({ error: error.message }, 500);
-      return json({ services: (data || []).map((s: any) => s.name) });
+      return json({
+        services: (data || []).map((s: any) => s.name),
+        ...buildDateResponse(),
+      });
     }
 
     // ─────────────────────────── check_availability ───────────────────────────
