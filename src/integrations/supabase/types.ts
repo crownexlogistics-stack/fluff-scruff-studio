@@ -2497,6 +2497,47 @@ export type Database = {
           },
         ]
       }
+      phone_booking_deposit_queue: {
+        Row: {
+          booking_id: string
+          created_at: string
+          customer_name: string | null
+          customer_phone: string
+          id: string
+          last_error: string | null
+          sent_at: string | null
+          status: string
+        }
+        Insert: {
+          booking_id: string
+          created_at?: string
+          customer_name?: string | null
+          customer_phone: string
+          id?: string
+          last_error?: string | null
+          sent_at?: string | null
+          status?: string
+        }
+        Update: {
+          booking_id?: string
+          created_at?: string
+          customer_name?: string | null
+          customer_phone?: string
+          id?: string
+          last_error?: string | null
+          sent_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "phone_booking_deposit_queue_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null

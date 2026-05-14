@@ -531,6 +531,11 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
             👤 Booked by Staff{(booking as any).created_by_staff ? ` — ${(booking as any).created_by_staff}` : ""}
           </Badge>
         )}
+        {(booking as any).booking_source === "phone_ai" && (
+          <Badge className="text-[10px]" style={{ backgroundColor: "#7C3AED", color: "#FFFFFF" }}>
+            📱 AI Booked
+          </Badge>
+        )}
         <Badge variant={
           booking.status === "Confirmed" ? "default" :
           booking.status === "Completed" ? "secondary" :
@@ -801,6 +806,13 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
                     <div className="mt-1 shrink-0 h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "#FF6B35" }} />
                     <p className="text-xs" style={{ color: "#2D1B0E", fontFamily: "Nunito, sans-serif", fontSize: "12px" }}>
                       Created by {(booking as any).created_by_staff || "staff"}
+                    </p>
+                  </div>
+                ) : (booking as any).booking_source === "phone_ai" ? (
+                  <div className="flex items-start gap-2">
+                    <div className="mt-1 shrink-0 h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "#7C3AED" }} />
+                    <p className="text-xs" style={{ color: "#2D1B0E", fontFamily: "Nunito, sans-serif", fontSize: "12px" }}>
+                      Booked by AI Receptionist (phone)
                     </p>
                   </div>
                 ) : booking.stripe_payment_id || Number(booking.deposit_paid) > 0 ? (
