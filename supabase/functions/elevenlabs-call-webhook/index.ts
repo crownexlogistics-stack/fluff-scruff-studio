@@ -83,6 +83,50 @@ Deno.serve(async (req) => {
       return json({ error: error.message }, 500);
     }
 
+    // ────────────────────────────────────────────────────────────────────
+    // Create AI Inbox cases for voicemails and callback requests.
+    // (missed_opportunity cases are auto-created by a DB trigger on ai_call_logs.)
+    // ────────────────────────────────────────────────────────────────────
+    try {
+      const transcriptText = transcript
+        .map((t: any) => `${t.role === "ai" ? "AI" : "Caller"}: ${t.text}`)
+        .join("\n");
+
+      // Try to extract a name from the transcript (very rough heuristic)
+      const nameMatch = transcriptText.match(/my name is ([A-Z][a-z]+(?:\s[A-Z][a-z]+)?)/i)
+        || transcriptText.match(/this is ([A-Z][a-z]+(?:\s[A-Z][a-z]+)?)/i);
+      const callerName = nameMatch ? nameMatch[1] : null;
+
+      if (outcome === "voicemail") {
+        const lastCallerLine = [...transcript].reverse().find((t: any) => t.role === "caller");
+        const message = lastCallerLine?.text || summary || transcriptText.slice(0, 500);
+        await supabase.from("ai_inbox_cases").insert({
+          case_type: "message",
+          status: "unassigned",
+          caller_number: callerNumber,
+          caller_name: callerName,
+          summary: message,
+          full_transcript: transcript,
+          call_duration_seconds: durationSeconds,
+        });
+      }
+
+      const transferSuccessful = analysis?.transfer_successful;
+      if (transferSuccessful === false && (callerNumber || callerName)) {
+        await supabase.from("ai_inbox_cases").insert({
+          case_type: "callback_requested",
+          status: "unassigned",
+          caller_number: callerNumber,
+          caller_name: callerName,
+          summary: summary || transcriptText.slice(0, 500),
+          full_transcript: transcript,
+          call_duration_seconds: durationSeconds,
+        });
+      }
+    } catch (caseErr) {
+      console.error("[elevenlabs-call-webhook] inbox case insert failed:", caseErr);
+    }
+
     // Notify staff about missed opportunities
     if (outcome !== "booking_made") {
       const summaryLower = String(summary || "").toLowerCase();
