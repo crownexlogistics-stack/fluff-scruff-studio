@@ -229,6 +229,136 @@ export type Database = {
           },
         ]
       }
+      ai_inbox_cases: {
+        Row: {
+          appointment_time: string | null
+          assigned_at: string | null
+          assigned_to: string | null
+          booking_id: string | null
+          call_duration_seconds: number | null
+          caller_name: string | null
+          caller_number: string | null
+          case_type: string
+          created_at: string
+          dog_name: string | null
+          full_transcript: Json | null
+          id: string
+          minutes_late: number | null
+          resolution_note: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+          summary: string | null
+          updated_at: string
+        }
+        Insert: {
+          appointment_time?: string | null
+          assigned_at?: string | null
+          assigned_to?: string | null
+          booking_id?: string | null
+          call_duration_seconds?: number | null
+          caller_name?: string | null
+          caller_number?: string | null
+          case_type: string
+          created_at?: string
+          dog_name?: string | null
+          full_transcript?: Json | null
+          id?: string
+          minutes_late?: number | null
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          summary?: string | null
+          updated_at?: string
+        }
+        Update: {
+          appointment_time?: string | null
+          assigned_at?: string | null
+          assigned_to?: string | null
+          booking_id?: string | null
+          call_duration_seconds?: number | null
+          caller_name?: string | null
+          caller_number?: string | null
+          case_type?: string
+          created_at?: string
+          dog_name?: string | null
+          full_transcript?: Json | null
+          id?: string
+          minutes_late?: number | null
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          summary?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_inbox_cases_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_inbox_cases_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_inbox_cases_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_inbox_notifications: {
+        Row: {
+          case_id: string | null
+          created_at: string
+          id: string
+          is_read: boolean
+          message: string
+          staff_id: string
+        }
+        Insert: {
+          case_id?: string | null
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message: string
+          staff_id: string
+        }
+        Update: {
+          case_id?: string | null
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message?: string
+          staff_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_inbox_notifications_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "ai_inbox_cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_inbox_notifications_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_receptionist_hours: {
         Row: {
           close_time: string | null
@@ -3535,6 +3665,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      current_staff_id: { Args: never; Returns: string }
       get_user_id_by_email: { Args: { _email: string }; Returns: string }
       groomer_can_access_customer: {
         Args: { _customer_user_id: string }

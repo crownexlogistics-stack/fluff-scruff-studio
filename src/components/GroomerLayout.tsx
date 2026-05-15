@@ -1,9 +1,12 @@
-import { CalendarDays, MessageSquare, Dog, PoundSterling, FileText, LogOut, PawPrint, Package, ShoppingCart, Sparkles, Inbox } from "lucide-react";
+import { CalendarDays, MessageSquare, Dog, PoundSterling, FileText, LogOut, PawPrint, Package, ShoppingCart, Sparkles, Inbox, PhoneForwarded } from "lucide-react";
 import { useNavigate, Link, useLocation } from "react-router-dom";
 import logo from "@/assets/logo-transparent.png";
 import { useAuth } from "@/hooks/useAuth";
 import { useStaffIsCustomer } from "@/hooks/useStaffIsCustomer";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { useUnassignedInboxCount } from "@/hooks/useUnassignedInboxCount";
+import { InboxBellButton } from "@/components/ai-inbox/InboxBellButton";
 
 interface GroomerLayoutProps {
   children: React.ReactNode;
@@ -14,6 +17,7 @@ const groomerNavItems = [
   { title: "Groomer Assistant", url: "/portal/assistant", icon: Sparkles },
   { title: "Bookings", url: "/portal/bookings", icon: CalendarDays },
   { title: "Messages", url: "/portal/messages", icon: MessageSquare },
+  { title: "AI Inbox", url: "/ai-inbox", icon: PhoneForwarded },
   { title: "Package Deals", url: "/admin/packages", icon: Package },
   { title: "Purchase Requests", url: "/portal/purchases", icon: ShoppingCart },
   { title: "Breeds", url: "/portal/breeds", icon: Dog },
@@ -27,6 +31,7 @@ export function GroomerLayout({ children }: GroomerLayoutProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { hasCustomerBookings } = useStaffIsCustomer(user?.email ?? undefined);
+  const aiInboxUnread = useUnassignedInboxCount();
 
   const handleSignOut = async () => {
     await signOut();
@@ -58,7 +63,12 @@ export function GroomerLayout({ children }: GroomerLayoutProps) {
               className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${isActive(item.url) ? "bg-sidebar-accent text-sidebar-primary-foreground font-medium" : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50"}`}
             >
               <item.icon className="h-4 w-4" />
-              {item.title}
+              <span className="flex-1">{item.title}</span>
+              {item.url === "/ai-inbox" && aiInboxUnread > 0 && (
+                <Badge variant="destructive" className="h-5 min-w-5 px-1.5 text-[10px] font-bold rounded-full">
+                  {aiInboxUnread > 99 ? "99+" : aiInboxUnread}
+                </Badge>
+              )}
             </Link>
           ))}
           {/* Full Calendar Access is integrated directly into the Bookings
@@ -89,9 +99,12 @@ export function GroomerLayout({ children }: GroomerLayoutProps) {
           <img src={logo} alt="Fluff & Scruff" className="h-7 w-auto brightness-0 invert opacity-90" />
           <span className="font-heading text-sm font-bold text-sidebar-primary-foreground">Staff Portal</span>
         </div>
-        <Button variant="ghost" size="sm" className="text-sidebar-foreground/70 h-8" onClick={handleSignOut}>
-          <LogOut className="h-4 w-4" />
-        </Button>
+        <div className="flex items-center gap-1">
+          <InboxBellButton />
+          <Button variant="ghost" size="sm" className="text-sidebar-foreground/70 h-8" onClick={handleSignOut}>
+            <LogOut className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       {/* Main content */}

@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useStaffIsCustomer } from "@/hooks/useStaffIsCustomer";
 import { useUrgentPurchaseRequests } from "@/hooks/useUrgentPurchaseRequests";
+import { useUnassignedInboxCount } from "@/hooks/useUnassignedInboxCount";
 import {
   Sidebar,
   SidebarContent,
@@ -45,6 +46,7 @@ const mainNavItems = [
   { title: "Finance", url: "/finance", icon: PoundSterling },
   { title: "Messages", url: "/messages", icon: Inbox },
   { title: "Shared Inbox", url: "/admin/inbox", icon: Mail },
+  { title: "AI Inbox", url: "/ai-inbox", icon: PhoneForwarded },
   { title: "Add-Ons", url: "/add-ons", icon: Sparkles },
 ];
 
@@ -102,6 +104,7 @@ export function AppSidebar() {
   const newAcademyCount = useNewAcademyEnquiriesCount();
   const { hasCustomerBookings } = useStaffIsCustomer(user?.email ?? undefined);
   const urgentPurchaseCount = useUrgentPurchaseRequests();
+  const aiInboxUnread = useUnassignedInboxCount();
 
   return (
     <Sidebar collapsible="icon">
@@ -141,6 +144,11 @@ export function AppSidebar() {
                       {item.url === "/messages" && totalUnread > 0 && (
                         <Badge variant="destructive" className="ml-auto h-5 min-w-5 px-1.5 text-[10px] font-bold rounded-full">
                           {totalUnread > 99 ? "99+" : totalUnread}
+                        </Badge>
+                      )}
+                      {item.url === "/ai-inbox" && aiInboxUnread > 0 && (
+                        <Badge variant="destructive" className="ml-auto h-5 min-w-5 px-1.5 text-[10px] font-bold rounded-full">
+                          {aiInboxUnread > 99 ? "99+" : aiInboxUnread}
                         </Badge>
                       )}
                     </NavLink>

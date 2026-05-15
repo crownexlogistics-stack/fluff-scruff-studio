@@ -84,6 +84,7 @@ import ActivityLogPage from "./pages/ActivityLogPage";
 import AdminInboxPage from "./pages/AdminInboxPage";
 import GroomerInboxPage from "./pages/GroomerInboxPage";
 import AIReceptionistPage from "./pages/AIReceptionistPage";
+import AIInboxPage from "./pages/AIInboxPage";
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -171,6 +172,7 @@ const App = () => (
           <Route path="/admin/activity-log" element={<ProtectedRoute allowedRoles={["director"]}><ActivityLogPage /></ProtectedRoute>} />
           <Route path="/admin/inbox" element={<ProtectedRoute allowedRoles={["manager", "director"]}><AdminInboxPage /></ProtectedRoute>} />
           <Route path="/admin/ai-receptionist" element={<ProtectedRoute allowedRoles={["director"]}><AIReceptionistPage /></ProtectedRoute>} />
+          <Route path="/ai-inbox" element={<ProtectedRoute allowedRoles={["groomer", "manager", "director"]}><AIInboxPage /></ProtectedRoute>} />
 
           <Route path="*" element={<NotFound />} />
         </Routes>
