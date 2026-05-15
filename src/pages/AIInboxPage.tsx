@@ -12,6 +12,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useCurrentStaff } from "@/hooks/useCurrentStaff";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -89,6 +90,59 @@ const RESOLUTION_OPTIONS: Record<CaseType, string[]> = {
   ai_booking_notification: ["Acknowledged", "Other"],
 };
 
+// Per-tab/case-type color theming (mobile + cards)
+const CASE_THEME: Record<string, {
+  tabActive: string;
+  tabIdle: string;
+  border: string;
+  bg: string;
+  badge: string;
+}> = {
+  missed_opportunity: {
+    tabActive: "bg-amber-500 text-white border-amber-600",
+    tabIdle: "bg-amber-50 text-amber-900 border-amber-200 hover:bg-amber-100",
+    border: "border-l-[4px] border-l-amber-500",
+    bg: "bg-amber-50 dark:bg-amber-950/20",
+    badge: "bg-amber-500 text-white",
+  },
+  message: {
+    tabActive: "bg-blue-500 text-white border-blue-600",
+    tabIdle: "bg-blue-50 text-blue-900 border-blue-200 hover:bg-blue-100",
+    border: "border-l-[4px] border-l-blue-500",
+    bg: "bg-blue-50 dark:bg-blue-950/20",
+    badge: "bg-blue-500 text-white",
+  },
+  callback_requested: {
+    tabActive: "bg-violet-500 text-white border-violet-600",
+    tabIdle: "bg-violet-50 text-violet-900 border-violet-200 hover:bg-violet-100",
+    border: "border-l-[4px] border-l-violet-500",
+    bg: "bg-violet-50 dark:bg-violet-950/20",
+    badge: "bg-violet-500 text-white",
+  },
+  running_late: {
+    tabActive: "bg-red-500 text-white border-red-600 animate-pulse",
+    tabIdle: "bg-red-50 text-red-900 border-red-200 hover:bg-red-100 animate-pulse",
+    border: "border-l-[4px] border-l-red-500",
+    bg: "bg-red-50 dark:bg-red-950/20",
+    badge: "bg-red-500 text-white",
+  },
+  ai_booking_notification: {
+    tabActive: "bg-slate-500 text-white border-slate-600",
+    tabIdle: "bg-slate-50 text-slate-900 border-slate-200 hover:bg-slate-100",
+    border: "border-l-[4px] border-l-slate-500",
+    bg: "bg-slate-50 dark:bg-slate-950/20",
+    badge: "bg-slate-500 text-white",
+  },
+};
+
+const MINE_THEME = {
+  tabActive: "bg-emerald-500 text-white border-emerald-600",
+  tabIdle: "bg-emerald-50 text-emerald-900 border-emerald-200 hover:bg-emerald-100",
+  border: "border-l-[4px] border-l-emerald-500",
+  bg: "bg-emerald-50 dark:bg-emerald-950/20",
+  badge: "bg-emerald-500 text-white",
+};
+
 function formatTel(num: string | null) {
   if (!num) return "";
   let p = num.replace(/[\s\-\(\)]/g, "");
@@ -107,11 +161,22 @@ function formatTime(iso: string) {
   });
 }
 
-function borderClass(status: Status, urgent: boolean) {
-  if (urgent) return "border-l-4 border-destructive animate-pulse";
-  if (status === "unassigned") return "border-l-4 border-amber-500";
-  if (status === "assigned") return "border-l-4 border-blue-500";
-  return "border-l-4 border-emerald-500";
+function cardTheme(c: InboxCase, contextMine?: boolean) {
+  const urgent = c.case_type === "running_late" && c.status !== "resolved";
+  if (urgent) {
+    return {
+      cls: "border-l-[4px] border-l-red-500 bg-red-50 dark:bg-red-950/20 animate-pulse",
+    };
+  }
+  if (c.status === "resolved") {
+    return { cls: "border-l-[4px] border-l-emerald-500 bg-emerald-50/60 dark:bg-emerald-950/20" };
+  }
+  if (contextMine || c.status === "assigned") {
+    return { cls: "border-l-[4px] border-l-blue-500 bg-blue-50/60 dark:bg-blue-950/20" };
+  }
+  // unassigned: tint by case_type background, amber border per spec
+  const t = CASE_THEME[c.case_type] ?? CASE_THEME.ai_booking_notification;
+  return { cls: `border-l-[4px] border-l-amber-500 ${t.bg}` };
 }
 
 function CaseCard({
@@ -128,6 +193,8 @@ function CaseCard({
   isMine?: boolean;
 }) {
   const urgent = c.case_type === "running_late" && c.status !== "resolved";
+  const theme = cardTheme(c, isMine);
+  const [expanded, setExpanded] = useState(false);
   return (
     <motion.div
       drag={onClaim ? "x" : false}
@@ -137,45 +204,60 @@ function CaseCard({
         if (!onClaim) return;
         if (info.offset.x > 120) onClaim(c);
       }}
+      className="w-full"
     >
-      <Card className={`p-4 sm:p-5 ${borderClass(c.status, urgent)}`}>
-        <div className="flex items-start justify-between gap-3 flex-wrap">
-          <div className="space-y-1 flex-1 min-w-0">
-            {(c.caller_name || c.dog_name) && (
-              <p className="text-lg font-semibold text-foreground">
-                {c.caller_name || "Unknown caller"}
-                {c.dog_name && <span className="text-muted-foreground"> · {c.dog_name}</span>}
-              </p>
-            )}
+      <Card className={cn("w-full p-4 flex flex-col gap-3", theme.cls)}>
+        {/* Line 1: name + number */}
+        <div className="flex items-start justify-between gap-2 flex-wrap">
+          <div className="min-w-0 flex-1">
+            <p className="text-base sm:text-lg font-semibold text-foreground truncate">
+              {c.caller_name || "Unknown caller"}
+              {c.dog_name && <span className="text-muted-foreground"> · {c.dog_name}</span>}
+            </p>
             {c.caller_number && (
               <a
                 href={`tel:${formatTel(c.caller_number)}`}
-                className="text-base text-primary underline-offset-4 hover:underline inline-flex items-center gap-1"
+                className="text-base text-primary underline-offset-4 hover:underline inline-flex items-center gap-1 mt-0.5"
               >
                 <Phone className="h-4 w-4" />
                 {c.caller_number}
               </a>
             )}
-            <p className="text-sm text-muted-foreground">{formatTime(c.created_at)}</p>
           </div>
           {urgent && (
-            <Badge variant="destructive" className="text-sm">
+            <Badge variant="destructive" className="text-sm shrink-0">
               {c.minutes_late ?? "?"} min late
             </Badge>
           )}
         </div>
 
         {c.case_type === "running_late" && c.appointment_time && (
-          <p className="mt-2 text-base">
+          <p className="text-base">
             Appointment at <span className="font-semibold">{c.appointment_time}</span>
             {c.staff?.name && <> with <span className="font-semibold">{c.staff.name}</span></>}
           </p>
         )}
 
-        {c.summary && <p className="mt-3 text-base leading-relaxed">{c.summary}</p>}
+        {/* Line 2: summary truncated */}
+        {c.summary && (
+          <div>
+            <p className={cn("text-base leading-relaxed", !expanded && "line-clamp-2")}>
+              {c.summary}
+            </p>
+            {c.summary.length > 120 && (
+              <button
+                type="button"
+                onClick={() => setExpanded((v) => !v)}
+                className="text-sm text-primary underline-offset-4 hover:underline mt-1"
+              >
+                {expanded ? "Show less" : "Show more"}
+              </button>
+            )}
+          </div>
+        )}
 
         {showResolver && c.resolution_note && (
-          <div className="mt-3 p-3 rounded-md bg-emerald-50 dark:bg-emerald-950/30 text-sm">
+          <div className="p-3 rounded-md bg-emerald-50 dark:bg-emerald-950/30 text-sm">
             <p className="font-medium text-emerald-700 dark:text-emerald-300">
               Resolved{c.resolver?.name && ` by ${c.resolver.name}`}
             </p>
@@ -183,22 +265,17 @@ function CaseCard({
           </div>
         )}
 
+        {/* Footer: timestamp + full-width action */}
+        <div className="flex items-center justify-between gap-2 pt-1">
+          <p className="text-xs text-muted-foreground">{formatTime(c.created_at)}</p>
+        </div>
         {onClaim && (
-          <Button
-            onClick={() => onClaim(c)}
-            className="mt-4 w-full h-12 text-base"
-            size="lg"
-          >
+          <Button onClick={() => onClaim(c)} className="w-full h-12 text-base" size="lg">
             Claim this case
           </Button>
         )}
         {onResolve && isMine && (
-          <Button
-            onClick={() => onResolve(c)}
-            variant="default"
-            className="mt-4 w-full h-12 text-base"
-            size="lg"
-          >
+          <Button onClick={() => onResolve(c)} className="w-full h-12 text-base" size="lg">
             Mark as resolved
           </Button>
         )}
@@ -339,13 +416,44 @@ export default function AIInboxPage() {
     [myCases],
   );
 
-  const tabBadge = (type: CaseType) => {
-    const n = (unassignedByType[type] || []).length;
-    if (!n) return null;
+  const unassignedCount = (type: CaseType) => (unassignedByType[type] || []).length;
+
+  const TabButton = ({
+    value,
+    label,
+    icon: Icon,
+    count,
+    theme,
+  }: {
+    value: string;
+    label: string;
+    icon: React.ComponentType<{ className?: string }>;
+    count: number;
+    theme: { tabActive: string; tabIdle: string; badge: string };
+  }) => {
+    const active = tab === value;
     return (
-      <Badge variant="destructive" className="ml-1.5 h-5 min-w-5 px-1.5 text-[10px] font-bold rounded-full">
-        {n}
-      </Badge>
+      <button
+        type="button"
+        onClick={() => setTab(value)}
+        className={cn(
+          "relative w-full min-h-[60px] rounded-lg border-2 px-3 py-2 text-base font-semibold transition-colors flex items-center justify-center gap-2",
+          active ? theme.tabActive : theme.tabIdle,
+        )}
+      >
+        <Icon className="h-5 w-5 shrink-0" />
+        <span className="truncate">{label}</span>
+        {count > 0 && (
+          <Badge
+            className={cn(
+              "h-6 min-w-6 px-1.5 text-xs font-bold rounded-full border-0",
+              active ? "bg-white/25 text-white" : theme.badge,
+            )}
+          >
+            {count}
+          </Badge>
+        )}
+      </button>
     );
   };
 
@@ -393,49 +501,85 @@ export default function AIInboxPage() {
           Last updated {lastUpdated.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
         </p>
 
-        {myUrgent.length > 0 && (
-          <Card className="p-4 border-l-4 border-destructive bg-destructive/10 animate-pulse">
-            <div className="flex items-start gap-3">
-              <AlertTriangle className="h-6 w-6 text-destructive mt-0.5" />
-              <div className="flex-1">
-                <p className="font-semibold text-base">
-                  {myUrgent.length === 1
-                    ? "A customer is running late"
-                    : `${myUrgent.length} customers are running late`}
-                </p>
-                {myUrgent.slice(0, 3).map((c) => (
-                  <p key={c.id} className="text-sm">
-                    {c.caller_name || "Customer"} · {c.dog_name || ""} ·{" "}
-                    <span className="font-semibold">{c.minutes_late} min late</span> for {c.appointment_time}
+        {(() => {
+          const lateCount = (unassignedByType.running_late?.length || 0) + myUrgent.length;
+          if (lateCount === 0) return null;
+          return (
+            <Card className="p-4 border-l-[4px] border-l-red-500 bg-red-50 dark:bg-red-950/20 animate-pulse">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="h-6 w-6 text-red-600 mt-0.5" />
+                <div className="flex-1">
+                  <p className="font-semibold text-base text-red-900 dark:text-red-100">
+                    ⚠️ {lateCount} customer{lateCount === 1 ? "" : "s"} running late
                   </p>
-                ))}
+                  {myUrgent.slice(0, 3).map((c) => (
+                    <p key={c.id} className="text-sm text-red-900/80 dark:text-red-100/80">
+                      {c.caller_name || "Customer"}
+                      {c.dog_name ? ` · ${c.dog_name}` : ""} ·{" "}
+                      <span className="font-semibold">{c.minutes_late} min late</span> for {c.appointment_time}
+                    </p>
+                  ))}
+                </div>
               </div>
-            </div>
-          </Card>
-        )}
+            </Card>
+          );
+        })()}
 
         <Tabs value={tab} onValueChange={setTab}>
-          <div className="overflow-x-auto -mx-4 px-4">
+          {/* Mobile: 2-column grid of large tappable buttons. Desktop: keep horizontal row. */}
+          <div className="grid grid-cols-2 sm:hidden gap-2">
+            <TabButton value="missed" label="Missed" icon={Briefcase} count={unassignedCount("missed_opportunity")} theme={CASE_THEME.missed_opportunity} />
+            <TabButton value="messages" label="Messages" icon={MessageSquare} count={unassignedCount("message")} theme={CASE_THEME.message} />
+            <TabButton value="callbacks" label="Callbacks" icon={PhoneForwarded} count={unassignedCount("callback_requested")} theme={CASE_THEME.callback_requested} />
+            <TabButton value="late" label="Late" icon={Clock} count={unassignedCount("running_late")} theme={CASE_THEME.running_late} />
+            <div className="col-span-2">
+              <TabButton value="mine" label="My Cases" icon={Inbox} count={myCases.length} theme={MINE_THEME} />
+            </div>
+          </div>
+          <div className="hidden sm:block overflow-x-auto -mx-4 px-4">
             <TabsList className="inline-flex w-max min-w-full">
               <TabsTrigger value="missed" className="h-11">
                 <Briefcase className="h-4 w-4 mr-1" />
-                Missed{tabBadge("missed_opportunity")}
+                Missed
+                {unassignedCount("missed_opportunity") > 0 && (
+                  <Badge className="ml-1.5 h-5 min-w-5 px-1.5 text-[10px] font-bold rounded-full bg-amber-500 text-white border-0">
+                    {unassignedCount("missed_opportunity")}
+                  </Badge>
+                )}
               </TabsTrigger>
               <TabsTrigger value="messages" className="h-11">
                 <MessageSquare className="h-4 w-4 mr-1" />
-                Messages{tabBadge("message")}
+                Messages
+                {unassignedCount("message") > 0 && (
+                  <Badge className="ml-1.5 h-5 min-w-5 px-1.5 text-[10px] font-bold rounded-full bg-blue-500 text-white border-0">
+                    {unassignedCount("message")}
+                  </Badge>
+                )}
               </TabsTrigger>
               <TabsTrigger value="callbacks" className="h-11">
                 <PhoneForwarded className="h-4 w-4 mr-1" />
-                Callbacks{tabBadge("callback_requested")}
+                Callbacks
+                {unassignedCount("callback_requested") > 0 && (
+                  <Badge className="ml-1.5 h-5 min-w-5 px-1.5 text-[10px] font-bold rounded-full bg-violet-500 text-white border-0">
+                    {unassignedCount("callback_requested")}
+                  </Badge>
+                )}
               </TabsTrigger>
               <TabsTrigger value="late" className="h-11">
                 <Clock className="h-4 w-4 mr-1" />
-                Late{tabBadge("running_late")}
+                Late
+                {unassignedCount("running_late") > 0 && (
+                  <Badge className="ml-1.5 h-5 min-w-5 px-1.5 text-[10px] font-bold rounded-full bg-red-500 text-white border-0 animate-pulse">
+                    {unassignedCount("running_late")}
+                  </Badge>
+                )}
               </TabsTrigger>
               <TabsTrigger value="mine" className="h-11">
-                My Cases{myCases.length > 0 && (
-                  <Badge className="ml-1.5 h-5 min-w-5 px-1.5 text-[10px] rounded-full">{myCases.length}</Badge>
+                My Cases
+                {myCases.length > 0 && (
+                  <Badge className="ml-1.5 h-5 min-w-5 px-1.5 text-[10px] rounded-full bg-emerald-500 text-white border-0">
+                    {myCases.length}
+                  </Badge>
                 )}
               </TabsTrigger>
             </TabsList>
