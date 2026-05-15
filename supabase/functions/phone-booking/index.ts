@@ -1442,38 +1442,71 @@ Deno.serve(async (req) => {
       const { customer_phone, customer_name, dog_name, appointment_time, minutes_late } = body;
       console.log("[log_running_late] starting", JSON.stringify(body));
 
-      if (!customer_phone) {
-        return json({ success: false, message: "customer_phone is required" }, 400);
-      }
+      const phoneTrimmed = customer_phone ? String(customer_phone).trim() : "";
+      const nameTrimmed = customer_name ? String(customer_name).trim() : "";
+      const dogTrimmed = dog_name ? String(dog_name).trim() : "";
 
-      // Phone format candidates (same pattern as cancel_booking)
-      const raw = String(customer_phone).trim().replace(/[\s\-\(\)]/g, "");
-      const phoneCandidates = new Set<string>([raw]);
-      const normalized = normalizePhone(raw);
-      phoneCandidates.add(normalized);
-      if (normalized.startsWith("+44")) {
-        phoneCandidates.add("0" + normalized.slice(3));
-        phoneCandidates.add(normalized.slice(3));
-        phoneCandidates.add(normalized.slice(1));
+      if (!phoneTrimmed && !nameTrimmed) {
+        return json({
+          success: false,
+          message: "Either customer_phone or customer_name is required to find the booking.",
+        }, 400);
       }
-      if (raw.startsWith("0")) phoneCandidates.add(raw.slice(1));
-      const phoneList = Array.from(phoneCandidates).filter(Boolean);
 
       const today = londonTodayIso();
       const timePrefix = appointment_time ? String(appointment_time).slice(0, 5) : null;
-      console.log("[log_running_late] looking up booking:", JSON.stringify({ phoneList, today, timePrefix }));
+      console.log("[log_running_late] searching for booking by:", JSON.stringify({ phone: phoneTrimmed, name: nameTrimmed, today, timePrefix }));
 
-      const { data: bookings, error: lookupErr } = await supabase
-        .from("bookings")
-        .select("id, customer_name, customer_phone, dog_name, booking_date, booking_time, staff_id, staff(id, name)")
-        .in("customer_phone", phoneList)
-        .eq("booking_date", today)
-        .not("status", "in", '("Cancelled","No Show","Refunded")')
-        .order("booking_time", { ascending: true });
+      let bookings: any[] | null = null;
 
-      if (lookupErr) {
-        console.error("[log_running_late] lookup error", lookupErr);
-        return json({ success: false, message: `Booking lookup failed: ${lookupErr.message}` }, 500);
+      // Try phone first if provided
+      if (phoneTrimmed) {
+        const raw = phoneTrimmed.replace(/[\s\-\(\)]/g, "");
+        const phoneCandidates = new Set<string>([raw]);
+        const normalized = normalizePhone(raw);
+        phoneCandidates.add(normalized);
+        if (normalized.startsWith("+44")) {
+          phoneCandidates.add("0" + normalized.slice(3));
+          phoneCandidates.add(normalized.slice(3));
+          phoneCandidates.add(normalized.slice(1));
+        }
+        if (raw.startsWith("0")) phoneCandidates.add(raw.slice(1));
+        const phoneList = Array.from(phoneCandidates).filter(Boolean);
+        console.log("[log_running_late] phone candidates:", JSON.stringify(phoneList));
+
+        const { data, error: lookupErr } = await supabase
+          .from("bookings")
+          .select("id, customer_name, customer_phone, dog_name, booking_date, booking_time, staff_id, staff(id, name)")
+          .in("customer_phone", phoneList)
+          .eq("booking_date", today)
+          .not("status", "in", '("Cancelled","No Show","Refunded")')
+          .order("booking_time", { ascending: true });
+
+        if (lookupErr) {
+          console.error("[log_running_late] phone lookup error", lookupErr);
+          return json({ success: false, message: `Booking lookup by phone failed: ${lookupErr.message}` }, 500);
+        }
+        bookings = data || [];
+        console.log("[log_running_late] phone lookup returned:", bookings.length);
+      }
+
+      // Fallback to name search
+      if ((!bookings || bookings.length === 0) && nameTrimmed) {
+        console.log("[log_running_late] falling back to name search for:", nameTrimmed);
+        const { data, error: nameErr } = await supabase
+          .from("bookings")
+          .select("id, customer_name, customer_phone, dog_name, booking_date, booking_time, staff_id, staff(id, name)")
+          .ilike("customer_name", `%${nameTrimmed}%`)
+          .eq("booking_date", today)
+          .not("status", "in", '("Cancelled","No Show","Refunded")')
+          .order("booking_time", { ascending: true });
+
+        if (nameErr) {
+          console.error("[log_running_late] name lookup error", nameErr);
+          return json({ success: false, message: `Booking lookup by name failed: ${nameErr.message}` }, 500);
+        }
+        bookings = data || [];
+        console.log("[log_running_late] name lookup returned:", bookings.length);
       }
 
       let booking: any = null;
@@ -1488,10 +1521,12 @@ Deno.serve(async (req) => {
 
       const groomerId: string | null = booking?.staff_id || null;
       const groomerName: string = booking?.staff?.name || "the groomer";
-      const resolvedName = customer_name || booking?.customer_name || "A customer";
-      const resolvedDog = dog_name || booking?.dog_name || "their dog";
+      const resolvedName = nameTrimmed || booking?.customer_name || "A customer";
+      const resolvedDog = dogTrimmed || booking?.dog_name || "their dog";
       const resolvedTime = appointment_time || (booking ? String(booking.booking_time || "").slice(0, 5) : "their appointment time");
-      const minsLate = Number(minutes_late) || 0;
+      const minsLate = parseInt(String(minutes_late ?? "0"), 10) || 0;
+
+      console.log("[log_running_late] creating inbox case", JSON.stringify({ groomerId, groomerName, resolvedName, resolvedDog, resolvedTime, minsLate }));
 
       const { data: caseRow, error: caseErr } = await supabase
         .from("ai_inbox_cases")
@@ -1500,7 +1535,7 @@ Deno.serve(async (req) => {
           status: groomerId ? "assigned" : "unassigned",
           assigned_to: groomerId,
           assigned_at: groomerId ? new Date().toISOString() : null,
-          caller_number: raw,
+          caller_number: phoneTrimmed || booking?.customer_phone || null,
           caller_name: resolvedName,
           dog_name: resolvedDog,
           appointment_time: resolvedTime,
@@ -1527,6 +1562,7 @@ Deno.serve(async (req) => {
         if (notifErr) console.error("[log_running_late] notification insert error", notifErr);
       }
 
+      console.log("[log_running_late] done", JSON.stringify({ case_id: caseRow.id, booking_found: !!booking }));
       return json({
         success: true,
         case_id: caseRow.id,
