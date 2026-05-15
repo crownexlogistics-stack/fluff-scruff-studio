@@ -1437,6 +1437,107 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ─────────────────────────── log_running_late ───────────────────────────
+    if (action === "log_running_late") {
+      const { customer_phone, customer_name, dog_name, appointment_time, minutes_late } = body;
+      console.log("[log_running_late] starting", JSON.stringify(body));
+
+      if (!customer_phone) {
+        return json({ success: false, message: "customer_phone is required" }, 400);
+      }
+
+      // Phone format candidates (same pattern as cancel_booking)
+      const raw = String(customer_phone).trim().replace(/[\s\-\(\)]/g, "");
+      const phoneCandidates = new Set<string>([raw]);
+      const normalized = normalizePhone(raw);
+      phoneCandidates.add(normalized);
+      if (normalized.startsWith("+44")) {
+        phoneCandidates.add("0" + normalized.slice(3));
+        phoneCandidates.add(normalized.slice(3));
+        phoneCandidates.add(normalized.slice(1));
+      }
+      if (raw.startsWith("0")) phoneCandidates.add(raw.slice(1));
+      const phoneList = Array.from(phoneCandidates).filter(Boolean);
+
+      const today = londonTodayIso();
+      const timePrefix = appointment_time ? String(appointment_time).slice(0, 5) : null;
+      console.log("[log_running_late] looking up booking:", JSON.stringify({ phoneList, today, timePrefix }));
+
+      const { data: bookings, error: lookupErr } = await supabase
+        .from("bookings")
+        .select("id, customer_name, customer_phone, dog_name, booking_date, booking_time, staff_id, staff(id, name)")
+        .in("customer_phone", phoneList)
+        .eq("booking_date", today)
+        .not("status", "in", '("Cancelled","No Show","Refunded")')
+        .order("booking_time", { ascending: true });
+
+      if (lookupErr) {
+        console.error("[log_running_late] lookup error", lookupErr);
+        return json({ success: false, message: `Booking lookup failed: ${lookupErr.message}` }, 500);
+      }
+
+      let booking: any = null;
+      if (bookings && bookings.length) {
+        if (timePrefix) {
+          booking = bookings.find((b: any) => String(b.booking_time || "").slice(0, 5) === timePrefix) || bookings[0];
+        } else {
+          booking = bookings[0];
+        }
+      }
+      console.log("[log_running_late] booking found:", JSON.stringify(booking));
+
+      const groomerId: string | null = booking?.staff_id || null;
+      const groomerName: string = booking?.staff?.name || "the groomer";
+      const resolvedName = customer_name || booking?.customer_name || "A customer";
+      const resolvedDog = dog_name || booking?.dog_name || "their dog";
+      const resolvedTime = appointment_time || (booking ? String(booking.booking_time || "").slice(0, 5) : "their appointment time");
+      const minsLate = Number(minutes_late) || 0;
+
+      const { data: caseRow, error: caseErr } = await supabase
+        .from("ai_inbox_cases")
+        .insert({
+          case_type: "running_late",
+          status: groomerId ? "assigned" : "unassigned",
+          assigned_to: groomerId,
+          assigned_at: groomerId ? new Date().toISOString() : null,
+          caller_number: raw,
+          caller_name: resolvedName,
+          dog_name: resolvedDog,
+          appointment_time: resolvedTime,
+          minutes_late: minsLate,
+          booking_id: booking?.id || null,
+          summary: `${resolvedName} called to say they will be ${minsLate} minutes late for ${resolvedDog}'s ${resolvedTime} appointment.`,
+        })
+        .select("id")
+        .single();
+
+      if (caseErr) {
+        console.error("[log_running_late] case insert error", caseErr);
+        return json({ success: false, message: `Failed to create case: ${caseErr.message}` }, 500);
+      }
+
+      if (groomerId) {
+        const { error: notifErr } = await supabase
+          .from("ai_inbox_notifications")
+          .insert({
+            staff_id: groomerId,
+            case_id: caseRow.id,
+            message: `${resolvedName} called to say they will be ${minsLate} minutes late for ${resolvedDog}'s appointment at ${resolvedTime}`,
+          });
+        if (notifErr) console.error("[log_running_late] notification insert error", notifErr);
+      }
+
+      return json({
+        success: true,
+        case_id: caseRow.id,
+        groomer_name: groomerName,
+        booking_found: !!booking,
+        message: booking
+          ? `Noted — ${groomerName} has been notified that you will be ${minsLate} minutes late.`
+          : `Noted — we couldn't find today's booking but the team has been alerted.`,
+      });
+    }
+
     return json({ error: `Unknown action: ${action}` }, 400);
   } catch (err: any) {
     console.error("[phone-booking] error", err);
