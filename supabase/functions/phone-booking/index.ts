@@ -1574,6 +1574,66 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ─────────────────────────── log_callback_request ───────────────────────────
+    if (action === "log_callback_request") {
+      const { customer_phone, customer_name, reason } = body;
+      console.log("[log_callback_request] starting", JSON.stringify({ customer_phone, customer_name, reason }));
+
+      const successResponse = json({
+        success: true,
+        message: "Callback request logged. Someone will call you back shortly.",
+      });
+
+      try {
+        const phoneTrimmed = customer_phone ? String(customer_phone).trim() : "";
+        const nameTrimmed = customer_name ? String(customer_name).trim() : "";
+        const reasonTrimmed = reason ? String(reason).trim() : "";
+
+        let resolvedPhone: string | null = phoneTrimmed
+          ? normalizePhone(phoneTrimmed)
+          : null;
+
+        // Fallback: look up today's booking by name to find phone
+        if (!resolvedPhone && nameTrimmed) {
+          const today = londonTodayIso();
+          console.log("[log_callback_request] phone missing, searching today's bookings by name:", nameTrimmed);
+          const { data: bookings, error: lookupErr } = await supabase
+            .from("bookings")
+            .select("customer_phone, customer_name")
+            .ilike("customer_name", `%${nameTrimmed}%`)
+            .eq("booking_date", today)
+            .not("status", "in", '("Cancelled","No Show","Refunded")')
+            .limit(1);
+          if (lookupErr) {
+            console.error("[log_callback_request] booking lookup error", lookupErr);
+          } else if (bookings && bookings.length > 0 && bookings[0].customer_phone) {
+            resolvedPhone = bookings[0].customer_phone;
+            console.log("[log_callback_request] resolved phone from booking:", resolvedPhone);
+          }
+        }
+
+        const { error: caseErr } = await supabase
+          .from("ai_inbox_cases")
+          .insert({
+            case_type: "callback_requested",
+            status: "unassigned",
+            caller_number: resolvedPhone,
+            caller_name: nameTrimmed || null,
+            summary: `Customer called and needs a callback. Reason: ${reasonTrimmed || "(none provided)"}`,
+          });
+
+        if (caseErr) {
+          console.error("[log_callback_request] case insert error (suppressed)", caseErr);
+        } else {
+          console.log("[log_callback_request] case created");
+        }
+      } catch (e) {
+        console.error("[log_callback_request] unexpected error (suppressed)", e);
+      }
+
+      return successResponse;
+    }
+
     return json({ error: `Unknown action: ${action}` }, 400);
   } catch (err: any) {
     console.error("[phone-booking] error", err);
