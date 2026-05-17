@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useRef, useEffect } from "react";
 import { format, addDays, isToday } from "date-fns";
 import { cn } from "@/lib/utils";
 import { BookingEvent, BookingData } from "./BookingEvent";
@@ -30,10 +30,13 @@ interface WeeklyCalendarProps {
   onCheckout?: (booking: BookingData) => void;
 }
 
-const START_HOUR = 9;
-const END_HOUR = 18;
+const START_HOUR = 6;
+const END_HOUR = 22;
+const DEFAULT_VIEW_START = 9;
+const DEFAULT_VIEW_END = 18;
+const VISIBLE_SLOTS = DEFAULT_VIEW_END - DEFAULT_VIEW_START + 1;
 const HOURS = Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, i) => START_HOUR + i);
-const TOTAL_SLOTS = HOURS.length;
+const SLOT_HEIGHT_CSS = `calc((100vh - 220px) / ${VISIBLE_SLOTS})`;
 const DAYS = Array.from({ length: 7 }, (_, i) => i);
 
 const DEFAULT_DURATION = 1.5; // hours
@@ -135,6 +138,15 @@ export function WeeklyCalendar({ weekStart, daysToShow = 7, staff, bookings, sta
     return map;
   }, [bookingsByDate]);
 
+  const scrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (scrollRef.current) {
+      const el = scrollRef.current;
+      const slotPx = el.clientHeight / VISIBLE_SLOTS;
+      el.scrollTop = (DEFAULT_VIEW_START - START_HOUR) * slotPx;
+    }
+  }, []);
+
   return (
     <div className="border rounded-lg bg-card overflow-hidden">
       <div className="grid border-b bg-muted/30 sticky top-0 z-20" style={{ gridTemplateColumns: `60px repeat(${days.length}, 1fr)` }}>
@@ -148,13 +160,14 @@ export function WeeklyCalendar({ weekStart, daysToShow = 7, staff, bookings, sta
       </div>
 
       <div
-        className="overflow-hidden"
+        ref={scrollRef}
+        className="overflow-y-auto"
         style={{
           height: "calc(100vh - 220px)",
-          ["--slot-h" as any]: `calc((100vh - 220px) / ${TOTAL_SLOTS})`,
+          ["--slot-h" as any]: SLOT_HEIGHT_CSS,
         }}
       >
-        <div className="relative grid h-full" style={{ gridTemplateColumns: `60px repeat(${days.length}, 1fr)` }}>
+        <div className="relative grid" style={{ gridTemplateColumns: `60px repeat(${days.length}, 1fr)`, height: `calc(${SLOT_HEIGHT_CSS} * ${HOURS.length})` }}>
           <div className="border-r">
             {HOURS.map(hour => (
               <div key={hour} className="border-b flex items-start justify-end pr-2 pt-1" style={{ height: "var(--slot-h)" }}>
@@ -199,7 +212,7 @@ export function WeeklyCalendar({ weekStart, daysToShow = 7, staff, bookings, sta
                         overlapColumn={layout?.column ?? 0}
                         overlapTotalColumns={layout?.totalColumns ?? 1}
                         privacyMasked={isPrivacyMasked}
-                        slotHeight={`calc((100vh - 220px) / ${TOTAL_SLOTS})`}
+                        slotHeight={SLOT_HEIGHT_CSS}
                         onEditBlock={isPrivacyMasked ? undefined : onEditBlock}
                         onCancelBlock={isPrivacyMasked ? undefined : onCancelBlock}
                         onEditOvertime={isPrivacyMasked ? undefined : onEditOvertime}
