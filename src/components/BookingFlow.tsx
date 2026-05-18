@@ -683,11 +683,23 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
   };
 
   const handleSubSelect = (sub: string) => {
+    logBookingFlowEvent({
+      sessionId: sessionIdRef.current,
+      step: "sub-service",
+      action: "sub_service_selected",
+      payload: { sub_service: sub, parent_service: service },
+    });
     setSelectedSub(sub);
     goToStep("breed", "forward");
   };
 
   const handleBreedSelect = (breed: any | null) => {
+    logBookingFlowEvent({
+      sessionId: sessionIdRef.current,
+      step: "breed",
+      action: "breed_selected",
+      payload: { breed_id: breed?.id ?? null, breed_name: breed?.name ?? null },
+    });
     setSelectedBreed(breed);
     setSelectedAddOns([]);
     setSelectedDate(null);
@@ -713,6 +725,13 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
   };
 
   const toggleAddOn = (id: string) => {
+    const willAdd = !selectedAddOns.includes(id);
+    logBookingFlowEvent({
+      sessionId: sessionIdRef.current,
+      step: "addons",
+      action: "addon_toggled",
+      payload: { addon_id: id, added: willAdd },
+    });
     setSelectedAddOns(prev => prev.includes(id) ? prev.filter(a => a !== id) : [...prev, id]);
   };
 
@@ -1329,6 +1348,12 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
   }, [selectedDate]);
 
   const handleSwitchToBathBrush = () => {
+    logBookingFlowEvent({
+      sessionId: sessionIdRef.current,
+      step: "calendar",
+      action: "bb_fallback_banner_accepted",
+      payload: { from: selectedSub ?? service, to: "Bath & Brush", date: selectedDate },
+    });
     setSelectedSub("Bath & Brush");
     setSelectedTime(null);
     toast.success("Switched to Bath & Brush — pick your time");
