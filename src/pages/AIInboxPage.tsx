@@ -556,10 +556,7 @@ export default function AIInboxPage() {
             </div>
           )}
         </section>
-        <section>
-          <h2 className="text-lg font-semibold mb-3">
-            Recently Resolved {resolved.length > 0 && <span className="text-muted-foreground font-normal">({resolved.length})</span>}
-          </h2>
+        <CollapsibleSection title="Recently Resolved" count={resolved.length}>
           {resolved.length === 0 ? (
             <p className="text-muted-foreground text-sm">Nothing resolved yet.</p>
           ) : (
@@ -569,10 +566,12 @@ export default function AIInboxPage() {
               ))}
             </div>
           )}
-        </section>
+        </CollapsibleSection>
         {isDirector && (
-          <section>
-            <h2 className="text-lg font-semibold mb-3">All Resolved (Director view)</h2>
+          <CollapsibleSection
+            title="All Resolved (Director view)"
+            count={resolvedCases.filter((c) => c.case_type === type).length}
+          >
             {resolvedCases.filter((c) => c.case_type === type).length === 0 ? (
               <p className="text-muted-foreground text-sm">No resolved cases on record.</p>
             ) : (
@@ -584,7 +583,7 @@ export default function AIInboxPage() {
                   ))}
               </div>
             )}
-          </section>
+          </CollapsibleSection>
         )}
       </div>
     );
@@ -721,10 +720,7 @@ export default function AIInboxPage() {
                   </div>
                 )}
               </section>
-              <section>
-                <h2 className="text-lg font-semibold mb-3">
-                  My Resolved Cases <span className="text-muted-foreground font-normal text-sm">(last 30 days)</span>
-                </h2>
+              <CollapsibleSection title="My Resolved Cases (last 30 days)" count={myResolvedCases.length}>
                 {myResolvedCases.length === 0 ? (
                   <p className="text-muted-foreground text-sm">You haven't resolved any cases in the last 30 days.</p>
                 ) : (
@@ -734,7 +730,7 @@ export default function AIInboxPage() {
                     ))}
                   </div>
                 )}
-              </section>
+              </CollapsibleSection>
             </div>
           </TabsContent>
         </Tabs>
