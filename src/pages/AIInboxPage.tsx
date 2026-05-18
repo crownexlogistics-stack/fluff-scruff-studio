@@ -322,6 +322,7 @@ export default function AIInboxPage() {
 
   const [tab, setTab] = useState<string>(isGroomer ? "mine" : "missed");
   const [cases, setCases] = useState<InboxCase[]>([]);
+  const [resolvedCases, setResolvedCases] = useState<InboxCase[]>([]);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
   const [resolveTarget, setResolveTarget] = useState<InboxCase | null>(null);
@@ -329,16 +330,24 @@ export default function AIInboxPage() {
   const [resolveNote, setResolveNote] = useState<string>("");
 
   const fetchCases = useCallback(async () => {
-    const { data, error } = await supabase
-      .from("ai_inbox_cases")
-      .select("*, staff:assigned_to(id, name), resolver:resolved_by(id, name)")
-      .order("created_at", { ascending: false })
-      .limit(200);
-    if (error) {
-      console.error("Failed to load inbox cases", error);
-      return;
-    }
-    setCases((data as unknown as InboxCase[]) || []);
+    const [activeRes, resolvedRes] = await Promise.all([
+      supabase
+        .from("ai_inbox_cases")
+        .select("*, staff:assigned_to(id, name), resolver:resolved_by(id, name)")
+        .neq("status", "resolved")
+        .order("created_at", { ascending: false })
+        .limit(200),
+      supabase
+        .from("ai_inbox_cases")
+        .select("*, staff:assigned_to(id, name), resolver:resolved_by(id, name)")
+        .eq("status", "resolved")
+        .order("resolved_at", { ascending: false })
+        .limit(300),
+    ]);
+    if (activeRes.error) console.error("Failed to load active inbox cases", activeRes.error);
+    if (resolvedRes.error) console.error("Failed to load resolved inbox cases", resolvedRes.error);
+    setCases((activeRes.data as unknown as InboxCase[]) || []);
+    setResolvedCases((resolvedRes.data as unknown as InboxCase[]) || []);
     setLastUpdated(new Date());
   }, []);
 
@@ -423,14 +432,28 @@ export default function AIInboxPage() {
 
   const resolvedByType = useMemo(() => {
     const map: Record<string, InboxCase[]> = {};
-    for (const c of cases) {
-      if (c.status === "resolved") {
-        (map[c.case_type] = map[c.case_type] || []).push(c);
-      }
+    for (const c of resolvedCases) {
+      (map[c.case_type] = map[c.case_type] || []).push(c);
     }
-    for (const k of Object.keys(map)) map[k] = map[k].slice(0, 10);
+    for (const k of Object.keys(map)) map[k] = map[k].slice(0, 20);
     return map;
-  }, [cases]);
+  }, [resolvedCases]);
+
+  const resolvedTodayCount = useCallback((type: CaseType) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return resolvedCases.filter(
+      (c) => c.case_type === type && c.resolved_at && new Date(c.resolved_at) >= today,
+    ).length;
+  }, [resolvedCases]);
+
+  const myResolvedCases = useMemo(() => {
+    if (!staff) return [];
+    const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    return resolvedCases.filter(
+      (c) => c.resolver?.id === staff.id && c.resolved_at && new Date(c.resolved_at).getTime() >= cutoff,
+    );
+  }, [resolvedCases, staff]);
 
   const myCases = useMemo(() => {
     if (isDirector) return cases.filter((c) => c.status === "assigned");
@@ -487,8 +510,14 @@ export default function AIInboxPage() {
   const renderTab = (type: CaseType, label: string) => {
     const unassigned = unassignedByType[type] || [];
     const resolved = resolvedByType[type] || [];
+    const activeCount = unassigned.length;
+    const resolvedToday = resolvedTodayCount(type);
     return (
       <div className="space-y-6">
+        <div className="text-sm text-muted-foreground">
+          <span className="font-semibold text-foreground">{activeCount}</span> active ·{" "}
+          <span className="font-semibold text-foreground">{resolvedToday}</span> resolved today
+        </div>
         <section>
           <h2 className="text-lg font-semibold mb-3">Unassigned ({unassigned.length})</h2>
           {unassigned.length === 0 ? (
@@ -502,7 +531,9 @@ export default function AIInboxPage() {
           )}
         </section>
         <section>
-          <h2 className="text-lg font-semibold mb-3">Recently resolved</h2>
+          <h2 className="text-lg font-semibold mb-3">
+            Recently Resolved {resolved.length > 0 && <span className="text-muted-foreground font-normal">({resolved.length})</span>}
+          </h2>
           {resolved.length === 0 ? (
             <p className="text-muted-foreground text-sm">Nothing resolved yet.</p>
           ) : (
@@ -513,6 +544,22 @@ export default function AIInboxPage() {
             </div>
           )}
         </section>
+        {isDirector && (
+          <section>
+            <h2 className="text-lg font-semibold mb-3">All Resolved (Director view)</h2>
+            {resolvedCases.filter((c) => c.case_type === type).length === 0 ? (
+              <p className="text-muted-foreground text-sm">No resolved cases on record.</p>
+            ) : (
+              <div className="space-y-3">
+                {resolvedCases
+                  .filter((c) => c.case_type === type)
+                  .map((c) => (
+                    <CaseCard key={`all-${c.id}`} c={c} showResolver />
+                  ))}
+              </div>
+            )}
+          </section>
+        )}
       </div>
     );
   };
