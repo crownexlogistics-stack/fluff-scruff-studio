@@ -28,6 +28,32 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { motion } from "framer-motion";
+import { ChevronDown } from "lucide-react";
+
+function CollapsibleSection({
+  title,
+  count,
+  defaultOpen = false,
+  children,
+}: {
+  title: string;
+  count: number;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <details className="group" open={defaultOpen}>
+      <summary className="list-none cursor-pointer flex items-center gap-2 mb-3 select-none">
+        <ChevronDown className="h-5 w-5 transition-transform group-open:rotate-0 -rotate-90 text-muted-foreground" />
+        <h2 className="text-lg font-semibold">
+          {title}{" "}
+          <span className="text-muted-foreground font-normal text-sm">({count})</span>
+        </h2>
+      </summary>
+      <div className="mt-1">{children}</div>
+    </details>
+  );
+}
 
 type CaseType = "missed_opportunity" | "message" | "callback_requested" | "running_late" | "ai_booking_notification";
 type Status = "unassigned" | "assigned" | "resolved";
