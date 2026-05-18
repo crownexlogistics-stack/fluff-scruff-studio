@@ -1417,6 +1417,29 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
     setBbSuggestionDismissed(false);
   }, [selectedDate]);
 
+  // Log when the Bath & Brush fallback banner becomes visible to the customer.
+  const bbBannerShownRef = useRef<string | null>(null);
+  useEffect(() => {
+    const bannerVisible =
+      isFullGroomFlow &&
+      !verifyingSlots &&
+      !bbVerifying &&
+      availableTimeSlots.length === 0 &&
+      bbVerifiedSlots.length > 0 &&
+      !bbSuggestionDismissed &&
+      !!selectedDate;
+    if (bannerVisible && bbBannerShownRef.current !== selectedDate) {
+      bbBannerShownRef.current = selectedDate;
+      logBookingFlowEvent({
+        sessionId: sessionIdRef.current,
+        step: "calendar",
+        action: "bb_fallback_banner_shown",
+        payload: { date: selectedDate, bb_slots_count: bbVerifiedSlots.length },
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isFullGroomFlow, verifyingSlots, bbVerifying, bbVerifiedSlots.length, bbSuggestionDismissed, selectedDate]);
+
   const handleSwitchToBathBrush = () => {
     logBookingFlowEvent({
       sessionId: sessionIdRef.current,
