@@ -195,6 +195,17 @@ function CaseCard({
   const urgent = c.case_type === "running_late" && c.status !== "resolved";
   const theme = cardTheme(c, isMine);
   const [expanded, setExpanded] = useState(false);
+  const resolvedAfterLabel = (() => {
+    if (c.status !== "resolved" || !c.resolved_at) return null;
+    const ms = new Date(c.resolved_at).getTime() - new Date(c.created_at).getTime();
+    if (!isFinite(ms) || ms < 0) return null;
+    const mins = Math.round(ms / 60000);
+    if (mins < 60) return `Resolved ${mins} minute${mins === 1 ? "" : "s"} after case opened`;
+    const hours = Math.round(mins / 60);
+    if (hours < 24) return `Resolved ${hours} hour${hours === 1 ? "" : "s"} after case opened`;
+    const days = Math.round(hours / 24);
+    return `Resolved ${days} day${days === 1 ? "" : "s"} after case opened`;
+  })();
   return (
     <motion.div
       drag={onClaim ? "x" : false}
@@ -234,6 +245,11 @@ function CaseCard({
               {c.minutes_late ?? "?"} min late
             </Badge>
           )}
+          {c.status === "resolved" && (
+            <Badge className="text-sm shrink-0 bg-emerald-600 text-white border-0">
+              ✅ Resolved
+            </Badge>
+          )}
         </div>
 
         {c.case_type === "running_late" && c.appointment_time && (
@@ -262,11 +278,17 @@ function CaseCard({
         )}
 
         {showResolver && c.resolution_note && (
-          <div className="p-3 rounded-md bg-emerald-50 dark:bg-emerald-950/30 text-sm">
+          <div className="p-3 rounded-md bg-emerald-50 dark:bg-emerald-950/30 text-sm space-y-1">
             <p className="font-medium text-emerald-700 dark:text-emerald-300">
               Resolved{c.resolver?.name && ` by ${c.resolver.name}`}
             </p>
             <p>{c.resolution_note}</p>
+            {c.resolved_at && (
+              <p className="text-xs text-emerald-800/80 dark:text-emerald-200/80">
+                Resolved at {formatTime(c.resolved_at)}
+                {resolvedAfterLabel ? ` · ${resolvedAfterLabel}` : ""}
+              </p>
+            )}
           </div>
         )}
 
@@ -300,6 +322,7 @@ export default function AIInboxPage() {
 
   const [tab, setTab] = useState<string>(isGroomer ? "mine" : "missed");
   const [cases, setCases] = useState<InboxCase[]>([]);
+  const [resolvedCases, setResolvedCases] = useState<InboxCase[]>([]);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
   const [resolveTarget, setResolveTarget] = useState<InboxCase | null>(null);
@@ -307,16 +330,24 @@ export default function AIInboxPage() {
   const [resolveNote, setResolveNote] = useState<string>("");
 
   const fetchCases = useCallback(async () => {
-    const { data, error } = await supabase
-      .from("ai_inbox_cases")
-      .select("*, staff:assigned_to(id, name), resolver:resolved_by(id, name)")
-      .order("created_at", { ascending: false })
-      .limit(200);
-    if (error) {
-      console.error("Failed to load inbox cases", error);
-      return;
-    }
-    setCases((data as unknown as InboxCase[]) || []);
+    const [activeRes, resolvedRes] = await Promise.all([
+      supabase
+        .from("ai_inbox_cases")
+        .select("*, staff:assigned_to(id, name), resolver:resolved_by(id, name)")
+        .neq("status", "resolved")
+        .order("created_at", { ascending: false })
+        .limit(200),
+      supabase
+        .from("ai_inbox_cases")
+        .select("*, staff:assigned_to(id, name), resolver:resolved_by(id, name)")
+        .eq("status", "resolved")
+        .order("resolved_at", { ascending: false })
+        .limit(300),
+    ]);
+    if (activeRes.error) console.error("Failed to load active inbox cases", activeRes.error);
+    if (resolvedRes.error) console.error("Failed to load resolved inbox cases", resolvedRes.error);
+    setCases((activeRes.data as unknown as InboxCase[]) || []);
+    setResolvedCases((resolvedRes.data as unknown as InboxCase[]) || []);
     setLastUpdated(new Date());
   }, []);
 
@@ -401,14 +432,28 @@ export default function AIInboxPage() {
 
   const resolvedByType = useMemo(() => {
     const map: Record<string, InboxCase[]> = {};
-    for (const c of cases) {
-      if (c.status === "resolved") {
-        (map[c.case_type] = map[c.case_type] || []).push(c);
-      }
+    for (const c of resolvedCases) {
+      (map[c.case_type] = map[c.case_type] || []).push(c);
     }
-    for (const k of Object.keys(map)) map[k] = map[k].slice(0, 10);
+    for (const k of Object.keys(map)) map[k] = map[k].slice(0, 20);
     return map;
-  }, [cases]);
+  }, [resolvedCases]);
+
+  const resolvedTodayCount = useCallback((type: CaseType) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return resolvedCases.filter(
+      (c) => c.case_type === type && c.resolved_at && new Date(c.resolved_at) >= today,
+    ).length;
+  }, [resolvedCases]);
+
+  const myResolvedCases = useMemo(() => {
+    if (!staff) return [];
+    const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    return resolvedCases.filter(
+      (c) => c.resolver?.id === staff.id && c.resolved_at && new Date(c.resolved_at).getTime() >= cutoff,
+    );
+  }, [resolvedCases, staff]);
 
   const myCases = useMemo(() => {
     if (isDirector) return cases.filter((c) => c.status === "assigned");
@@ -465,8 +510,14 @@ export default function AIInboxPage() {
   const renderTab = (type: CaseType, label: string) => {
     const unassigned = unassignedByType[type] || [];
     const resolved = resolvedByType[type] || [];
+    const activeCount = unassigned.length;
+    const resolvedToday = resolvedTodayCount(type);
     return (
       <div className="space-y-6">
+        <div className="text-sm text-muted-foreground">
+          <span className="font-semibold text-foreground">{activeCount}</span> active ·{" "}
+          <span className="font-semibold text-foreground">{resolvedToday}</span> resolved today
+        </div>
         <section>
           <h2 className="text-lg font-semibold mb-3">Unassigned ({unassigned.length})</h2>
           {unassigned.length === 0 ? (
@@ -480,7 +531,9 @@ export default function AIInboxPage() {
           )}
         </section>
         <section>
-          <h2 className="text-lg font-semibold mb-3">Recently resolved</h2>
+          <h2 className="text-lg font-semibold mb-3">
+            Recently Resolved {resolved.length > 0 && <span className="text-muted-foreground font-normal">({resolved.length})</span>}
+          </h2>
           {resolved.length === 0 ? (
             <p className="text-muted-foreground text-sm">Nothing resolved yet.</p>
           ) : (
@@ -491,6 +544,22 @@ export default function AIInboxPage() {
             </div>
           )}
         </section>
+        {isDirector && (
+          <section>
+            <h2 className="text-lg font-semibold mb-3">All Resolved (Director view)</h2>
+            {resolvedCases.filter((c) => c.case_type === type).length === 0 ? (
+              <p className="text-muted-foreground text-sm">No resolved cases on record.</p>
+            ) : (
+              <div className="space-y-3">
+                {resolvedCases
+                  .filter((c) => c.case_type === type)
+                  .map((c) => (
+                    <CaseCard key={`all-${c.id}`} c={c} showResolver />
+                  ))}
+              </div>
+            )}
+          </section>
+        )}
       </div>
     );
   };
@@ -595,24 +664,52 @@ export default function AIInboxPage() {
           <TabsContent value="callbacks" className="mt-4">{renderTab("callback_requested", "Callbacks")}</TabsContent>
           <TabsContent value="late" className="mt-4">{renderTab("running_late", "Running Late")}</TabsContent>
           <TabsContent value="mine" className="mt-4">
-            {myCases.length === 0 ? (
-              <p className="text-muted-foreground">No assigned cases. Claim some from the other tabs.</p>
-            ) : (
-              <div className="space-y-3">
-                {myCases.map((c) => (
-                  <CaseCard
-                    key={c.id}
-                    c={c}
-                    onResolve={(x) => {
-                      setResolveTarget(x);
-                      setResolveOption("");
-                      setResolveNote("");
-                    }}
-                    isMine
-                  />
-                ))}
+            <div className="space-y-6">
+              <div className="text-sm text-muted-foreground">
+                <span className="font-semibold text-foreground">{myCases.length}</span> active ·{" "}
+                <span className="font-semibold text-foreground">
+                  {myResolvedCases.filter((c) => {
+                    const t = new Date(); t.setHours(0, 0, 0, 0);
+                    return c.resolved_at && new Date(c.resolved_at) >= t;
+                  }).length}
+                </span> resolved today
               </div>
-            )}
+              <section>
+                <h2 className="text-lg font-semibold mb-3">Active ({myCases.length})</h2>
+                {myCases.length === 0 ? (
+                  <p className="text-muted-foreground">No assigned cases. Claim some from the other tabs.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {myCases.map((c) => (
+                      <CaseCard
+                        key={c.id}
+                        c={c}
+                        onResolve={(x) => {
+                          setResolveTarget(x);
+                          setResolveOption("");
+                          setResolveNote("");
+                        }}
+                        isMine
+                      />
+                    ))}
+                  </div>
+                )}
+              </section>
+              <section>
+                <h2 className="text-lg font-semibold mb-3">
+                  My Resolved Cases <span className="text-muted-foreground font-normal text-sm">(last 30 days)</span>
+                </h2>
+                {myResolvedCases.length === 0 ? (
+                  <p className="text-muted-foreground text-sm">You haven't resolved any cases in the last 30 days.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {myResolvedCases.map((c) => (
+                      <CaseCard key={`mine-resolved-${c.id}`} c={c} showResolver />
+                    ))}
+                  </div>
+                )}
+              </section>
+            </div>
           </TabsContent>
         </Tabs>
       </div>
