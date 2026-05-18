@@ -1446,11 +1446,28 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
   const handleDateClickDate = (d: Date) => {
     if (!isDateSelectableDate(d)) return;
     const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    logBookingFlowEvent({
+      sessionId: sessionIdRef.current,
+      step: "calendar",
+      action: "date_selected",
+      payload: { date: dateStr, current_sub_service: selectedSub ?? service },
+    });
     setSelectedDate(dateStr);
     setSelectedTime(null);
   };
 
   const handleTimeClick = (time: string) => {
+    logBookingFlowEvent({
+      sessionId: sessionIdRef.current,
+      step: "calendar",
+      action: "time_selected",
+      payload: {
+        date: selectedDate,
+        time,
+        current_sub_service: selectedSub ?? service,
+        preferred_staff_id: selectedStaffId,
+      },
+    });
     setSelectedTime(time);
     setTimeout(() => goToStep(isFixedPrice ? "guest-details" : "addons", "forward"), 300);
   };
@@ -1911,7 +1928,15 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
                           style={{ borderRadius: '16px' }}
                         >
                           <button
-                            onClick={() => setBbSuggestionDismissed(true)}
+                            onClick={() => {
+                              logBookingFlowEvent({
+                                sessionId: sessionIdRef.current,
+                                step: "calendar",
+                                action: "bb_fallback_banner_dismissed",
+                                payload: { date: selectedDate },
+                              });
+                              setBbSuggestionDismissed(true);
+                            }}
                             className="absolute top-2 right-2 p-1 text-muted-foreground hover:text-foreground transition-colors"
                             aria-label="Dismiss"
                           >
