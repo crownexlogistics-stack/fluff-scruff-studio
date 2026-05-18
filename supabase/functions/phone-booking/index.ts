@@ -48,6 +48,26 @@ function normalizePhone(raw: string): string {
 
 const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const OPEN_DOW = [2, 3, 4, 5, 6]; // Tue-Sat
+const MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
+function humanReadableFromIso(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  const dayName = DAY_NAMES[dt.getUTCDay()];
+  return `${dayName} ${dt.getUTCDate()} ${MONTH_NAMES[dt.getUTCMonth()]}`;
+}
+
+function dayEntry(iso: string) {
+  const dow = dowFromIso(iso);
+  return {
+    day: DAY_NAMES[dow],
+    date: iso,
+    human_readable: humanReadableFromIso(iso),
+  };
+}
 
 function londonTodayIso(): string {
   return new Date().toLocaleDateString("en-CA", { timeZone: "Europe/London" });
@@ -69,29 +89,48 @@ function buildDateResponse() {
   const today = londonTodayIso();
   const todayDow = dowFromIso(today);
   const tomorrow = addDaysIso(today, 1);
+  const tomorrowDow = dowFromIso(tomorrow);
 
-  const this_week: { day: string; date: string }[] = [];
+  const this_week: { day: string; date: string; human_readable: string }[] = [];
   for (let offset = 1; offset <= 6 - todayDow; offset++) {
     const iso = addDaysIso(today, offset);
     const dow = (todayDow + offset) % 7;
     if (OPEN_DOW.includes(dow)) {
-      this_week.push({ day: DAY_NAMES[dow], date: iso });
+      this_week.push(dayEntry(iso));
     }
   }
 
-  const next_week: { day: string; date: string }[] = [];
+  const next_week: { day: string; date: string; human_readable: string }[] = [];
   const daysToNextSunday = 7 - todayDow;
   for (let offset = 2; offset <= 6; offset++) {
     const iso = addDaysIso(today, daysToNextSunday + offset);
-    next_week.push({ day: DAY_NAMES[offset], date: iso });
+    next_week.push(dayEntry(iso));
+  }
+
+  // Rolling list of the next 7 open days (Tue-Sat only) starting from tomorrow.
+  const next_open_days: { day: string; date: string; human_readable: string }[] = [];
+  let offset = 1;
+  while (next_open_days.length < 7 && offset < 30) {
+    const iso = addDaysIso(today, offset);
+    if (OPEN_DOW.includes(dowFromIso(iso))) {
+      next_open_days.push(dayEntry(iso));
+    }
+    offset++;
   }
 
   return {
     today,
     today_name: DAY_NAMES[todayDow],
-    tomorrow,
+    today_human_readable: humanReadableFromIso(today),
+    tomorrow: {
+      date: tomorrow,
+      day: DAY_NAMES[tomorrowDow],
+      human_readable: humanReadableFromIso(tomorrow),
+      is_open: OPEN_DOW.includes(tomorrowDow),
+    },
     this_week,
     next_week,
+    next_open_days,
     timezone: "Europe/London",
   };
 }
