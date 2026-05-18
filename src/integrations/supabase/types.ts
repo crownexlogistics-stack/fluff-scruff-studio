@@ -691,6 +691,56 @@ export type Database = {
           },
         ]
       }
+      booking_flow_events: {
+        Row: {
+          action: string
+          booking_id: string | null
+          created_at: string
+          customer_email: string | null
+          customer_phone: string | null
+          id: string
+          payload: Json
+          referrer: string | null
+          session_id: string
+          step: string
+          user_agent: string | null
+        }
+        Insert: {
+          action: string
+          booking_id?: string | null
+          created_at?: string
+          customer_email?: string | null
+          customer_phone?: string | null
+          id?: string
+          payload?: Json
+          referrer?: string | null
+          session_id: string
+          step: string
+          user_agent?: string | null
+        }
+        Update: {
+          action?: string
+          booking_id?: string | null
+          created_at?: string
+          customer_email?: string | null
+          customer_phone?: string | null
+          id?: string
+          payload?: Json
+          referrer?: string | null
+          session_id?: string
+          step?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_flow_events_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bookings: {
         Row: {
           anomaly_review_note: string | null

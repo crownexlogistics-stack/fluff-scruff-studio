@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import serviceBathBrush from "@/assets/service-bath-brush.jpg";
 import serviceFullGroomSub from "@/assets/service-full-groom-sub.jpg";
+import { resetBookingFlowSession, logBookingFlowEvent, linkSessionToBooking } from "@/lib/logBookingFlowEvent";
 
 const ADJUST_MODE = false;
 
@@ -210,6 +211,28 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
 
   const effectiveService = puppySwitched ? "Puppy Special" : service;
 
+  // Session ID for the customer-journey audit trail (one per flow mount).
+  const sessionIdRef = useRef<string>("");
+  if (!sessionIdRef.current) {
+    sessionIdRef.current = resetBookingFlowSession();
+  }
+  useEffect(() => {
+    logBookingFlowEvent({
+      sessionId: sessionIdRef.current,
+      step: "init",
+      action: "flow_started",
+      payload: {
+        service,
+        is_existing_customer: isExistingCustomer,
+        preselected_breed_id: preselectedBreedId ?? null,
+        preselected_pet_name: preselectedPetName ?? null,
+        utm_campaign: utmCampaignId,
+        location: typeof window !== "undefined" ? window.location.href : null,
+      },
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Navigation helper that tracks direction
   const goToStep = useCallback((newStep: Step, dir: "forward" | "back" = "forward") => {
     setDirection(dir);
@@ -236,7 +259,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
         .from("services")
         .select("id, name, fixed_price, duration_minutes")
         .eq("is_active", true)
-        .ilike("name", `%${effectiveService}%`)
+        .eq("name", effectiveService)
         .maybeSingle();
       if (error) throw error;
       return data;
@@ -540,19 +563,19 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
   });
 
   const resolvedServiceName = selectedSub ?? service;
-  const { data: currentServiceRecord } = useQuery({
+  const { data: currentServiceRecord, isFetching: isFetchingServiceRecord } = useQuery({
     queryKey: ["current-service-record", resolvedServiceName],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("services")
         .select("id")
         .eq("is_active", true)
-        .ilike("name", `%${resolvedServiceName}%`)
+        .eq("name", resolvedServiceName)
         .maybeSingle();
       if (error) throw error;
       return data;
     },
-    enabled: !!resolvedServiceName,
+    enabled: !!resolvedServiceName && resolvedServiceName !== "Grooming",
   });
 
   const filteredAddOns = dbAddOns?.filter((addon) => {
@@ -660,11 +683,23 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
   };
 
   const handleSubSelect = (sub: string) => {
+    logBookingFlowEvent({
+      sessionId: sessionIdRef.current,
+      step: "sub-service",
+      action: "sub_service_selected",
+      payload: { sub_service: sub, parent_service: service },
+    });
     setSelectedSub(sub);
     goToStep("breed", "forward");
   };
 
   const handleBreedSelect = (breed: any | null) => {
+    logBookingFlowEvent({
+      sessionId: sessionIdRef.current,
+      step: "breed",
+      action: "breed_selected",
+      payload: { breed_id: breed?.id ?? null, breed_name: breed?.name ?? null },
+    });
     setSelectedBreed(breed);
     setSelectedAddOns([]);
     setSelectedDate(null);
@@ -690,6 +725,13 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
   };
 
   const toggleAddOn = (id: string) => {
+    const willAdd = !selectedAddOns.includes(id);
+    logBookingFlowEvent({
+      sessionId: sessionIdRef.current,
+      step: "addons",
+      action: "addon_toggled",
+      payload: { addon_id: id, added: willAdd },
+    });
     setSelectedAddOns(prev => prev.includes(id) ? prev.filter(a => a !== id) : [...prev, id]);
   };
 
@@ -723,6 +765,35 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
     }
 
     setIsSubmitting(true);
+
+    // ── BULLET-PROOF GUARD: never submit without a resolved specific service ──
+    // For the "Grooming" parent path, currentServiceRecord must resolve to a
+    // concrete Full Groom / Bath & Brush row before we can insert. Without it
+    // the staff_services restriction is silently bypassed (Mollie/Bohdan bug).
+    const needsResolvedSubService = service === "Grooming" || effectiveService === "Grooming";
+    const resolvedServiceId = currentServiceRecord?.id ?? dbService?.id ?? null;
+    if (needsResolvedSubService && !resolvedServiceId) {
+      logBookingFlowEvent({
+        sessionId: sessionIdRef.current,
+        step: "guest-details",
+        action: "submit_blocked",
+        payload: {
+          reason: "service_id_unresolved",
+          selected_sub: selectedSub,
+          resolved_name: resolvedServiceName,
+          is_fetching_service_record: isFetchingServiceRecord,
+        },
+        customerEmail: submitEmail || null,
+        customerPhone: submitPhone || null,
+      });
+      setAlertMessage(
+        "We couldn't confirm your exact service (Full Groom vs Bath & Brush). Please go back and re-select it."
+      );
+      setIsSubmitting(false);
+      // Trigger a refetch in case it was a transient miss
+      queryClient.invalidateQueries({ queryKey: ["current-service-record", resolvedServiceName] });
+      return;
+    }
 
     if (isNewCustomer) {
       if (!guestForm.email.trim() || !guestForm.password.trim()) {
@@ -857,7 +928,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
           freshOverrides,
           freshBookings,
           staffServices,
-          currentServiceRecord?.id ?? null
+          resolvedServiceId
         );
 
         if (!freeGroomer) {
@@ -879,7 +950,8 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
           date: selectedDate,
           start_time: selectedTime,
           duration_minutes: bookingDuration,
-          service_id: currentServiceRecord?.id ?? null,
+          service_id: resolvedServiceId,
+          booking_source: "online",
         },
       });
       if (availErr) {
@@ -901,13 +973,34 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
       return;
     }
 
+    logBookingFlowEvent({
+      sessionId: sessionIdRef.current,
+      step: "guest-details",
+      action: "details_submitted",
+      payload: {
+        service_id: resolvedServiceId,
+        service_name: serviceType,
+        staff_id: assignedStaffId,
+        breed_id: selectedBreed?.id ?? null,
+        breed_name: selectedBreed?.name ?? null,
+        date: selectedDate,
+        time: selectedTime,
+        duration_minutes: bookingDuration,
+        total_price: totalPrice,
+        payment_type: selectedPaymentType,
+        coupon: appliedCoupon?.code ?? null,
+      },
+      customerEmail: submitEmail || null,
+      customerPhone: submitPhone || null,
+    });
+
     const { data: insertedBooking, error } = await supabase.from("bookings").insert({
       customer_name: submitName,
       customer_phone: submitPhone || null,
       customer_email: submitEmail || null,
       dog_name: submitDogName,
       breed_id: selectedBreed?.id ?? null,
-      service_id: currentServiceRecord?.id ?? dbService?.id ?? null,
+      service_id: resolvedServiceId,
       staff_id: assignedStaffId,
       booking_date: selectedDate!,
       booking_time: selectedTime!,
@@ -921,6 +1014,14 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
     } as any).select("id").single();
 
     if (error) {
+      logBookingFlowEvent({
+        sessionId: sessionIdRef.current,
+        step: "guest-details",
+        action: "submit_blocked",
+        payload: { reason: "db_insert_failed", message: error.message },
+        customerEmail: submitEmail || null,
+        customerPhone: submitPhone || null,
+      });
       setAlertMessage("Failed to book — please try again");
       setIsSubmitting(false);
       return;
@@ -934,6 +1035,17 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
         performed_by: "Customer (online)",
         note: "Booking created online by customer",
       } as any).then(() => {});
+      logBookingFlowEvent({
+        sessionId: sessionIdRef.current,
+        step: "guest-details",
+        action: "booking_created",
+        payload: { booking_id: insertedBooking.id },
+        customerEmail: submitEmail || null,
+        customerPhone: submitPhone || null,
+        bookingId: insertedBooking.id,
+      });
+      // Link every prior event in this session to the new booking row
+      void linkSessionToBooking(sessionIdRef.current, insertedBooking.id);
     }
 
     if (appliedCoupon && insertedBooking?.id) {
@@ -1305,7 +1417,36 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
     setBbSuggestionDismissed(false);
   }, [selectedDate]);
 
+  // Log when the Bath & Brush fallback banner becomes visible to the customer.
+  const bbBannerShownRef = useRef<string | null>(null);
+  useEffect(() => {
+    const bannerVisible =
+      isFullGroomFlow &&
+      !verifyingSlots &&
+      !bbVerifying &&
+      availableTimeSlots.length === 0 &&
+      bbVerifiedSlots.length > 0 &&
+      !bbSuggestionDismissed &&
+      !!selectedDate;
+    if (bannerVisible && bbBannerShownRef.current !== selectedDate) {
+      bbBannerShownRef.current = selectedDate;
+      logBookingFlowEvent({
+        sessionId: sessionIdRef.current,
+        step: "calendar",
+        action: "bb_fallback_banner_shown",
+        payload: { date: selectedDate, bb_slots_count: bbVerifiedSlots.length },
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isFullGroomFlow, verifyingSlots, bbVerifying, bbVerifiedSlots.length, bbSuggestionDismissed, selectedDate]);
+
   const handleSwitchToBathBrush = () => {
+    logBookingFlowEvent({
+      sessionId: sessionIdRef.current,
+      step: "calendar",
+      action: "bb_fallback_banner_accepted",
+      payload: { from: selectedSub ?? service, to: "Bath & Brush", date: selectedDate },
+    });
     setSelectedSub("Bath & Brush");
     setSelectedTime(null);
     toast.success("Switched to Bath & Brush — pick your time");
@@ -1328,11 +1469,28 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
   const handleDateClickDate = (d: Date) => {
     if (!isDateSelectableDate(d)) return;
     const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    logBookingFlowEvent({
+      sessionId: sessionIdRef.current,
+      step: "calendar",
+      action: "date_selected",
+      payload: { date: dateStr, current_sub_service: selectedSub ?? service },
+    });
     setSelectedDate(dateStr);
     setSelectedTime(null);
   };
 
   const handleTimeClick = (time: string) => {
+    logBookingFlowEvent({
+      sessionId: sessionIdRef.current,
+      step: "calendar",
+      action: "time_selected",
+      payload: {
+        date: selectedDate,
+        time,
+        current_sub_service: selectedSub ?? service,
+        preferred_staff_id: selectedStaffId,
+      },
+    });
     setSelectedTime(time);
     setTimeout(() => goToStep(isFixedPrice ? "guest-details" : "addons", "forward"), 300);
   };
@@ -1793,7 +1951,15 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
                           style={{ borderRadius: '16px' }}
                         >
                           <button
-                            onClick={() => setBbSuggestionDismissed(true)}
+                            onClick={() => {
+                              logBookingFlowEvent({
+                                sessionId: sessionIdRef.current,
+                                step: "calendar",
+                                action: "bb_fallback_banner_dismissed",
+                                payload: { date: selectedDate },
+                              });
+                              setBbSuggestionDismissed(true);
+                            }}
                             className="absolute top-2 right-2 p-1 text-muted-foreground hover:text-foreground transition-colors"
                             aria-label="Dismiss"
                           >
