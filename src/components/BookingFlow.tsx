@@ -766,6 +766,35 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
 
     setIsSubmitting(true);
 
+    // ── BULLET-PROOF GUARD: never submit without a resolved specific service ──
+    // For the "Grooming" parent path, currentServiceRecord must resolve to a
+    // concrete Full Groom / Bath & Brush row before we can insert. Without it
+    // the staff_services restriction is silently bypassed (Mollie/Bohdan bug).
+    const needsResolvedSubService = service === "Grooming" || effectiveService === "Grooming";
+    const resolvedServiceId = currentServiceRecord?.id ?? dbService?.id ?? null;
+    if (needsResolvedSubService && !resolvedServiceId) {
+      logBookingFlowEvent({
+        sessionId: sessionIdRef.current,
+        step: "guest-details",
+        action: "submit_blocked",
+        payload: {
+          reason: "service_id_unresolved",
+          selected_sub: selectedSub,
+          resolved_name: resolvedServiceName,
+          is_fetching_service_record: isFetchingServiceRecord,
+        },
+        customerEmail: submitEmail || null,
+        customerPhone: submitPhone || null,
+      });
+      setAlertMessage(
+        "We couldn't confirm your exact service (Full Groom vs Bath & Brush). Please go back and re-select it."
+      );
+      setIsSubmitting(false);
+      // Trigger a refetch in case it was a transient miss
+      queryClient.invalidateQueries({ queryKey: ["current-service-record", resolvedServiceName] });
+      return;
+    }
+
     if (isNewCustomer) {
       if (!guestForm.email.trim() || !guestForm.password.trim()) {
         setAlertMessage("Please enter your email and choose a password");
