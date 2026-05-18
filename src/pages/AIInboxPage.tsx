@@ -245,6 +245,11 @@ function CaseCard({
               {c.minutes_late ?? "?"} min late
             </Badge>
           )}
+          {c.status === "resolved" && (
+            <Badge className="text-sm shrink-0 bg-emerald-600 text-white border-0">
+              ✅ Resolved
+            </Badge>
+          )}
         </div>
 
         {c.case_type === "running_late" && c.appointment_time && (
@@ -273,11 +278,17 @@ function CaseCard({
         )}
 
         {showResolver && c.resolution_note && (
-          <div className="p-3 rounded-md bg-emerald-50 dark:bg-emerald-950/30 text-sm">
+          <div className="p-3 rounded-md bg-emerald-50 dark:bg-emerald-950/30 text-sm space-y-1">
             <p className="font-medium text-emerald-700 dark:text-emerald-300">
               Resolved{c.resolver?.name && ` by ${c.resolver.name}`}
             </p>
             <p>{c.resolution_note}</p>
+            {c.resolved_at && (
+              <p className="text-xs text-emerald-800/80 dark:text-emerald-200/80">
+                Resolved at {formatTime(c.resolved_at)}
+                {resolvedAfterLabel ? ` · ${resolvedAfterLabel}` : ""}
+              </p>
+            )}
           </div>
         )}
 
