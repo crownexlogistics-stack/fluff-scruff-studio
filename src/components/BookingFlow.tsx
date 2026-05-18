@@ -928,7 +928,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
           freshOverrides,
           freshBookings,
           staffServices,
-          currentServiceRecord?.id ?? null
+          resolvedServiceId
         );
 
         if (!freeGroomer) {
@@ -950,7 +950,8 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
           date: selectedDate,
           start_time: selectedTime,
           duration_minutes: bookingDuration,
-          service_id: currentServiceRecord?.id ?? null,
+          service_id: resolvedServiceId,
+          booking_source: "online",
         },
       });
       if (availErr) {
@@ -972,13 +973,34 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
       return;
     }
 
+    logBookingFlowEvent({
+      sessionId: sessionIdRef.current,
+      step: "guest-details",
+      action: "details_submitted",
+      payload: {
+        service_id: resolvedServiceId,
+        service_name: serviceType,
+        staff_id: assignedStaffId,
+        breed_id: selectedBreed?.id ?? null,
+        breed_name: selectedBreed?.name ?? null,
+        date: selectedDate,
+        time: selectedTime,
+        duration_minutes: bookingDuration,
+        total_price: totalPrice,
+        payment_type: selectedPaymentType,
+        coupon: appliedCoupon?.code ?? null,
+      },
+      customerEmail: submitEmail || null,
+      customerPhone: submitPhone || null,
+    });
+
     const { data: insertedBooking, error } = await supabase.from("bookings").insert({
       customer_name: submitName,
       customer_phone: submitPhone || null,
       customer_email: submitEmail || null,
       dog_name: submitDogName,
       breed_id: selectedBreed?.id ?? null,
-      service_id: currentServiceRecord?.id ?? dbService?.id ?? null,
+      service_id: resolvedServiceId,
       staff_id: assignedStaffId,
       booking_date: selectedDate!,
       booking_time: selectedTime!,
@@ -992,6 +1014,14 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
     } as any).select("id").single();
 
     if (error) {
+      logBookingFlowEvent({
+        sessionId: sessionIdRef.current,
+        step: "guest-details",
+        action: "submit_blocked",
+        payload: { reason: "db_insert_failed", message: error.message },
+        customerEmail: submitEmail || null,
+        customerPhone: submitPhone || null,
+      });
       setAlertMessage("Failed to book — please try again");
       setIsSubmitting(false);
       return;
@@ -1005,6 +1035,17 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
         performed_by: "Customer (online)",
         note: "Booking created online by customer",
       } as any).then(() => {});
+      logBookingFlowEvent({
+        sessionId: sessionIdRef.current,
+        step: "guest-details",
+        action: "booking_created",
+        payload: { booking_id: insertedBooking.id },
+        customerEmail: submitEmail || null,
+        customerPhone: submitPhone || null,
+        bookingId: insertedBooking.id,
+      });
+      // Link every prior event in this session to the new booking row
+      void linkSessionToBooking(sessionIdRef.current, insertedBooking.id);
     }
 
     if (appliedCoupon && insertedBooking?.id) {
