@@ -214,7 +214,7 @@ function CaseCard({
               {c.caller_name || "Unknown caller"}
               {c.dog_name && <span className="text-muted-foreground"> · {c.dog_name}</span>}
             </p>
-            {c.caller_number && (
+            {c.caller_number ? (
               <a
                 href={`tel:${formatTel(c.caller_number)}`}
                 className="text-base text-primary underline-offset-4 hover:underline inline-flex items-center gap-1 mt-0.5"
@@ -222,6 +222,11 @@ function CaseCard({
                 <Phone className="h-4 w-4" />
                 {c.caller_number}
               </a>
+            ) : (
+              <p className="text-sm text-muted-foreground inline-flex items-center gap-1 mt-0.5">
+                <Phone className="h-4 w-4" />
+                Number not captured
+              </p>
             )}
           </div>
           {urgent && (
