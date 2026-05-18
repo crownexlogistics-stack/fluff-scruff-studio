@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import serviceBathBrush from "@/assets/service-bath-brush.jpg";
 import serviceFullGroomSub from "@/assets/service-full-groom-sub.jpg";
+import { getBookingFlowSessionId, resetBookingFlowSession, logBookingFlowEvent, linkSessionToBooking } from "@/lib/logBookingFlowEvent";
 
 const ADJUST_MODE = false;
 
@@ -210,6 +211,28 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
 
   const effectiveService = puppySwitched ? "Puppy Special" : service;
 
+  // Session ID for the customer-journey audit trail (one per flow mount).
+  const sessionIdRef = useRef<string>("");
+  if (!sessionIdRef.current) {
+    sessionIdRef.current = resetBookingFlowSession();
+  }
+  useEffect(() => {
+    logBookingFlowEvent({
+      sessionId: sessionIdRef.current,
+      step: "init",
+      action: "flow_started",
+      payload: {
+        service,
+        is_existing_customer: isExistingCustomer,
+        preselected_breed_id: preselectedBreedId ?? null,
+        preselected_pet_name: preselectedPetName ?? null,
+        utm_campaign: utmCampaignId,
+        location: typeof window !== "undefined" ? window.location.href : null,
+      },
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Navigation helper that tracks direction
   const goToStep = useCallback((newStep: Step, dir: "forward" | "back" = "forward") => {
     setDirection(dir);
@@ -236,7 +259,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
         .from("services")
         .select("id, name, fixed_price, duration_minutes")
         .eq("is_active", true)
-        .ilike("name", `%${effectiveService}%`)
+        .eq("name", effectiveService)
         .maybeSingle();
       if (error) throw error;
       return data;
@@ -540,19 +563,19 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
   });
 
   const resolvedServiceName = selectedSub ?? service;
-  const { data: currentServiceRecord } = useQuery({
+  const { data: currentServiceRecord, isFetching: isFetchingServiceRecord } = useQuery({
     queryKey: ["current-service-record", resolvedServiceName],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("services")
         .select("id")
         .eq("is_active", true)
-        .ilike("name", `%${resolvedServiceName}%`)
+        .eq("name", resolvedServiceName)
         .maybeSingle();
       if (error) throw error;
       return data;
     },
-    enabled: !!resolvedServiceName,
+    enabled: !!resolvedServiceName && resolvedServiceName !== "Grooming",
   });
 
   const filteredAddOns = dbAddOns?.filter((addon) => {
