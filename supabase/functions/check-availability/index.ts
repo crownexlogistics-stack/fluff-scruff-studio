@@ -17,11 +17,22 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { groomer_id, date, start_time, duration_minutes, service_id } = await req.json();
+    const { groomer_id, date, start_time, duration_minutes, service_id, booking_source } = await req.json();
 
     if (!groomer_id || !date || !start_time || !duration_minutes) {
       return new Response(
         JSON.stringify({ available: false, reason: "Missing required fields: groomer_id, date, start_time, duration_minutes" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Online bookings MUST include a resolved service_id. Without it the
+    // staff_services restriction can be silently bypassed (see Mollie/Bohdan
+    // incident). Staff-initiated bookings may still be checked without one.
+    if ((booking_source ?? "online") === "online" && !service_id) {
+      console.log("[check-availability] BLOCKED: online booking without service_id");
+      return new Response(
+        JSON.stringify({ available: false, reason: "Service not resolved — please re-select your service and try again." }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
