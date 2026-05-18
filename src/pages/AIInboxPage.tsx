@@ -664,24 +664,52 @@ export default function AIInboxPage() {
           <TabsContent value="callbacks" className="mt-4">{renderTab("callback_requested", "Callbacks")}</TabsContent>
           <TabsContent value="late" className="mt-4">{renderTab("running_late", "Running Late")}</TabsContent>
           <TabsContent value="mine" className="mt-4">
-            {myCases.length === 0 ? (
-              <p className="text-muted-foreground">No assigned cases. Claim some from the other tabs.</p>
-            ) : (
-              <div className="space-y-3">
-                {myCases.map((c) => (
-                  <CaseCard
-                    key={c.id}
-                    c={c}
-                    onResolve={(x) => {
-                      setResolveTarget(x);
-                      setResolveOption("");
-                      setResolveNote("");
-                    }}
-                    isMine
-                  />
-                ))}
+            <div className="space-y-6">
+              <div className="text-sm text-muted-foreground">
+                <span className="font-semibold text-foreground">{myCases.length}</span> active ·{" "}
+                <span className="font-semibold text-foreground">
+                  {myResolvedCases.filter((c) => {
+                    const t = new Date(); t.setHours(0, 0, 0, 0);
+                    return c.resolved_at && new Date(c.resolved_at) >= t;
+                  }).length}
+                </span> resolved today
               </div>
-            )}
+              <section>
+                <h2 className="text-lg font-semibold mb-3">Active ({myCases.length})</h2>
+                {myCases.length === 0 ? (
+                  <p className="text-muted-foreground">No assigned cases. Claim some from the other tabs.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {myCases.map((c) => (
+                      <CaseCard
+                        key={c.id}
+                        c={c}
+                        onResolve={(x) => {
+                          setResolveTarget(x);
+                          setResolveOption("");
+                          setResolveNote("");
+                        }}
+                        isMine
+                      />
+                    ))}
+                  </div>
+                )}
+              </section>
+              <section>
+                <h2 className="text-lg font-semibold mb-3">
+                  My Resolved Cases <span className="text-muted-foreground font-normal text-sm">(last 30 days)</span>
+                </h2>
+                {myResolvedCases.length === 0 ? (
+                  <p className="text-muted-foreground text-sm">You haven't resolved any cases in the last 30 days.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {myResolvedCases.map((c) => (
+                      <CaseCard key={`mine-resolved-${c.id}`} c={c} showResolver />
+                    ))}
+                  </div>
+                )}
+              </section>
+            </div>
           </TabsContent>
         </Tabs>
       </div>
