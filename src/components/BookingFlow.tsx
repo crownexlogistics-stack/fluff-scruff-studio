@@ -16,7 +16,7 @@ import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import serviceBathBrush from "@/assets/service-bath-brush.jpg";
 import serviceFullGroomSub from "@/assets/service-full-groom-sub.jpg";
-import { getBookingFlowSessionId, resetBookingFlowSession, logBookingFlowEvent, linkSessionToBooking } from "@/lib/logBookingFlowEvent";
+import { resetBookingFlowSession, logBookingFlowEvent, linkSessionToBooking } from "@/lib/logBookingFlowEvent";
 
 const ADJUST_MODE = false;
 
