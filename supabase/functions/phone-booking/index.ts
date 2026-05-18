@@ -1103,7 +1103,40 @@ Deno.serve(async (req) => {
           if (error) console.error("[reschedule_booking] audit log failed", error);
         });
       } else {
-        console.log("[reschedule_booking] original booking not found, creating new only");
+        // Original booking could not be located by the date/time the caller
+        // provided. Instead of silently creating a duplicate, return ALL
+        // upcoming bookings for this customer so the AI can confirm which
+        // appointment the caller actually means.
+        console.log("[reschedule_booking] original booking not found — returning upcoming bookings for caller");
+        const today = new Date().toISOString().slice(0, 10);
+        const { data: upcoming, error: upcomingErr } = await supabase
+          .from("bookings")
+          .select("id, booking_date, booking_time, dog_name, customer_name, services(name), staff(name)")
+          .in("customer_phone", phoneList)
+          .gte("booking_date", today)
+          .not("status", "in", '("Cancelled","No Show","Refunded")')
+          .order("booking_date", { ascending: true })
+          .order("booking_time", { ascending: true });
+        if (upcomingErr) {
+          console.error("[reschedule_booking] upcoming lookup failed:", upcomingErr);
+        }
+        const upcoming_appointments = (upcoming || []).map((b: any) => ({
+          booking_id: b.id,
+          date: b.booking_date,
+          time: String(b.booking_time || "").slice(0, 5),
+          service: b.services?.name || null,
+          groomer: b.staff?.name || null,
+          dog_name: b.dog_name || null,
+        }));
+        return json({
+          success: false,
+          original_not_found: true,
+          message:
+            upcoming_appointments.length > 0
+              ? "Could not find booking on that date. Found these upcoming appointments:"
+              : "Could not find that booking and there are no other upcoming appointments for this phone number.",
+          upcoming_appointments,
+        });
       }
 
       // Build payload for create_booking re-dispatch

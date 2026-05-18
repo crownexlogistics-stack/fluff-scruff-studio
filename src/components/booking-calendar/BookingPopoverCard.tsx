@@ -15,6 +15,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { BookingData } from "./BookingEvent";
 import { DogBriefButton } from "./DogBriefButton";
 import { PackageBadge } from "@/components/packages/PackageBadge";
+import { useCustomerProfileLink } from "@/hooks/useCustomerProfileLink";
 
 interface BookingPopoverCardProps {
   booking: BookingData;
@@ -55,6 +56,12 @@ export function BookingPopoverCard({
   const isDepositPaid = deposit > 0 && deposit < total;
   const remaining = total - deposit;
   const isDirector = userRole === "director";
+
+  const { profileEmail, canNavigate: canOpenProfile } = useCustomerProfileLink({
+    email: booking.customer_email,
+    phone: booking.customer_phone,
+    bookingSource: (booking as any).booking_source,
+  });
 
   // Fetch audit log for this booking
   const { data: auditLog } = useQuery({
@@ -259,8 +266,15 @@ export function BookingPopoverCard({
         </div>
         <div className="min-w-0 flex-1">
           <p
-            className="font-semibold cursor-pointer hover:underline"
-            onClick={() => booking.customer_email && navigate(`/admin/customers/${encodeURIComponent(booking.customer_email)}`)}
+            className={cn(
+              "font-semibold",
+              canOpenProfile && "cursor-pointer hover:underline",
+            )}
+            onClick={() =>
+              canOpenProfile &&
+              profileEmail &&
+              navigate(`/admin/customers/${encodeURIComponent(profileEmail)}`)
+            }
           >
             {booking.customer_name}
           </p>

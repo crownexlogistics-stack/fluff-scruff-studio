@@ -35,7 +35,22 @@ Deno.serve(async (req) => {
     const phoneCall = metadata?.phone_call || {};
 
     const callSid = data?.conversation_id || "";
-    const callerNumber = phoneCall?.from_phone_number || null;
+    // ElevenLabs has shipped the caller number in multiple shapes over time.
+    // Try every known location so we never lose it.
+    const callerNumber =
+      phoneCall?.from_phone_number ||
+      phoneCall?.external_number ||
+      phoneCall?.caller_id ||
+      metadata?.from_phone_number ||
+      metadata?.from_number ||
+      metadata?.caller_id ||
+      data?.from_phone_number ||
+      data?.from_number ||
+      data?.caller_id ||
+      payload?.from_phone_number ||
+      payload?.from_number ||
+      null;
+    console.log("[elevenlabs-call-webhook] resolved caller_number:", callerNumber, "from payload keys:", Object.keys(payload || {}), "metadata keys:", Object.keys(metadata || {}), "phone_call keys:", Object.keys(phoneCall || {}));
     const durationSeconds = Number(metadata?.call_duration_secs || 0);
     const summary = analysis?.transcript_summary || null;
 
