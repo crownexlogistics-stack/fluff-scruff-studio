@@ -195,6 +195,17 @@ function CaseCard({
   const urgent = c.case_type === "running_late" && c.status !== "resolved";
   const theme = cardTheme(c, isMine);
   const [expanded, setExpanded] = useState(false);
+  const resolvedAfterLabel = (() => {
+    if (c.status !== "resolved" || !c.resolved_at) return null;
+    const ms = new Date(c.resolved_at).getTime() - new Date(c.created_at).getTime();
+    if (!isFinite(ms) || ms < 0) return null;
+    const mins = Math.round(ms / 60000);
+    if (mins < 60) return `Resolved ${mins} minute${mins === 1 ? "" : "s"} after case opened`;
+    const hours = Math.round(mins / 60);
+    if (hours < 24) return `Resolved ${hours} hour${hours === 1 ? "" : "s"} after case opened`;
+    const days = Math.round(hours / 24);
+    return `Resolved ${days} day${days === 1 ? "" : "s"} after case opened`;
+  })();
   return (
     <motion.div
       drag={onClaim ? "x" : false}
