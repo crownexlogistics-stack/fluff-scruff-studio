@@ -17,6 +17,7 @@ import { SendPaymentLinkDialog } from "./SendPaymentLinkDialog";
 import { DogBriefButton } from "./DogBriefButton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { PackageBadge } from "@/components/packages/PackageBadge";
+import { useCustomerProfileLink } from "@/hooks/useCustomerProfileLink";
 
 export interface BookingData {
   id: string;
@@ -76,6 +77,13 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
   const navigate = useNavigate();
   const [requestingDeposit, setRequestingDeposit] = useState(false);
   const [paymentLinkOpen, setPaymentLinkOpen] = useState(false);
+
+  const { profileEmail: resolvedProfileEmail, canNavigate: canOpenProfile } =
+    useCustomerProfileLink({
+      email: booking.customer_email,
+      phone: booking.customer_phone,
+      bookingSource: (booking as any).booking_source,
+    });
 
   // Fetch add-ons for this booking
   const { data: bookingAddons } = useQuery({
@@ -506,8 +514,15 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
             </div>
             <div className="min-w-0 flex-1">
               <p
-                className="font-semibold cursor-pointer hover:underline"
-                onClick={() => booking.customer_email && navigate(`/admin/customers/${encodeURIComponent(booking.customer_email)}`)}
+                className={cn(
+                  "font-semibold",
+                  canOpenProfile && "cursor-pointer hover:underline",
+                )}
+                onClick={() =>
+                  canOpenProfile &&
+                  resolvedProfileEmail &&
+                  navigate(`/admin/customers/${encodeURIComponent(resolvedProfileEmail)}`)
+                }
               >
                 {booking.customer_name}
               </p>
