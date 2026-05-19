@@ -1,4 +1,4 @@
-import { CalendarDays, MessageSquare, Dog, PoundSterling, FileText, LogOut, PawPrint, Package, ShoppingCart, Sparkles, Inbox, PhoneForwarded } from "lucide-react";
+import { CalendarDays, MessageSquare, Dog, PoundSterling, FileText, LogOut, PawPrint, Package, ShoppingCart, Sparkles, Inbox, PhoneForwarded, GraduationCap } from "lucide-react";
 import { useNavigate, Link, useLocation } from "react-router-dom";
 import logo from "@/assets/logo-transparent.png";
 import { useAuth } from "@/hooks/useAuth";
@@ -18,6 +18,7 @@ const groomerNavItems = [
   { title: "Bookings", url: "/portal/bookings", icon: CalendarDays },
   { title: "Messages", url: "/portal/messages", icon: MessageSquare },
   { title: "AI Inbox", url: "/ai-inbox", icon: PhoneForwarded },
+  { title: "Placements", url: "/placements", icon: GraduationCap },
   { title: "Package Deals", url: "/admin/packages", icon: Package },
   { title: "Purchase Requests", url: "/portal/purchases", icon: ShoppingCart },
   { title: "Breeds", url: "/portal/breeds", icon: Dog },
