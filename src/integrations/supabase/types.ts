@@ -2718,6 +2718,48 @@ export type Database = {
           },
         ]
       }
+      placement_logs: {
+        Row: {
+          created_at: string
+          id: string
+          log_entry: string
+          placement_id: string
+          staff_id: string | null
+          staff_name: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          log_entry: string
+          placement_id: string
+          staff_id?: string | null
+          staff_name?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          log_entry?: string
+          placement_id?: string
+          staff_id?: string | null
+          staff_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "placement_logs_placement_id_fkey"
+            columns: ["placement_id"]
+            isOneToOne: false
+            referencedRelation: "work_placements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "placement_logs_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -3709,6 +3751,81 @@ export type Database = {
           wix_order_number?: string | null
         }
         Relationships: []
+      }
+      work_placements: {
+        Row: {
+          added_by: string | null
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string
+          education_place: string | null
+          email: string | null
+          emergency_contact_name: string | null
+          emergency_contact_phone: string | null
+          end_date: string | null
+          first_name: string
+          id: string
+          last_name: string
+          notes: string | null
+          phone: string | null
+          start_date: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          added_by?: string | null
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          education_place?: string | null
+          email?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          end_date?: string | null
+          first_name: string
+          id?: string
+          last_name: string
+          notes?: string | null
+          phone?: string | null
+          start_date: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          added_by?: string | null
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          education_place?: string | null
+          email?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          end_date?: string | null
+          first_name?: string
+          id?: string
+          last_name?: string
+          notes?: string | null
+          phone?: string | null
+          start_date?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_placements_added_by_fkey"
+            columns: ["added_by"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_placements_completed_by_fkey"
+            columns: ["completed_by"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
