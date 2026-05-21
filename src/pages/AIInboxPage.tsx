@@ -684,7 +684,7 @@ export default function AIInboxPage() {
             <TabButton value="callbacks" label="Callbacks" icon={PhoneForwarded} count={unassignedCount("callback_requested")} theme={CASE_THEME.callback_requested} />
             <TabButton value="late" label="Late" icon={Clock} count={unassignedCount("running_late")} theme={CASE_THEME.running_late} />
             <div className="col-span-2">
-              <TabButton value="mine" label="My Cases" icon={Inbox} count={myCases.length} theme={MINE_THEME} />
+              <TabButton value="mine" label={isAllCasesView ? "All Cases" : "My Cases"} icon={Inbox} count={myCases.length} theme={MINE_THEME} />
             </div>
           </div>
           <div className="hidden sm:block overflow-x-auto -mx-4 px-4">
@@ -726,7 +726,7 @@ export default function AIInboxPage() {
                 )}
               </TabsTrigger>
               <TabsTrigger value="mine" className="h-11">
-                My Cases
+                {isAllCasesView ? "All Cases" : "My Cases"}
                 {myCases.length > 0 && (
                   <Badge className="ml-1.5 h-5 min-w-5 px-1.5 text-[10px] rounded-full bg-emerald-500 text-white border-0">
                     {myCases.length}
