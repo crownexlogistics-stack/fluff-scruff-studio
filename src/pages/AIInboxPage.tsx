@@ -741,6 +741,79 @@ export default function AIInboxPage() {
           <TabsContent value="callbacks" className="mt-4">{renderTab("callback_requested", "Callbacks")}</TabsContent>
           <TabsContent value="late" className="mt-4">{renderTab("running_late", "Running Late")}</TabsContent>
           <TabsContent value="mine" className="mt-4">
+            {isAllCasesView ? (
+              (() => {
+                const total = myCases.length;
+                let over2 = 0;
+                let over24 = 0;
+                for (const c of myCases) {
+                  const { level } = assignedAgeInfo(c.assigned_at);
+                  if (level === "red") over24++;
+                  else if (level === "amber") over2++;
+                }
+                // Build groups: every active groomer + any assignee not in the list
+                const byStaffId = new Map<string, InboxCase[]>();
+                for (const c of myCases) {
+                  const key = c.assigned_to || "unassigned";
+                  if (!byStaffId.has(key)) byStaffId.set(key, []);
+                  byStaffId.get(key)!.push(c);
+                }
+                const knownIds = new Set(staffList.map((s) => s.id));
+                const extraGroups: { id: string; name: string }[] = [];
+                for (const c of myCases) {
+                  if (c.assigned_to && !knownIds.has(c.assigned_to)) {
+                    if (!extraGroups.find((g) => g.id === c.assigned_to)) {
+                      extraGroups.push({ id: c.assigned_to, name: c.staff?.name || "Unknown staff" });
+                    }
+                  }
+                }
+                const groups = [...staffList, ...extraGroups];
+                return (
+                  <div className="space-y-6">
+                    <Card className="p-4 grid grid-cols-3 gap-3 text-center">
+                      <div>
+                        <p className="text-2xl font-bold">{total}</p>
+                        <p className="text-xs text-muted-foreground">Open cases</p>
+                      </div>
+                      <div>
+                        <p className={cn("text-2xl font-bold", over2 > 0 && "text-amber-600")}>{over2}</p>
+                        <p className="text-xs text-muted-foreground">Waiting 2h+</p>
+                      </div>
+                      <div>
+                        <p className={cn("text-2xl font-bold", over24 > 0 && "text-red-600")}>{over24}</p>
+                        <p className="text-xs text-muted-foreground">Waiting 24h+</p>
+                      </div>
+                    </Card>
+                    {groups.map((g) => {
+                      const list = (byStaffId.get(g.id) || []).sort(
+                        (a, b) =>
+                          new Date(a.assigned_at || a.created_at).getTime() -
+                          new Date(b.assigned_at || b.created_at).getTime(),
+                      );
+                      return (
+                        <section key={g.id}>
+                          <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                            {g.name}
+                            <Badge className={cn("border-0", list.length === 0 ? "bg-muted text-muted-foreground" : "bg-emerald-500 text-white")}>
+                              {list.length} open case{list.length === 1 ? "" : "s"}
+                            </Badge>
+                          </h2>
+                          {list.length === 0 ? (
+                            <p className="text-muted-foreground text-sm">No open cases</p>
+                          ) : (
+                            <div className="space-y-3">
+                              {list.map((c) => (
+                                <CaseCard key={c.id} c={c} showAssignedAge isMine />
+                              ))}
+                            </div>
+                          )}
+                        </section>
+                      );
+                    })}
+                  </div>
+                );
+              })()
+            ) : (
             <div className="space-y-6">
               <div className="text-sm text-muted-foreground">
                 <span className="font-semibold text-foreground">{myCases.length}</span> active ·{" "}
@@ -784,6 +857,7 @@ export default function AIInboxPage() {
                 )}
               </CollapsibleSection>
             </div>
+            )}
           </TabsContent>
         </Tabs>
       </div>
