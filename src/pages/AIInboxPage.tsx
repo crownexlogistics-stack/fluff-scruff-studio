@@ -383,11 +383,14 @@ export default function AIInboxPage() {
   const { toast } = useToast();
   const isGroomer = role === "groomer";
   const isDirector = role === "director";
+  const isManager = role === "manager";
+  const isAllCasesView = isDirector || isManager;
   const Layout = isGroomer ? GroomerLayout : AppLayout;
 
   const [tab, setTab] = useState<string>(isGroomer ? "mine" : "missed");
   const [cases, setCases] = useState<InboxCase[]>([]);
   const [resolvedCases, setResolvedCases] = useState<InboxCase[]>([]);
+  const [staffList, setStaffList] = useState<{ id: string; name: string }[]>([]);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
   const [resolveTarget, setResolveTarget] = useState<InboxCase | null>(null);
@@ -418,6 +421,16 @@ export default function AIInboxPage() {
 
   useEffect(() => {
     fetchCases();
+    if (isAllCasesView) {
+      supabase
+        .from("staff")
+        .select("id, name")
+        .eq("role", "Groomer")
+        .neq("account_blocked", true)
+        .is("employment_end_date", null)
+        .order("name", { ascending: true })
+        .then(({ data }) => setStaffList((data as any) || []));
+    }
     const channel = supabase
       .channel("ai_inbox_cases_page")
       .on("postgres_changes", { event: "*", schema: "public", table: "ai_inbox_cases" }, fetchCases)
@@ -432,7 +445,7 @@ export default function AIInboxPage() {
       clearInterval(interval);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [fetchCases]);
+  }, [fetchCases, isAllCasesView]);
 
   const claimCase = async (c: InboxCase) => {
     if (!staff) {
@@ -521,10 +534,10 @@ export default function AIInboxPage() {
   }, [resolvedCases, staff]);
 
   const myCases = useMemo(() => {
-    if (isDirector) return cases.filter((c) => c.status === "assigned");
+    if (isAllCasesView) return cases.filter((c) => c.status === "assigned");
     if (!staff) return [];
     return cases.filter((c) => c.status === "assigned" && c.assigned_to === staff.id);
-  }, [cases, staff, isDirector]);
+  }, [cases, staff, isAllCasesView]);
 
   const myUrgent = useMemo(
     () => myCases.filter((c) => c.case_type === "running_late"),
