@@ -205,21 +205,49 @@ function cardTheme(c: InboxCase, contextMine?: boolean) {
   return { cls: `border-l-[4px] border-l-amber-500 ${t.bg}` };
 }
 
+function assignedAgeInfo(assignedAt: string | null | undefined) {
+  if (!assignedAt) return { label: null as string | null, level: null as "amber" | "red" | null };
+  const ms = Date.now() - new Date(assignedAt).getTime();
+  if (!isFinite(ms) || ms < 0) return { label: null, level: null };
+  const mins = Math.floor(ms / 60000);
+  let label: string;
+  if (mins < 60) label = `Assigned ${mins} minute${mins === 1 ? "" : "s"} ago`;
+  else if (mins < 60 * 24) {
+    const hours = Math.floor(mins / 60);
+    label = `Assigned ${hours} hour${hours === 1 ? "" : "s"} ago`;
+  } else {
+    const days = Math.floor(mins / (60 * 24));
+    label = `Assigned ${days} day${days === 1 ? "" : "s"} ago`;
+  }
+  const hours = mins / 60;
+  const level: "amber" | "red" | null = hours >= 24 ? "red" : hours >= 2 ? "amber" : null;
+  return { label, level };
+}
+
 function CaseCard({
   c,
   onClaim,
   onResolve,
   showResolver,
   isMine,
+  showAssignedAge,
 }: {
   c: InboxCase;
   onClaim?: (c: InboxCase) => void;
   onResolve?: (c: InboxCase) => void;
   showResolver?: boolean;
   isMine?: boolean;
+  showAssignedAge?: boolean;
 }) {
   const urgent = c.case_type === "running_late" && c.status !== "resolved";
-  const theme = cardTheme(c, isMine);
+  const baseTheme = cardTheme(c, isMine);
+  const age = showAssignedAge ? assignedAgeInfo(c.assigned_at) : { label: null, level: null };
+  const themeCls =
+    age.level === "red"
+      ? "border-l-[4px] border-l-red-500 bg-red-50/60 dark:bg-red-950/20"
+      : age.level === "amber"
+      ? "border-l-[4px] border-l-amber-500 bg-amber-50/60 dark:bg-amber-950/20"
+      : baseTheme.cls;
   const [expanded, setExpanded] = useState(false);
   const resolvedAfterLabel = (() => {
     if (c.status !== "resolved" || !c.resolved_at) return null;
@@ -243,7 +271,18 @@ function CaseCard({
       }}
       className="w-full"
     >
-      <Card className={cn("w-full p-4 flex flex-col gap-3", theme.cls)}>
+      <Card className={cn("w-full p-4 flex flex-col gap-3", themeCls)}>
+        {showAssignedAge && age.label && (
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <span className="text-xs text-muted-foreground">{age.label}</span>
+            {age.level === "red" && (
+              <Badge className="bg-red-600 text-white border-0 text-xs">🚨 Waiting 24h+</Badge>
+            )}
+            {age.level === "amber" && (
+              <Badge className="bg-amber-500 text-white border-0 text-xs">⏰ Waiting 2h+</Badge>
+            )}
+          </div>
+        )}
         {/* Line 1: name + number */}
         <div className="flex items-start justify-between gap-2 flex-wrap">
           <div className="min-w-0 flex-1">
@@ -344,11 +383,14 @@ export default function AIInboxPage() {
   const { toast } = useToast();
   const isGroomer = role === "groomer";
   const isDirector = role === "director";
+  const isManager = role === "manager";
+  const isAllCasesView = isDirector || isManager;
   const Layout = isGroomer ? GroomerLayout : AppLayout;
 
   const [tab, setTab] = useState<string>(isGroomer ? "mine" : "missed");
   const [cases, setCases] = useState<InboxCase[]>([]);
   const [resolvedCases, setResolvedCases] = useState<InboxCase[]>([]);
+  const [staffList, setStaffList] = useState<{ id: string; name: string }[]>([]);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
   const [resolveTarget, setResolveTarget] = useState<InboxCase | null>(null);
@@ -379,6 +421,16 @@ export default function AIInboxPage() {
 
   useEffect(() => {
     fetchCases();
+    if (isAllCasesView) {
+      supabase
+        .from("staff")
+        .select("id, name")
+        .eq("role", "Groomer")
+        .neq("account_blocked", true)
+        .is("employment_end_date", null)
+        .order("name", { ascending: true })
+        .then(({ data }) => setStaffList((data as any) || []));
+    }
     const channel = supabase
       .channel("ai_inbox_cases_page")
       .on("postgres_changes", { event: "*", schema: "public", table: "ai_inbox_cases" }, fetchCases)
@@ -393,7 +445,7 @@ export default function AIInboxPage() {
       clearInterval(interval);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [fetchCases]);
+  }, [fetchCases, isAllCasesView]);
 
   const claimCase = async (c: InboxCase) => {
     if (!staff) {
@@ -482,10 +534,10 @@ export default function AIInboxPage() {
   }, [resolvedCases, staff]);
 
   const myCases = useMemo(() => {
-    if (isDirector) return cases.filter((c) => c.status === "assigned");
+    if (isAllCasesView) return cases.filter((c) => c.status === "assigned");
     if (!staff) return [];
     return cases.filter((c) => c.status === "assigned" && c.assigned_to === staff.id);
-  }, [cases, staff, isDirector]);
+  }, [cases, staff, isAllCasesView]);
 
   const myUrgent = useMemo(
     () => myCases.filter((c) => c.case_type === "running_late"),
@@ -632,7 +684,7 @@ export default function AIInboxPage() {
             <TabButton value="callbacks" label="Callbacks" icon={PhoneForwarded} count={unassignedCount("callback_requested")} theme={CASE_THEME.callback_requested} />
             <TabButton value="late" label="Late" icon={Clock} count={unassignedCount("running_late")} theme={CASE_THEME.running_late} />
             <div className="col-span-2">
-              <TabButton value="mine" label="My Cases" icon={Inbox} count={myCases.length} theme={MINE_THEME} />
+              <TabButton value="mine" label={isAllCasesView ? "All Cases" : "My Cases"} icon={Inbox} count={myCases.length} theme={MINE_THEME} />
             </div>
           </div>
           <div className="hidden sm:block overflow-x-auto -mx-4 px-4">
@@ -674,7 +726,7 @@ export default function AIInboxPage() {
                 )}
               </TabsTrigger>
               <TabsTrigger value="mine" className="h-11">
-                My Cases
+                {isAllCasesView ? "All Cases" : "My Cases"}
                 {myCases.length > 0 && (
                   <Badge className="ml-1.5 h-5 min-w-5 px-1.5 text-[10px] rounded-full bg-emerald-500 text-white border-0">
                     {myCases.length}
@@ -689,6 +741,79 @@ export default function AIInboxPage() {
           <TabsContent value="callbacks" className="mt-4">{renderTab("callback_requested", "Callbacks")}</TabsContent>
           <TabsContent value="late" className="mt-4">{renderTab("running_late", "Running Late")}</TabsContent>
           <TabsContent value="mine" className="mt-4">
+            {isAllCasesView ? (
+              (() => {
+                const total = myCases.length;
+                let over2 = 0;
+                let over24 = 0;
+                for (const c of myCases) {
+                  const { level } = assignedAgeInfo(c.assigned_at);
+                  if (level === "red") over24++;
+                  else if (level === "amber") over2++;
+                }
+                // Build groups: every active groomer + any assignee not in the list
+                const byStaffId = new Map<string, InboxCase[]>();
+                for (const c of myCases) {
+                  const key = c.assigned_to || "unassigned";
+                  if (!byStaffId.has(key)) byStaffId.set(key, []);
+                  byStaffId.get(key)!.push(c);
+                }
+                const knownIds = new Set(staffList.map((s) => s.id));
+                const extraGroups: { id: string; name: string }[] = [];
+                for (const c of myCases) {
+                  if (c.assigned_to && !knownIds.has(c.assigned_to)) {
+                    if (!extraGroups.find((g) => g.id === c.assigned_to)) {
+                      extraGroups.push({ id: c.assigned_to, name: c.staff?.name || "Unknown staff" });
+                    }
+                  }
+                }
+                const groups = [...staffList, ...extraGroups];
+                return (
+                  <div className="space-y-6">
+                    <Card className="p-4 grid grid-cols-3 gap-3 text-center">
+                      <div>
+                        <p className="text-2xl font-bold">{total}</p>
+                        <p className="text-xs text-muted-foreground">Open cases</p>
+                      </div>
+                      <div>
+                        <p className={cn("text-2xl font-bold", over2 > 0 && "text-amber-600")}>{over2}</p>
+                        <p className="text-xs text-muted-foreground">Waiting 2h+</p>
+                      </div>
+                      <div>
+                        <p className={cn("text-2xl font-bold", over24 > 0 && "text-red-600")}>{over24}</p>
+                        <p className="text-xs text-muted-foreground">Waiting 24h+</p>
+                      </div>
+                    </Card>
+                    {groups.map((g) => {
+                      const list = (byStaffId.get(g.id) || []).sort(
+                        (a, b) =>
+                          new Date(a.assigned_at || a.created_at).getTime() -
+                          new Date(b.assigned_at || b.created_at).getTime(),
+                      );
+                      return (
+                        <section key={g.id}>
+                          <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                            {g.name}
+                            <Badge className={cn("border-0", list.length === 0 ? "bg-muted text-muted-foreground" : "bg-emerald-500 text-white")}>
+                              {list.length} open case{list.length === 1 ? "" : "s"}
+                            </Badge>
+                          </h2>
+                          {list.length === 0 ? (
+                            <p className="text-muted-foreground text-sm">No open cases</p>
+                          ) : (
+                            <div className="space-y-3">
+                              {list.map((c) => (
+                                <CaseCard key={c.id} c={c} showAssignedAge isMine />
+                              ))}
+                            </div>
+                          )}
+                        </section>
+                      );
+                    })}
+                  </div>
+                );
+              })()
+            ) : (
             <div className="space-y-6">
               <div className="text-sm text-muted-foreground">
                 <span className="font-semibold text-foreground">{myCases.length}</span> active ·{" "}
@@ -732,6 +857,7 @@ export default function AIInboxPage() {
                 )}
               </CollapsibleSection>
             </div>
+            )}
           </TabsContent>
         </Tabs>
       </div>
