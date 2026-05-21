@@ -205,21 +205,49 @@ function cardTheme(c: InboxCase, contextMine?: boolean) {
   return { cls: `border-l-[4px] border-l-amber-500 ${t.bg}` };
 }
 
+function assignedAgeInfo(assignedAt: string | null | undefined) {
+  if (!assignedAt) return { label: null as string | null, level: null as "amber" | "red" | null };
+  const ms = Date.now() - new Date(assignedAt).getTime();
+  if (!isFinite(ms) || ms < 0) return { label: null, level: null };
+  const mins = Math.floor(ms / 60000);
+  let label: string;
+  if (mins < 60) label = `Assigned ${mins} minute${mins === 1 ? "" : "s"} ago`;
+  else if (mins < 60 * 24) {
+    const hours = Math.floor(mins / 60);
+    label = `Assigned ${hours} hour${hours === 1 ? "" : "s"} ago`;
+  } else {
+    const days = Math.floor(mins / (60 * 24));
+    label = `Assigned ${days} day${days === 1 ? "" : "s"} ago`;
+  }
+  const hours = mins / 60;
+  const level: "amber" | "red" | null = hours >= 24 ? "red" : hours >= 2 ? "amber" : null;
+  return { label, level };
+}
+
 function CaseCard({
   c,
   onClaim,
   onResolve,
   showResolver,
   isMine,
+  showAssignedAge,
 }: {
   c: InboxCase;
   onClaim?: (c: InboxCase) => void;
   onResolve?: (c: InboxCase) => void;
   showResolver?: boolean;
   isMine?: boolean;
+  showAssignedAge?: boolean;
 }) {
   const urgent = c.case_type === "running_late" && c.status !== "resolved";
-  const theme = cardTheme(c, isMine);
+  const baseTheme = cardTheme(c, isMine);
+  const age = showAssignedAge ? assignedAgeInfo(c.assigned_at) : { label: null, level: null };
+  const themeCls =
+    age.level === "red"
+      ? "border-l-[4px] border-l-red-500 bg-red-50/60 dark:bg-red-950/20"
+      : age.level === "amber"
+      ? "border-l-[4px] border-l-amber-500 bg-amber-50/60 dark:bg-amber-950/20"
+      : baseTheme.cls;
   const [expanded, setExpanded] = useState(false);
   const resolvedAfterLabel = (() => {
     if (c.status !== "resolved" || !c.resolved_at) return null;
@@ -243,7 +271,18 @@ function CaseCard({
       }}
       className="w-full"
     >
-      <Card className={cn("w-full p-4 flex flex-col gap-3", theme.cls)}>
+      <Card className={cn("w-full p-4 flex flex-col gap-3", themeCls)}>
+        {showAssignedAge && age.label && (
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <span className="text-xs text-muted-foreground">{age.label}</span>
+            {age.level === "red" && (
+              <Badge className="bg-red-600 text-white border-0 text-xs">🚨 Waiting 24h+</Badge>
+            )}
+            {age.level === "amber" && (
+              <Badge className="bg-amber-500 text-white border-0 text-xs">⏰ Waiting 2h+</Badge>
+            )}
+          </div>
+        )}
         {/* Line 1: name + number */}
         <div className="flex items-start justify-between gap-2 flex-wrap">
           <div className="min-w-0 flex-1">
