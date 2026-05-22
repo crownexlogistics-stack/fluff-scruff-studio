@@ -416,32 +416,52 @@ export type Database = {
       ai_receptionist_settings: {
         Row: {
           created_at: string
+          elevenlabs_agent_id: string | null
           email_summary_to: string
           greeting: string
           id: string
           is_active: boolean
+          system_prompt: string | null
+          system_prompt_updated_at: string | null
+          system_prompt_updated_by: string | null
           transfer_number: string
           updated_at: string
         }
         Insert: {
           created_at?: string
+          elevenlabs_agent_id?: string | null
           email_summary_to?: string
           greeting?: string
           id?: string
           is_active?: boolean
+          system_prompt?: string | null
+          system_prompt_updated_at?: string | null
+          system_prompt_updated_by?: string | null
           transfer_number?: string
           updated_at?: string
         }
         Update: {
           created_at?: string
+          elevenlabs_agent_id?: string | null
           email_summary_to?: string
           greeting?: string
           id?: string
           is_active?: boolean
+          system_prompt?: string | null
+          system_prompt_updated_at?: string | null
+          system_prompt_updated_by?: string | null
           transfer_number?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "ai_receptionist_settings_system_prompt_updated_by_fkey"
+            columns: ["system_prompt_updated_by"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       audit_logs: {
         Row: {
