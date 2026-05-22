@@ -26,8 +26,12 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Phone, PhoneCall, PhoneForwarded, PauseCircle, CheckCircle2, AlertTriangle,
   Plus, Pencil, Trash2, BookOpen, Calendar, Clock, Mail, Search, Eye,
+  Copy, FileText,
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import { useUserRole } from "@/hooks/useUserRole";
+import { useCurrentStaff } from "@/hooks/useCurrentStaff";
 
 const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const CATEGORIES = ["Location", "Pricing", "Services", "Policies", "Other"] as const;
@@ -44,6 +48,9 @@ const OUTCOME_STYLE: Record<string, string> = {
 };
 
 export default function AIReceptionistPage() {
+  const { user } = useAuth();
+  const { role } = useUserRole(user?.id);
+  const isDirector = role === "director";
   return (
     <AppLayout>
       <div className="container mx-auto p-4 md:p-8 space-y-6 max-w-6xl">
@@ -60,11 +67,12 @@ export default function AIReceptionistPage() {
         </div>
 
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid grid-cols-4 w-full md:w-auto">
+          <TabsList className={`grid ${isDirector ? "grid-cols-5" : "grid-cols-4"} w-full md:w-auto`}>
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="hours">Opening Hours</TabsTrigger>
             <TabsTrigger value="knowledge">Knowledge Base</TabsTrigger>
             <TabsTrigger value="logs">Call Logs</TabsTrigger>
+            {isDirector && <TabsTrigger value="prompt">System Prompt</TabsTrigger>}
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6 mt-6">
@@ -79,6 +87,11 @@ export default function AIReceptionistPage() {
           <TabsContent value="logs" className="mt-6">
             <CallLogsTab />
           </TabsContent>
+          {isDirector && (
+            <TabsContent value="prompt" className="space-y-4 mt-6">
+              <SystemPromptTab />
+            </TabsContent>
+          )}
         </Tabs>
       </div>
     </AppLayout>
