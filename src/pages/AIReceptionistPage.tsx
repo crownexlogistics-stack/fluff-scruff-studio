@@ -850,3 +850,131 @@ function formatDuration(seconds: number | null | undefined) {
   const s = seconds % 60;
   return `${m}m ${s}s`;
 }
+
+// ─── SYSTEM PROMPT (Director only) ──────────────────────────────
+
+function SystemPromptTab() {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const { staff } = useCurrentStaff();
+
+  const { data: settings, isLoading } = useQuery({
+    queryKey: ["ai-receptionist-settings"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("ai_receptionist_settings")
+        .select("*")
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const [prompt, setPrompt] = useState("");
+  const [updaterName, setUpdaterName] = useState<string | null>(null);
+
+  useMemo(() => {
+    if (settings) {
+      setPrompt((settings as any).system_prompt ?? "");
+    }
+  }, [settings?.id]);
+
+  const updatedAt = (settings as any)?.system_prompt_updated_at as string | null | undefined;
+  const updatedBy = (settings as any)?.system_prompt_updated_by as string | null | undefined;
+
+  useMemo(() => {
+    if (!updatedBy) { setUpdaterName(null); return; }
+    supabase
+      .from("staff")
+      .select("name")
+      .eq("id", updatedBy)
+      .maybeSingle()
+      .then(({ data }) => setUpdaterName(data?.name ?? null));
+  }, [updatedBy]);
+
+  const save = useMutation({
+    mutationFn: async () => {
+      if (!settings) return;
+      const { error } = await supabase
+        .from("ai_receptionist_settings")
+        .update({
+          system_prompt: prompt,
+          system_prompt_updated_at: new Date().toISOString(),
+          system_prompt_updated_by: staff?.id ?? null,
+        })
+        .eq("id", settings.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["ai-receptionist-settings"] });
+      toast({ title: "System prompt saved" });
+    },
+    onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+  });
+
+  const copyToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(prompt);
+      toast({ title: "Copied to clipboard", description: "Paste into ElevenLabs to apply on live calls." });
+    } catch (e: any) {
+      toast({ title: "Copy failed", description: e?.message ?? "Browser blocked clipboard access", variant: "destructive" });
+    }
+  };
+
+  return (
+    <>
+      <Card className="border-amber-300 bg-amber-50/60">
+        <CardContent className="p-4 flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
+          <p className="text-sm text-amber-900">
+            Changes saved here are for reference only. You must copy and paste the prompt
+            into ElevenLabs for changes to take effect on live calls.
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileText className="h-5 w-5" />
+            AI Receptionist System Prompt
+          </CardTitle>
+          <CardDescription>
+            The full instructions the AI follows when answering calls
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-xs text-muted-foreground">
+            <span>
+              <strong>Last updated:</strong>{" "}
+              {updatedAt ? new Date(updatedAt).toLocaleString() : "never"}
+              {updaterName ? ` by ${updaterName}` : ""}
+            </span>
+            <span>
+              <strong>Character count:</strong> {prompt.length.toLocaleString()}
+            </span>
+          </div>
+
+          <Textarea
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            placeholder="Paste the full ElevenLabs system prompt here…"
+            className="min-h-[480px] font-mono text-sm"
+            disabled={isLoading}
+          />
+
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={() => save.mutate()} disabled={save.isPending || !settings}>
+              {save.isPending ? "Saving…" : "Save"}
+            </Button>
+            <Button variant="outline" onClick={copyToClipboard} disabled={!prompt}>
+              <Copy className="h-4 w-4 mr-2" />
+              Copy to Clipboard
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </>
+  );
+}
