@@ -699,7 +699,7 @@ Deno.serve(async (req) => {
         const serviceName = fuzzyServiceName(String(rawServiceName));
         console.log("[check_availability] resolved date:", date, "serviceName:", serviceName);
 
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        if (date !== "asap" && !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
           console.log("[check_availability] could not parse date:", rawDate);
           return json(FALLBACK);
         }
@@ -730,31 +730,75 @@ Deno.serve(async (req) => {
         if (!duration || duration <= 0) duration = 90;
         console.log("[check_availability] final duration:", duration);
 
+        const formatSlots = (arr: { time: string; groomer: string }[]) =>
+          arr.slice(0, 10).map((s) => ({ time: s.time, groomerName: s.groomer }));
+
+        // ── ASAP: scan today → today+14, Tue–Sat only, return first day with slots ──
+        if (date === "asap") {
+          const todayIso = londonTodayIso();
+          for (let i = 0; i <= 14; i++) {
+            const candidate = addDaysIso(todayIso, i);
+            if (!OPEN_DOW.includes(dowFromIso(candidate))) continue;
+            const s = await findAvailableSlots(supabase, candidate, duration, service.id);
+            if (s.length > 0) {
+              console.log("[check_availability] ASAP match:", candidate, s.length, "slots");
+              return json({
+                available: true,
+                date: candidate,
+                date_human: humanReadableFromIso(candidate),
+                searched_from: "asap",
+                slots: formatSlots(s),
+              });
+            }
+          }
+          console.log("[check_availability] ASAP: no slots in next 14 days");
+          return json({
+            available: false,
+            searched_from: "asap",
+            message: "No availability in the next 14 days. Please call 01708 606655.",
+          });
+        }
+
         const slots = await findAvailableSlots(supabase, date, duration, service.id);
         console.log("[check_availability] final slots found:", slots.length, slots.slice(0, 5));
 
         if (slots.length > 0) {
           return json({
             available: true,
-            slots: slots.slice(0, 10).map((s) => ({ time: s.time, groomer: s.groomer })),
+            date,
+            date_human: humanReadableFromIso(date),
+            slots: formatSlots(slots),
           });
         }
 
-        let nextAvail: string | null = null;
+        // No slots on requested date — search forward for the next open day
+        // with availability AND include its slots so the AI can offer them
+        // in the same tool call.
+        let nextAvailDate: string | null = null;
+        let nextAvailSlots: { time: string; groomer: string }[] = [];
         for (let i = 1; i <= 14; i++) {
           const candidate = nextDate(date, i);
+          if (!OPEN_DOW.includes(dowFromIso(candidate))) continue;
           const s = await findAvailableSlots(supabase, candidate, duration, service.id);
-          if (s.length > 0) { nextAvail = candidate; break; }
+          if (s.length > 0) {
+            nextAvailDate = candidate;
+            nextAvailSlots = s;
+            break;
+          }
         }
-        console.log("[check_availability] next available:", nextAvail);
+        console.log("[check_availability] next available:", nextAvailDate, nextAvailSlots.length, "slots");
 
         return json({
           available: false,
+          date,
+          date_human: humanReadableFromIso(date),
           slots: [],
-          message: nextAvail
-            ? `No availability on that date. Next available: ${nextAvail}`
-            : "No availability on that date.",
-          next_available: nextAvail,
+          message: nextAvailDate
+            ? `No availability on ${humanReadableFromIso(date)}. Next available: ${humanReadableFromIso(nextAvailDate)}.`
+            : `No availability on ${humanReadableFromIso(date)}.`,
+          next_available_date: nextAvailDate,
+          next_available_human: nextAvailDate ? humanReadableFromIso(nextAvailDate) : null,
+          next_available_slots: nextAvailDate ? formatSlots(nextAvailSlots) : [],
         });
       } catch (e: any) {
         console.error("[check_availability] caught error:", e?.message || e);
