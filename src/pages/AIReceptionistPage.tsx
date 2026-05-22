@@ -144,6 +144,7 @@ function OverviewTab() {
   const [greeting, setGreeting] = useState("");
   const [transferNumber, setTransferNumber] = useState("");
   const [emailSummaryTo, setEmailSummaryTo] = useState("");
+  const [agentId, setAgentId] = useState("");
 
   // Sync local state when settings load
   useMemo(() => {
@@ -151,6 +152,7 @@ function OverviewTab() {
       setGreeting(settings.greeting);
       setTransferNumber(settings.transfer_number);
       setEmailSummaryTo(settings.email_summary_to);
+      setAgentId((settings as any).elevenlabs_agent_id ?? "");
     }
   }, [settings?.id]);
 
@@ -179,6 +181,7 @@ function OverviewTab() {
           greeting,
           transfer_number: transferNumber,
           email_summary_to: emailSummaryTo,
+          elevenlabs_agent_id: agentId || null,
         })
         .eq("id", settings.id);
       if (error) throw error;
@@ -273,6 +276,11 @@ function OverviewTab() {
             <Label htmlFor="email">Email summaries to</Label>
             <Input id="email" type="email" value={emailSummaryTo} onChange={(e) => setEmailSummaryTo(e.target.value)} />
             <p className="text-xs text-muted-foreground">Daily call summaries get emailed here</p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="agentId">ElevenLabs Agent ID</Label>
+            <Input id="agentId" value={agentId} onChange={(e) => setAgentId(e.target.value)} placeholder="agent_xxx" className="font-mono text-sm" />
+            <p className="text-xs text-muted-foreground">The ID of the ElevenLabs agent answering calls</p>
           </div>
           <Button onClick={() => saveSettings.mutate()} disabled={saveSettings.isPending}>
             {saveSettings.isPending ? "Saving…" : "Save Settings"}
