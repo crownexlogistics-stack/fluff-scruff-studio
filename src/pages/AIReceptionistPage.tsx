@@ -50,7 +50,7 @@ const OUTCOME_STYLE: Record<string, string> = {
 export default function AIReceptionistPage() {
   const { user } = useAuth();
   const { role } = useUserRole(user?.id);
-  const isDirector = role === "director";
+  const isDirector = role === "director" || role === "manager";
   return (
     <AppLayout>
       <div className="container mx-auto p-4 md:p-8 space-y-6 max-w-6xl">
