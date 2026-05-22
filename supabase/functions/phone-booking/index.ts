@@ -171,6 +171,24 @@ function resolveDate(input: string): string {
 
   if (/^\d{4}-\d{2}-\d{2}$/.test(lower)) return lower;
 
+  // Vague "earliest available" inputs — caller wants the first open slot.
+  const ASAP_INPUTS = new Set([
+    "asap",
+    "as soon as possible",
+    "earliest",
+    "earliest available",
+    "next available",
+    "any",
+    "anytime",
+    "any time",
+    "whenever",
+    "soon",
+    "first available",
+    "as early as possible",
+    "any day",
+  ]);
+  if (ASAP_INPUTS.has(lower)) return "asap";
+
   if (lower === 'today') {
     return today.toISOString().split('T')[0];
   }
