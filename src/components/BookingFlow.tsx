@@ -1947,7 +1947,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
                   <div className="h-px bg-border/60 my-6" />
 
                   {selectedDate ? (
-                    <div>
+                    <div ref={timeSlotsRef}>
                       <h3 className="text-base font-heading text-foreground mb-1">Available times</h3>
                       <p className="text-xs text-muted-foreground font-body mb-4">{formatSelectedDate(selectedDate)}</p>
                       {verifyingSlots ? (
@@ -1973,7 +1973,21 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
                             );
                           })}
                           {availableTimeSlots.length === 0 && (
-                            <p className="col-span-2 text-center text-sm text-muted-foreground py-4">We're fully booked on this date — please choose another day</p>
+                            <div className="col-span-2 flex flex-col items-center gap-3 py-4">
+                              <p className="text-center text-sm text-muted-foreground">
+                                We're fully booked on this date
+                              </p>
+                              <button
+                                onClick={handleFindNextAvailable}
+                                disabled={searchingNext}
+                                className="w-full sm:w-auto px-6 py-4 rounded-2xl bg-[#FF6B35] text-white font-heading text-base shadow-lg shadow-[#FF6B35]/30 hover:brightness-110 active:scale-[0.98] transition disabled:opacity-70"
+                              >
+                                {searchingNext ? "Searching for availability…" : "→ Find Next Available Date"}
+                              </button>
+                              {nextSearchError && (
+                                <p className="text-center text-sm text-destructive max-w-xs">{nextSearchError}</p>
+                              )}
+                            </div>
                           )}
                         </div>
                       )}
