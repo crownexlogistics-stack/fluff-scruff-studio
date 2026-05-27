@@ -1511,6 +1511,39 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
     setWeekStart(next);
   };
 
+  const handleFindNextAvailable = async () => {
+    setSearchingNext(true);
+    setNextSearchError(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("check-availability", {
+        body: {
+          date: "asap",
+          start_from: selectedDate || undefined,
+          service_id: currentServiceRecord?.id ?? null,
+          duration_minutes: serviceType === "Bath & Brush" ? bathBrushDuration : serviceDuration,
+          groomer_id: (isExistingCustomer && selectedStaffId) ? selectedStaffId : undefined,
+        },
+      });
+      if (error) throw error;
+      if (!data?.next_available_date) {
+        setNextSearchError("No availability in the next 60 days. Please call us on 01708 606655");
+        return;
+      }
+      const next = new Date(data.next_available_date + "T00:00:00");
+      setWeekStart(getMonday(next));
+      setSelectedDate(data.next_available_date);
+      setSelectedTime(null);
+      setTimeout(() => {
+        timeSlotsRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 250);
+    } catch (e) {
+      console.error("[find-next-available] error", e);
+      setNextSearchError("Couldn't search availability — please try again.");
+    } finally {
+      setSearchingNext(false);
+    }
+  };
+
   const canGoPrevWeek = weekStart > getMonday(today);
   const weekDays = getWeekDays(weekStart);
   const weekMonth = weekDays[3];
