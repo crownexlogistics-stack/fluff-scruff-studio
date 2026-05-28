@@ -783,6 +783,7 @@ export type Database = {
           deposit_paid: number
           dog_name: string
           duration_minutes: number | null
+          extra_stripe_payment_ids: string[]
           final_charge: number | null
           id: string
           is_groomers_own_customer: boolean
@@ -818,6 +819,7 @@ export type Database = {
           deposit_paid?: number
           dog_name: string
           duration_minutes?: number | null
+          extra_stripe_payment_ids?: string[]
           final_charge?: number | null
           id?: string
           is_groomers_own_customer?: boolean
@@ -853,6 +855,7 @@ export type Database = {
           deposit_paid?: number
           dog_name?: string
           duration_minutes?: number | null
+          extra_stripe_payment_ids?: string[]
           final_charge?: number | null
           id?: string
           is_groomers_own_customer?: boolean
