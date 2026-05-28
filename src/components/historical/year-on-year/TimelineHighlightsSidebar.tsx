@@ -1,20 +1,13 @@
 import { Separator } from "@/components/ui/separator";
 import type { Highlights } from "./useTimelineAnalytics";
 
-const MONTH_NAMES = [
-  "January","February","March","April","May","June",
-  "July","August","September","October","November","December",
-];
-
 interface Props {
   highlights: Highlights;
 }
 
 export default function TimelineHighlightsSidebar({ highlights }: Props) {
-  const { bestMonthEver, bestMonthThisYear, mostLoyalCustomer, topGroomer, busiestDay, vsLastYear } = highlights;
-  const currentYear = new Date().getFullYear();
-  const currentMonthName = MONTH_NAMES[new Date().getMonth()];
-  const hasAny = bestMonthEver || mostLoyalCustomer || topGroomer || busiestDay;
+  const { bestWeekEver, bestWeekRecent, mostLoyalCustomer, topGroomer, busiestDay, vsLastWeek } = highlights;
+  const hasAny = bestWeekEver || mostLoyalCustomer || topGroomer || busiestDay;
 
   return (
     <div className="rounded-[20px] p-5 space-y-4 h-fit" style={{ backgroundColor: "#2D1B0E" }}>
@@ -24,30 +17,30 @@ export default function TimelineHighlightsSidebar({ highlights }: Props) {
         <p className="text-sm text-white/50">No data to show highlights</p>
       )}
 
-      {bestMonthEver && (
+      {bestWeekEver && (
         <>
           <div>
-            <p className="text-[10px] text-white/50 uppercase tracking-widest font-semibold">🏆 Best Month</p>
+            <p className="text-[10px] text-white/50 uppercase tracking-widest font-semibold">🏆 Best Week Ever</p>
             <p className="text-sm font-bold" style={{ color: "#FFB800" }}>
-              {bestMonthEver.month} {bestMonthEver.year}
+              Wk of {bestWeekEver.label}
             </p>
             <p className="text-lg font-bold" style={{ color: "#FFB800" }}>
-              £{bestMonthEver.revenue.toLocaleString()}
+              £{bestWeekEver.revenue.toLocaleString()}
             </p>
           </div>
           <Separator className="bg-white/10" />
         </>
       )}
 
-      {bestMonthThisYear && (
+      {bestWeekRecent && (
         <>
           <div>
-            <p className="text-[10px] text-white/50 uppercase tracking-widest font-semibold">🏆 Best Month {currentYear}</p>
+            <p className="text-[10px] text-white/50 uppercase tracking-widest font-semibold">🏆 Best Week (last 12)</p>
             <p className="text-sm font-bold" style={{ color: "#FFB800" }}>
-              {bestMonthThisYear.month} {bestMonthThisYear.year}
+              Wk of {bestWeekRecent.label}
             </p>
             <p className="text-lg font-bold" style={{ color: "#FFB800" }}>
-              £{bestMonthThisYear.revenue.toLocaleString()}
+              £{bestWeekRecent.revenue.toLocaleString()}
             </p>
           </div>
           <Separator className="bg-white/10" />
@@ -90,14 +83,14 @@ export default function TimelineHighlightsSidebar({ highlights }: Props) {
         </>
       )}
 
-      {vsLastYear && (
+      {vsLastWeek && (
         <div>
-          <p className="text-[10px] text-white/50 uppercase tracking-widest font-semibold">📊 vs Last Year ({currentMonthName})</p>
-          <p className="text-sm font-bold" style={{ color: vsLastYear.revenueChange >= 0 ? "#4ade80" : "#f87171" }}>
-            Revenue {vsLastYear.revenueChange >= 0 ? "↑" : "↓"} {Math.abs(vsLastYear.revenueChange)}%
+          <p className="text-[10px] text-white/50 uppercase tracking-widest font-semibold">📊 vs Last Week</p>
+          <p className="text-sm font-bold" style={{ color: vsLastWeek.revenueChange >= 0 ? "#4ade80" : "#f87171" }}>
+            Revenue {vsLastWeek.revenueChange >= 0 ? "↑" : "↓"} {Math.abs(vsLastWeek.revenueChange)}%
           </p>
-          <p className="text-sm font-bold" style={{ color: vsLastYear.bookingsChange >= 0 ? "#4ade80" : "#f87171" }}>
-            Bookings {vsLastYear.bookingsChange >= 0 ? "↑" : "↓"} {Math.abs(vsLastYear.bookingsChange)}%
+          <p className="text-sm font-bold" style={{ color: vsLastWeek.bookingsChange >= 0 ? "#4ade80" : "#f87171" }}>
+            Bookings {vsLastWeek.bookingsChange >= 0 ? "↑" : "↓"} {Math.abs(vsLastWeek.bookingsChange)}%
           </p>
         </div>
       )}

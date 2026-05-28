@@ -6,11 +6,47 @@ const MONTH_NAMES_SHORT = [
   "Jan","Feb","Mar","Apr","May","Jun",
   "Jul","Aug","Sep","Oct","Nov","Dec",
 ];
-const MONTH_NAMES = [
-  "January","February","March","April","May","June",
-  "July","August","September","October","November","December",
-];
 const DAY_NAMES = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+
+const WIX_COMMISSION_RATE = 0.4;
+
+// --- date helpers (week = Mon..Sun) ---
+function pad(n: number) { return String(n).padStart(2, "0"); }
+function toIsoDate(d: Date) {
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+function getMonday(d: Date): Date {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  const day = x.getDay(); // 0=Sun..6=Sat
+  const diff = (day === 0 ? -6 : 1) - day;
+  x.setDate(x.getDate() + diff);
+  return x;
+}
+function addDays(d: Date, n: number) {
+  const x = new Date(d);
+  x.setDate(x.getDate() + n);
+  return x;
+}
+function weekLabel(monday: Date) {
+  return `${monday.getDate()} ${MONTH_NAMES_SHORT[monday.getMonth()]}`;
+}
+
+/**
+ * Resolve a representative Date for a row.
+ *  - prefer appointment_date (real-world day of the appointment)
+ *  - else fall back to the 15th of created_year/created_month (Wix legacy)
+ */
+function rowDate(row: RawRow): Date | null {
+  if (row.appointment_date) {
+    const d = new Date(row.appointment_date);
+    if (!isNaN(d.getTime())) return d;
+  }
+  if (row.created_year && row.created_month) {
+    return new Date(row.created_year, row.created_month - 1, 15);
+  }
+  return null;
+}
 
 interface RawRow {
   created_year: number | null;
@@ -21,12 +57,15 @@ interface RawRow {
   service_name: string | null;
   groomer_name: string | null;
   appointment_date: string | null;
+  /** per-row commission rate (live bookings only); Wix rows fall back to WIX_COMMISSION_RATE */
+  commission_rate: number | null;
+  /** "wix" | "live" — used only for diagnostics */
+  _source: "wix" | "live";
 }
 
 export interface TimelineEntry {
+  weekStart: string; // ISO Monday yyyy-mm-dd
   label: string;
-  year: number;
-  month: number;
   totalBookings: number;
   confirmedRevenue: number;
   cancellations: number;
@@ -48,20 +87,12 @@ export interface GroomerRevenue {
 }
 
 export interface Highlights {
-  bestMonthEver: { month: string; year: number; revenue: number } | null;
-  bestMonthThisYear: { month: string; year: number; revenue: number } | null;
+  bestWeekEver: { weekStart: string; label: string; revenue: number } | null;
+  bestWeekRecent: { weekStart: string; label: string; revenue: number } | null;
   mostLoyalCustomer: { name: string; bookings: number; spend: number } | null;
   topGroomer: { name: string; revenue: number } | null;
   busiestDay: string | null;
-  vsLastYear: { revenueChange: number; bookingsChange: number } | null;
-}
-
-export interface AnnualSummary {
-  year: number;
-  revenue: number;
-  bookings: number;
-  growthPct: number | null;
-  isCurrentYear: boolean;
+  vsLastWeek: { revenueChange: number; bookingsChange: number } | null;
 }
 
 export interface KpiSummary {
@@ -69,13 +100,13 @@ export interface KpiSummary {
   totalRevenue: number;
   totalCustomers: number;
   returningCustomers: number;
-  avgMonthlyRevenue: number;
+  avgWeeklyRevenue: number;
+  weekRangeLabel: string;
 }
 
-export interface GroomerMonthEntry {
+export interface GroomerWeekEntry {
+  weekStart: string;
   label: string;
-  year: number;
-  month: number;
   totalRevenue: number;
   commission: number;
   netProfit: number;
@@ -85,61 +116,106 @@ export interface GroomerMonthEntry {
 
 export interface GroomerPerformanceData {
   name: string;
-  commissionRate: number;
-  months: GroomerMonthEntry[];
+  weeks: GroomerWeekEntry[];
   allTimeNetProfit: number;
   allTimeAppointments: number;
 }
 
-const EXCLUDED_GROOMERS = ["Kirsty Nails", "Lauren Nails"];
-
 export function useTimelineAnalytics() {
-  const currentYear = new Date().getFullYear();
-  const currentMonth = new Date().getMonth() + 1;
-
   const { data: dbData, isLoading } = useQuery({
-    queryKey: ["wix-timeline-full"],
+    queryKey: ["timeline-weekly-v1"],
+    staleTime: 0,
+    refetchOnWindowFocus: true,
     queryFn: async () => {
       const allData: RawRow[] = [];
-      let from = 0;
       const PAGE = 1000;
+
+      // --- Source A: Wix historical CSV import ---
+      let from = 0;
       while (true) {
         const { data, error } = await supabase
           .from("wix_historical_bookings")
           .select("created_year, created_month, booking_status, price_charged, customer_email, service_name, groomer_name, appointment_date")
-          .range(from, from + PAGE - 1) as { data: RawRow[] | null; error: any };
+          .range(from, from + PAGE - 1);
         if (error) throw error;
         if (!data || data.length === 0) break;
-        allData.push(...data);
+        for (const r of data as any[]) {
+          allData.push({
+            created_year: r.created_year,
+            created_month: r.created_month,
+            booking_status: r.booking_status,
+            price_charged: r.price_charged,
+            customer_email: r.customer_email,
+            service_name: r.service_name,
+            groomer_name: r.groomer_name,
+            appointment_date: r.appointment_date,
+            commission_rate: null,
+            _source: "wix",
+          });
+        }
         if (data.length < PAGE) break;
         from += PAGE;
       }
+
+      // --- Source B: live bookings ---
+      from = 0;
+      while (true) {
+        const { data, error } = await supabase
+          .from("bookings")
+          .select("booking_date, status, total_price, final_charge, customer_email, staff:staff_id(name, commission_rate), service:service_id(name)")
+          .range(from, from + PAGE - 1);
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        for (const r of data as any[]) {
+          const d = r.booking_date ? new Date(r.booking_date) : null;
+          if (!d || isNaN(d.getTime())) continue;
+          const rawStatus = (r.status || "").toLowerCase();
+          let mapped: string;
+          if (rawStatus.includes("cancel")) mapped = r.status;
+          else if (rawStatus === "completed" || rawStatus === "confirmed") mapped = "Confirmed";
+          else mapped = r.status; // Pending, No Show, etc. — counts toward totalBookings only
+          allData.push({
+            created_year: d.getFullYear(),
+            created_month: d.getMonth() + 1,
+            booking_status: mapped,
+            price_charged: r.final_charge ?? r.total_price ?? 0,
+            customer_email: r.customer_email,
+            service_name: r.service?.name ?? null,
+            groomer_name: r.staff?.name ?? null,
+            appointment_date: r.booking_date,
+            commission_rate: typeof r.staff?.commission_rate === "number" ? r.staff.commission_rate : null,
+            _source: "live",
+          });
+        }
+        if (data.length < PAGE) break;
+        from += PAGE;
+      }
+
       return allData;
     },
   });
 
-  // Build monthly timeline
+  // Build WEEKLY timeline (Mon..Sun buckets)
   const timeline = useMemo((): TimelineEntry[] => {
     if (!dbData || dbData.length === 0) return [];
 
-    // Group rows by year-month
-    const monthMap = new Map<string, RawRow[]>();
+    const weekMap = new Map<string, RawRow[]>();
     dbData.forEach(row => {
-      if (!row.created_year || !row.created_month) return;
-      const key = `${row.created_year}-${String(row.created_month).padStart(2, "0")}`;
-      if (!monthMap.has(key)) monthMap.set(key, []);
-      monthMap.get(key)!.push(row);
+      const d = rowDate(row);
+      if (!d) return;
+      const monday = getMonday(d);
+      const key = toIsoDate(monday);
+      if (!weekMap.has(key)) weekMap.set(key, []);
+      weekMap.get(key)!.push(row);
     });
 
-    const sortedKeys = [...monthMap.keys()].sort();
+    const sortedKeys = [...weekMap.keys()].sort();
     const seenEmails = new Set<string>();
     const entries: TimelineEntry[] = [];
 
     for (const key of sortedKeys) {
-      const rows = monthMap.get(key)!;
-      const [yearStr, monthStr] = key.split("-");
-      const year = parseInt(yearStr);
-      const month = parseInt(monthStr);
+      const rows = weekMap.get(key)!;
+      const monday = new Date(key);
 
       const totalBookings = rows.length;
       const confirmed = rows.filter(r => r.booking_status === "Confirmed");
@@ -147,29 +223,31 @@ export function useTimelineAnalytics() {
       const cancellations = rows.filter(r => (r.booking_status || "").toLowerCase().includes("cancel")).length;
       const cancellationRate = totalBookings > 0 ? Math.round((cancellations / totalBookings) * 100) : 0;
 
-      const monthEmails = new Set<string>();
-      confirmed.forEach(r => {
-        if (r.customer_email) monthEmails.add(r.customer_email.toLowerCase());
-      });
+      const weekEmails = new Set<string>();
+      confirmed.forEach(r => { if (r.customer_email) weekEmails.add(r.customer_email.toLowerCase()); });
 
-      const uniqueCustomers = monthEmails.size;
+      const uniqueCustomers = weekEmails.size;
       let returningCustomers = 0;
-      monthEmails.forEach(e => { if (seenEmails.has(e)) returningCustomers++; });
+      weekEmails.forEach(e => { if (seenEmails.has(e)) returningCustomers++; });
       const newCustomers = uniqueCustomers - returningCustomers;
-
-      // Add this month's emails to running set AFTER counting
-      monthEmails.forEach(e => seenEmails.add(e));
+      weekEmails.forEach(e => seenEmails.add(e));
 
       entries.push({
-        label: `${MONTH_NAMES_SHORT[month - 1]} ${yearStr.slice(2)}`,
-        year, month, totalBookings, confirmedRevenue, cancellations,
-        cancellationRate, uniqueCustomers, returningCustomers, newCustomers,
+        weekStart: key,
+        label: weekLabel(monday),
+        totalBookings,
+        confirmedRevenue,
+        cancellations,
+        cancellationRate,
+        uniqueCustomers,
+        returningCustomers,
+        newCustomers,
       });
     }
 
-    // Compute 3-month rolling average
+    // 4-week rolling average
     for (let i = 0; i < entries.length; i++) {
-      const start = Math.max(0, i - 2);
+      const start = Math.max(0, i - 3);
       const window = entries.slice(start, i + 1);
       entries[i].rollingAvg = Math.round(window.reduce((s, e) => s + e.confirmedRevenue, 0) / window.length);
     }
@@ -177,29 +255,34 @@ export function useTimelineAnalytics() {
     return entries;
   }, [dbData]);
 
-  // KPI summary
+  // KPI summary (weekly)
   const kpi = useMemo((): KpiSummary => {
-    if (!timeline.length) return { totalBookings: 0, totalRevenue: 0, totalCustomers: 0, returningCustomers: 0, avgMonthlyRevenue: 0 };
+    if (!timeline.length) {
+      return { totalBookings: 0, totalRevenue: 0, totalCustomers: 0, returningCustomers: 0, avgWeeklyRevenue: 0, weekRangeLabel: "" };
+    }
     const totalBookings = timeline.reduce((s, e) => s + e.totalBookings, 0);
     const totalRevenue = Math.round(timeline.reduce((s, e) => s + e.confirmedRevenue, 0));
     const allEmails = new Set<string>();
-    // Track which months each email appears in
-    const emailMonths = new Map<string, Set<string>>();
+    const emailWeeks = new Map<string, Set<string>>();
     dbData?.forEach(r => {
       if (r.booking_status === "Confirmed" && r.customer_email) {
         const email = r.customer_email.toLowerCase();
+        const d = rowDate(r);
+        if (!d) return;
+        const wk = toIsoDate(getMonday(d));
         allEmails.add(email);
-        if (r.created_year && r.created_month) {
-          if (!emailMonths.has(email)) emailMonths.set(email, new Set());
-          emailMonths.get(email)!.add(`${r.created_year}-${r.created_month}`);
-        }
+        if (!emailWeeks.has(email)) emailWeeks.set(email, new Set());
+        emailWeeks.get(email)!.add(wk);
       }
     });
     const totalCustomers = allEmails.size;
     let returningCustomers = 0;
-    emailMonths.forEach(months => { if (months.size > 1) returningCustomers++; });
-    const avgMonthlyRevenue = Math.round(totalRevenue / timeline.length);
-    return { totalBookings, totalRevenue, totalCustomers, returningCustomers, avgMonthlyRevenue };
+    emailWeeks.forEach(weeks => { if (weeks.size > 1) returningCustomers++; });
+    const avgWeeklyRevenue = Math.round(totalRevenue / timeline.length);
+    const first = new Date(timeline[0].weekStart);
+    const last = new Date(timeline[timeline.length - 1].weekStart);
+    const weekRangeLabel = `Wk of ${weekLabel(first)} ${first.getFullYear()} → Wk of ${weekLabel(last)} ${last.getFullYear()} · always live`;
+    return { totalBookings, totalRevenue, totalCustomers, returningCustomers, avgWeeklyRevenue, weekRangeLabel };
   }, [timeline, dbData]);
 
   // Best revenue month index
@@ -238,26 +321,31 @@ export function useTimelineAnalytics() {
       .slice(0, 6);
   }, [dbData]);
 
-  // Highlights
+  // Highlights (weekly)
   const highlights = useMemo((): Highlights => {
     const empty: Highlights = {
-      bestMonthEver: null, bestMonthThisYear: null,
+      bestWeekEver: null, bestWeekRecent: null,
       mostLoyalCustomer: null, topGroomer: null,
-      busiestDay: null, vsLastYear: null,
+      busiestDay: null, vsLastWeek: null,
     };
-    if (!dbData || dbData.length === 0) return empty;
+    if (!dbData || dbData.length === 0 || !timeline.length) return empty;
 
-    // Best month ever / this year
-    let bestEver: Highlights["bestMonthEver"] = null;
-    let bestThisYear: Highlights["bestMonthThisYear"] = null;
+    // Best week ever
+    let bestEver: Highlights["bestWeekEver"] = null;
     timeline.forEach(e => {
       if (!bestEver || e.confirmedRevenue > bestEver.revenue)
-        bestEver = { month: MONTH_NAMES[e.month - 1], year: e.year, revenue: Math.round(e.confirmedRevenue) };
-      if (e.year === currentYear && (!bestThisYear || e.confirmedRevenue > bestThisYear.revenue))
-        bestThisYear = { month: MONTH_NAMES[e.month - 1], year: e.year, revenue: Math.round(e.confirmedRevenue) };
+        bestEver = { weekStart: e.weekStart, label: e.label, revenue: Math.round(e.confirmedRevenue) };
     });
 
-    // Most loyal customer
+    // Best week in last 12 weeks
+    const recent = timeline.slice(-12);
+    let bestRecent: Highlights["bestWeekRecent"] = null;
+    recent.forEach(e => {
+      if (!bestRecent || e.confirmedRevenue > bestRecent.revenue)
+        bestRecent = { weekStart: e.weekStart, label: e.label, revenue: Math.round(e.confirmedRevenue) };
+    });
+
+    // Most loyal customer (all time)
     const custStats = new Map<string, { name: string; bookings: number; spend: number }>();
     dbData.forEach(row => {
       if (row.booking_status !== "Confirmed" || !row.customer_email) return;
@@ -273,18 +361,18 @@ export function useTimelineAnalytics() {
         mostLoyal = { name: v.name, bookings: v.bookings, spend: Math.round(v.spend) };
     });
 
-    // Top groomer
+    // Top groomer (all time)
     let topGroomerH: Highlights["topGroomer"] = null;
     groomers.forEach(g => {
       if (!topGroomerH || g.revenue > topGroomerH.revenue) topGroomerH = { name: g.name, revenue: g.revenue };
     });
 
-    // Busiest day
+    // Busiest day-of-week (using appointment_date when available)
     const dayCounts = new Map<number, number>();
     dbData.forEach(row => {
-      if (!row.appointment_date) return;
-      const d = new Date(row.appointment_date);
-      if (!isNaN(d.getTime())) dayCounts.set(d.getDay(), (dayCounts.get(d.getDay()) || 0) + 1);
+      const d = rowDate(row);
+      if (!d) return;
+      dayCounts.set(d.getDay(), (dayCounts.get(d.getDay()) || 0) + 1);
     });
     let busiestDay: string | null = null;
     let maxDayCount = 0;
@@ -292,92 +380,73 @@ export function useTimelineAnalytics() {
       if (count > maxDayCount) { maxDayCount = count; busiestDay = DAY_NAMES[day]; }
     });
 
-    // vs last year (current month)
-    const thisMonthEntry = timeline.find(e => e.year === currentYear && e.month === currentMonth);
-    const lastYearEntry = timeline.find(e => e.year === currentYear - 1 && e.month === currentMonth);
-    let vsLastYear: Highlights["vsLastYear"] = null;
-    if (thisMonthEntry && lastYearEntry) {
-      const revenueChange = lastYearEntry.confirmedRevenue > 0
-        ? Math.round(((thisMonthEntry.confirmedRevenue - lastYearEntry.confirmedRevenue) / lastYearEntry.confirmedRevenue) * 100) : 0;
-      const bookingsChange = lastYearEntry.totalBookings > 0
-        ? Math.round(((thisMonthEntry.totalBookings - lastYearEntry.totalBookings) / lastYearEntry.totalBookings) * 100) : 0;
-      vsLastYear = { revenueChange, bookingsChange };
+    // vs last week (latest finished week vs the one before)
+    let vsLastWeek: Highlights["vsLastWeek"] = null;
+    if (timeline.length >= 2) {
+      const cur = timeline[timeline.length - 1];
+      const prev = timeline[timeline.length - 2];
+      const revenueChange = prev.confirmedRevenue > 0
+        ? Math.round(((cur.confirmedRevenue - prev.confirmedRevenue) / prev.confirmedRevenue) * 100) : 0;
+      const bookingsChange = prev.totalBookings > 0
+        ? Math.round(((cur.totalBookings - prev.totalBookings) / prev.totalBookings) * 100) : 0;
+      vsLastWeek = { revenueChange, bookingsChange };
     }
 
-    return { bestMonthEver: bestEver, bestMonthThisYear: bestThisYear, mostLoyalCustomer: mostLoyal, topGroomer: topGroomerH, busiestDay, vsLastYear };
-  }, [dbData, timeline, groomers, currentYear, currentMonth]);
+    return { bestWeekEver: bestEver, bestWeekRecent: bestRecent, mostLoyalCustomer: mostLoyal, topGroomer: topGroomerH, busiestDay, vsLastWeek };
+  }, [dbData, timeline, groomers]);
 
-  // Annual summary
-  const annualSummary = useMemo((): AnnualSummary[] => {
-    if (!dbData?.length) return [];
-    const yearMap = new Map<number, { revenue: number; bookings: number }>();
-    dbData.forEach(row => {
-      if (row.booking_status !== "Confirmed" || !row.created_year) return;
-      if (!yearMap.has(row.created_year)) yearMap.set(row.created_year, { revenue: 0, bookings: 0 });
-      const y = yearMap.get(row.created_year)!;
-      y.revenue += Number(row.price_charged) || 0;
-      y.bookings += 1;
-    });
-    const years = [...yearMap.keys()].sort((a, b) => a - b);
-    return years.map((year, i) => {
-      const d = yearMap.get(year)!;
-      const prev = i > 0 ? yearMap.get(years[i - 1])! : null;
-      const growthPct = prev && prev.revenue > 0
-        ? Math.round(((d.revenue - prev.revenue) / prev.revenue) * 100)
-        : null;
-      return { year, revenue: Math.round(d.revenue), bookings: d.bookings, growthPct, isCurrentYear: year === currentYear };
-    });
-  }, [dbData, currentYear]);
-
-  // Groomer performance over time
+  // Groomer performance over time (WEEKLY)
   const groomerPerformance = useMemo((): GroomerPerformanceData[] => {
     if (!dbData || dbData.length === 0) return [];
 
-    // Default commission rate for historical Wix groomers: 40% (standard rate)
-    const DEFAULT_COMMISSION_RATE = 0.4;
-
-    // Group confirmed rows by groomer -> year-month
+    // Group confirmed rows by groomer -> week
     const groomerMap = new Map<string, Map<string, RawRow[]>>();
     dbData.forEach(row => {
-      if (row.booking_status !== "Confirmed" || !row.groomer_name || !row.created_year || !row.created_month) return;
-      if (EXCLUDED_GROOMERS.includes(row.groomer_name)) return;
+      if (row.booking_status !== "Confirmed" || !row.groomer_name) return;
+      const d = rowDate(row);
+      if (!d) return;
+      const weekKey = toIsoDate(getMonday(d));
       if (!groomerMap.has(row.groomer_name)) groomerMap.set(row.groomer_name, new Map());
-      const monthKey = `${row.created_year}-${String(row.created_month).padStart(2, "0")}`;
-      const gMonths = groomerMap.get(row.groomer_name)!;
-      if (!gMonths.has(monthKey)) gMonths.set(monthKey, []);
-      gMonths.get(monthKey)!.push(row);
+      const gWeeks = groomerMap.get(row.groomer_name)!;
+      if (!gWeeks.has(weekKey)) gWeeks.set(weekKey, []);
+      gWeeks.get(weekKey)!.push(row);
     });
 
     const results: GroomerPerformanceData[] = [];
 
-    groomerMap.forEach((monthsMap, groomerName) => {
-      // Only include groomers with at least 1 month of data
-      if (monthsMap.size < 1) return;
+    groomerMap.forEach((weeksMap, groomerName) => {
+      if (weeksMap.size < 1) return;
 
-      const rate = DEFAULT_COMMISSION_RATE;
-      const sortedKeys = [...monthsMap.keys()].sort();
+      const sortedKeys = [...weeksMap.keys()].sort();
       const seenEmails = new Set<string>();
-      const months: GroomerMonthEntry[] = [];
+      const weeks: GroomerWeekEntry[] = [];
 
       for (const key of sortedKeys) {
-        const rows = monthsMap.get(key)!;
-        const [yearStr, monthStr] = key.split("-");
-        const year = parseInt(yearStr);
-        const month = parseInt(monthStr);
-        const totalRevenue = rows.reduce((s, r) => s + (Number(r.price_charged) || 0), 0);
-        const commission = totalRevenue * rate;
+        const rows = weeksMap.get(key)!;
+        const monday = new Date(key);
+
+        let totalRevenue = 0;
+        let commission = 0;
+        rows.forEach(r => {
+          const price = Number(r.price_charged) || 0;
+          const rate = r._source === "live" && typeof r.commission_rate === "number"
+            ? r.commission_rate
+            : WIX_COMMISSION_RATE;
+          totalRevenue += price;
+          commission += price * rate;
+        });
         const netProfit = totalRevenue - commission;
         const appointments = rows.length;
 
-        const monthEmails = new Set<string>();
-        rows.forEach(r => { if (r.customer_email) monthEmails.add(r.customer_email.toLowerCase()); });
+        const weekEmails = new Set<string>();
+        rows.forEach(r => { if (r.customer_email) weekEmails.add(r.customer_email.toLowerCase()); });
         let returningCustomers = 0;
-        monthEmails.forEach(e => { if (seenEmails.has(e)) returningCustomers++; });
-        monthEmails.forEach(e => seenEmails.add(e));
+        weekEmails.forEach(e => { if (seenEmails.has(e)) returningCustomers++; });
+        weekEmails.forEach(e => seenEmails.add(e));
 
-        months.push({
-          label: `${MONTH_NAMES_SHORT[month - 1]} ${yearStr.slice(2)}`,
-          year, month,
+        weeks.push({
+          weekStart: key,
+          label: weekLabel(monday),
           totalRevenue: Math.round(totalRevenue),
           commission: Math.round(commission),
           netProfit: Math.round(netProfit),
@@ -386,14 +455,14 @@ export function useTimelineAnalytics() {
         });
       }
 
-      const allTimeNetProfit = months.reduce((s, m) => s + m.netProfit, 0);
-      const allTimeAppointments = months.reduce((s, m) => s + m.appointments, 0);
+      const allTimeNetProfit = weeks.reduce((s, m) => s + m.netProfit, 0);
+      const allTimeAppointments = weeks.reduce((s, m) => s + m.appointments, 0);
 
-      results.push({ name: groomerName, commissionRate: rate, months, allTimeNetProfit, allTimeAppointments });
+      results.push({ name: groomerName, weeks, allTimeNetProfit, allTimeAppointments });
     });
 
     return results.sort((a, b) => b.allTimeNetProfit - a.allTimeNetProfit);
   }, [dbData]);
 
-  return { isLoading, isEmpty: !dbData?.length, timeline, kpi, bestMonthIdx, services, groomers, highlights, annualSummary, groomerPerformance };
+  return { isLoading, isEmpty: !dbData?.length, timeline, kpi, bestMonthIdx, services, groomers, highlights, groomerPerformance };
 }

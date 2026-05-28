@@ -247,7 +247,7 @@ export default function GroomerPerformanceSection({ data, isLoading }: Props) {
                 {g.name}
               </p>
               <ResponsiveContainer width="100%" height={220}>
-                <ComposedChart data={g.months}>
+                <ComposedChart data={g.weeks}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0e6da" vertical={false} />
                   <XAxis
                     dataKey="label"
