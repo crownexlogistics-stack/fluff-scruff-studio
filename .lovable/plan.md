@@ -1,126 +1,78 @@
+## Goal
 
-# Bullet-proof booking integrity + click tracking
+Make `/admin/historical` a **live weekly performance dashboard** that always includes every current groomer and rebooking stats.
 
-Two things to deliver:
+## Why it's broken today
 
-1. Make it **structurally impossible** for an online booking to be saved without a specific `service_id`, or to be assigned to a groomer who isn't allowed to perform that service.
-2. **Log every click** the customer makes in the booking flow so any future booking can be audited end-to-end.
+The page reads only `wix_historical_bookings` (a one-off CSV import). Nothing writes to that table, so:
+- New groomers never appear.
+- Charts flatline at the migration cutover — live appointments live in `bookings`.
 
----
+## Changes
 
-## Part 1 — Bullet-proof service & groomer integrity (4 layers)
+### 1. Merge live + historical data (`useTimelineAnalytics.ts` + `useYoYAnalytics.ts`)
 
-The reason the Mollie/Bohdan booking happened is that **a single NULL `service_id`** silently disabled the service-eligibility check in two places (client `filterGroomersByService` and the `check-availability` edge function). One missing field, two safety nets gone. The fix is defence in depth — if any layer fails, the next one blocks.
+Fetch both sources in parallel and concatenate into one normalized row stream:
 
-### Layer 1 — Client (`src/components/BookingFlow.tsx`)
-- Replace the `ilike('%name%')` service lookup with **exact match** on `name = resolvedServiceName` (the ilike was the original cause of races and ambiguous matches).
-- In the submit handler: if the user is on the Grooming path and `currentServiceRecord?.id` is still null, **block submit** with a clear error ("Please re-select your service") and refetch — never fall through to a null insert.
-- Wait for the `currentServiceRecord` query to be in `success` state (`isFetched && !isFetching`) before enabling the final Confirm & Pay button.
+- **Historical:** `wix_historical_bookings` (unchanged fields).
+- **Live:** page through `bookings` selecting `booking_date`, `status`, `total_price`, `final_charge`, `customer_email`, `staff:staff_id(name, commission_rate)`, `service:service_id(name)`.
+- Map live rows to the existing `RawRow` shape:
+  - year/month derived from `booking_date`
+  - `booking_status`: `confirmed`/`completed` → `"Confirmed"`; anything containing `"cancel"` kept so cancellation logic still works
+  - `price_charged`: `final_charge ?? total_price` (project's revenue source of truth)
+- Carry an optional `_liveCommissionRate` per row; Wix rows fall back to 40%.
+- No dedupe needed (Wix = pre-migration, live = post-migration).
 
-### Layer 2 — Server (`supabase/functions/check-availability/index.ts`)
-- Require `service_id` for any request where `booking_source === 'online'` (or always, since the client always knows it). Return 400 if missing.
-- Remove the `if (service_id)` wrapper around the `staff_services` check — always enforce: if the staff member has any rows in `staff_services`, the requested `service_id` must be one of them.
+### 2. Bucket everything by week (Mon–Sun)
 
-### Layer 3 — Database trigger: never accept a malformed online booking
-A `BEFORE INSERT OR UPDATE` trigger on `bookings` that raises an exception when:
-- `booking_source = 'online'` AND `service_id IS NULL`, OR
-- `staff_id IS NOT NULL` AND `service_id IS NOT NULL` AND the staff has at least one `staff_services` row AND none of them matches the booking's `service_id`.
+Replace the year/month grouping with ISO-week bucketing:
 
-This is the last line of defence — even if a future code path forgets the guard, the database itself refuses the row. Staff-initiated bookings (manual override use case) keep working because the trigger only blocks `booking_source = 'online'` for the null-service case, and the staff_services rule is purely about consistency (staff with no rows = unrestricted, unchanged from today).
+- Key = Monday-of-week ISO date (e.g. `2026-05-25`).
+- Label = `"26 May"` (Monday date, short month).
+- Rolling avg becomes a **4-week rolling avg** instead of 3-month.
+- Returning-customer logic uses week buckets instead of month buckets (an email seen in a previous week counts as returning).
+- "Best week" highlight replaces "best month ever / this year".
+- Cancellation rate, new vs returning, bookings-over-time charts all switch to weekly points.
 
-### Layer 4 — Retroactive cleanup (one-off)
-Run the existing `service-id-integrity` heuristic backfill on the Mollie/Bohdan booking (and any other historical `service_id IS NULL` rows): match by `total_price` / `duration_minutes` / breed pricing, set the correct `service_id`, then reassign `staff_id` if the current groomer isn't allowed.
+### 3. Remove annual summary cards
 
-For the Mollie booking specifically:
-- Set `service_id` = Full Groom (`be4f5259-…`).
-- Since Bohdan isn't eligible, either reassign to a Full Groom groomer free on 19 May 14:30, or flag for manual reassignment in the inbox. Customer already paid in full → service must be honoured.
+Delete the `annualSummary` block from `YearOnYearTab.tsx` (the four 2024/2025/2026 cards). Keep the top KPI pills (Total Bookings, Revenue, Customers, Returning, Avg).
+- Rename "Avg Monthly Revenue" → **"Avg Weekly Revenue"** and recompute over weeks.
+- Replace "Showing all data from first booking to present" caption with a small week range (e.g. "Wk of 7 Jul 2024 → Wk of 26 May 2026 · always live").
 
----
+### 4. Groomer Performance section
 
-## Part 2 — Full booking-flow click tracking
+- Same weekly x-axis on each groomer's chart.
+- Drop the hardcoded `EXCLUDED_GROOMERS = ["Kirsty Nails", "Lauren Nails"]` — the existing `groomer_visibility_settings` hide UI already handles this and a hardcode means new groomers need code changes.
+- Per-row commission: live rows use the staff's `commission_rate`, Wix rows use 40% default; sum per week.
+- New groomers appear automatically as soon as they have ≥1 confirmed/completed live booking.
 
-A new table `booking_flow_events` capturing every meaningful interaction in `BookingFlow.tsx`. Each row has a `session_id` (one UUID per flow mount), a `step`, an `action`, a JSON payload, plus context (user-agent, referrer, customer email/phone once known). When the booking is finally inserted, all events for that session get backfilled with the new `booking_id` so the audit timeline is queryable per-booking.
+### 5. Always-live (no Sunday cron needed)
 
-### Tracked events
-- `flow_started` — initial mount, with referrer + utm params
-- `service_selected` — e.g. "Grooming"
-- `sub_service_selected` — "Full Groom" / "Bath & Brush" (with resolved `service_id`)
-- `breed_selected` — breed name + id
-- `date_selected` — date
-- `time_selected` — time + auto-assigned `staff_id`
-- `bb_fallback_banner_shown` — when the "switch to Bath & Brush" banner appears
-- `bb_fallback_banner_dismissed`
-- `bb_fallback_banner_accepted` — clicked "Switch to Bath & Brush"
-- `addon_toggled`
-- `details_submitted` — final form submit, with the exact `service_id`, `staff_id`, `total_price`, `duration_minutes` about to be inserted
-- `booking_created` — success, with `booking_id`
-- `submit_blocked` — when a client guard refused to submit (with reason)
+React Query already refetches on mount and window focus. To make sure stale month-keyed cache is dropped:
+- Rename query keys to `["timeline-weekly-v1"]` and `["yoy-weekly-v1"]`.
+- Add `staleTime: 0` and `refetchOnWindowFocus: true`.
 
-### UI surface
-Add a "Customer Journey" tab to the existing booking detail dialog (`EditAppointmentDialog` / `BookingPopoverCard`) that shows a vertical timeline of these events for that booking, similar to the existing booking-lifecycle audit. So you can open any booking and see exactly what was clicked, when, and what state the flow was in.
+So every time you open the page (and every time you come back to the tab), it pulls fresh data — no waiting until Sunday.
 
----
+## Files touched
 
-## Technical details
+- `src/components/historical/year-on-year/useTimelineAnalytics.ts` — merge sources, week buckets, per-row commission, drop exclude list, drop annualSummary export.
+- `src/components/historical/year-on-year/useYoYAnalytics.ts` — same merge + week buckets.
+- `src/components/historical/YearOnYearTab.tsx` — remove annual cards, rename "monthly" → "weekly" copy, update axis label.
+- `src/components/historical/year-on-year/GroomerPerformanceSection.tsx` — no logic change, just inherits weekly data from the hook.
+- `src/components/historical/year-on-year/TimelineHighlightsSidebar.tsx` — "Best month" → "Best week".
 
-### New table
-```sql
-booking_flow_events (
-  id uuid pk,
-  session_id uuid not null,           -- one per flow mount
-  booking_id uuid null references bookings(id) on delete set null,
-  customer_email text,
-  customer_phone text,
-  step text not null,
-  action text not null,
-  payload jsonb not null default '{}',
-  user_agent text,
-  referrer text,
-  created_at timestamptz default now()
-)
--- indexes on session_id, booking_id, created_at
--- RLS: insert allowed to anon (public booking flow); select only to staff/admin
-```
+## Out of scope
 
-### Backfill of booking_id
-After the `bookings` insert succeeds in `BookingFlow.tsx`, run a single update:
-`UPDATE booking_flow_events SET booking_id = $newId WHERE session_id = $sessionId AND booking_id IS NULL`.
+- No DB migration, no edge function, no cron.
+- No edits to `wix_historical_bookings`, `record-payment`, or `cancel-booking-with-refund`.
+- No change to PDF export layout or the hide-groomer UX.
 
-### Trigger SQL (Layer 3)
-```sql
-CREATE FUNCTION enforce_booking_integrity() RETURNS trigger LANGUAGE plpgsql AS $$
-BEGIN
-  IF NEW.booking_source = 'online' AND NEW.service_id IS NULL THEN
-    RAISE EXCEPTION 'Online bookings require a specific service_id';
-  END IF;
-  IF NEW.staff_id IS NOT NULL AND NEW.service_id IS NOT NULL THEN
-    IF EXISTS (SELECT 1 FROM staff_services WHERE staff_id = NEW.staff_id)
-       AND NOT EXISTS (SELECT 1 FROM staff_services
-                       WHERE staff_id = NEW.staff_id AND service_id = NEW.service_id)
-    THEN
-      RAISE EXCEPTION 'Staff % is not assigned to service %', NEW.staff_id, NEW.service_id;
-    END IF;
-  END IF;
-  RETURN NEW;
-END $$;
-CREATE TRIGGER enforce_booking_integrity_trg
-  BEFORE INSERT OR UPDATE ON bookings
-  FOR EACH ROW EXECUTE FUNCTION enforce_booking_integrity();
-```
+## Expected result
 
-### Files touched
-- New migration: `booking_flow_events` table + RLS + trigger function `enforce_booking_integrity`.
-- `src/components/BookingFlow.tsx` — exact-match service query, submit guard, event logging at each step, session_id generation, post-insert backfill.
-- `supabase/functions/check-availability/index.ts` — require service_id, unconditional staff_services check.
-- New tiny client helper `src/lib/logBookingFlowEvent.ts`.
-- `src/components/booking-calendar/EditAppointmentDialog.tsx` (or a new sub-component) — "Customer Journey" timeline tab fed from `booking_flow_events`.
-- One-off data fix for the Mollie booking (separate insert tool call after approval).
-
-### Out of scope
-- No change to `record-payment` or `cancel-booking-with-refund` (financial integrity rule).
-- No change to staff-initiated bookings beyond the staff_services consistency check.
-- No GA / Google Analytics work — tracking is stored in our DB so it's auditable per booking.
-
----
-
-Approve and I'll execute it in this order: migration → edge function → client guards + tracking → audit-timeline UI → backfill the Mollie booking.
+- Every chart shows a point per week, current week always included.
+- Annual £ cards are gone.
+- Brylee/Oksana lines continue into May/Jun '26 and beyond.
+- Any newly hired groomer appears automatically once they take their first booking.
+- Reload (or just switch tabs back) = latest numbers, no Sunday wait.
