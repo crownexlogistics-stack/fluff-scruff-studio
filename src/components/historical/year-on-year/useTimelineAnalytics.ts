@@ -9,6 +9,8 @@ const MONTH_NAMES_SHORT = [
 const DAY_NAMES = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
 
 const WIX_COMMISSION_RATE = 0.4;
+const OWN_CUSTOMER_RATE = 0.5;
+const STUDIO_CUSTOMER_RATE = 0.4;
 
 // --- date helpers (week = Mon..Sun) ---
 function pad(n: number) { return String(n).padStart(2, "0"); }
@@ -162,7 +164,7 @@ export function useTimelineAnalytics() {
       while (true) {
         const { data, error } = await supabase
           .from("bookings")
-          .select("booking_date, status, total_price, final_charge, customer_email, staff:staff_id(name, commission_rate), service:service_id(name)")
+          .select("booking_date, status, total_price, final_charge, customer_email, is_groomers_own_customer, staff:staff_id(name), service:service_id(name)")
           .range(from, from + PAGE - 1);
         if (error) throw error;
         if (!data || data.length === 0) break;
@@ -183,7 +185,7 @@ export function useTimelineAnalytics() {
             service_name: r.service?.name ?? null,
             groomer_name: r.staff?.name ?? null,
             appointment_date: r.booking_date,
-            commission_rate: typeof r.staff?.commission_rate === "number" ? r.staff.commission_rate : null,
+            commission_rate: r.is_groomers_own_customer ? OWN_CUSTOMER_RATE : STUDIO_CUSTOMER_RATE,
             _source: "live",
           });
         }
