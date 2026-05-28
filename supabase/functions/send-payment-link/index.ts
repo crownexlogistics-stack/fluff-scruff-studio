@@ -25,7 +25,15 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { booking_id, send_via, payment_type } = await req.json();
+    const {
+      booking_id,
+      send_via,
+      payment_type,
+      override_amount,
+      override_email,
+      override_phone,
+      save_contact_to_booking,
+    } = await req.json();
     if (!booking_id) throw new Error("booking_id required");
 
     const { data: booking, error: bErr } = await supabase
@@ -38,11 +46,34 @@ serve(async (req) => {
     const total = Number(booking.total_price);
     const deposit = Number(booking.deposit_paid);
 
-    // When payment_type is "deposit", charge exactly 50% of total
-    const amountDue = payment_type === "deposit"
-      ? total * 0.5
-      : total - deposit;
+    // Resolve amount: explicit override wins; otherwise deposit=50% or remaining balance
+    let amountDue: number;
+    if (typeof override_amount === "number" && override_amount > 0) {
+      amountDue = override_amount;
+    } else if (payment_type === "deposit") {
+      amountDue = total * 0.5;
+    } else {
+      amountDue = total - deposit;
+    }
     if (amountDue <= 0) throw new Error("No amount due on this booking");
+
+    // Resolve send-to contact details (overrides win, fall back to booking)
+    const sendToEmail = (override_email && String(override_email).trim()) || booking.customer_email;
+    const sendToPhone = (override_phone && String(override_phone).trim()) || booking.customer_phone;
+
+    // Optionally persist the new contact details on the booking
+    if (save_contact_to_booking) {
+      const updates: Record<string, string> = {};
+      if (override_email && String(override_email).trim() && String(override_email).trim() !== (booking.customer_email || "")) {
+        updates.customer_email = String(override_email).trim();
+      }
+      if (override_phone && String(override_phone).trim() && String(override_phone).trim() !== (booking.customer_phone || "")) {
+        updates.customer_phone = String(override_phone).trim();
+      }
+      if (Object.keys(updates).length > 0) {
+        await supabase.from("bookings").update(updates).eq("id", booking_id);
+      }
+    }
 
     const amountInPence = Math.round(amountDue * 100);
     if (amountInPence < 30) throw new Error("Amount too small for Stripe");
@@ -63,7 +94,13 @@ serve(async (req) => {
     });
     const paymentLink = await stripe.paymentLinks.create({
       line_items: [{ price: price.id, quantity: 1 }],
-      metadata: { booking_id },
+      metadata: {
+        booking_id,
+        amount_charged: amountDue.toFixed(2),
+        override_email: override_email ? String(override_email).trim() : "",
+        override_phone: override_phone ? String(override_phone).trim() : "",
+        kind: isDeposit ? "deposit" : "balance",
+      },
       after_completion: {
         type: "redirect",
         redirect: { url: "https://fluffandscruff.co.uk/booking-success?booking_id=" + booking_id + "&payment_type=" + (isDeposit ? "deposit" : "balance") },
@@ -77,7 +114,7 @@ serve(async (req) => {
     });
 
     // Send via Email
-    if ((send_via === "email" || send_via === "both") && booking.customer_email && RESEND_API_KEY) {
+    if ((send_via === "email" || send_via === "both") && sendToEmail && RESEND_API_KEY) {
       const html = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
           <h2 style="color: #1a1a1a;">Your ${isDeposit ? "Deposit" : "Payment"} Link 🐾</h2>
@@ -121,7 +158,7 @@ serve(async (req) => {
         },
         body: JSON.stringify({
           from: "Fluff & Scruff Studio <info@fluffandscruff.co.uk>",
-          to: [booking.customer_email],
+          to: [sendToEmail],
           reply_to: "info@fluffandscruff.co.uk",
           subject: isDeposit ? "Your deposit link from Fluff & Scruff 🐾" : "Your payment link from Fluff & Scruff 🐾",
           html,
@@ -130,9 +167,9 @@ serve(async (req) => {
     }
 
     // Send via SMS
-    if ((send_via === "sms" || send_via === "both") && booking.customer_phone && TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN && TWILIO_PHONE_NUMBER) {
+    if ((send_via === "sms" || send_via === "both") && sendToPhone && TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN && TWILIO_PHONE_NUMBER) {
       // Format UK phone numbers to E.164
-      let formattedPhone = booking.customer_phone.replace(/\s+/g, "");
+      let formattedPhone = String(sendToPhone).replace(/\s+/g, "");
       if (formattedPhone.startsWith("0")) {
         formattedPhone = "+44" + formattedPhone.slice(1);
       } else if (!formattedPhone.startsWith("+")) {
@@ -168,11 +205,15 @@ serve(async (req) => {
       if (userData?.user) userId = userData.user.id;
     }
 
+    const overrideNote = [
+      override_email ? `email override: ${override_email}` : null,
+      override_phone ? `phone override: ${override_phone}` : null,
+    ].filter(Boolean).join("; ");
     await supabase.from("audit_logs").insert({
       user_id: userId,
       staff_id: booking.staff_id,
       action: isDeposit ? "DEPOSIT_LINK_SENT" : "PAYMENT_LINK_SENT",
-      details: `${labelPrefix} link of £${amountDue.toFixed(2)} sent via ${send_via} for ${booking.customer_name} (${booking.dog_name}). Booking date: ${booking.booking_date}.`,
+      details: `${labelPrefix} link of £${amountDue.toFixed(2)} sent via ${send_via} for ${booking.customer_name} (${booking.dog_name}). Booking date: ${booking.booking_date}.${overrideNote ? " " + overrideNote + "." : ""}${save_contact_to_booking ? " Contact details updated on booking." : ""}`,
     });
 
     return new Response(JSON.stringify({ success: true, url: linkUrl }), {
