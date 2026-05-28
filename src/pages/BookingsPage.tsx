@@ -62,6 +62,32 @@ const BookingsPage = () => {
 
   const weekEnd = addDays(weekStart, 6);
 
+  // On mount and on window focus: reconcile any Stripe payment-link payments
+  // back to bookings (matches by booking_id metadata regardless of which
+  // email/phone the link was sent to), then refresh the calendar.
+  useEffect(() => {
+    let cancelled = false;
+    const run = () => {
+      supabase.functions
+        .invoke("reconcile-booking-payment-links")
+        .then((res) => {
+          if (cancelled) return;
+          const matched = (res?.data as any)?.matched ?? 0;
+          if (matched > 0) {
+            queryClient.invalidateQueries({ queryKey: ["bookings"] });
+          }
+        })
+        .catch(() => {});
+    };
+    run();
+    const onFocus = () => run();
+    window.addEventListener("focus", onFocus);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [queryClient]);
+
   const { data: staff = [] } = useQuery({
     queryKey: ["staff-list"],
     queryFn: async () => {
