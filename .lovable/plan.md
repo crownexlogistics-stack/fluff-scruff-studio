@@ -1,78 +1,66 @@
+
 ## Goal
+Make the Send Payment Link dialog editable (amount, email, phone), and make sure payments made through that link always get credited to the correct booking — even when sent to a different email/phone than the one on file.
 
-Make `/admin/historical` a **live weekly performance dashboard** that always includes every current groomer and rebooking stats.
+---
 
-## Why it's broken today
+## 1. Editable Send Payment Link dialog
+File: `src/components/booking-calendar/SendPaymentLinkDialog.tsx`
 
-The page reads only `wix_historical_bookings` (a one-off CSV import). Nothing writes to that table, so:
-- New groomers never appear.
-- Charts flatline at the migration cutover — live appointments live in `bookings`.
+Replace the read-only display with editable inputs, all prefilled from the booking:
+- **Amount (£)** — number input, defaults to remaining balance (`total - deposit_paid`), min £0.30. Staff can change it (lower for partial, higher for top-ups).
+- **Email** — text input, defaults to `booking.customer_email`. Editable when send mode is Email or Both.
+- **Phone** — text input, defaults to `booking.customer_phone`. Editable when send mode is SMS or Both.
+- **"Also save this email/phone to the booking?"** checkbox — appears only when the staff has actually changed the email or phone from the original. Unchecked by default (per your "ask me each time" choice).
 
-## Changes
+Send button stays disabled until amount is valid and the relevant contact field is filled.
 
-### 1. Merge live + historical data (`useTimelineAnalytics.ts` + `useYoYAnalytics.ts`)
+## 2. Edge function: accept overrides
+File: `supabase/functions/send-payment-link/index.ts`
 
-Fetch both sources in parallel and concatenate into one normalized row stream:
+Accept new optional fields in the request body: `override_amount`, `override_email`, `override_phone`, `save_contact_to_booking`.
 
-- **Historical:** `wix_historical_bookings` (unchanged fields).
-- **Live:** page through `bookings` selecting `booking_date`, `status`, `total_price`, `final_charge`, `customer_email`, `staff:staff_id(name, commission_rate)`, `service:service_id(name)`.
-- Map live rows to the existing `RawRow` shape:
-  - year/month derived from `booking_date`
-  - `booking_status`: `confirmed`/`completed` → `"Confirmed"`; anything containing `"cancel"` kept so cancellation logic still works
-  - `price_charged`: `final_charge ?? total_price` (project's revenue source of truth)
-- Carry an optional `_liveCommissionRate` per row; Wix rows fall back to 40%.
-- No dedupe needed (Wix = pre-migration, live = post-migration).
+Changes:
+- If `override_amount` is provided, use it instead of the computed `amountDue` (and skip the `payment_type === "deposit"` 50% rule for that call).
+- Send the email to `override_email || booking.customer_email`.
+- Send the SMS to `override_phone || booking.customer_phone`.
+- Add extra metadata to the Stripe payment link: `{ booking_id, override_email, override_phone, amount_charged }` so we can always match it back later regardless of who paid.
+- If `save_contact_to_booking` is true, update `bookings.customer_email` / `customer_phone` for that booking row.
+- Audit log notes when an override was used.
 
-### 2. Bucket everything by week (Mon–Sun)
+## 3. Auto-match payments to bookings (the key fix)
+New edge function: `supabase/functions/reconcile-booking-payment-links/index.ts`
 
-Replace the year/month grouping with ISO-week bucketing:
+What it does:
+- Loops the most recent ~50 successful Stripe `payment_intents` (or checkout sessions linked to payment links).
+- For each successful payment whose `metadata.booking_id` matches a booking, and whose `id` is not already recorded against any booking's `stripe_payment_id`, increment that booking's `deposit_paid` by the paid amount and append the payment intent id to a new `extra_stripe_payment_ids` text array (so we can attribute multiple payments to one booking — original deposit + later payment-link top-up).
+- Writes an `audit_logs` row: `"Payment of £X auto-matched to booking Y via payment link metadata"`.
+- Returns `{ matched: n }`.
 
-- Key = Monday-of-week ISO date (e.g. `2026-05-25`).
-- Label = `"26 May"` (Monday date, short month).
-- Rolling avg becomes a **4-week rolling avg** instead of 3-month.
-- Returning-customer logic uses week buckets instead of month buckets (an email seen in a previous week counts as returning).
-- "Best week" highlight replaces "best month ever / this year".
-- Cancellation rate, new vs returning, bookings-over-time charts all switch to weekly points.
+This is the metadata-based reconciler — booking_id from the payment link metadata is the source of truth, not the email.
 
-### 3. Remove annual summary cards
+## 4. Trigger reconciliation when the calendar loads
+File: `src/components/booking-calendar/WeeklyCalendar.tsx` (or the closest calendar query hook)
 
-Delete the `annualSummary` block from `YearOnYearTab.tsx` (the four 2024/2025/2026 cards). Keep the top KPI pills (Total Bookings, Revenue, Customers, Returning, Avg).
-- Rename "Avg Monthly Revenue" → **"Avg Weekly Revenue"** and recompute over weeks.
-- Replace "Showing all data from first booking to present" caption with a small week range (e.g. "Wk of 7 Jul 2024 → Wk of 26 May 2026 · always live").
+On mount and on focus, fire-and-forget `supabase.functions.invoke("reconcile-booking-payment-links")`, then invalidate the bookings query. This is the "poller" — runs whenever staff opens the calendar so the cards refresh with any newly-paid links.
 
-### 4. Groomer Performance section
+## 5. Booking card already shows remaining balance correctly
+File: `src/components/booking-calendar/BookingPopoverCard.tsx` — no change needed.
+It already computes `total_price - deposit_paid`. Once step 3 bumps `deposit_paid`, the card automatically shows the right "left to pay in person" amount.
 
-- Same weekly x-axis on each groomer's chart.
-- Drop the hardcoded `EXCLUDED_GROOMERS = ["Kirsty Nails", "Lauren Nails"]` — the existing `groomer_visibility_settings` hide UI already handles this and a hardcode means new groomers need code changes.
-- Per-row commission: live rows use the staff's `commission_rate`, Wix rows use 40% default; sum per week.
-- New groomers appear automatically as soon as they have ≥1 confirmed/completed live booking.
+## 6. Database change
+Migration to add: `extra_stripe_payment_ids text[] default '{}'` on `bookings` so we can record multiple matched payment intents per booking without losing the original `stripe_payment_id`.
 
-### 5. Always-live (no Sunday cron needed)
+---
 
-React Query already refetches on mount and window focus. To make sure stale month-keyed cache is dropped:
-- Rename query keys to `["timeline-weekly-v1"]` and `["yoy-weekly-v1"]`.
-- Add `staleTime: 0` and `refetchOnWindowFocus: true`.
-
-So every time you open the page (and every time you come back to the tab), it pulls fresh data — no waiting until Sunday.
+## Out of scope (per memory rules)
+- `record-payment` and `cancel-booking-with-refund` are NOT touched.
+- No changes to the booking creation flow or initial deposit logic.
+- No Stripe webhook setup — using metadata + on-load poll instead.
 
 ## Files touched
-
-- `src/components/historical/year-on-year/useTimelineAnalytics.ts` — merge sources, week buckets, per-row commission, drop exclude list, drop annualSummary export.
-- `src/components/historical/year-on-year/useYoYAnalytics.ts` — same merge + week buckets.
-- `src/components/historical/YearOnYearTab.tsx` — remove annual cards, rename "monthly" → "weekly" copy, update axis label.
-- `src/components/historical/year-on-year/GroomerPerformanceSection.tsx` — no logic change, just inherits weekly data from the hook.
-- `src/components/historical/year-on-year/TimelineHighlightsSidebar.tsx` — "Best month" → "Best week".
-
-## Out of scope
-
-- No DB migration, no edge function, no cron.
-- No edits to `wix_historical_bookings`, `record-payment`, or `cancel-booking-with-refund`.
-- No change to PDF export layout or the hide-groomer UX.
-
-## Expected result
-
-- Every chart shows a point per week, current week always included.
-- Annual £ cards are gone.
-- Brylee/Oksana lines continue into May/Jun '26 and beyond.
-- Any newly hired groomer appears automatically once they take their first booking.
-- Reload (or just switch tabs back) = latest numbers, no Sunday wait.
+- `src/components/booking-calendar/SendPaymentLinkDialog.tsx` (edit)
+- `supabase/functions/send-payment-link/index.ts` (edit)
+- `supabase/functions/reconcile-booking-payment-links/index.ts` (new)
+- `src/components/booking-calendar/WeeklyCalendar.tsx` (small on-mount hook)
+- Migration: add `bookings.extra_stripe_payment_ids text[]`
