@@ -1,0 +1,1 @@
+ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS extra_stripe_payment_ids text[] NOT NULL DEFAULT '{}';
