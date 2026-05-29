@@ -167,3 +167,9 @@ verify_jwt = false
 
 [functions.elevenlabs-call-webhook]
 verify_jwt = false
+
+[functions.stripe-webhook]
+verify_jwt = false
+
+[functions.expire-pending-bookings]
+verify_jwt = false
