@@ -41,11 +41,12 @@ serve(async (req) => {
     await supabase.from("bookings").update({ status: "Cancelled" }).in("id", ids);
 
     const logRows = (stale ?? []).map((b) => ({
-      user_id: "00000000-0000-0000-0000-000000000000",
-      action: "BOOKING_AUTO_CANCELLED_NO_PAYMENT",
-      details: `Booking ${b.id} (${b.customer_name}, ${b.booking_date} ${b.booking_time}) auto-cancelled — no payment received within 2 hours of booking.`,
+      booking_id: b.id,
+      event_type: "cancelled",
+      performed_by: "System (expire-pending-bookings)",
+      note: "Auto-cancelled — no payment received within 2 hours of booking.",
     }));
-    await supabase.from("audit_logs").insert(logRows as any);
+    await supabase.from("booking_audit_log").insert(logRows as any);
 
     return new Response(JSON.stringify({ ok: true, cancelled: ids.length, ids }), {
       status: 200,
