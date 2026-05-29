@@ -26,6 +26,31 @@ serve(async (req) => {
     const { booking_id } = await req.json();
     if (!booking_id) throw new Error("Missing booking_id");
 
+    // Idempotency short-circuit — if booking is already Confirmed with a Stripe
+    // payment ID, the webhook (or a previous call) has done the work. Don't
+    // duplicate the Stripe lookup, DB write, or audit log.
+    {
+      const { data: existing } = await supabaseAdmin
+        .from("bookings")
+        .select("status, stripe_payment_id")
+        .eq("id", booking_id)
+        .maybeSingle();
+
+      if (existing?.status === "Confirmed" && existing.stripe_payment_id) {
+        return new Response(
+          JSON.stringify({
+            success: true,
+            already_recorded: true,
+            payment_intent_id: existing.stripe_payment_id,
+          }),
+          {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 200,
+          },
+        );
+      }
+    }
+
     // Find the Stripe checkout session by booking_id in metadata
     const sessions = await stripe.checkout.sessions.list({
       limit: 5,
