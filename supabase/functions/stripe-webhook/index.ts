@@ -100,10 +100,11 @@ serve(async (req) => {
         })
         .eq("id", bookingId);
 
-      await supabase.from("audit_logs").insert({
-        user_id: "00000000-0000-0000-0000-000000000000",
-        action: "PAYMENT_CONFIRMED_WEBHOOK",
-        details: `Payment confirmed via Stripe webhook for ${booking.customer_name}. £${amountPaid.toFixed(2)} received. Payment Intent: ${paymentIntentId ?? "unknown"}. Booking ${bookingId}.`,
+      await supabase.from("booking_audit_log").insert({
+        booking_id: bookingId,
+        event_type: "payment_confirmed",
+        performed_by: "Stripe webhook",
+        note: `Payment confirmed via Stripe webhook. £${amountPaid.toFixed(2)} received. Payment Intent: ${paymentIntentId ?? "unknown"}.`,
       } as any);
 
       return new Response(JSON.stringify({ ok: true, confirmed: bookingId }), {
@@ -135,10 +136,11 @@ serve(async (req) => {
           .update({ status: "Cancelled" })
           .eq("id", bookingId);
 
-        await supabase.from("audit_logs").insert({
-          user_id: "00000000-0000-0000-0000-000000000000",
-          action: "BOOKING_CANCELLED_CHECKOUT_EXPIRED",
-          details: `Booking ${bookingId} (${booking.customer_name}) cancelled — Stripe checkout expired without payment.`,
+        await supabase.from("booking_audit_log").insert({
+          booking_id: bookingId,
+          event_type: "cancelled",
+          performed_by: "Stripe webhook",
+          note: "Booking cancelled — Stripe checkout expired without payment.",
         } as any);
       }
 
