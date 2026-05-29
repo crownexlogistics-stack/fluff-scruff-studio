@@ -122,7 +122,16 @@ export function WeeklyCalendar({ weekStart, daysToShow = 7, staff, bookings, sta
 
   const bookingsByDate = useMemo(() => {
     const map = new Map<string, BookingData[]>();
+    const isUnpaidOnlinePending = (b: BookingData) =>
+      (b as any).booking_source === "online" &&
+      b.status === "Pending" &&
+      Number(b.deposit_paid || 0) === 0 &&
+      !b.stripe_payment_id;
     bookings.forEach(b => {
+      // Online Pending bookings with no payment never block calendar slots —
+      // they're abandoned-checkout rows awaiting Stripe confirmation or the
+      // hourly expire-pending-bookings sweeper.
+      if (isUnpaidOnlinePending(b)) return;
       const key = b.booking_date;
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(b);
