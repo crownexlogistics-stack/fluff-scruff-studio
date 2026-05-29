@@ -1,66 +1,73 @@
-
 ## Goal
-Make the Send Payment Link dialog editable (amount, email, phone), and make sure payments made through that link always get credited to the correct booking — even when sent to a different email/phone than the one on file.
+Stop unpaid online bookings from blocking the calendar. Confirm or cancel them server-side via Stripe webhooks, sweep up anything missed, and hide the abandoned ones from the calendar. `BookingFlow.tsx` insert order stays as-is.
 
----
+## 1. New edge function — `stripe-webhook`
+**File:** `supabase/functions/stripe-webhook/index.ts`
 
-## 1. Editable Send Payment Link dialog
-File: `src/components/booking-calendar/SendPaymentLinkDialog.tsx`
+- Reads raw body, verifies signature with `STRIPE_WEBHOOK_SECRET` using `stripe.webhooks.constructEventAsync`. Returns 400 if invalid.
+- `checkout.session.completed` → reads `metadata.booking_id`. Idempotency: if booking already `Confirmed` with same `stripe_payment_id`, returns 200 no-op. Otherwise sets `status=Confirmed`, `deposit_paid=amount_total/100`, `stripe_payment_id=payment_intent`, logs "Payment confirmed via Stripe webhook".
+- `checkout.session.expired` → only acts if booking still `Pending` and no `stripe_payment_id`. Sets `status=Cancelled`, logs "Booking cancelled — Stripe checkout expired without payment".
+- Other events return 200.
+- Register in `supabase/config.toml` with `verify_jwt = false`.
 
-Replace the read-only display with editable inputs, all prefilled from the booking:
-- **Amount (£)** — number input, defaults to remaining balance (`total - deposit_paid`), min £0.30. Staff can change it (lower for partial, higher for top-ups).
-- **Email** — text input, defaults to `booking.customer_email`. Editable when send mode is Email or Both.
-- **Phone** — text input, defaults to `booking.customer_phone`. Editable when send mode is SMS or Both.
-- **"Also save this email/phone to the booking?"** checkbox — appears only when the staff has actually changed the email or phone from the original. Unchecked by default (per your "ask me each time" choice).
+## 2. `record-payment` idempotency
+**File:** `supabase/functions/record-payment/index.ts` — minimal surgical edit.
 
-Send button stays disabled until amount is valid and the relevant contact field is filled.
+After loading the booking, if `status === "Confirmed"` AND `stripe_payment_id` is set, return `{ success: true, already_recorded: true }` immediately — no Stripe lookup, no DB write, no audit row. Prevents duplicate audit entries when webhook fires before success page loads.
 
-## 2. Edge function: accept overrides
-File: `supabase/functions/send-payment-link/index.ts`
+## 3. New edge function — `expire-pending-bookings`
+**File:** `supabase/functions/expire-pending-bookings/index.ts`
 
-Accept new optional fields in the request body: `override_amount`, `override_email`, `override_phone`, `save_contact_to_booking`.
+Service-role client. Finds bookings where `booking_source='online' AND status='Pending' AND COALESCE(deposit_paid,0)=0 AND stripe_payment_id IS NULL AND created_at < now() - interval '2 hours'`. For each: set `status='Cancelled'`, log "Auto-cancelled — no payment received within 2 hours of booking". Returns `{ cancelled, ids }`. Registered with `verify_jwt = false` so pg_cron can call it.
 
-Changes:
-- If `override_amount` is provided, use it instead of the computed `amountDue` (and skip the `payment_type === "deposit"` 50% rule for that call).
-- Send the email to `override_email || booking.customer_email`.
-- Send the SMS to `override_phone || booking.customer_phone`.
-- Add extra metadata to the Stripe payment link: `{ booking_id, override_email, override_phone, amount_charged }` so we can always match it back later regardless of who paid.
-- If `save_contact_to_booking` is true, update `bookings.customer_email` / `customer_phone` for that booking row.
-- Audit log notes when an override was used.
+Schedule via `pg_cron` + `pg_net` (using `insert` tool, not migration, because the SQL contains the project URL and anon key):
 
-## 3. Auto-match payments to bookings (the key fix)
-New edge function: `supabase/functions/reconcile-booking-payment-links/index.ts`
+```sql
+create extension if not exists pg_cron;
+create extension if not exists pg_net;
+select cron.schedule(
+  'expire-pending-bookings-hourly',
+  '0 * * * *',
+  $$ select net.http_post(
+       url := 'https://pkshffylgauatrcidqqj.supabase.co/functions/v1/expire-pending-bookings',
+       headers := '{"Content-Type":"application/json","apikey":"<anon>"}'::jsonb,
+       body := '{}'::jsonb
+     ); $$
+);
+```
 
-What it does:
-- Loops the most recent ~50 successful Stripe `payment_intents` (or checkout sessions linked to payment links).
-- For each successful payment whose `metadata.booking_id` matches a booking, and whose `id` is not already recorded against any booking's `stripe_payment_id`, increment that booking's `deposit_paid` by the paid amount and append the payment intent id to a new `extra_stripe_payment_ids` text array (so we can attribute multiple payments to one booking — original deposit + later payment-link top-up).
-- Writes an `audit_logs` row: `"Payment of £X auto-matched to booking Y via payment link metadata"`.
-- Returns `{ matched: n }`.
+## 4. Cancel the 5 ghost bookings (via `insert` tool)
 
-This is the metadata-based reconciler — booking_id from the payment link metadata is the source of truth, not the email.
+```sql
+UPDATE bookings SET status='Cancelled'
+WHERE id IN ('821fb8ff-d6db-4523-ac6f-39aacc456dfb',
+             '45c67ce0-3a29-4e01-8ede-7109406ee973',
+             '155d6a64-1963-4e14-a30e-54509d829653',
+             '6a945702-1ee2-4f37-a836-0166308b7805',
+             'ec96c413-4f33-4206-94be-8d72acf4da95');
 
-## 4. Trigger reconciliation when the calendar loads
-File: `src/components/booking-calendar/WeeklyCalendar.tsx` (or the closest calendar query hook)
+INSERT INTO booking_audit_log (booking_id, event_type, performed_by, note)
+SELECT id, 'cancelled', 'System (audit May 2026)',
+       'Cancelled — abandoned checkout, no payment received. Auto-cancelled during payment flow audit May 2026.'
+FROM bookings WHERE id IN (...same 5...);
+```
 
-On mount and on focus, fire-and-forget `supabase.functions.invoke("reconcile-booking-payment-links")`, then invalidate the bookings query. This is the "poller" — runs whenever staff opens the calendar so the cards refresh with any newly-paid links.
+## 5. Calendar — hide unpaid online Pending
+**File:** `src/components/booking-calendar/WeeklyCalendar.tsx`
 
-## 5. Booking card already shows remaining balance correctly
-File: `src/components/booking-calendar/BookingPopoverCard.tsx` — no change needed.
-It already computes `total_price - deposit_paid`. Once step 3 bumps `deposit_paid`, the card automatically shows the right "left to pay in person" amount.
+Add `isUnpaidOnlinePending(b)` = `b.booking_source === 'online' && b.status === 'Pending' && Number(b.deposit_paid||0) === 0 && !b.stripe_payment_id`. Filter these out of `bookingsByDate` so they neither block the slot nor render. Staff / package / phone_ai untouched.
 
-## 6. Database change
-Migration to add: `extra_stripe_payment_ids text[] default '{}'` on `bookings` so we can record multiple matched payment intents per booking without losing the original `stripe_payment_id`.
+## 6. Stripe registration instructions (delivered in chat)
 
----
+- Webhook URL: `https://pkshffylgauatrcidqqj.supabase.co/functions/v1/stripe-webhook`
+- Events: `checkout.session.completed`, `checkout.session.expired`
+- Dashboard → Developers → Webhooks → Add endpoint → paste URL → select those two events → copy "Signing secret" (`whsec_…`) → confirm `STRIPE_WEBHOOK_SECRET` in Lovable Cloud matches (already exists; can be rotated via Project Settings → Secrets).
 
-## Out of scope (per memory rules)
-- `record-payment` and `cancel-booking-with-refund` are NOT touched.
-- No changes to the booking creation flow or initial deposit logic.
-- No Stripe webhook setup — using metadata + on-load poll instead.
+## Files
 
-## Files touched
-- `src/components/booking-calendar/SendPaymentLinkDialog.tsx` (edit)
-- `supabase/functions/send-payment-link/index.ts` (edit)
-- `supabase/functions/reconcile-booking-payment-links/index.ts` (new)
-- `src/components/booking-calendar/WeeklyCalendar.tsx` (small on-mount hook)
-- Migration: add `bookings.extra_stripe_payment_ids text[]`
+**New:** `supabase/functions/stripe-webhook/index.ts`, `supabase/functions/expire-pending-bookings/index.ts`
+**Edited:** `supabase/config.toml`, `supabase/functions/record-payment/index.ts`, `src/components/booking-calendar/WeeklyCalendar.tsx`
+**Data ops:** cancel 5 ghosts + audit rows, schedule hourly cron
+
+## Out of scope
+`BookingFlow.tsx` insert order; `cancel-booking-with-refund`; staff/package/phone_ai calendar handling.
