@@ -702,6 +702,7 @@ export default function AIInboxPage() {
             <TabButton value="messages" label="Messages" icon={MessageSquare} count={unassignedCount("message")} theme={CASE_THEME.message} />
             <TabButton value="callbacks" label="Callbacks" icon={PhoneForwarded} count={unassignedCount("callback_requested")} theme={CASE_THEME.callback_requested} />
             <TabButton value="late" label="Late" icon={Clock} count={unassignedCount("running_late")} theme={CASE_THEME.running_late} />
+            <TabButton value="waitlist" label="Cancellation List" icon={CalendarClock} count={unassignedCount("cancellation_waitlist")} theme={CASE_THEME.cancellation_waitlist} />
             <div className="col-span-2">
               <TabButton value="mine" label={isAllCasesView ? "All Cases" : "My Cases"} icon={Inbox} count={myCases.length} theme={MINE_THEME} />
             </div>
@@ -744,6 +745,15 @@ export default function AIInboxPage() {
                   </Badge>
                 )}
               </TabsTrigger>
+              <TabsTrigger value="waitlist" className="h-11">
+                <CalendarClock className="h-4 w-4 mr-1" />
+                Cancellation List
+                {unassignedCount("cancellation_waitlist") > 0 && (
+                  <Badge className="ml-1.5 h-5 min-w-5 px-1.5 text-[10px] font-bold rounded-full bg-teal-500 text-white border-0">
+                    {unassignedCount("cancellation_waitlist")}
+                  </Badge>
+                )}
+              </TabsTrigger>
               <TabsTrigger value="mine" className="h-11">
                 {isAllCasesView ? "All Cases" : "My Cases"}
                 {myCases.length > 0 && (
@@ -759,6 +769,7 @@ export default function AIInboxPage() {
           <TabsContent value="messages" className="mt-4">{renderTab("message", "Messages")}</TabsContent>
           <TabsContent value="callbacks" className="mt-4">{renderTab("callback_requested", "Callbacks")}</TabsContent>
           <TabsContent value="late" className="mt-4">{renderTab("running_late", "Running Late")}</TabsContent>
+          <TabsContent value="waitlist" className="mt-4">{renderTab("cancellation_waitlist", "Cancellation List")}</TabsContent>
           <TabsContent value="mine" className="mt-4">
             {isAllCasesView ? (
               (() => {
