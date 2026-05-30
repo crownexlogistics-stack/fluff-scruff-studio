@@ -1,0 +1,2 @@
+ALTER TABLE public.ai_inbox_cases DROP CONSTRAINT ai_inbox_cases_case_type_check;
+ALTER TABLE public.ai_inbox_cases ADD CONSTRAINT ai_inbox_cases_case_type_check CHECK (case_type = ANY (ARRAY['missed_opportunity'::text, 'message'::text, 'callback_requested'::text, 'running_late'::text, 'ai_booking_notification'::text, 'cancellation_waitlist'::text]));
