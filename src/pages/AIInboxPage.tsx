@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { Inbox, Phone, MessageSquare, PhoneForwarded, Clock, Briefcase, AlertTriangle } from "lucide-react";
+import { Inbox, Phone, MessageSquare, PhoneForwarded, Clock, Briefcase, AlertTriangle, CalendarClock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -55,7 +55,7 @@ function CollapsibleSection({
   );
 }
 
-type CaseType = "missed_opportunity" | "message" | "callback_requested" | "running_late" | "ai_booking_notification";
+type CaseType = "missed_opportunity" | "message" | "callback_requested" | "running_late" | "ai_booking_notification" | "cancellation_waitlist";
 type Status = "unassigned" | "assigned" | "resolved";
 
 interface InboxCase {
@@ -84,6 +84,7 @@ const TAB_TYPES: Record<string, CaseType> = {
   messages: "message",
   callbacks: "callback_requested",
   late: "running_late",
+  waitlist: "cancellation_waitlist",
 };
 
 const RESOLUTION_OPTIONS: Record<CaseType, string[]> = {
@@ -114,6 +115,13 @@ const RESOLUTION_OPTIONS: Record<CaseType, string[]> = {
     "Other",
   ],
   ai_booking_notification: ["Acknowledged", "Other"],
+  cancellation_waitlist: [
+    "Called — earlier slot offered",
+    "Called — no earlier slots available",
+    "Customer no longer needs earlier slot",
+    "No answer — will try again",
+    "Other",
+  ],
 };
 
 // Per-tab/case-type color theming (mobile + cards)
@@ -159,6 +167,13 @@ const CASE_THEME: Record<string, {
     bg: "bg-slate-50 dark:bg-slate-950/20",
     badge: "bg-slate-500 text-white",
   },
+  cancellation_waitlist: {
+    tabActive: "bg-teal-500 text-white border-teal-600",
+    tabIdle: "bg-teal-50 text-teal-900 border-teal-200 hover:bg-teal-100",
+    border: "border-l-[4px] border-l-teal-500",
+    bg: "bg-teal-50 dark:bg-teal-950/20",
+    badge: "bg-teal-500 text-white",
+  },
 };
 
 const MINE_THEME = {
@@ -199,6 +214,10 @@ function cardTheme(c: InboxCase, contextMine?: boolean) {
   }
   if (contextMine || c.status === "assigned") {
     return { cls: "border-l-[4px] border-l-blue-500 bg-blue-50/60 dark:bg-blue-950/20" };
+  }
+  // Cancellation waitlist gets teal border per spec
+  if (c.case_type === "cancellation_waitlist") {
+    return { cls: "border-l-[4px] border-l-teal-500 bg-teal-50 dark:bg-teal-950/20" };
   }
   // unassigned: tint by case_type background, amber border per spec
   const t = CASE_THEME[c.case_type] ?? CASE_THEME.ai_booking_notification;
@@ -683,6 +702,7 @@ export default function AIInboxPage() {
             <TabButton value="messages" label="Messages" icon={MessageSquare} count={unassignedCount("message")} theme={CASE_THEME.message} />
             <TabButton value="callbacks" label="Callbacks" icon={PhoneForwarded} count={unassignedCount("callback_requested")} theme={CASE_THEME.callback_requested} />
             <TabButton value="late" label="Late" icon={Clock} count={unassignedCount("running_late")} theme={CASE_THEME.running_late} />
+            <TabButton value="waitlist" label="Cancellation List" icon={CalendarClock} count={unassignedCount("cancellation_waitlist")} theme={CASE_THEME.cancellation_waitlist} />
             <div className="col-span-2">
               <TabButton value="mine" label={isAllCasesView ? "All Cases" : "My Cases"} icon={Inbox} count={myCases.length} theme={MINE_THEME} />
             </div>
@@ -725,6 +745,15 @@ export default function AIInboxPage() {
                   </Badge>
                 )}
               </TabsTrigger>
+              <TabsTrigger value="waitlist" className="h-11">
+                <CalendarClock className="h-4 w-4 mr-1" />
+                Cancellation List
+                {unassignedCount("cancellation_waitlist") > 0 && (
+                  <Badge className="ml-1.5 h-5 min-w-5 px-1.5 text-[10px] font-bold rounded-full bg-teal-500 text-white border-0">
+                    {unassignedCount("cancellation_waitlist")}
+                  </Badge>
+                )}
+              </TabsTrigger>
               <TabsTrigger value="mine" className="h-11">
                 {isAllCasesView ? "All Cases" : "My Cases"}
                 {myCases.length > 0 && (
@@ -740,6 +769,7 @@ export default function AIInboxPage() {
           <TabsContent value="messages" className="mt-4">{renderTab("message", "Messages")}</TabsContent>
           <TabsContent value="callbacks" className="mt-4">{renderTab("callback_requested", "Callbacks")}</TabsContent>
           <TabsContent value="late" className="mt-4">{renderTab("running_late", "Running Late")}</TabsContent>
+          <TabsContent value="waitlist" className="mt-4">{renderTab("cancellation_waitlist", "Cancellation List")}</TabsContent>
           <TabsContent value="mine" className="mt-4">
             {isAllCasesView ? (
               (() => {

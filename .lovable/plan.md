@@ -1,73 +1,58 @@
-## Goal
-Stop unpaid online bookings from blocking the calendar. Confirm or cancel them server-side via Stripe webhooks, sweep up anything missed, and hide the abandoned ones from the calendar. `BookingFlow.tsx` insert order stays as-is.
+## Add "Cancellation List" tab to AI Inbox
 
-## 1. New edge function — `stripe-webhook`
-**File:** `supabase/functions/stripe-webhook/index.ts`
+### 1. Database migration
+Extend the `ai_inbox_cases.case_type` CHECK constraint to also allow `'cancellation_waitlist'`. Drop and recreate the constraint with the new value added.
 
-- Reads raw body, verifies signature with `STRIPE_WEBHOOK_SECRET` using `stripe.webhooks.constructEventAsync`. Returns 400 if invalid.
-- `checkout.session.completed` → reads `metadata.booking_id`. Idempotency: if booking already `Confirmed` with same `stripe_payment_id`, returns 200 no-op. Otherwise sets `status=Confirmed`, `deposit_paid=amount_total/100`, `stripe_payment_id=payment_intent`, logs "Payment confirmed via Stripe webhook".
-- `checkout.session.expired` → only acts if booking still `Pending` and no `stripe_payment_id`. Sets `status=Cancelled`, logs "Booking cancelled — Stripe checkout expired without payment".
-- Other events return 200.
-- Register in `supabase/config.toml` with `verify_jwt = false`.
+### 2. Phone-booking edge function (`supabase/functions/phone-booking/index.ts`)
+In the `log_callback_request` action (~line 1733):
 
-## 2. `record-payment` idempotency
-**File:** `supabase/functions/record-payment/index.ts` — minimal surgical edit.
+- After computing `reasonTrimmed`, classify it:
+  ```ts
+  const isWaitlist = /cancellation list|cancellation|earlier|waitlist/i.test(reasonTrimmed);
+  const caseType = isWaitlist ? "cancellation_waitlist" : "callback_requested";
+  ```
+- When `isWaitlist`, enrich the case by looking up the customer's next upcoming non-cancelled booking (by resolved phone, else by name) to capture:
+  - dog name + breed
+  - service name (join `services`)
+  - appointment date/time
+  Then set `dog_name`, `appointment_time`, and build a structured `summary` like:
+  ```
+  Wants to be contacted if an earlier slot opens.
+  Dog: Bella (Cockapoo)
+  Service: Full Groom
+  Currently booked: Tue 3 Jun at 14:00
+  Reason: <reason>
+  ```
+  If no booking found, fall back to the plain reason summary.
+- Insert with the computed `case_type`. No other actions/paths change.
 
-After loading the booking, if `status === "Confirmed"` AND `stripe_payment_id` is set, return `{ success: true, already_recorded: true }` immediately — no Stripe lookup, no DB write, no audit row. Prevents duplicate audit entries when webhook fires before success page loads.
+### 3. AI Inbox page (`src/pages/AIInboxPage.tsx`)
+Frontend-only additions — no other tabs touched.
 
-## 3. New edge function — `expire-pending-bookings`
-**File:** `supabase/functions/expire-pending-bookings/index.ts`
+- Extend `CaseType` union with `"cancellation_waitlist"`.
+- Add to `TAB_TYPES`: `waitlist: "cancellation_waitlist"`.
+- Add to `RESOLUTION_OPTIONS.cancellation_waitlist`:
+  - "Called — earlier slot offered"
+  - "Called — no earlier slots available"
+  - "Customer no longer needs earlier slot"
+  - "No answer — will try again"
+  - "Other"
+- Add to `CASE_THEME.cancellation_waitlist` using teal:
+  - `tabActive: "bg-teal-500 text-white border-teal-600"`
+  - `tabIdle: "bg-teal-50 text-teal-900 border-teal-200 hover:bg-teal-100"`
+  - `border: "border-l-[4px] border-l-teal-500"` (spec: `#14B8A6` = `teal-500`)
+  - `bg: "bg-teal-50 dark:bg-teal-950/20"` (spec: `#F0FDFA` = `teal-50`)
+  - `badge: "bg-teal-500 text-white"`
+- In `cardTheme()`, for unassigned `cancellation_waitlist`, override the default amber-left-border rule so the card uses **teal** left border with teal-50 background (per spec).
+- Add a new tab button in both the mobile grid and desktop `TabsList` labelled **"Cancellation List"** with a `CalendarClock` (or `ListChecks`) icon, count = `unassignedCount("cancellation_waitlist")`.
+- Add `<TabsContent value="waitlist">{renderTab("cancellation_waitlist", "Cancellation List")}</TabsContent>`.
+- `renderTab` already handles unassigned + resolved + claim/resolve flows generically — no changes needed there.
 
-Service-role client. Finds bookings where `booking_source='online' AND status='Pending' AND COALESCE(deposit_paid,0)=0 AND stripe_payment_id IS NULL AND created_at < now() - interval '2 hours'`. For each: set `status='Cancelled'`, log "Auto-cancelled — no payment received within 2 hours of booking". Returns `{ cancelled, ids }`. Registered with `verify_jwt = false` so pg_cron can call it.
+### 4. Verification
+- Build passes.
+- Inserting a case with `case_type='cancellation_waitlist'` succeeds after the migration.
+- New tab renders, claim flow moves item to My Cases, resolve dialog shows the 4 new options.
 
-Schedule via `pg_cron` + `pg_net` (using `insert` tool, not migration, because the SQL contains the project URL and anon key):
-
-```sql
-create extension if not exists pg_cron;
-create extension if not exists pg_net;
-select cron.schedule(
-  'expire-pending-bookings-hourly',
-  '0 * * * *',
-  $$ select net.http_post(
-       url := 'https://pkshffylgauatrcidqqj.supabase.co/functions/v1/expire-pending-bookings',
-       headers := '{"Content-Type":"application/json","apikey":"<anon>"}'::jsonb,
-       body := '{}'::jsonb
-     ); $$
-);
-```
-
-## 4. Cancel the 5 ghost bookings (via `insert` tool)
-
-```sql
-UPDATE bookings SET status='Cancelled'
-WHERE id IN ('821fb8ff-d6db-4523-ac6f-39aacc456dfb',
-             '45c67ce0-3a29-4e01-8ede-7109406ee973',
-             '155d6a64-1963-4e14-a30e-54509d829653',
-             '6a945702-1ee2-4f37-a836-0166308b7805',
-             'ec96c413-4f33-4206-94be-8d72acf4da95');
-
-INSERT INTO booking_audit_log (booking_id, event_type, performed_by, note)
-SELECT id, 'cancelled', 'System (audit May 2026)',
-       'Cancelled — abandoned checkout, no payment received. Auto-cancelled during payment flow audit May 2026.'
-FROM bookings WHERE id IN (...same 5...);
-```
-
-## 5. Calendar — hide unpaid online Pending
-**File:** `src/components/booking-calendar/WeeklyCalendar.tsx`
-
-Add `isUnpaidOnlinePending(b)` = `b.booking_source === 'online' && b.status === 'Pending' && Number(b.deposit_paid||0) === 0 && !b.stripe_payment_id`. Filter these out of `bookingsByDate` so they neither block the slot nor render. Staff / package / phone_ai untouched.
-
-## 6. Stripe registration instructions (delivered in chat)
-
-- Webhook URL: `https://pkshffylgauatrcidqqj.supabase.co/functions/v1/stripe-webhook`
-- Events: `checkout.session.completed`, `checkout.session.expired`
-- Dashboard → Developers → Webhooks → Add endpoint → paste URL → select those two events → copy "Signing secret" (`whsec_…`) → confirm `STRIPE_WEBHOOK_SECRET` in Lovable Cloud matches (already exists; can be rotated via Project Settings → Secrets).
-
-## Files
-
-**New:** `supabase/functions/stripe-webhook/index.ts`, `supabase/functions/expire-pending-bookings/index.ts`
-**Edited:** `supabase/config.toml`, `supabase/functions/record-payment/index.ts`, `src/components/booking-calendar/WeeklyCalendar.tsx`
-**Data ops:** cancel 5 ghosts + audit rows, schedule hourly cron
-
-## Out of scope
-`BookingFlow.tsx` insert order; `cancel-booking-with-refund`; staff/package/phone_ai calendar handling.
+### Notes
+- No changes to existing tabs, existing case types, claim logic, resolve logic, or any other edge functions.
+- The amber left border requested in the spec text conflicts with the teal `#14B8A6` border requested two lines below; we follow the explicit hex (`#14B8A6` = teal) per the dedicated "tab colour" section.

@@ -1768,14 +1768,64 @@ Deno.serve(async (req) => {
           }
         }
 
+        // Detect cancellation waitlist requests
+        const isWaitlist = /cancellation list|cancellation|earlier|waitlist/i.test(reasonTrimmed);
+        const caseType = isWaitlist ? "cancellation_waitlist" : "callback_requested";
+
+        let dogNameForCase: string | null = null;
+        let appointmentTimeForCase: string | null = null;
+        let summary = `Customer called and needs a callback. Reason: ${reasonTrimmed || "(none provided)"}`;
+
+        if (isWaitlist) {
+          try {
+            const todayIso = londonTodayIso();
+            let q = supabase
+              .from("bookings")
+              .select("booking_date, booking_time, dog_name, dog_breed, service_name, customer_name, customer_phone")
+              .gte("booking_date", todayIso)
+              .not("status", "in", '("Cancelled","No Show","Refunded")')
+              .order("booking_date", { ascending: true })
+              .order("booking_time", { ascending: true })
+              .limit(1);
+            if (resolvedPhone) {
+              q = q.eq("customer_phone", resolvedPhone);
+            } else if (nameTrimmed) {
+              q = q.ilike("customer_name", `%${nameTrimmed}%`);
+            }
+            const { data: upcoming } = await q;
+            const b = upcoming && upcoming[0];
+            if (b) {
+              dogNameForCase = b.dog_name || null;
+              const apptDate = b.booking_date
+                ? new Date(b.booking_date + "T00:00:00").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })
+                : null;
+              appointmentTimeForCase = apptDate && b.booking_time
+                ? `${apptDate} at ${String(b.booking_time).slice(0, 5)}`
+                : (apptDate || b.booking_time || null);
+              summary =
+                `Wants to be contacted if an earlier slot opens.\n` +
+                `Dog: ${b.dog_name || "Unknown"}${b.dog_breed ? ` (${b.dog_breed})` : ""}\n` +
+                `Service: ${b.service_name || "Unknown"}\n` +
+                `Currently booked: ${appointmentTimeForCase || "Unknown"}\n` +
+                `Reason: ${reasonTrimmed || "(none provided)"}`;
+            } else {
+              summary = `Wants to be contacted if an earlier slot opens. Reason: ${reasonTrimmed || "(none provided)"}`;
+            }
+          } catch (e) {
+            console.error("[log_callback_request] waitlist enrichment failed", e);
+          }
+        }
+
         const { error: caseErr } = await supabase
           .from("ai_inbox_cases")
           .insert({
-            case_type: "callback_requested",
+            case_type: caseType,
             status: "unassigned",
             caller_number: resolvedPhone,
             caller_name: nameTrimmed || null,
-            summary: `Customer called and needs a callback. Reason: ${reasonTrimmed || "(none provided)"}`,
+            dog_name: dogNameForCase,
+            appointment_time: appointmentTimeForCase,
+            summary,
           });
 
         if (caseErr) {
