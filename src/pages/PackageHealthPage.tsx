@@ -64,6 +64,25 @@ type TcSignature = {
 
 export default function PackageHealthPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+
+  // Live updates: any package/session change refreshes the list
+  useEffect(() => {
+    const channel = supabase
+      .channel("pkg-health-list")
+      .on("postgres_changes", { event: "*", schema: "public", table: "package_bookings" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["pkg-health-bookings"] });
+        queryClient.invalidateQueries({ queryKey: ["pkg-health-sessions"] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "package_sessions" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["pkg-health-sessions"] });
+        queryClient.invalidateQueries({ queryKey: ["pkg-health-bookings"] });
+      })
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
 
   const { data: packageBookings, isLoading: loadingPb } = useQuery({
     queryKey: ["pkg-health-bookings"],
