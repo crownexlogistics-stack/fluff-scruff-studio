@@ -2460,6 +2460,78 @@ export type Database = {
           },
         ]
       }
+      package_payment_audit: {
+        Row: {
+          amount: number | null
+          booking_id: string | null
+          created_at: string
+          event_type: string
+          id: string
+          new_date: string | null
+          new_status: string | null
+          new_time: string | null
+          note: string | null
+          old_date: string | null
+          old_status: string | null
+          old_time: string | null
+          package_booking_id: string | null
+          package_session_id: string | null
+          performed_by: string | null
+          stripe_payment_intent_id: string | null
+        }
+        Insert: {
+          amount?: number | null
+          booking_id?: string | null
+          created_at?: string
+          event_type: string
+          id?: string
+          new_date?: string | null
+          new_status?: string | null
+          new_time?: string | null
+          note?: string | null
+          old_date?: string | null
+          old_status?: string | null
+          old_time?: string | null
+          package_booking_id?: string | null
+          package_session_id?: string | null
+          performed_by?: string | null
+          stripe_payment_intent_id?: string | null
+        }
+        Update: {
+          amount?: number | null
+          booking_id?: string | null
+          created_at?: string
+          event_type?: string
+          id?: string
+          new_date?: string | null
+          new_status?: string | null
+          new_time?: string | null
+          note?: string | null
+          old_date?: string | null
+          old_status?: string | null
+          old_time?: string | null
+          package_booking_id?: string | null
+          package_session_id?: string | null
+          performed_by?: string | null
+          stripe_payment_intent_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "package_payment_audit_package_booking_id_fkey"
+            columns: ["package_booking_id"]
+            isOneToOne: false
+            referencedRelation: "package_bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "package_payment_audit_package_session_id_fkey"
+            columns: ["package_session_id"]
+            isOneToOne: false
+            referencedRelation: "package_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       package_sessions: {
         Row: {
           booking_id: string | null
