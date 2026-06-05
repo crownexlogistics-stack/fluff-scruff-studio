@@ -52,6 +52,26 @@ serve(async (req) => {
   try {
     if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
+
+      // Package payments: route to process-package-payment (idempotent)
+      if (session.metadata?.type === "package_booking") {
+        try {
+          await supabase.functions.invoke("process-package-payment", {
+            body: { session_id: session.id },
+          });
+          return new Response(JSON.stringify({ ok: true, package_processed: session.id }), {
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        } catch (err) {
+          console.error("stripe-webhook: failed to invoke process-package-payment", err);
+          return new Response(JSON.stringify({ error: "package_processing_failed" }), {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      }
+
       const bookingId = session.metadata?.booking_id;
       if (!bookingId) {
         return new Response(JSON.stringify({ ok: true, skipped: "no_booking_id" }), {
@@ -125,12 +145,25 @@ serve(async (req) => {
 
       const { data: booking } = await supabase
         .from("bookings")
-        .select("id, status, stripe_payment_id, customer_name")
+        .select("id, status, stripe_payment_id, customer_name, booking_source, created_at")
         .eq("id", bookingId)
         .maybeSingle();
 
-      // Only cancel if still pending and unpaid — never overwrite a confirmed booking
-      if (booking && booking.status === "Pending" && !booking.stripe_payment_id) {
+      // Guards: only cancel a Pending unpaid booking, AND only when it was an
+      // online customer booking created in the last 4 hours. Staff bookings and
+      // older bookings must never be auto-cancelled by a stale expired-session event.
+      const fourHoursAgo = Date.now() - 4 * 60 * 60 * 1000;
+      const createdAtMs = booking?.created_at ? new Date(booking.created_at).getTime() : 0;
+      const isOnline = booking?.booking_source === "online";
+      const isRecent = createdAtMs >= fourHoursAgo;
+
+      if (
+        booking &&
+        booking.status === "Pending" &&
+        !booking.stripe_payment_id &&
+        isOnline &&
+        isRecent
+      ) {
         await supabase
           .from("bookings")
           .update({ status: "Cancelled" })
@@ -140,8 +173,16 @@ serve(async (req) => {
           booking_id: bookingId,
           event_type: "cancelled",
           performed_by: "Stripe webhook",
-          note: "Booking cancelled — Stripe checkout expired without payment.",
+          note: "Booking cancelled — online Stripe checkout expired without payment (recent booking, guards passed).",
         } as any);
+      } else if (booking) {
+        console.log("stripe-webhook expired: skipped", {
+          bookingId,
+          status: booking.status,
+          source: booking.booking_source,
+          isRecent,
+          hasPayment: !!booking.stripe_payment_id,
+        });
       }
 
       return new Response(JSON.stringify({ ok: true, expired: bookingId }), {
