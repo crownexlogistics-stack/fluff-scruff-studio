@@ -9,7 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { AlertTriangle, Package, Loader2, FileCheck, Clock, Send, PenLine, FileDown } from "lucide-react";
+import { AlertTriangle, Package, Loader2, FileCheck, Clock, Send, PenLine, FileDown, History, CreditCard, CheckCircle2, XCircle, CalendarClock } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { PasswordVerifyDialog } from "@/components/booking-calendar/PasswordVerifyDialog";
@@ -69,6 +69,14 @@ export function PackageDetailDialog({ packageBookingId, open, onClose }: Props) 
         // Any booking update may belong to this package; let the session query refetch.
         queryClient.invalidateQueries({ queryKey: ["package-sessions-detail", packageBookingId] });
       })
+      .on("postgres_changes", {
+        event: "INSERT",
+        schema: "public",
+        table: "package_payment_audit",
+        filter: `package_booking_id=eq.${packageBookingId}`,
+      }, () => {
+        queryClient.invalidateQueries({ queryKey: ["package-audit", packageBookingId] });
+      })
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
@@ -114,6 +122,20 @@ export function PackageDetailDialog({ packageBookingId, open, onClose }: Props) 
         .limit(1);
       if (error) throw error;
       return (data as any[])?.[0] || null;
+    },
+    enabled: open,
+  });
+
+  const { data: auditEntries } = useQuery({
+    queryKey: ["package-audit", packageBookingId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("package_payment_audit" as any)
+        .select("*")
+        .eq("package_booking_id", packageBookingId)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data as any[];
     },
     enabled: open,
   });
@@ -422,6 +444,22 @@ export function PackageDetailDialog({ packageBookingId, open, onClose }: Props) 
               <Progress value={pct} className="h-3" />
             </div>
 
+            {/* Live status panel */}
+            <div className="grid grid-cols-3 gap-2">
+              <div className="rounded-lg border bg-card p-3 text-center">
+                <p className="text-2xl font-bold text-emerald-600">{used}</p>
+                <p className="text-xs text-muted-foreground">Used</p>
+              </div>
+              <div className="rounded-lg border bg-card p-3 text-center">
+                <p className="text-2xl font-bold text-blue-600">{remaining}</p>
+                <p className="text-xs text-muted-foreground">Remaining</p>
+              </div>
+              <div className="rounded-lg border bg-card p-3 text-center">
+                <p className="text-2xl font-bold text-foreground">{total}</p>
+                <p className="text-xs text-muted-foreground">Total</p>
+              </div>
+            </div>
+
             <Separator />
 
             {/* Sessions table */}
@@ -459,6 +497,57 @@ export function PackageDetailDialog({ packageBookingId, open, onClose }: Props) 
                 <div>
                   <h3 className="font-semibold mb-1">Notes</h3>
                   <p className="text-sm text-muted-foreground">{pb.notes}</p>
+                </div>
+              </>
+            )}
+
+            {/* Audit timeline */}
+            {auditEntries && auditEntries.length > 0 && (
+              <>
+                <Separator />
+                <div>
+                  <h3 className="font-semibold mb-2 flex items-center gap-2">
+                    <History className="h-4 w-4" /> Activity Timeline
+                  </h3>
+                  <ol className="space-y-2 border-l-2 border-muted pl-4">
+                    {auditEntries.map((e: any) => {
+                      const icon =
+                        e.event_type === "payment_matched" ? <CreditCard className="h-3 w-3 text-emerald-600" /> :
+                        e.event_type === "session_rescheduled" ? <CalendarClock className="h-3 w-3 text-amber-600" /> :
+                        e.new_status === "completed" ? <CheckCircle2 className="h-3 w-3 text-emerald-600" /> :
+                        e.new_status === "cancelled" ? <XCircle className="h-3 w-3 text-red-600" /> :
+                        <Clock className="h-3 w-3 text-muted-foreground" />;
+                      return (
+                        <li key={e.id} className="relative text-sm">
+                          <span className="absolute -left-[22px] top-1 bg-background border rounded-full p-0.5">{icon}</span>
+                          <div className="flex items-center justify-between gap-2 flex-wrap">
+                            <span className="font-medium capitalize">
+                              {e.event_type.replace(/_/g, " ")}
+                              {e.amount ? ` — £${Number(e.amount).toFixed(2)}` : ""}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              {format(new Date(e.created_at), "dd MMM yyyy HH:mm")}
+                            </span>
+                          </div>
+                          {e.event_type === "session_rescheduled" && (
+                            <p className="text-xs text-muted-foreground">
+                              {e.old_date ? format(new Date(e.old_date), "dd MMM") : "—"} {e.old_time?.slice(0,5) || ""}
+                              {" → "}
+                              {e.new_date ? format(new Date(e.new_date), "dd MMM yyyy") : "—"} {e.new_time?.slice(0,5) || ""}
+                            </p>
+                          )}
+                          {e.event_type === "session_status_changed" && (
+                            <p className="text-xs text-muted-foreground">
+                              {e.old_status || "—"} → {e.new_status}
+                            </p>
+                          )}
+                          {e.note && (
+                            <p className="text-xs text-muted-foreground italic">{e.note}</p>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ol>
                 </div>
               </>
             )}
