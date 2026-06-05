@@ -40,6 +40,33 @@ serve(async (req) => {
 
     for (const s of sessions.data) {
       if (s.payment_status !== "paid" || s.status !== "complete") continue;
+
+      // Package payments — back-fill via process-package-payment if no
+      // package_bookings row exists yet for this PI.
+      if (s.metadata?.type === "package_booking" && s.metadata?.pending_id) {
+        const piIdPkg =
+          typeof s.payment_intent === "string"
+            ? s.payment_intent
+            : s.payment_intent?.id;
+        if (!piIdPkg) continue;
+        const { data: existingPkg } = await supabase
+          .from("package_bookings")
+          .select("id")
+          .eq("stripe_payment_intent_id", piIdPkg)
+          .maybeSingle();
+        if (existingPkg) continue;
+        try {
+          await supabase.functions.invoke("process-package-payment", {
+            body: { session_id: s.id },
+          });
+          matched++;
+          matchedDetails.push({ booking_id: `pkg:${s.metadata.pending_id}`, amount: (s.amount_total ?? 0) / 100, pi: piIdPkg });
+        } catch (e) {
+          console.error("reconcile: package back-fill failed", s.id, e);
+        }
+        continue;
+      }
+
       const bookingId = s.metadata?.booking_id;
       if (!bookingId) continue;
       const pi =
