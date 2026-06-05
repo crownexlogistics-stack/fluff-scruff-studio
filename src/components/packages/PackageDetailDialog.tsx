@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -36,6 +36,44 @@ export function PackageDetailDialog({ packageBookingId, open, onClose }: Props) 
   const [manualName, setManualName] = useState("");
   const [savingManual, setSavingManual] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
+
+  // Realtime: refresh package data whenever a booking, session, or the package
+  // itself changes — so completion / reschedule / cancel show up live for every
+  // staff member with the dialog open.
+  useEffect(() => {
+    if (!open || !packageBookingId) return;
+    const channel = supabase
+      .channel(`pkg-${packageBookingId}`)
+      .on("postgres_changes", {
+        event: "*",
+        schema: "public",
+        table: "package_bookings",
+        filter: `id=eq.${packageBookingId}`,
+      }, () => {
+        queryClient.invalidateQueries({ queryKey: ["package-booking-detail", packageBookingId] });
+      })
+      .on("postgres_changes", {
+        event: "*",
+        schema: "public",
+        table: "package_sessions",
+        filter: `package_booking_id=eq.${packageBookingId}`,
+      }, () => {
+        queryClient.invalidateQueries({ queryKey: ["package-sessions-detail", packageBookingId] });
+        queryClient.invalidateQueries({ queryKey: ["package-booking-detail", packageBookingId] });
+      })
+      .on("postgres_changes", {
+        event: "UPDATE",
+        schema: "public",
+        table: "bookings",
+      }, () => {
+        // Any booking update may belong to this package; let the session query refetch.
+        queryClient.invalidateQueries({ queryKey: ["package-sessions-detail", packageBookingId] });
+      })
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [open, packageBookingId, queryClient]);
 
   const { data: pb, isLoading } = useQuery({
     queryKey: ["package-booking-detail", packageBookingId],
@@ -254,6 +292,7 @@ export function PackageDetailDialog({ packageBookingId, open, onClose }: Props) 
     if (status === "completed") return <Badge className="bg-emerald-100 text-emerald-800">Completed</Badge>;
     if (status === "scheduled") return <Badge className="bg-blue-100 text-blue-800">Scheduled</Badge>;
     if (status === "cancelled") return <Badge className="bg-red-100 text-red-800">Cancelled</Badge>;
+    if (status === "rescheduled") return <Badge className="bg-amber-100 text-amber-800">Rescheduled</Badge>;
     return <Badge variant="outline">{status}</Badge>;
   };
 

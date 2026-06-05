@@ -136,7 +136,7 @@ serve(async (req) => {
     if (createdGte) created.gte = createdGte;
     if (createdLte) created.lte = createdLte;
 
-    const [paymentIntents, payouts, bookingsWithStripe] = await Promise.all([
+    const [paymentIntents, payouts, bookingsWithStripe, packageBookingsWithStripe] = await Promise.all([
       stripe.paymentIntents.list({
         limit,
         ...(Object.keys(created).length > 0 ? { created } : {}),
@@ -147,11 +147,19 @@ serve(async (req) => {
         .from("bookings")
         .select("stripe_payment_id")
         .not("stripe_payment_id", "is", null),
+      supabaseAdmin
+        .from("package_bookings")
+        .select("stripe_payment_intent_id, customer_name, total_paid, sessions_total, packages(name)")
+        .not("stripe_payment_intent_id", "is", null),
     ]);
 
     const matchedIds = new Set(
       (bookingsWithStripe.data || []).map((b: any) => b.stripe_payment_id).filter(Boolean)
     );
+    const packageById = new Map<string, any>();
+    for (const p of (packageBookingsWithStripe.data || []) as any[]) {
+      if (p?.stripe_payment_intent_id) packageById.set(p.stripe_payment_intent_id, p);
+    }
 
     const transactions = paymentIntents.data.map((pi: any) => {
       const charge = pi.latest_charge;
@@ -169,6 +177,9 @@ serve(async (req) => {
       if (status === "succeeded" && charge?.refunded) status = "refunded";
       else if (status === "succeeded" && (charge?.amount_refunded || 0) > 0) status = "partially_refunded";
 
+      const pkg = packageById.get(pi.id);
+      const matched = matchedIds.has(pi.id) || !!pkg;
+
       return {
         id: pi.id,
         amount: pi.amount / 100,
@@ -180,7 +191,13 @@ serve(async (req) => {
         payment_method: methodLabel,
         description: pi.description,
         metadata: pi.metadata,
-        matched: matchedIds.has(pi.id),
+        matched,
+        matched_package: pkg ? {
+          customer_name: pkg.customer_name,
+          total_paid: Number(pkg.total_paid || 0),
+          sessions_total: pkg.sessions_total,
+          package_name: pkg.packages?.name || "Package",
+        } : null,
       };
     });
 
