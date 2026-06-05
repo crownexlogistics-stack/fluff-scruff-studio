@@ -9,7 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { AlertTriangle, Package, Loader2, FileCheck, Clock, Send, PenLine, FileDown } from "lucide-react";
+import { AlertTriangle, Package, Loader2, FileCheck, Clock, Send, PenLine, FileDown, History, CreditCard, CheckCircle2, XCircle, CalendarClock } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { PasswordVerifyDialog } from "@/components/booking-calendar/PasswordVerifyDialog";
@@ -68,6 +68,14 @@ export function PackageDetailDialog({ packageBookingId, open, onClose }: Props) 
       }, () => {
         // Any booking update may belong to this package; let the session query refetch.
         queryClient.invalidateQueries({ queryKey: ["package-sessions-detail", packageBookingId] });
+      })
+      .on("postgres_changes", {
+        event: "INSERT",
+        schema: "public",
+        table: "package_payment_audit",
+        filter: `package_booking_id=eq.${packageBookingId}`,
+      }, () => {
+        queryClient.invalidateQueries({ queryKey: ["package-audit", packageBookingId] });
       })
       .subscribe();
     return () => {
