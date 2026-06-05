@@ -126,6 +126,20 @@ export function PackageDetailDialog({ packageBookingId, open, onClose }: Props) 
     enabled: open,
   });
 
+  const { data: auditEntries } = useQuery({
+    queryKey: ["package-audit", packageBookingId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("package_payment_audit" as any)
+        .select("*")
+        .eq("package_booking_id", packageBookingId)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data as any[];
+    },
+    enabled: open,
+  });
+
   const handleResendTCEmail = async () => {
     setResending(true);
     try {
