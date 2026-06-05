@@ -501,6 +501,57 @@ export function PackageDetailDialog({ packageBookingId, open, onClose }: Props) 
               </>
             )}
 
+            {/* Audit timeline */}
+            {auditEntries && auditEntries.length > 0 && (
+              <>
+                <Separator />
+                <div>
+                  <h3 className="font-semibold mb-2 flex items-center gap-2">
+                    <History className="h-4 w-4" /> Activity Timeline
+                  </h3>
+                  <ol className="space-y-2 border-l-2 border-muted pl-4">
+                    {auditEntries.map((e: any) => {
+                      const icon =
+                        e.event_type === "payment_matched" ? <CreditCard className="h-3 w-3 text-emerald-600" /> :
+                        e.event_type === "session_rescheduled" ? <CalendarClock className="h-3 w-3 text-amber-600" /> :
+                        e.new_status === "completed" ? <CheckCircle2 className="h-3 w-3 text-emerald-600" /> :
+                        e.new_status === "cancelled" ? <XCircle className="h-3 w-3 text-red-600" /> :
+                        <Clock className="h-3 w-3 text-muted-foreground" />;
+                      return (
+                        <li key={e.id} className="relative text-sm">
+                          <span className="absolute -left-[22px] top-1 bg-background border rounded-full p-0.5">{icon}</span>
+                          <div className="flex items-center justify-between gap-2 flex-wrap">
+                            <span className="font-medium capitalize">
+                              {e.event_type.replace(/_/g, " ")}
+                              {e.amount ? ` — £${Number(e.amount).toFixed(2)}` : ""}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              {format(new Date(e.created_at), "dd MMM yyyy HH:mm")}
+                            </span>
+                          </div>
+                          {e.event_type === "session_rescheduled" && (
+                            <p className="text-xs text-muted-foreground">
+                              {e.old_date ? format(new Date(e.old_date), "dd MMM") : "—"} {e.old_time?.slice(0,5) || ""}
+                              {" → "}
+                              {e.new_date ? format(new Date(e.new_date), "dd MMM yyyy") : "—"} {e.new_time?.slice(0,5) || ""}
+                            </p>
+                          )}
+                          {e.event_type === "session_status_changed" && (
+                            <p className="text-xs text-muted-foreground">
+                              {e.old_status || "—"} → {e.new_status}
+                            </p>
+                          )}
+                          {e.note && (
+                            <p className="text-xs text-muted-foreground italic">{e.note}</p>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ol>
+                </div>
+              </>
+            )}
+
             {/* Cancel section — admin only */}
             {pb.status === "active" && isAdmin && (
               <>
