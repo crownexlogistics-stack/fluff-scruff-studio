@@ -444,6 +444,22 @@ export function PackageDetailDialog({ packageBookingId, open, onClose }: Props) 
               <Progress value={pct} className="h-3" />
             </div>
 
+            {/* Live status panel */}
+            <div className="grid grid-cols-3 gap-2">
+              <div className="rounded-lg border bg-card p-3 text-center">
+                <p className="text-2xl font-bold text-emerald-600">{used}</p>
+                <p className="text-xs text-muted-foreground">Used</p>
+              </div>
+              <div className="rounded-lg border bg-card p-3 text-center">
+                <p className="text-2xl font-bold text-blue-600">{remaining}</p>
+                <p className="text-xs text-muted-foreground">Remaining</p>
+              </div>
+              <div className="rounded-lg border bg-card p-3 text-center">
+                <p className="text-2xl font-bold text-foreground">{total}</p>
+                <p className="text-xs text-muted-foreground">Total</p>
+              </div>
+            </div>
+
             <Separator />
 
             {/* Sessions table */}
