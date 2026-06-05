@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +11,23 @@ import { PackageDetailDialog } from "./PackageDetailDialog";
 
 export function ActivePackages() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+
+  // Live updates for every staff member: refetch whenever any package booking
+  // or session changes (payment, completion, reschedule, cancel).
+  useEffect(() => {
+    const channel = supabase
+      .channel("active-packages-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "package_bookings" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["package-bookings"] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "package_sessions" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["package-bookings"] });
+        queryClient.invalidateQueries({ queryKey: ["package-next-sessions"] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [queryClient]);
 
   const { data: packageBookings, isLoading, refetch } = useQuery({
     queryKey: ["package-bookings"],
@@ -102,7 +119,7 @@ export function ActivePackages() {
                   </div>
 
                   <div className="text-sm text-muted-foreground">
-                    📦 {pkg?.name || "Package"} • {used} of {total} sessions used
+                    📦 {pkg?.name || "Package"} • {used} used • {total - used} remaining • {total} total
                   </div>
 
                   <div className="flex items-center gap-3">
