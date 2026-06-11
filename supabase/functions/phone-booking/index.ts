@@ -846,7 +846,7 @@ Deno.serve(async (req) => {
 
       let { data: service, error: svcErr } = await supabase
         .from("services")
-        .select("id, fixed_price, duration_minutes")
+        .select("id, name, fixed_price, duration_minutes")
         .ilike("name", fuzzyService)
         .eq("is_active", true)
         .maybeSingle();
@@ -854,7 +854,7 @@ Deno.serve(async (req) => {
         // Fallback: contains-match
         const { data: svc2 } = await supabase
           .from("services")
-          .select("id, fixed_price, duration_minutes, name")
+          .select("id, name, fixed_price, duration_minutes")
           .ilike("name", `%${fuzzyService}%`)
           .eq("is_active", true)
           .limit(1);
@@ -871,15 +871,57 @@ Deno.serve(async (req) => {
       let breedId: string | null = null;
       let duration = Number(service.duration_minutes || 0);
       let breedData: any = null;
+      let breedRow: any = null;
       if (breed_name) {
-        const { data: breed, error: breedErr } = await supabase
+        const rawBreed = String(breed_name).trim();
+        const words = rawBreed.split(/\s+/).filter(Boolean);
+
+        // Strategy 1: original ILIKE %input%
+        let { data: attempt1 } = await supabase
           .from("breeds")
-          .select("id, duration_minutes")
-          .ilike("name", `%${String(breed_name).trim()}%`)
+          .select("id, name, duration_minutes, price_full_groom, price_bath_brush")
+          .ilike("name", `%${rawBreed}%`)
           .order("duration_minutes", { ascending: false })
           .limit(1);
-        breedData = { breed, breedErr };
-        const breedRow = Array.isArray(breed) ? breed[0] : breed;
+        breedRow = (attempt1 && attempt1[0]) || null;
+
+        // Strategy 2: reversed word order with %w2%w1% pattern
+        // e.g. "Rough Collie" -> "%Collie%Rough%" matches "Collie (Rough)"
+        if (!breedRow && words.length >= 2) {
+          const reversedPattern = "%" + [...words].reverse().join("%") + "%";
+          const { data: attempt2 } = await supabase
+            .from("breeds")
+            .select("id, name, duration_minutes, price_full_groom, price_bath_brush")
+            .ilike("name", reversedPattern)
+            .order("duration_minutes", { ascending: false })
+            .limit(1);
+          breedRow = (attempt2 && attempt2[0]) || null;
+        }
+
+        // Strategy 3: per-word search, pick breed matching most words
+        if (!breedRow && words.length >= 1) {
+          const orFilter = words
+            .map((w) => `name.ilike.%${w.replace(/[,()]/g, "")}%`)
+            .join(",");
+          const { data: attempt3 } = await supabase
+            .from("breeds")
+            .select("id, name, duration_minutes, price_full_groom, price_bath_brush")
+            .or(orFilter)
+            .limit(50);
+          if (attempt3 && attempt3.length > 0) {
+            const lowerWords = words.map((w) => w.toLowerCase());
+            const scored = attempt3
+              .map((b: any) => {
+                const lname = String(b.name || "").toLowerCase();
+                const score = lowerWords.filter((w) => lname.includes(w)).length;
+                return { b, score };
+              })
+              .sort((a, b) => b.score - a.score);
+            if (scored[0]?.score > 0) breedRow = scored[0].b;
+          }
+        }
+
+        breedData = { breedRow };
         if (breedRow) {
           breedId = breedRow.id;
           if (breedRow.duration_minutes) duration = Number(breedRow.duration_minutes);
@@ -920,6 +962,21 @@ Deno.serve(async (req) => {
         if (priceRow?.price != null && Number(priceRow.price) > 0) {
           totalPrice = Number(priceRow.price);
           priceSource = "service_prices";
+        }
+      }
+      // Fallback: read price from the breeds table based on service kind
+      if (totalPrice <= 0 && breedRow) {
+        const svcLower = String(service.name || "").toLowerCase();
+        let breedPrice = 0;
+        if (svcLower.includes("full groom")) {
+          breedPrice = Number(breedRow.price_full_groom || 0);
+        } else if (svcLower.includes("bath")) {
+          // matches "Bath & Brush" and "Bath and Brush"
+          breedPrice = Number(breedRow.price_bath_brush || 0);
+        }
+        if (breedPrice > 0) {
+          totalPrice = breedPrice;
+          priceSource = "breeds." + (svcLower.includes("full groom") ? "price_full_groom" : "price_bath_brush");
         }
       }
       if (totalPrice <= 0 && service.fixed_price != null && Number(service.fixed_price) > 0) {
