@@ -1015,12 +1015,77 @@ Deno.serve(async (req) => {
 
       const phoneNorm = normalizePhone(customer_phone);
 
+      // ─── Customer profile lookup / creation (migrated_customers) ───
+      // Try to find an existing customer by phone (any common UK format).
+      // If found, we re-use their email so the booking card links to their
+      // profile via /admin/customers/:email (matches useCustomerProfileLink).
+      // If not found, we create a new migrated_customers row so future
+      // bookings, SMS clicks and profile views all flow through one record.
+      let customerEmailForBooking: string | null = null;
+      let resolvedCustomerId: string | null = null;
+      let resolvedAuthUserId: string | null = null;
+      try {
+        const phoneVariants = new Set<string>([phoneNorm, customer_phone]);
+        if (phoneNorm.startsWith("+44")) {
+          phoneVariants.add("0" + phoneNorm.slice(3));
+          phoneVariants.add(phoneNorm.slice(1)); // 44xxx
+        }
+        const raw = (customer_phone || "").replace(/[\s\-\(\)]/g, "");
+        if (raw.startsWith("0")) {
+          phoneVariants.add("+44" + raw.slice(1));
+          phoneVariants.add("44" + raw.slice(1));
+        }
+        const variants = Array.from(phoneVariants).filter(Boolean);
+
+        const orFilter = variants
+          .flatMap((p) => [`phone.eq.${p}`, `secondary_phone.eq.${p}`])
+          .join(",");
+        const { data: existing, error: lookupErr } = await supabase
+          .from("migrated_customers")
+          .select("id, email, full_name, supabase_user_id")
+          .or(orFilter)
+          .order("activated_at", { ascending: false, nullsFirst: false })
+          .limit(1);
+        if (lookupErr) {
+          console.error("[create_booking] customer lookup err", lookupErr);
+        }
+        const found = existing && existing[0];
+        if (found) {
+          resolvedCustomerId = found.id;
+          resolvedAuthUserId = found.supabase_user_id || null;
+          customerEmailForBooking = found.email || null;
+          console.log("[create_booking] matched existing customer", {
+            id: found.id, email: found.email, hasAuth: !!found.supabase_user_id,
+          });
+        } else {
+          const { data: created, error: createErr } = await supabase
+            .from("migrated_customers")
+            .insert({
+              full_name: customer_name,
+              phone: phoneNorm,
+              status: "pending",
+            })
+            .select("id, email, supabase_user_id")
+            .single();
+          if (createErr) {
+            console.error("[create_booking] customer create failed", createErr);
+          } else if (created) {
+            resolvedCustomerId = created.id;
+            customerEmailForBooking = created.email || null;
+            console.log("[create_booking] created new customer", created.id);
+          }
+        }
+      } catch (e) {
+        console.error("[create_booking] customer link error", e);
+      }
+
       console.log("[create_booking] inserting booking...");
       const { data: inserted, error: insertErr } = await supabase
         .from("bookings")
         .insert({
           customer_name,
           customer_phone: phoneNorm,
+          customer_email: customerEmailForBooking,
           dog_name,
           breed_id: breedId,
           service_id: service.id,
@@ -1046,6 +1111,37 @@ Deno.serve(async (req) => {
         }, 500);
       }
       console.log("[create_booking] booking created:", JSON.stringify(inserted));
+
+      // ─── Pet registration ───
+      // customer_pets.user_id references auth.users, so we can only add a pet
+      // when the customer has activated their account (supabase_user_id set).
+      if (resolvedAuthUserId && dog_name) {
+        try {
+          const { data: existingPets } = await supabase
+            .from("customer_pets")
+            .select("id, pet_name, breed_id")
+            .eq("user_id", resolvedAuthUserId);
+          const dogLower = String(dog_name).trim().toLowerCase();
+          const alreadyExists = (existingPets || []).some((p: any) =>
+            String(p.pet_name || "").trim().toLowerCase() === dogLower &&
+            (breedId ? p.breed_id === breedId : true),
+          );
+          if (!alreadyExists) {
+            const { error: petErr } = await supabase
+              .from("customer_pets")
+              .insert({
+                user_id: resolvedAuthUserId,
+                pet_name: dog_name,
+                breed_id: breedId,
+                notes: "Added automatically from phone booking",
+              });
+            if (petErr) console.error("[create_booking] pet insert failed", petErr);
+            else console.log("[create_booking] dog registered to customer profile");
+          }
+        } catch (e) {
+          console.error("[create_booking] pet register error", e);
+        }
+      }
 
       // Audit trail — booking created by AI
       supabase.from("booking_audit_log").insert({
