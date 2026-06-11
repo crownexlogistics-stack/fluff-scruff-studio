@@ -872,6 +872,7 @@ Deno.serve(async (req) => {
       let duration = Number(service.duration_minutes || 0);
       let breedData: any = null;
       let breedRow: any = null;
+      let breedMatchMethod: "original_ilike" | "reversed_words" | "per_word_match" | "not_found" = "not_found";
       if (breed_name) {
         const rawBreed = String(breed_name).trim();
         const words = rawBreed.split(/\s+/).filter(Boolean);
@@ -884,6 +885,7 @@ Deno.serve(async (req) => {
           .order("duration_minutes", { ascending: false })
           .limit(1);
         breedRow = (attempt1 && attempt1[0]) || null;
+        if (breedRow) breedMatchMethod = "original_ilike";
 
         // Strategy 2: reversed word order with %w2%w1% pattern
         // e.g. "Rough Collie" -> "%Collie%Rough%" matches "Collie (Rough)"
@@ -896,6 +898,7 @@ Deno.serve(async (req) => {
             .order("duration_minutes", { ascending: false })
             .limit(1);
           breedRow = (attempt2 && attempt2[0]) || null;
+          if (breedRow) breedMatchMethod = "reversed_words";
         }
 
         // Strategy 3: per-word search, pick breed matching most words
@@ -917,7 +920,10 @@ Deno.serve(async (req) => {
                 return { b, score };
               })
               .sort((a, b) => b.score - a.score);
-            if (scored[0]?.score > 0) breedRow = scored[0].b;
+            if (scored[0]?.score > 0) {
+              breedRow = scored[0].b;
+              breedMatchMethod = "per_word_match";
+            }
           }
         }
 
@@ -927,7 +933,7 @@ Deno.serve(async (req) => {
           if (breedRow.duration_minutes) duration = Number(breedRow.duration_minutes);
         }
       }
-      console.log("[create_booking] breed lookup result:", JSON.stringify(breedData));
+      console.log("[create_booking] breed lookup result:", JSON.stringify({ ...breedData, method: breedMatchMethod }));
       if (!duration || duration <= 0) duration = 90;
 
       // Find groomer (match by full name or first name)
@@ -984,7 +990,18 @@ Deno.serve(async (req) => {
         priceSource = "services.fixed_price";
       }
       console.log("[create_booking] price lookup result:", JSON.stringify({ priceData, totalPrice, priceSource }));
-      if (totalPrice <= 0) totalPrice = 52; // last-resort estimate fallback
+      if (totalPrice <= 0) {
+        totalPrice = 52; // last-resort estimate fallback
+        priceSource = "hardcoded_52";
+      }
+
+      // Normalised price-source tag for response/logging
+      const priceSourceTag: "service_prices" | "breeds_column" | "services_fixed_price" | "hardcoded_52" =
+        priceSource === "service_prices" ? "service_prices"
+        : priceSource.startsWith("breeds.") ? "breeds_column"
+        : priceSource === "services.fixed_price" ? "services_fixed_price"
+        : "hardcoded_52";
+      console.log("[create_booking] price source:", priceSourceTag, "amount:", totalPrice);
 
       // Re-verify availability via the existing edge function for consistency
       const verifyRes = await fetch(
@@ -1112,6 +1129,21 @@ Deno.serve(async (req) => {
       }
       console.log("[create_booking] booking created:", JSON.stringify(inserted));
 
+      // Safeguard: warn if customer profile linking failed but do not fail the booking
+      if (!customerEmailForBooking && !resolvedCustomerId) {
+        console.error(
+          "[create_booking] WARNING: booking created but customer profile not linked. booking_id:",
+          inserted.id,
+        );
+      } else if (!customerEmailForBooking) {
+        console.warn(
+          "[create_booking] NOTE: booking created and linked to customer record but no email available — name click will fall back to phone lookup. booking_id:",
+          inserted.id,
+          "customer_id:",
+          resolvedCustomerId,
+        );
+      }
+
       // ─── Pet registration ───
       // customer_pets.user_id references auth.users, so we can only add a pet
       // when the customer has activated their account (supabase_user_id set).
@@ -1222,6 +1254,9 @@ Deno.serve(async (req) => {
       return json({
         success: true,
         booking_id: inserted.id,
+        breed_match_method: breedMatchMethod,
+        price_source: priceSourceTag,
+        price_used: totalPrice,
         message: depositQueued
           ? "Booking created. Deposit link will be sent by SMS shortly."
           : "Booking created successfully",
