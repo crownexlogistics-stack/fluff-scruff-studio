@@ -389,6 +389,7 @@ const BookingsPage = () => {
       queryClient.invalidateQueries({ queryKey: ["migrated-calendar-bookings"] });
       queryClient.invalidateQueries({ queryKey: ["audit-logs"] });
       queryClient.invalidateQueries({ queryKey: ["commission-records"] });
+      setCheckoutOpen(false);
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -449,6 +450,7 @@ const BookingsPage = () => {
       queryClient.invalidateQueries({ queryKey: ["migrated-calendar-bookings"] });
       queryClient.invalidateQueries({ queryKey: ["audit-logs"] });
       queryClient.invalidateQueries({ queryKey: ["commission-records"] });
+      setCheckoutOpen(false);
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -656,6 +658,7 @@ const BookingsPage = () => {
         booking={checkoutBooking}
         onComplete={(id, cash, card, isOwn) => completeMutation.mutate({ bookingId: id, cashAmount: cash, cardAmount: card, isOwnCustomer: isOwn })}
         onNoShow={(id) => noShowMutation.mutate(id)}
+        isSubmitting={completeMutation.isPending || noShowMutation.isPending}
       />
 
       <ViewOrderDialog

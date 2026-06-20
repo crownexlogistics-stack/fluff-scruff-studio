@@ -20,9 +20,10 @@ interface CheckoutDialogProps {
     isOwnCustomer: boolean,
   ) => void;
   onNoShow: (bookingId: string) => void;
+  isSubmitting?: boolean;
 }
 
-export function CheckoutDialog({ open, onOpenChange, booking, onComplete, onNoShow }: CheckoutDialogProps) {
+export function CheckoutDialog({ open, onOpenChange, booking, onComplete, onNoShow, isSubmitting = false }: CheckoutDialogProps) {
   const [step, setStep] = useState<"choose" | "complete" | "noshow">("choose");
   const remaining = booking ? Number(booking.total_price) - Number(booking.deposit_paid) : 0;
   const [cashAmount, setCashAmount] = useState(0);
@@ -162,9 +163,12 @@ export function CheckoutDialog({ open, onOpenChange, booking, onComplete, onNoSh
             </div>
 
             <div className="flex gap-2 justify-end">
-              <Button variant="outline" onClick={() => setStep("choose")}>Back</Button>
-              <Button onClick={() => { onComplete(booking.id, Number(cashAmount || 0), Number(cardAmount || 0), isOwnCustomer); onOpenChange(false); }}>
-                Complete Appointment
+              <Button variant="outline" onClick={() => setStep("choose")} disabled={isSubmitting}>Back</Button>
+              <Button
+                disabled={isSubmitting}
+                onClick={() => onComplete(booking.id, Number(cashAmount || 0), Number(cardAmount || 0), isOwnCustomer)}
+              >
+                {isSubmitting ? "Saving…" : "Complete Appointment"}
               </Button>
             </div>
           </div>
@@ -206,9 +210,9 @@ export function CheckoutDialog({ open, onOpenChange, booking, onComplete, onNoSh
             )}
 
             <div className="flex gap-2 justify-end">
-              <Button variant="outline" onClick={() => setStep("choose")}>Back</Button>
-              <Button variant="destructive" onClick={() => { onNoShow(booking.id); onOpenChange(false); }}>
-                Confirm No Show
+              <Button variant="outline" onClick={() => setStep("choose")} disabled={isSubmitting}>Back</Button>
+              <Button variant="destructive" disabled={isSubmitting} onClick={() => onNoShow(booking.id)}>
+                {isSubmitting ? "Saving…" : "Confirm No Show"}
               </Button>
             </div>
           </div>

@@ -461,6 +461,7 @@ export function GroomerBookingsTab({ staffId, userRole, elevated = false }: Groo
       queryClient.invalidateQueries({ queryKey: ["groomer-migrated-bookings"] });
       queryClient.invalidateQueries({ queryKey: ["commission-records"] });
       queryClient.invalidateQueries({ queryKey: ["groomer-commissions"] });
+      setCheckoutOpen(false);
       // Trigger anomaly detection (fire and forget)
       if (!variables.isMigrated) {
         supabase.functions.invoke("check-payment-anomaly", {
@@ -521,6 +522,7 @@ export function GroomerBookingsTab({ staffId, userRole, elevated = false }: Groo
       queryClient.invalidateQueries({ queryKey: ["groomer-bookings"] });
       queryClient.invalidateQueries({ queryKey: ["groomer-migrated-bookings"] });
       queryClient.invalidateQueries({ queryKey: ["commission-records"] });
+      setCheckoutOpen(false);
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -769,6 +771,7 @@ export function GroomerBookingsTab({ staffId, userRole, elevated = false }: Groo
         booking={checkoutBooking}
         onComplete={(id, cash, card, isOwn) => completeMutation.mutate({ bookingId: id, cashAmount: cash, cardAmount: card, isMigrated: checkoutBooking?.is_migrated, isOwnCustomer: isOwn })}
         onNoShow={(id) => noShowMutation.mutate(id)}
+        isSubmitting={completeMutation.isPending || noShowMutation.isPending}
       />
       <ViewOrderDialog open={viewOrderOpen} onOpenChange={setViewOrderOpen} booking={viewOrderBooking} />
       <EditAppointmentDialog open={editApptOpen} onOpenChange={setEditApptOpen} booking={editApptBooking} />

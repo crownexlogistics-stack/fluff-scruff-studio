@@ -791,6 +791,7 @@ export type Database = {
           is_groomers_own_customer: boolean
           notes: string | null
           payment_anomaly: boolean | null
+          payment_method: string | null
           referral_source: string | null
           service_id: string | null
           sms_24h_sent: boolean
@@ -829,6 +830,7 @@ export type Database = {
           is_groomers_own_customer?: boolean
           notes?: string | null
           payment_anomaly?: boolean | null
+          payment_method?: string | null
           referral_source?: string | null
           service_id?: string | null
           sms_24h_sent?: boolean
@@ -867,6 +869,7 @@ export type Database = {
           is_groomers_own_customer?: boolean
           notes?: string | null
           payment_anomaly?: boolean | null
+          payment_method?: string | null
           referral_source?: string | null
           service_id?: string | null
           sms_24h_sent?: boolean
@@ -1115,6 +1118,7 @@ export type Database = {
           groomer_pay: number
           id: string
           migrated_booking_id: string | null
+          payment_method: string | null
           staff_id: string
           studio_share: number
           total_price: number
@@ -1132,6 +1136,7 @@ export type Database = {
           groomer_pay?: number
           id?: string
           migrated_booking_id?: string | null
+          payment_method?: string | null
           staff_id: string
           studio_share?: number
           total_price?: number
@@ -1149,6 +1154,7 @@ export type Database = {
           groomer_pay?: number
           id?: string
           migrated_booking_id?: string | null
+          payment_method?: string | null
           staff_id?: string
           studio_share?: number
           total_price?: number
