@@ -748,6 +748,10 @@ const FinancePage = () => {
             />
           </TabsContent>
 
+          <TabsContent value="money-flow" className="mt-4">
+            <MoneyFlowTab />
+          </TabsContent>
+
           <TabsContent value="anomalies" className="mt-4">
             <AnomaliesTab />
           </TabsContent>

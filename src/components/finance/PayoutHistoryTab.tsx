@@ -28,6 +28,9 @@ export default function PayoutHistoryTab() {
     [payoutHistory, yearStart]
   );
 
+  const totalTransfer = useMemo(() => payoutHistory.filter(p => p.payment_method !== "cash").reduce((s, p) => s + Number(p.payout_amount), 0), [payoutHistory]);
+  const totalCash = useMemo(() => payoutHistory.filter(p => p.payment_method === "cash").reduce((s, p) => s + Number(p.payout_amount), 0), [payoutHistory]);
+
   const perGroomer = useMemo(() => {
     const map = new Map<string, number>();
     payoutHistory.forEach(p => {
@@ -42,6 +45,8 @@ export default function PayoutHistoryTab() {
       <div className="flex flex-wrap gap-3 items-center">
         <Card><CardContent className="p-4 text-center"><p className="text-xs text-muted-foreground">All-Time Paid</p><p className="text-2xl font-bold">£{totalAllTime.toFixed(2)}</p></CardContent></Card>
         <Card><CardContent className="p-4 text-center"><p className="text-xs text-muted-foreground">This Year</p><p className="text-2xl font-bold">£{totalThisYear.toFixed(2)}</p></CardContent></Card>
+        <Card><CardContent className="p-4 text-center"><p className="text-xs text-muted-foreground">Paid by Transfer</p><p className="text-2xl font-bold">£{totalTransfer.toFixed(2)}</p></CardContent></Card>
+        <Card><CardContent className="p-4 text-center"><p className="text-xs text-muted-foreground">Paid in Cash</p><p className="text-2xl font-bold">£{totalCash.toFixed(2)}</p></CardContent></Card>
       </div>
       {perGroomer.length > 0 && (
         <div className="flex flex-wrap gap-2">
