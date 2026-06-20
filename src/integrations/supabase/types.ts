@@ -774,6 +774,8 @@ export type Database = {
           booking_time: string
           breed_id: string | null
           campaign_id: string | null
+          card_collected: number | null
+          cash_collected: number | null
           created_at: string
           created_by_staff: string | null
           customer_email: string | null
@@ -810,6 +812,8 @@ export type Database = {
           booking_time: string
           breed_id?: string | null
           campaign_id?: string | null
+          card_collected?: number | null
+          cash_collected?: number | null
           created_at?: string
           created_by_staff?: string | null
           customer_email?: string | null
@@ -846,6 +850,8 @@ export type Database = {
           booking_time?: string
           breed_id?: string | null
           campaign_id?: string | null
+          card_collected?: number | null
+          cash_collected?: number | null
           created_at?: string
           created_by_staff?: string | null
           customer_email?: string | null
@@ -1099,6 +1105,8 @@ export type Database = {
         Row: {
           booking_id: string | null
           booking_source: string
+          card_collected: number | null
+          cash_collected: number | null
           commission_rate: number
           commission_type: string
           created_at: string
@@ -1114,6 +1122,8 @@ export type Database = {
         Insert: {
           booking_id?: string | null
           booking_source?: string
+          card_collected?: number | null
+          cash_collected?: number | null
           commission_rate?: number
           commission_type?: string
           created_at?: string
@@ -1129,6 +1139,8 @@ export type Database = {
         Update: {
           booking_id?: string | null
           booking_source?: string
+          card_collected?: number | null
+          cash_collected?: number | null
           commission_rate?: number
           commission_type?: string
           created_at?: string

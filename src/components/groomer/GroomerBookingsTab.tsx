@@ -386,7 +386,9 @@ export function GroomerBookingsTab({ staffId, userRole, elevated = false }: Groo
   });
 
   const completeMutation = useMutation({
-    mutationFn: async ({ bookingId, finalCharge, isMigrated, isOwnCustomer }: { bookingId: string; finalCharge: number; isMigrated?: boolean; isOwnCustomer?: boolean }) => {
+    mutationFn: async ({ bookingId, cashAmount, cardAmount, isMigrated, isOwnCustomer }: { bookingId: string; cashAmount: number; cardAmount: number; isMigrated?: boolean; isOwnCustomer?: boolean }) => {
+      const finalCharge = Number(cashAmount || 0) + Number(cardAmount || 0);
+      const paymentMethod = cashAmount > 0 && cardAmount > 0 ? "split" : cashAmount > 0 ? "cash" : "card";
       if (isMigrated) {
         // For migrated bookings, update the migrated_bookings table
         const { error } = await supabase.from("migrated_bookings").update({
@@ -411,6 +413,8 @@ export function GroomerBookingsTab({ staffId, userRole, elevated = false }: Groo
             total_price: totalPrice,
             deposit_paid: Number(migratedEvent?.deposit_paid || checkoutBooking?.deposit_paid || 0),
             final_charge: finalCharge,
+            cash_collected: cashAmount,
+            card_collected: cardAmount,
             commission_type: isOwnCustomer ? "own_customer" : "normal",
             commission_rate: rate,
             groomer_pay: groomerPay,
@@ -421,7 +425,7 @@ export function GroomerBookingsTab({ staffId, userRole, elevated = false }: Groo
 
         logAudit({ staffId: eventStaffId, action: "MIGRATED_BOOKING_COMPLETED", details: `Completed migrated booking for ${migratedEvent?.customer_name || checkoutBooking?.customer_name}. Total: £${totalPrice.toFixed(2)}. Final charge: £${finalCharge.toFixed(2)}. Commission: ${isOwnCustomer ? "Own 50%" : "Standard 40%"} = £${groomerPay.toFixed(2)} groomer / £${studioShare.toFixed(2)} studio.` });
       } else {
-        const { error } = await (supabase.from("bookings") as any).update({ status: "Completed", final_charge: finalCharge, is_groomers_own_customer: isOwnCustomer }).eq("id", bookingId);
+        const { error } = await (supabase.from("bookings") as any).update({ status: "Completed", final_charge: finalCharge, cash_collected: cashAmount, card_collected: cardAmount, payment_method: paymentMethod, is_groomers_own_customer: isOwnCustomer }).eq("id", bookingId);
         if (error) throw error;
 
         // Create commission record using total_price (not finalCharge)
@@ -439,11 +443,13 @@ export function GroomerBookingsTab({ staffId, userRole, elevated = false }: Groo
             total_price: totalPrice,
             deposit_paid: Number(booking?.deposit_paid || checkoutBooking?.deposit_paid || 0),
             final_charge: finalCharge,
+            cash_collected: cashAmount,
+            card_collected: cardAmount,
             commission_type: isOwnCustomer ? "own_customer" : "normal",
             commission_rate: rate,
             groomer_pay: groomerPay,
             studio_share: studioShare,
-          });
+          } as any);
         }
 
         logAudit({ action: "BOOKING_COMPLETED", details: `Completed booking ${bookingId}. Total: £${totalPrice.toFixed(2)}. Final charge: £${finalCharge.toFixed(2)}. Commission: ${isOwnCustomer ? "Own 50%" : "Standard 40%"} = £${groomerPay.toFixed(2)} groomer / £${studioShare.toFixed(2)} studio.` });
@@ -761,7 +767,7 @@ export function GroomerBookingsTab({ staffId, userRole, elevated = false }: Groo
         open={checkoutOpen}
         onOpenChange={setCheckoutOpen}
         booking={checkoutBooking}
-        onComplete={(id, charge, isOwn) => completeMutation.mutate({ bookingId: id, finalCharge: charge, isMigrated: checkoutBooking?.is_migrated, isOwnCustomer: isOwn })}
+        onComplete={(id, cash, card, isOwn) => completeMutation.mutate({ bookingId: id, cashAmount: cash, cardAmount: card, isMigrated: checkoutBooking?.is_migrated, isOwnCustomer: isOwn })}
         onNoShow={(id) => noShowMutation.mutate(id)}
       />
       <ViewOrderDialog open={viewOrderOpen} onOpenChange={setViewOrderOpen} booking={viewOrderBooking} />
