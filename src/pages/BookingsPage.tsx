@@ -300,7 +300,9 @@ const BookingsPage = () => {
 
   // Complete booking mutation — also creates commission record
   const completeMutation = useMutation({
-    mutationFn: async ({ bookingId, finalCharge, isOwnCustomer }: { bookingId: string; finalCharge: number; isOwnCustomer: boolean }) => {
+    mutationFn: async ({ bookingId, cashAmount, cardAmount, isOwnCustomer }: { bookingId: string; cashAmount: number; cardAmount: number; isOwnCustomer: boolean }) => {
+      const finalCharge = Number(cashAmount || 0) + Number(cardAmount || 0);
+      const paymentMethod = cashAmount > 0 && cardAmount > 0 ? "split" : cashAmount > 0 ? "cash" : "card";
       // Check if this is a migrated booking
       const isMigrated = checkoutBooking?.is_migrated;
 
@@ -327,6 +329,8 @@ const BookingsPage = () => {
             total_price: totalPrice,
             deposit_paid: Number(migratedBooking?.deposit_paid || checkoutBooking?.deposit_paid || 0),
             final_charge: finalCharge,
+            cash_collected: cashAmount,
+            card_collected: cardAmount,
             commission_type: isOwnCustomer ? "own_customer" : "normal",
             commission_rate: rate,
             groomer_pay: groomerPay,
@@ -337,7 +341,7 @@ const BookingsPage = () => {
 
         logAudit({ staffId: eventStaffId, action: "MIGRATED_BOOKING_COMPLETED", details: `Completed migrated booking for ${checkoutBooking?.customer_name}. Total: £${totalPrice.toFixed(2)}. Final charge: £${finalCharge.toFixed(2)}. Commission: ${isOwnCustomer ? "Own 50%" : "Standard 40%"} = £${groomerPay.toFixed(2)} groomer / £${studioShare.toFixed(2)} studio.` });
       } else {
-        const { error } = await (supabase.from("bookings") as any).update({ status: "Completed", final_charge: finalCharge, is_groomers_own_customer: isOwnCustomer }).eq("id", bookingId);
+        const { error } = await (supabase.from("bookings") as any).update({ status: "Completed", final_charge: finalCharge, cash_collected: cashAmount, card_collected: cardAmount, payment_method: paymentMethod, is_groomers_own_customer: isOwnCustomer }).eq("id", bookingId);
         if (error) throw error;
 
         // Find the booking to calculate commission on TOTAL SERVICE PRICE (not final charge)
@@ -354,11 +358,13 @@ const BookingsPage = () => {
             total_price: totalPrice,
             deposit_paid: Number(booking.deposit_paid),
             final_charge: finalCharge,
+            cash_collected: cashAmount,
+            card_collected: cardAmount,
             commission_type: isOwnCustomer ? "own_customer" : "normal",
             commission_rate: rate,
             groomer_pay: groomerPay,
             studio_share: studioShare,
-          });
+          } as any);
         }
 
         const expectedRemaining = totalPrice - Number(booking?.deposit_paid || 0);
@@ -648,7 +654,7 @@ const BookingsPage = () => {
         open={checkoutOpen}
         onOpenChange={setCheckoutOpen}
         booking={checkoutBooking}
-        onComplete={(id, charge, isOwn) => completeMutation.mutate({ bookingId: id, finalCharge: charge, isOwnCustomer: isOwn })}
+        onComplete={(id, cash, card, isOwn) => completeMutation.mutate({ bookingId: id, cashAmount: cash, cardAmount: card, isOwnCustomer: isOwn })}
         onNoShow={(id) => noShowMutation.mutate(id)}
       />
 

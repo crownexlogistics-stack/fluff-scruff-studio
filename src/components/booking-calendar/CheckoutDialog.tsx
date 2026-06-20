@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { NumericInput } from "@/components/ui/numeric-input";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { CheckCircle2, UserX } from "lucide-react";
+import { CheckCircle2, UserX, Banknote, CreditCard } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { BookingData } from "./BookingEvent";
 
@@ -13,27 +13,39 @@ interface CheckoutDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   booking: BookingData | null;
-  onComplete: (bookingId: string, finalCharge: number, isOwnCustomer: boolean) => void;
+  onComplete: (
+    bookingId: string,
+    cashAmount: number,
+    cardAmount: number,
+    isOwnCustomer: boolean,
+  ) => void;
   onNoShow: (bookingId: string) => void;
 }
 
 export function CheckoutDialog({ open, onOpenChange, booking, onComplete, onNoShow }: CheckoutDialogProps) {
   const [step, setStep] = useState<"choose" | "complete" | "noshow">("choose");
   const remaining = booking ? Number(booking.total_price) - Number(booking.deposit_paid) : 0;
-  const [finalCharge, setFinalCharge] = useState(remaining);
+  const [cashAmount, setCashAmount] = useState(0);
+  const [cardAmount, setCardAmount] = useState(remaining);
   const [isOwnCustomer, setIsOwnCustomer] = useState(false);
 
   // Reset when dialog opens
   const handleOpenChange = (v: boolean) => {
     if (v) {
       setStep("choose");
-      setFinalCharge(booking ? Number(booking.total_price) - Number(booking.deposit_paid) : 0);
+      const rem = booking ? Number(booking.total_price) - Number(booking.deposit_paid) : 0;
+      setCashAmount(0);
+      setCardAmount(rem);
       setIsOwnCustomer(booking?.is_groomers_own_customer ?? false);
     }
     onOpenChange(v);
   };
 
   if (!booking) return null;
+
+  const collected = Number(cashAmount || 0) + Number(cardAmount || 0);
+  const diff = collected - remaining; // negative = short, positive = over
+  const isMatch = Math.abs(diff) < 0.01;
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -91,16 +103,34 @@ export function CheckoutDialog({ open, onOpenChange, booking, onComplete, onNoSh
               </div>
             </div>
 
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground italic" style={{ fontFamily: 'Nunito, sans-serif', fontSize: '12px', color: '#666' }}>
-                💡 All charges are verified against the booking total and deposit before payout is processed.
+            <div className="space-y-3">
+              <p className="text-xs text-muted-foreground italic">
+                💡 Record what the customer actually paid. Cash + Card must add up to the remaining balance.
               </p>
-              <Label>Final charge to customer (£)</Label>
-              <NumericInput
-                value={finalCharge}
-                onValueChange={setFinalCharge}
-              />
-              <p className="text-xs text-muted-foreground">Adjust if the groomer charged more or less than planned</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="flex items-center gap-1.5 text-sm"><Banknote className="h-3.5 w-3.5" /> Cash (£)</Label>
+                  <NumericInput value={cashAmount} onValueChange={setCashAmount} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="flex items-center gap-1.5 text-sm"><CreditCard className="h-3.5 w-3.5" /> Card (£)</Label>
+                  <NumericInput value={cardAmount} onValueChange={setCardAmount} />
+                </div>
+              </div>
+              <div className={cn(
+                "rounded-md border px-3 py-2 text-sm flex items-center justify-between",
+                isMatch ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+                        : diff < 0 ? "bg-amber-50 border-amber-200 text-amber-800"
+                                   : "bg-blue-50 border-blue-200 text-blue-800",
+              )}>
+                <span>Paid in total</span>
+                <span className="font-semibold">
+                  £{collected.toFixed(2)}
+                  {isMatch && " ✓ matches"}
+                  {!isMatch && diff < 0 && ` — short by £${Math.abs(diff).toFixed(2)}`}
+                  {!isMatch && diff > 0 && ` — over by £${diff.toFixed(2)}`}
+                </span>
+              </div>
             </div>
 
             <div className="flex items-center justify-between rounded-lg border p-3">
@@ -133,7 +163,7 @@ export function CheckoutDialog({ open, onOpenChange, booking, onComplete, onNoSh
 
             <div className="flex gap-2 justify-end">
               <Button variant="outline" onClick={() => setStep("choose")}>Back</Button>
-              <Button onClick={() => { onComplete(booking.id, finalCharge, isOwnCustomer); onOpenChange(false); }}>
+              <Button onClick={() => { onComplete(booking.id, Number(cashAmount || 0), Number(cardAmount || 0), isOwnCustomer); onOpenChange(false); }}>
                 Complete Appointment
               </Button>
             </div>
