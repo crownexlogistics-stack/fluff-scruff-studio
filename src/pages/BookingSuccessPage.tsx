@@ -206,25 +206,47 @@ export default function BookingSuccessPage() {
 
   // Update booking status on successful payment
   useEffect(() => {
-    if (booking && booking.status === "Pending" && bookingId) {
+    if (!booking || !bookingId) return;
+    const status = (booking.status || "").trim();
+    const isCancelled = status === "Cancelled" || status.toLowerCase().includes("refund");
+    if (isCancelled) return;
+
+    // If still Pending, run record-payment as a backup (webhook may not have fired yet)
+    if (status === "Pending") {
       supabase.functions.invoke("record-payment", {
         body: { booking_id: bookingId },
       }).then(() => {
         queryClient.invalidateQueries({ queryKey: ["booking-success", bookingId] });
       }).catch(() => {});
+    }
 
-      if (booking.customer_email) {
-        supabase.functions.invoke("send-booking-email", {
-          body: { booking_id: bookingId, email_type: "confirmation" },
-        }).catch(() => {});
+    // Send confirmation email + notify groomer as a backup path.
+    // Idempotent: check booking_emails for existing confirmation row first.
+    (async () => {
+      try {
+        const { data: existingEmail } = await supabase
+          .from("booking_emails")
+          .select("id")
+          .eq("booking_id", bookingId)
+          .eq("email_type", "confirmation")
+          .maybeSingle();
+
+        if (!existingEmail && booking.customer_email) {
+          await supabase.functions.invoke("send-booking-email", {
+            body: { booking_id: bookingId, email_type: "confirmation" },
+          });
+        }
+      } catch (err) {
+        console.error("BookingSuccessPage: confirmation email check/send failed", err);
       }
+
       if (booking.staff_id) {
         supabase.functions.invoke("notify-groomer", {
           body: { booking_id: bookingId, notification_type: "new_booking" },
         }).catch(() => {});
       }
-    }
-  }, [booking, bookingId]);
+    })();
+  }, [booking, bookingId, queryClient]);
 
   const canAmend = booking
     ? differenceInHours(parseISO(booking.booking_date + "T" + (booking.booking_time || "09:00")), new Date()) >= 48
