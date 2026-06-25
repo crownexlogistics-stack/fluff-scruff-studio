@@ -127,6 +127,42 @@ serve(async (req) => {
         note: `Payment confirmed via Stripe webhook. £${amountPaid.toFixed(2)} received. Payment Intent: ${paymentIntentId ?? "unknown"}.`,
       } as any);
 
+      // Send customer confirmation email (idempotent — skip if already sent)
+      try {
+        const { data: existingEmail } = await supabase
+          .from("booking_emails")
+          .select("id")
+          .eq("booking_id", bookingId)
+          .eq("email_type", "confirmation")
+          .maybeSingle();
+
+        if (!existingEmail) {
+          await supabase.functions.invoke("send-booking-email", {
+            body: { booking_id: bookingId, email_type: "confirmation" },
+          });
+        } else {
+          console.log("stripe-webhook: confirmation email already sent, skipping", bookingId);
+        }
+      } catch (emailErr) {
+        console.error("stripe-webhook: failed to send confirmation email", emailErr);
+      }
+
+      // Notify assigned groomer of the new confirmed booking
+      try {
+        const { data: bookingForNotify } = await supabase
+          .from("bookings")
+          .select("staff_id")
+          .eq("id", bookingId)
+          .maybeSingle();
+        if (bookingForNotify?.staff_id) {
+          await supabase.functions.invoke("notify-groomer", {
+            body: { booking_id: bookingId, notification_type: "new_booking" },
+          });
+        }
+      } catch (notifyErr) {
+        console.error("stripe-webhook: failed to notify groomer", notifyErr);
+      }
+
       return new Response(JSON.stringify({ ok: true, confirmed: bookingId }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
