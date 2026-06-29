@@ -8,16 +8,17 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { format } from "date-fns";
 import { getStaffColor } from "./staffColors";
-import { Pencil, Trash2, MoreHorizontal, Eye, PenLine, XCircle, Send, CheckCircle2, Clock, MessageSquare, CreditCard, Sparkles, Ticket } from "lucide-react";
+import { Pencil, Trash2, MoreHorizontal, Eye, PenLine, XCircle, Send, CheckCircle2, Clock, MessageSquare, CreditCard, Sparkles, Ticket, RotateCcw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { logAudit } from "@/lib/auditLog";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { SendPaymentLinkDialog } from "./SendPaymentLinkDialog";
 import { DogBriefButton } from "./DogBriefButton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { PackageBadge } from "@/components/packages/PackageBadge";
 import { useCustomerProfileLink } from "@/hooks/useCustomerProfileLink";
+import { usePermissions } from "@/config/rolePermissions";
 
 export interface BookingData {
   id: string;
@@ -77,6 +78,61 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
   const navigate = useNavigate();
   const [requestingDeposit, setRequestingDeposit] = useState(false);
   const [paymentLinkOpen, setPaymentLinkOpen] = useState(false);
+  const [resettingCheckout, setResettingCheckout] = useState(false);
+  const queryClient = useQueryClient();
+  const { isManagement } = usePermissions();
+
+  const handleResetCheckout = async () => {
+    if (resettingCheckout) return;
+    const ok = window.confirm(
+      `Reset checkout for ${booking.customer_name} (${booking.dog_name})?\n\nThis will:\n• Revert the appointment back to Confirmed\n• Clear cash/card/payment method\n• Remove the commission record\n\nThe groomer will then be able to check it out again on the correct profile.`
+    );
+    if (!ok) return;
+    setResettingCheckout(true);
+    try {
+      const prevStatus = booking.status;
+      const prevFinal = Number(booking.final_charge || 0);
+      const { error: updErr } = await (supabase.from("bookings") as any)
+        .update({
+          status: "Confirmed",
+          final_charge: null,
+          cash_collected: null,
+          card_collected: null,
+          payment_method: null,
+        })
+        .eq("id", booking.id);
+      if (updErr) throw updErr;
+
+      const { error: delErr } = await supabase
+        .from("commission_records")
+        .delete()
+        .eq("booking_id", booking.id);
+      if (delErr) throw delErr;
+
+      await supabase.from("booking_audit_log" as any).insert({
+        booking_id: booking.id,
+        event_type: "status_changed",
+        performed_by: "Admin",
+        note: `Checkout reset (was ${prevStatus}, final charge £${prevFinal.toFixed(2)}). Commission record removed so the appointment can be checked out again.`,
+      });
+
+      logAudit({
+        staffId: booking.staff_id,
+        action: "BOOKING_CHECKOUT_RESET",
+        details: `Reset checkout for ${booking.customer_name} (${booking.dog_name}) on ${format(new Date(booking.booking_date), "dd MMM yyyy")} at ${booking.booking_time.slice(0, 5)}. Was ${prevStatus}, final charge £${prevFinal.toFixed(2)}. Commission record deleted.`,
+      });
+
+      toast.success("Checkout reset — groomer can check out again");
+      queryClient.invalidateQueries({ queryKey: ["bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["commission-records"] });
+      queryClient.invalidateQueries({ queryKey: ["booking-audit-log", booking.id] });
+      queryClient.invalidateQueries({ queryKey: ["audit-logs"] });
+    } catch (e: any) {
+      toast.error("Reset failed: " + (e?.message || "unknown error"));
+    } finally {
+      setResettingCheckout(false);
+    }
+  };
 
   const { profileEmail: resolvedProfileEmail, canNavigate: canOpenProfile } =
     useCustomerProfileLink({
@@ -898,6 +954,12 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
                 <DropdownMenuItem onClick={() => onEditAppointment?.(booking)}>
                   <PenLine className="h-4 w-4 mr-2" /> Edit Appointment
                 </DropdownMenuItem>
+                {isManagement && (booking.status === "Completed" || booking.status === "No Show") && !booking.is_migrated && (
+                  <DropdownMenuItem onClick={handleResetCheckout} disabled={resettingCheckout}>
+                    <RotateCcw className="h-4 w-4 mr-2" />
+                    {resettingCheckout ? "Resetting…" : "Reset Checkout (Admin)"}
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem className="text-destructive" onClick={() => onCancelBooking?.(booking)}>
                   <XCircle className="h-4 w-4 mr-2" /> Cancel
                 </DropdownMenuItem>
