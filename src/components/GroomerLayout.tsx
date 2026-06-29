@@ -2,6 +2,7 @@ import { CalendarDays, MessageSquare, Dog, PoundSterling, FileText, LogOut, PawP
 import { useNavigate, Link, useLocation } from "react-router-dom";
 import logo from "@/assets/logo-transparent.png";
 import { useAuth } from "@/hooks/useAuth";
+import { useIdleLogout } from "@/hooks/useIdleLogout";
 import { useStaffIsCustomer } from "@/hooks/useStaffIsCustomer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -33,6 +34,9 @@ export function GroomerLayout({ children }: GroomerLayoutProps) {
   const location = useLocation();
   const { hasCustomerBookings } = useStaffIsCustomer(user?.email ?? undefined);
   const aiInboxUnread = useUnassignedInboxCount();
+
+  // Auto sign-out after 5 hours of inactivity (mouse/keyboard/touch/scroll).
+  useIdleLogout(5 * 60 * 60 * 1000, () => navigate("/"));
 
   const handleSignOut = async () => {
     await signOut();
