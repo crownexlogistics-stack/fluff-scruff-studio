@@ -33,7 +33,7 @@ export function useIdleLogout(timeoutMs: number, onLogout?: () => void) {
       }
     } catch {}
 
-    const events: (keyof WindowEventMap)[] = [
+    const events: string[] = [
       "mousemove",
       "mousedown",
       "keydown",
