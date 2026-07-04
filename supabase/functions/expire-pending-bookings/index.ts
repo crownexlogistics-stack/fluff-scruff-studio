@@ -38,17 +38,41 @@ serve(async (req) => {
       });
     }
 
-    await supabase.from("bookings").update({ status: "Cancelled" }).in("id", ids);
+    // Skip any booking that has been rescheduled after creation — staff have
+    // touched it, so it's not an abandoned checkout even if the deposit is £0.
+    const { data: rescheduledRows } = await supabase
+      .from("booking_audit_log")
+      .select("booking_id")
+      .in("booking_id", ids)
+      .eq("event_type", "rescheduled");
 
-    const logRows = (stale ?? []).map((b) => ({
-      booking_id: b.id,
+    const rescheduledIds = new Set((rescheduledRows ?? []).map((r: any) => r.booking_id));
+    const cancellableIds = ids.filter((id) => !rescheduledIds.has(id));
+    const skippedIds = ids.filter((id) => rescheduledIds.has(id));
+
+    if (cancellableIds.length === 0) {
+      return new Response(
+        JSON.stringify({ ok: true, cancelled: 0, ids: [], skipped_rescheduled: skippedIds }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    await supabase.from("bookings").update({ status: "Cancelled" }).in("id", cancellableIds);
+
+    const logRows = cancellableIds.map((id) => ({
+      booking_id: id,
       event_type: "cancelled",
       performed_by: "System (expire-pending-bookings)",
       note: "Auto-cancelled — no payment received within 2 hours of booking.",
     }));
     await supabase.from("booking_audit_log").insert(logRows as any);
 
-    return new Response(JSON.stringify({ ok: true, cancelled: ids.length, ids }), {
+    return new Response(JSON.stringify({
+      ok: true,
+      cancelled: cancellableIds.length,
+      ids: cancellableIds,
+      skipped_rescheduled: skippedIds,
+    }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
