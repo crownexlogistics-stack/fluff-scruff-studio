@@ -10,8 +10,8 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-    if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY not configured");
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -207,19 +207,20 @@ serve(async (req) => {
       newCustomersThisWeek: newCustomers.length,
     };
 
-    // Call Anthropic
-    const anthropicRes = await fetch("https://api.anthropic.com/v1/messages", {
+    // Call Lovable AI Gateway
+    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
+        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 1000,
-        system: `You are a smart business assistant for Fluff & Scruff Studio, a dog grooming salon in Hornchurch. You give the owner a warm, friendly, concise morning briefing. Maximum 4-5 sentences. Be conversational and human. Point out anything that needs attention today. If everything looks good say so. Never use bullet points. Write like a helpful colleague giving a quick update over coffee.`,
+        model: "google/gemini-2.5-flash",
         messages: [
+          {
+            role: "system",
+            content: `You are a smart business assistant for Fluff & Scruff Studio, a dog grooming salon in Hornchurch. You give the owner a warm, friendly, concise morning briefing. Maximum 4-5 sentences. Be conversational and human. Point out anything that needs attention today. If everything looks good say so. Never use bullet points. Write like a helpful colleague giving a quick update over coffee.`,
+          },
           {
             role: "user",
             content: `Here is today's business data:\n${JSON.stringify(businessData, null, 2)}\n\nGive me my morning briefing.`,
@@ -228,14 +229,14 @@ serve(async (req) => {
       }),
     });
 
-    if (!anthropicRes.ok) {
-      const errText = await anthropicRes.text();
-      console.error("Anthropic error:", anthropicRes.status, errText);
+    if (!aiRes.ok) {
+      const errText = await aiRes.text();
+      console.error("AI gateway error:", aiRes.status, errText);
       throw new Error("AI briefing unavailable");
     }
 
-    const anthropicData = await anthropicRes.json();
-    const briefingText = anthropicData.content?.[0]?.text || "Unable to generate briefing.";
+    const aiData = await aiRes.json();
+    const briefingText = aiData.choices?.[0]?.message?.content || "Unable to generate briefing.";
 
     const result = {
       text: briefingText,
