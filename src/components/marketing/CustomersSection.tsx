@@ -271,7 +271,13 @@ export function CustomersSection() {
               >
                 <p
                   className="font-medium text-sm text-foreground truncate cursor-pointer hover:underline"
-                  onClick={() => customer.email && navigate(`/admin/customers/${encodeURIComponent(customer.email)}`)}
+                  onClick={() => {
+                    if (customer.email) {
+                      navigate(`/admin/customers/${encodeURIComponent(customer.email)}`);
+                    } else if (customer.phone) {
+                      navigate(`/admin/customers/${encodeURIComponent(`phone:${customer.phone}`)}`);
+                    }
+                  }}
                 >
                   {customer.name}
                 </p>
