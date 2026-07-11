@@ -9,8 +9,8 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-    if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY not configured");
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
     const { groomerName, todayDate, appointmentCount, dogNames, noShowCount, cancelledCount, weekAppointments, careerTotal } = await req.json();
 
@@ -24,29 +24,32 @@ serve(async (req) => {
 - Upcoming appointments this week: ${weekAppointments || 0}
 - Career total dogs groomed: ${careerTotal || 0}`;
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
+        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 256,
-        system: "You are a warm, encouraging assistant for a dog grooming salon called Fluff & Scruff Studio. Write a short personal morning briefing for the groomer. Maximum 4 sentences. Be warm, specific, and uplifting. Use the groomer's first name. Mention dog names if provided. Never invent information. If it's a busy day, give a heads up. If it's quiet, be encouraging. Include a dog emoji 🐾 once.\n\nIMPORTANT: Do NOT use 'welcome to your first day', 'welcome to the team', 'first day', or any new-starter language UNLESS the career total is exactly 0 AND there are appointments scheduled today (a genuine first shift). If career total is 0 with no appointments, just give a normal warm morning greeting — they may simply have no completed jobs logged yet. Default to treating the groomer as an experienced team member.",
-        messages: [{ role: "user", content: userPrompt }],
+        model: "google/gemini-2.5-flash",
+        messages: [
+          {
+            role: "system",
+            content: "You are a warm, encouraging assistant for a dog grooming salon called Fluff & Scruff Studio. Write a short personal morning briefing for the groomer. Maximum 4 sentences. Be warm, specific, and uplifting. Use the groomer's first name. Mention dog names if provided. Never invent information. If it's a busy day, give a heads up. If it's quiet, be encouraging. Include a dog emoji 🐾 once.\n\nIMPORTANT: Do NOT use 'welcome to your first day', 'welcome to the team', 'first day', or any new-starter language UNLESS the career total is exactly 0 AND there are appointments scheduled today (a genuine first shift). If career total is 0 with no appointments, just give a normal warm morning greeting — they may simply have no completed jobs logged yet. Default to treating the groomer as an experienced team member.",
+          },
+          { role: "user", content: userPrompt },
+        ],
       }),
     });
 
     if (!response.ok) {
       const text = await response.text();
-      console.error("Anthropic error:", response.status, text);
-      throw new Error(`Anthropic API error: ${response.status}`);
+      console.error("AI gateway error:", response.status, text);
+      throw new Error(`AI gateway error: ${response.status}`);
     }
 
     const data = await response.json();
-    const briefing = data.content?.[0]?.text || "Good morning! Have a great day at the salon. 🐾";
+    const briefing = data.choices?.[0]?.message?.content || "Good morning! Have a great day at the salon. 🐾";
 
     return new Response(JSON.stringify({ briefing }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
