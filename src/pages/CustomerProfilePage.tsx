@@ -41,7 +41,10 @@ import { ViewOrderDialog } from "@/components/booking-calendar/ViewOrderDialog";
 export default function CustomerProfilePage() {
   const { email } = useParams<{ email: string }>();
   const navigate = useNavigate();
-  const decodedEmail = decodeURIComponent(email || "");
+  const rawParam = decodeURIComponent(email || "");
+  const isPhoneMode = rawParam.startsWith("phone:");
+  const phoneParam = isPhoneMode ? rawParam.slice("phone:".length) : "";
+  const decodedEmail = isPhoneMode ? "" : rawParam;
   const { user } = useAuth();
   const { role } = useUserRole(user?.id);
   const { hasFullCalendarAccess } = useFullCalendarAccess(user?.id);
@@ -111,18 +114,50 @@ export default function CustomerProfilePage() {
   // ── Data queries ──────────────────────────────────────────────────
 
   const { data: bookings } = useQuery({
-    queryKey: ["customer-profile-bookings", decodedEmail],
+    queryKey: ["customer-profile-bookings", isPhoneMode ? `phone:${phoneParam}` : decodedEmail],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from("bookings")
-        .select("*, staff:staff_id(name), service:service_id(name), breed:breed_id(name)")
-        .eq("customer_email", decodedEmail)
-        .order("booking_date", { ascending: false });
+        .select("*, staff:staff_id(name), service:service_id(name), breed:breed_id(name)");
+      q = isPhoneMode
+        ? q.eq("customer_phone", phoneParam)
+        : q.eq("customer_email", decodedEmail);
+      const { data, error } = await q.order("booking_date", { ascending: false });
       if (error) throw error;
       return data;
     },
-    enabled: !!decodedEmail,
+    enabled: isPhoneMode ? !!phoneParam : !!decodedEmail,
   });
+
+  // If we're in phone-mode but the phone has an associated email on any booking
+  // or migrated_customer, redirect to the canonical email-based URL so the
+  // email-keyed sections (messages, emails, notes) work normally.
+  const { data: resolvedEmailFromPhone } = useQuery({
+    queryKey: ["resolve-phone-to-email", phoneParam],
+    queryFn: async () => {
+      const { data: b } = await supabase
+        .from("bookings")
+        .select("customer_email")
+        .eq("customer_phone", phoneParam)
+        .not("customer_email", "is", null)
+        .limit(1);
+      if (b?.[0]?.customer_email) return b[0].customer_email as string;
+      const { data: mc } = await supabase
+        .from("migrated_customers")
+        .select("email")
+        .eq("phone", phoneParam)
+        .not("email", "is", null)
+        .limit(1);
+      return mc?.[0]?.email ?? null;
+    },
+    enabled: isPhoneMode && !!phoneParam,
+  });
+
+  useEffect(() => {
+    if (isPhoneMode && resolvedEmailFromPhone) {
+      navigate(`/admin/customers/${encodeURIComponent(resolvedEmailFromPhone)}`, { replace: true });
+    }
+  }, [isPhoneMode, resolvedEmailFromPhone, navigate]);
 
   // Fetch active package bookings for this customer
   const { data: customerPackages } = useQuery({
