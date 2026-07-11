@@ -129,6 +129,36 @@ export default function CustomerProfilePage() {
     enabled: isPhoneMode ? !!phoneParam : !!decodedEmail,
   });
 
+  // If we're in phone-mode but the phone has an associated email on any booking
+  // or migrated_customer, redirect to the canonical email-based URL so the
+  // email-keyed sections (messages, emails, notes) work normally.
+  const { data: resolvedEmailFromPhone } = useQuery({
+    queryKey: ["resolve-phone-to-email", phoneParam],
+    queryFn: async () => {
+      const { data: b } = await supabase
+        .from("bookings")
+        .select("customer_email")
+        .eq("customer_phone", phoneParam)
+        .not("customer_email", "is", null)
+        .limit(1);
+      if (b?.[0]?.customer_email) return b[0].customer_email as string;
+      const { data: mc } = await supabase
+        .from("migrated_customers")
+        .select("email")
+        .eq("phone", phoneParam)
+        .not("email", "is", null)
+        .limit(1);
+      return mc?.[0]?.email ?? null;
+    },
+    enabled: isPhoneMode && !!phoneParam,
+  });
+
+  useEffect(() => {
+    if (isPhoneMode && resolvedEmailFromPhone) {
+      navigate(`/admin/customers/${encodeURIComponent(resolvedEmailFromPhone)}`, { replace: true });
+    }
+  }, [isPhoneMode, resolvedEmailFromPhone, navigate]);
+
   // Fetch active package bookings for this customer
   const { data: customerPackages } = useQuery({
     queryKey: ["customer-packages", decodedEmail],
