@@ -41,7 +41,10 @@ import { ViewOrderDialog } from "@/components/booking-calendar/ViewOrderDialog";
 export default function CustomerProfilePage() {
   const { email } = useParams<{ email: string }>();
   const navigate = useNavigate();
-  const decodedEmail = decodeURIComponent(email || "");
+  const rawParam = decodeURIComponent(email || "");
+  const isPhoneMode = rawParam.startsWith("phone:");
+  const phoneParam = isPhoneMode ? rawParam.slice("phone:".length) : "";
+  const decodedEmail = isPhoneMode ? "" : rawParam;
   const { user } = useAuth();
   const { role } = useUserRole(user?.id);
   const { hasFullCalendarAccess } = useFullCalendarAccess(user?.id);
@@ -111,17 +114,19 @@ export default function CustomerProfilePage() {
   // ── Data queries ──────────────────────────────────────────────────
 
   const { data: bookings } = useQuery({
-    queryKey: ["customer-profile-bookings", decodedEmail],
+    queryKey: ["customer-profile-bookings", isPhoneMode ? `phone:${phoneParam}` : decodedEmail],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from("bookings")
-        .select("*, staff:staff_id(name), service:service_id(name), breed:breed_id(name)")
-        .eq("customer_email", decodedEmail)
-        .order("booking_date", { ascending: false });
+        .select("*, staff:staff_id(name), service:service_id(name), breed:breed_id(name)");
+      q = isPhoneMode
+        ? q.eq("customer_phone", phoneParam)
+        : q.eq("customer_email", decodedEmail);
+      const { data, error } = await q.order("booking_date", { ascending: false });
       if (error) throw error;
       return data;
     },
-    enabled: !!decodedEmail,
+    enabled: isPhoneMode ? !!phoneParam : !!decodedEmail,
   });
 
   // Fetch active package bookings for this customer
