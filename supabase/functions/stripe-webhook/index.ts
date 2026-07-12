@@ -88,7 +88,7 @@ serve(async (req) => {
 
       const { data: booking } = await supabase
         .from("bookings")
-        .select("id, status, stripe_payment_id, customer_name")
+        .select("id, status, stripe_payment_id, extra_stripe_payment_ids, deposit_paid, customer_name")
         .eq("id", bookingId)
         .maybeSingle();
 
@@ -99,32 +99,42 @@ serve(async (req) => {
         });
       }
 
-      // Idempotency — already recorded for this PI
-      if (
-        booking.status === "Confirmed" &&
-        booking.stripe_payment_id &&
-        (!paymentIntentId || booking.stripe_payment_id === paymentIntentId)
-      ) {
+      const existingExtras: string[] = (booking as any).extra_stripe_payment_ids || [];
+      const alreadyRecordedPi =
+        !!paymentIntentId &&
+        (booking.stripe_payment_id === paymentIntentId ||
+          existingExtras.includes(paymentIntentId));
+
+      // Idempotency — this exact PI is already recorded on the booking
+      if (alreadyRecordedPi) {
         return new Response(JSON.stringify({ ok: true, already_recorded: true }), {
           status: 200,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
-      await supabase
-        .from("bookings")
-        .update({
-          status: "Confirmed",
-          deposit_paid: amountPaid,
-          stripe_payment_id: paymentIntentId,
-        })
-        .eq("id", bookingId);
+      const isFirstPayment = !booking.stripe_payment_id;
+      const newDeposit = Number(booking.deposit_paid || 0) + amountPaid;
+
+      const update: Record<string, unknown> = {
+        status: "Confirmed",
+        deposit_paid: isFirstPayment ? amountPaid : newDeposit,
+      };
+      if (isFirstPayment) {
+        update.stripe_payment_id = paymentIntentId;
+      } else if (paymentIntentId) {
+        update.extra_stripe_payment_ids = [...existingExtras, paymentIntentId];
+      }
+
+      await supabase.from("bookings").update(update).eq("id", bookingId);
 
       await supabase.from("booking_audit_log").insert({
         booking_id: bookingId,
         event_type: "payment_confirmed",
         performed_by: "Stripe webhook",
-        note: `Payment confirmed via Stripe webhook. £${amountPaid.toFixed(2)} received. Payment Intent: ${paymentIntentId ?? "unknown"}.`,
+        note: isFirstPayment
+          ? `Payment confirmed via Stripe webhook. £${amountPaid.toFixed(2)} received. Payment Intent: ${paymentIntentId ?? "unknown"}.`
+          : `Additional payment confirmed via Stripe webhook. £${amountPaid.toFixed(2)} received. Payment Intent: ${paymentIntentId ?? "unknown"}. New deposit_paid: £${newDeposit.toFixed(2)}.`,
       } as any);
 
       // Send customer confirmation email (idempotent — skip if already sent)
