@@ -15,6 +15,8 @@ import { toast } from "sonner";
 import { PasswordVerifyDialog } from "@/components/booking-calendar/PasswordVerifyDialog";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useCurrentStaff } from "@/hooks/useCurrentStaff";
+import { PackagePaymentPanel } from "./PackagePaymentPanel";
 
 interface Props {
   packageBookingId: string;
@@ -26,6 +28,7 @@ export function PackageDetailDialog({ packageBookingId, open, onClose }: Props) 
   const { user } = useAuth();
   const { role } = useUserRole(user?.id);
   const isAdmin = role === "director" || role === "manager";
+  const { staff: currentStaff } = useCurrentStaff();
   const queryClient = useQueryClient();
   const [cancelConfirm, setCancelConfirm] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
@@ -88,7 +91,7 @@ export function PackageDetailDialog({ packageBookingId, open, onClose }: Props) 
     queryFn: async () => {
       const { data, error } = await supabase
         .from("package_bookings" as any)
-        .select("*, packages(*)")
+        .select("*, packages(*), paid_by_staff:staff!package_bookings_paid_by_staff_id_fkey(name)")
         .eq("id", packageBookingId)
         .single();
       if (error) throw error;
@@ -426,14 +429,18 @@ export function PackageDetailDialog({ packageBookingId, open, onClose }: Props) 
                 </p>
               </div>
               <div>
-                <span className="text-muted-foreground">Total Paid</span>
-                <p className="font-medium">£{Number(pb.total_paid).toFixed(2)}</p>
-              </div>
-              <div>
                 <span className="text-muted-foreground">Per Session</span>
                 <p className="font-medium">£{pricePerSession.toFixed(2)}</p>
               </div>
             </div>
+
+            {/* Payment status + actions */}
+            <PackagePaymentPanel
+              pb={pb}
+              currentStaffId={currentStaff?.id}
+              currentStaffName={currentStaff?.name}
+              paidByStaffName={pb.paid_by_staff?.name}
+            />
 
             {/* Progress */}
             <div className="space-y-1">
