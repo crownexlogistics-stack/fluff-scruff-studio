@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Package, Eye, Loader2, FileCheck, Clock } from "lucide-react";
+import { Package, Eye, Loader2, FileCheck, Clock, PoundSterling } from "lucide-react";
 import { format } from "date-fns";
 import { PackageDetailDialog } from "./PackageDetailDialog";
 
@@ -116,6 +116,25 @@ export function ActivePackages() {
                         <Clock className="h-3 w-3 mr-1" /> Awaiting Signature
                       </Badge>
                     )}
+                    {(() => {
+                      const price = Number(pb.total_paid || 0);
+                      const received = Number(pb.amount_received || 0);
+                      const balance = Math.max(0, price - received);
+                      const isPaid = balance <= 0.005 && pb.payment_method && pb.payment_method !== "unpaid";
+                      if (isPaid) {
+                        const label = pb.payment_method === "stripe" ? "Paid — Stripe" : "Paid — Salon";
+                        return (
+                          <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200">
+                            <PoundSterling className="h-3 w-3 mr-1" /> {label}
+                          </Badge>
+                        );
+                      }
+                      return (
+                        <Badge className="bg-red-100 text-red-800 border-red-200">
+                          <PoundSterling className="h-3 w-3 mr-1" /> Unpaid £{balance.toFixed(2)}
+                        </Badge>
+                      );
+                    })()}
                   </div>
 
                   <div className="text-sm text-muted-foreground">
@@ -128,7 +147,10 @@ export function ActivePackages() {
                   </div>
 
                   <div className="flex gap-4 text-xs text-muted-foreground">
-                    <span>Paid: £{Number(pb.total_paid).toFixed(2)}</span>
+                    <span>
+                      Package price: £{Number(pb.total_paid).toFixed(2)}
+                      {" · "}Received: £{Number(pb.amount_received || 0).toFixed(2)}
+                    </span>
                     {next && (
                       <span>Next: {format(new Date(next.scheduled_date), "dd MMM yyyy")}</span>
                     )}
