@@ -72,6 +72,62 @@ serve(async (req) => {
         }
       }
 
+      // Post-creation Stripe balance top-up for an existing package_booking
+      if (session.metadata?.type === "package_topup") {
+        const pbId = session.metadata.package_booking_id;
+        const amountPaid = (session.amount_total ?? 0) / 100;
+        const pi =
+          typeof session.payment_intent === "string"
+            ? session.payment_intent
+            : session.payment_intent?.id ?? null;
+
+        if (!pbId) {
+          return new Response(JSON.stringify({ ok: true, skipped: "no_package_booking_id" }), {
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        const { data: pkgRow } = await supabase
+          .from("package_bookings")
+          .select("id, amount_received, stripe_payment_intent_id")
+          .eq("id", pbId)
+          .maybeSingle();
+
+        // Idempotency: same PI already recorded → no-op
+        if (pkgRow && pkgRow.stripe_payment_intent_id === pi) {
+          return new Response(JSON.stringify({ ok: true, already_recorded: true }), {
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        const newReceived = Number(pkgRow?.amount_received || 0) + amountPaid;
+        await supabase
+          .from("package_bookings")
+          .update({
+            amount_received: newReceived,
+            payment_method: "stripe",
+            paid_at: new Date().toISOString(),
+            stripe_payment_intent_id: pi ?? pkgRow?.stripe_payment_intent_id ?? null,
+            stripe_payment_status: "paid",
+          })
+          .eq("id", pbId);
+
+        await supabase.from("package_payment_audit").insert({
+          package_booking_id: pbId,
+          event_type: "payment_matched",
+          amount: amountPaid,
+          performed_by: "Stripe webhook",
+          note: `Stripe balance payment received. PI: ${pi ?? "unknown"}. New amount_received: £${newReceived.toFixed(2)}.`,
+        } as any);
+
+        return new Response(JSON.stringify({ ok: true, topup_recorded: pbId }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       const bookingId = session.metadata?.booking_id;
       if (!bookingId) {
         return new Response(JSON.stringify({ ok: true, skipped: "no_booking_id" }), {

@@ -73,6 +73,9 @@ Deno.serve(async (req) => {
       status: "active",
       stripe_payment_intent_id: checkoutSession.payment_intent as string,
       stripe_payment_status: "paid",
+      amount_received: totalPaid,
+      payment_method: "stripe",
+      paid_at: new Date().toISOString(),
       notes: `Booked online. Breed: ${breedId || "not specified"}`,
     }).select("id").single() as any);
 
