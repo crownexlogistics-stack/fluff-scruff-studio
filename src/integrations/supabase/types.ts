@@ -2356,7 +2356,10 @@ export type Database = {
       }
       package_bookings: {
         Row: {
+          amount_received: number
           cancelled_at: string | null
+          card_collected: number
+          cash_collected: number
           created_at: string | null
           customer_email: string
           customer_name: string
@@ -2365,6 +2368,9 @@ export type Database = {
           id: string
           notes: string | null
           package_id: string | null
+          paid_at: string | null
+          paid_by_staff_id: string | null
+          payment_method: string | null
           refund_amount: number | null
           refund_reason: string | null
           sessions_remaining: number | null
@@ -2378,7 +2384,10 @@ export type Database = {
           total_paid: number
         }
         Insert: {
+          amount_received?: number
           cancelled_at?: string | null
+          card_collected?: number
+          cash_collected?: number
           created_at?: string | null
           customer_email: string
           customer_name: string
@@ -2387,6 +2396,9 @@ export type Database = {
           id?: string
           notes?: string | null
           package_id?: string | null
+          paid_at?: string | null
+          paid_by_staff_id?: string | null
+          payment_method?: string | null
           refund_amount?: number | null
           refund_reason?: string | null
           sessions_remaining?: number | null
@@ -2400,7 +2412,10 @@ export type Database = {
           total_paid: number
         }
         Update: {
+          amount_received?: number
           cancelled_at?: string | null
+          card_collected?: number
+          cash_collected?: number
           created_at?: string | null
           customer_email?: string
           customer_name?: string
@@ -2409,6 +2424,9 @@ export type Database = {
           id?: string
           notes?: string | null
           package_id?: string | null
+          paid_at?: string | null
+          paid_by_staff_id?: string | null
+          payment_method?: string | null
           refund_amount?: number | null
           refund_reason?: string | null
           sessions_remaining?: number | null
@@ -2427,6 +2445,13 @@ export type Database = {
             columns: ["package_id"]
             isOneToOne: false
             referencedRelation: "packages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "package_bookings_paid_by_staff_id_fkey"
+            columns: ["paid_by_staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
             referencedColumns: ["id"]
           },
         ]
