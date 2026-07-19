@@ -1,62 +1,91 @@
-## Root cause (confirmed)
+## The problem
 
-When Oksana pressed **Complete Appointment**, the dialog closed immediately and showed a success-looking state — but the database update silently failed, so the booking stayed as `Pending/Confirmed` and never appeared on Finance.
+The "Total Paid £100.00" line on the Package Details dialog is misleading. It is really the **package price**, not the amount actually received. Payment state is stored in `package_bookings.stripe_payment_status` but is **never shown** in the UI, so no one can tell whether a package has been paid, and if so, how.
 
-Why it failed:
-- The recent split-payment work added a write of `payment_method: "cash" | "card" | "split"` into the `bookings` table in two places:
-  - `src/pages/BookingsPage.tsx` (line 344)
-  - `src/components/groomer/GroomerBookingsTab.tsx` (line 428)
-- I verified against the live DB: the `bookings` table has `cash_collected` and `card_collected`, but **no `payment_method` column**. The accompanying migration only added the two amount columns and forgot `payment_method`.
-- PostgREST therefore rejects the UPDATE with `42703 column "payment_method" does not exist`. The mutation throws, no commission record is inserted, and status stays unchanged.
-- Why Oksana didn't see an error: `CheckoutDialog` calls `onOpenChange(false)` in the same click handler as `onComplete(...)`, so the dialog closes before the async mutation rejects. The error toast fires after the dialog is gone and is easy to miss on mobile.
+Concretely, for Gurmit Chana's package:
 
-Query proof: the only `Completed` booking dated today is Deepak Farma (completed weeks ago); none of Oksana's two checkouts landed.
+- Created by Oksana on 16 Jul with `stripe_payment_status = 'pending'` and no `stripe_payment_intent_id`.
+- In `CreatePackageBooking.tsx`, choosing "Send payment link (Stripe)" **does not actually send a link** — it just writes `stripe_payment_status = 'pending'` and moves on. There is no follow-up action anywhere to send a link later.
+- "Paid in salon" writes `stripe_payment_status = 'paid_in_salon'` but never records how much cash vs card was collected, or which staff took the money — unlike regular bookings which now have `cash_collected` / `card_collected` / `payment_method`.
 
-## Permanent fix
+So today there are three payment states in the DB (`paid`, `paid_in_salon`, `pending`) but the dialog only ever shows a single "Total Paid" number, which is why Oksana can't tell whether Gurmit has paid.
 
-### 1. Database migration — add the missing column
+## Permanent solution
 
-Add `payment_method` (`text`, nullable) to both tables so the existing client code works as written, and add a CHECK constraint to keep values clean:
+Make the payment state of every package booking obvious at a glance, record it the same way as regular bookings, and give staff a one-click way to send a Stripe payment link when it's still owed.
 
-```sql
-ALTER TABLE public.bookings
-  ADD COLUMN IF NOT EXISTS payment_method text;
+### 1. Data model (migration)
 
-ALTER TABLE public.commission_records
-  ADD COLUMN IF NOT EXISTS payment_method text;
+Add to `package_bookings`:
 
-ALTER TABLE public.bookings
-  ADD CONSTRAINT bookings_payment_method_check
-  CHECK (payment_method IS NULL OR payment_method IN ('cash','card','split'));
+- `amount_received numeric default 0` — actual money in (across all methods combined).
+- `cash_collected numeric default 0`
+- `card_collected numeric default 0`
+- `payment_method text` — `stripe` | `cash` | `card` | `mixed` | `unpaid` (nullable until paid).
+- `paid_by_staff_id uuid` — who took the salon payment (nullable).
+- `paid_at timestamptz` — when it was marked paid.
 
-ALTER TABLE public.commission_records
-  ADD CONSTRAINT commission_records_payment_method_check
-  CHECK (payment_method IS NULL OR payment_method IN ('cash','card','split'));
+Backfill:
+- `stripe_payment_status = 'paid'` → `amount_received = total_paid`, `payment_method = 'stripe'`, `paid_at = created_at`.
+- `stripe_payment_status = 'paid_in_salon'` and `total_paid > 0` → `amount_received = total_paid`, `payment_method = 'card'` (best guess, flagged in a note), `paid_at = created_at`.
+- Everything else → `amount_received = 0`, `payment_method = 'unpaid'`.
+
+### 2. Package Details dialog — clear payment section
+
+Replace the ambiguous "Total Paid" row with a proper block:
+
+```text
+Payment
+──────────────────────────────
+Package price      £100.00
+Amount received    £0.00       [UNPAID]  ← coloured badge
+Balance due        £100.00
 ```
 
-No data backfill — historical rows stay `NULL` and Money Flow already treats those as card.
+Badges:
+- `PAID — Stripe (16 Jul)` (green) when method = stripe
+- `PAID — Cash £X / Card £Y — Oksana (16 Jul)` (green) when method = cash/card/mixed
+- `UNPAID` (red) when balance > 0 and no method
 
-### 2. Harden CheckoutDialog so a failure can never look like success
+When there is a balance due and the viewer is a groomer or admin, show two buttons:
 
-In `src/components/booking-calendar/CheckoutDialog.tsx`:
+- **Send Stripe payment link** — invokes `create-package-checkout` for the outstanding amount, then either emails/SMSes the link to the customer or copies it to the clipboard (matches the ad-hoc payment link pattern already used for bookings).
+- **Record payment in salon** — small dialog matching `CheckoutDialog`'s cash + card split UI. Writes `cash_collected` / `card_collected` / `payment_method` / `paid_by_staff_id` / `paid_at`, sets `amount_received`, updates `stripe_payment_status` to `paid_in_salon`, and logs a `package_payment_audit` entry.
 
-- Add an `isSubmitting` prop (driven by `completeMutation.isPending` / `noShowMutation.isPending` in the two parents).
-- Remove the `onOpenChange(false)` call from the **Complete Appointment** and **Confirm No Show** click handlers. The dialog should only close when the parent's mutation actually resolves successfully.
-- Disable both action buttons and show "Saving…" while `isSubmitting` is true.
+### 3. Fix `CreatePackageBooking.tsx`
 
-In `src/pages/BookingsPage.tsx` and `src/components/groomer/GroomerBookingsTab.tsx`:
+- Rename "Payment" section into three explicit choices:
+  - **Send Stripe payment link** — now actually calls `create-package-checkout` after inserting the row, stores the returned `payment_intent_id` on `package_bookings`, and shows the link to send/copy. Status starts as `unpaid`.
+  - **Paid in salon now** — opens the cash/card split inputs inline; on save, writes the same fields as (2) above. Status starts as `paid_in_salon`.
+  - **Bill later** — creates the row `unpaid` and surfaces it in a new "Awaiting payment" filter on Package Health.
+- Remove the current behaviour where "Send payment link" silently produces an unpaid package with no link.
 
-- Pass `isSubmitting={completeMutation.isPending || noShowMutation.isPending}`.
-- In each mutation's `onSuccess`, call `setCheckoutOpen(false)` so the dialog only closes on a real DB success.
-- On `onError`, leave the dialog open so the groomer immediately sees the toast and can retry — no more invisible failures.
+### 4. Stripe webhook — mirror payments into the new fields
 
-### 3. Manually fix Oksana's two appointments
+Update the `checkout.session.completed` branch of `stripe-webhook` (and `process-package-payment`) so when a package payment completes it also sets:
 
-After the migration runs, Oksana re-opens each of today's two appointments and presses **Complete Appointment** again. This time the update will succeed, the commission record will be inserted, and both bookings will show on the Finance page and Money Flow tab.
+- `amount_received = amount_paid`
+- `payment_method = 'stripe'`
+- `paid_at = now()`
+- `stripe_payment_status = 'paid'`
 
-(If you'd prefer, I can also run a one-off SQL update to mark those two specific bookings completed for today — but doing it via the UI is safer because it captures the correct cash/card split.)
+This keeps the two data paths (Stripe vs in-salon) writing to the same fields, so the UI stays consistent.
 
-## Out of scope
+### 5. Package Health page — payment column
 
-- No changes to `record-payment`, `cancel-booking-with-refund`, Money Flow logic, payout rules, or the online booking flow.
-- No changes to types.ts (auto-regenerated after the migration).
+Add a "Payment" column to the list on `/admin/packages/health` showing the same badge as the dialog, plus a filter for "Awaiting payment" so admins can see at a glance which packages are unpaid. Groomer-facing `ActivePackages.tsx` also gets a small `UNPAID` chip so groomers never wonder mid-appointment.
+
+### 6. Repair Gurmit's record
+
+Once (1)–(5) ship, ask Oksana whether Gurmit paid. Then either:
+- send a Stripe link via the new button, or
+- record it as paid in salon with the correct cash/card split.
+
+No silent auto-fix — the confusion is the data, and the data needs a human answer.
+
+## Technical notes
+
+- `create-package-checkout` already exists; the only change is exposing it from the dialog for post-creation top-ups.
+- `package_payment_audit` already logs status changes; the new "recorded in salon" and "link sent" events fit that table.
+- `stripe_payment_status` is kept for backward compat but becomes derived from `payment_method` + `amount_received`.
+- No changes to `record-payment` or `cancel-booking-with-refund` (financial integrity rule).
