@@ -148,6 +148,20 @@ export function CreatePackageBooking({ onCreated }: { onCreated: () => void }) {
         totalPrice = 0;
       }
 
+      // Payment state at creation time — computed BEFORE seeding session bookings
+      // so we only mark sessions as paid when money was actually taken up front.
+      const cashN = paymentMethod === "salon" ? Number(salonCash) || 0 : 0;
+      const cardN = paymentMethod === "salon" ? Number(salonCard) || 0 : 0;
+      const receivedNow = cashN + cardN;
+      const methodValue =
+        paymentMethod === "salon"
+          ? (cashN > 0 && cardN > 0 ? "mixed" : cashN > 0 ? "cash" : cardN > 0 ? "card" : "unpaid")
+          : "unpaid";
+      const stripeStatus =
+        paymentMethod === "salon" && receivedNow > 0 ? "paid_in_salon" : "pending";
+      const packagePaidUpFront =
+        pkg.package_type === "teeth_cleaning" && totalPrice > 0 && receivedNow >= totalPrice;
+
       // Create individual bookings first
       const bookingIds: string[] = [];
       for (const session of sessions) {
@@ -169,7 +183,10 @@ export function CreatePackageBooking({ onCreated }: { onCreated: () => void }) {
 
         if (pkg.package_type === "teeth_cleaning") {
           bookingData.total_price = pkg.price_per_session || 20;
-          bookingData.deposit_paid = pkg.price_per_session || 20;
+          // Only seed deposit_paid when the whole package was actually paid in
+          // salon up front. Unpaid / "send link" / "bill later" packages leave
+          // deposit_paid at 0 so the calendar card doesn't lie.
+          bookingData.deposit_paid = packagePaidUpFront ? (pkg.price_per_session || 20) : 0;
         }
 
         const { data: booking, error: bookingError } = await supabase
@@ -185,17 +202,6 @@ export function CreatePackageBooking({ onCreated }: { onCreated: () => void }) {
       if (pkg.package_type === "teeth_cleaning") {
         totalPrice = (pkg.price_per_session || 20) * pkg.session_count;
       }
-
-      // Payment state at creation time
-      const cashN = paymentMethod === "salon" ? Number(salonCash) || 0 : 0;
-      const cardN = paymentMethod === "salon" ? Number(salonCard) || 0 : 0;
-      const receivedNow = cashN + cardN;
-      const methodValue =
-        paymentMethod === "salon"
-          ? (cashN > 0 && cardN > 0 ? "mixed" : cashN > 0 ? "cash" : cardN > 0 ? "card" : "unpaid")
-          : "unpaid";
-      const stripeStatus =
-        paymentMethod === "salon" && receivedNow > 0 ? "paid_in_salon" : "pending";
 
       // Create package_booking
       const { data: pkgBooking, error: pkgError } = await supabase
