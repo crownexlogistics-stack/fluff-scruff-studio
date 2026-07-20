@@ -349,6 +349,24 @@ export function BookingPopoverCard({
           if (booking.status === "Refunded") {
             return <Badge variant="outline">Refunded</Badge>;
           }
+          if (isPackageSession) {
+            if (pkgFullyPaid) {
+              const method = packagePayment?.payment_method;
+              const label =
+                method === "stripe" ? "Package Paid — Stripe"
+                : method === "cash" || method === "card" || method === "mixed" ? "Package Paid — Salon"
+                : "Package Paid";
+              return (
+                <Badge className="bg-emerald-600 text-white hover:bg-emerald-600">
+                  <CheckCircle2 className="h-3 w-3 mr-1" /> {label}
+                </Badge>
+              );
+            }
+            if (pkgPartPaid) {
+              return <Badge className="bg-amber-500 text-white hover:bg-amber-500">Package Part-Paid — £{(pkgTotal - pkgReceived).toFixed(2)} due</Badge>;
+            }
+            return <Badge variant="destructive">Package Unpaid — send link</Badge>;
+          }
           if (isFullyPaid) {
             return (
               <Badge className="bg-emerald-600 text-white hover:bg-emerald-600">
