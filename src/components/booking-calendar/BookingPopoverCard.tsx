@@ -52,8 +52,43 @@ export function BookingPopoverCard({
 
   const deposit = Number(booking.deposit_paid);
   const total = Number(booking.total_price);
-  const isFullyPaid = deposit >= total && total > 0;
-  const isDepositPaid = deposit > 0 && deposit < total;
+  const isPackageSession = (booking as any).booking_source === "package";
+
+  // For package sessions, payment state lives on the parent package_bookings row,
+  // not the individual booking. The session booking's deposit_paid is only a
+  // per-session share and cannot be trusted on its own.
+  const { data: packagePayment } = useQuery({
+    queryKey: ["package-payment-for-session", booking.id],
+    enabled: isPackageSession && !booking.is_block,
+    queryFn: async () => {
+      const { data: sess } = await supabase
+        .from("package_sessions" as any)
+        .select("package_booking_id")
+        .eq("booking_id", booking.id)
+        .maybeSingle();
+      const pbId = (sess as any)?.package_booking_id;
+      if (!pbId) return null;
+      const { data: pb } = await supabase
+        .from("package_bookings" as any)
+        .select("total_paid, amount_received, payment_method, stripe_payment_status")
+        .eq("id", pbId)
+        .maybeSingle();
+      return pb as any;
+    },
+  });
+
+  const pkgTotal = Number(packagePayment?.total_paid || 0);
+  const pkgReceived = Number(packagePayment?.amount_received || 0);
+  const pkgFullyPaid = isPackageSession && pkgTotal > 0 && pkgReceived >= pkgTotal;
+  const pkgPartPaid = isPackageSession && pkgReceived > 0 && pkgReceived < pkgTotal;
+  const pkgUnpaid = isPackageSession && pkgReceived === 0;
+
+  const isFullyPaid = isPackageSession
+    ? pkgFullyPaid
+    : deposit >= total && total > 0;
+  const isDepositPaid = isPackageSession
+    ? pkgPartPaid
+    : deposit > 0 && deposit < total;
   const remaining = total - deposit;
   const isDirector = userRole === "director";
 
