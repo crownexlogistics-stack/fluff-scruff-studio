@@ -1,91 +1,81 @@
-## The problem
+## What's actually going on
 
-The "Total Paid £100.00" line on the Package Details dialog is misleading. It is really the **package price**, not the amount actually received. Payment state is stored in `package_bookings.stripe_payment_status` but is **never shown** in the UI, so no one can tell whether a package has been paid, and if so, how.
+Gurmit has **not paid**. The package record says so plainly:
 
-Concretely, for Gurmit Chana's package:
+- `package_bookings` for Gurmit / Rio: `total_paid £100`, `amount_received £0`, `payment_method 'unpaid'`, `stripe_payment_status 'pending'`, no `stripe_payment_intent_id`.
 
-- Created by Oksana on 16 Jul with `stripe_payment_status = 'pending'` and no `stripe_payment_intent_id`.
-- In `CreatePackageBooking.tsx`, choosing "Send payment link (Stripe)" **does not actually send a link** — it just writes `stripe_payment_status = 'pending'` and moves on. There is no follow-up action anywhere to send a link later.
-- "Paid in salon" writes `stripe_payment_status = 'paid_in_salon'` but never records how much cash vs card was collected, or which staff took the money — unlike regular bookings which now have `cash_collected` / `card_collected` / `payment_method`.
+But the five session **bookings** on the calendar each look fully paid:
 
-So today there are three payment states in the DB (`paid`, `paid_in_salon`, `pending`) but the dialog only ever shows a single "Total Paid" number, which is why Oksana can't tell whether Gurmit has paid.
+- `total_price £20`, `deposit_paid £20`, `stripe_payment_id NULL`, `payment_method NULL`, `cash_collected 0`, `card_collected 0`.
 
-## Permanent solution
+That is why each session card shows the green **"All Paid Online"** badge and the "Customer paid in full online — nothing to charge on the day" callout. It's the calendar card, not the package, that is wrong.
 
-Make the payment state of every package booking obvious at a glance, record it the same way as regular bookings, and give staff a one-click way to send a Stripe payment link when it's still owed.
+## Root cause
 
-### 1. Data model (migration)
+`src/components/packages/CreatePackageBooking.tsx` (lines 154–173) seeds every session booking with `deposit_paid = price_per_session` at insert time, regardless of whether the customer actually paid:
 
-Add to `package_bookings`:
-
-- `amount_received numeric default 0` — actual money in (across all methods combined).
-- `cash_collected numeric default 0`
-- `card_collected numeric default 0`
-- `payment_method text` — `stripe` | `cash` | `card` | `mixed` | `unpaid` (nullable until paid).
-- `paid_by_staff_id uuid` — who took the salon payment (nullable).
-- `paid_at timestamptz` — when it was marked paid.
-
-Backfill:
-- `stripe_payment_status = 'paid'` → `amount_received = total_paid`, `payment_method = 'stripe'`, `paid_at = created_at`.
-- `stripe_payment_status = 'paid_in_salon'` and `total_paid > 0` → `amount_received = total_paid`, `payment_method = 'card'` (best guess, flagged in a note), `paid_at = created_at`.
-- Everything else → `amount_received = 0`, `payment_method = 'unpaid'`.
-
-### 2. Package Details dialog — clear payment section
-
-Replace the ambiguous "Total Paid" row with a proper block:
-
-```text
-Payment
-──────────────────────────────
-Package price      £100.00
-Amount received    £0.00       [UNPAID]  ← coloured badge
-Balance due        £100.00
+```ts
+bookingData.total_price = 0;
+bookingData.deposit_paid = 0;
+...
+if (pkg.package_type === "teeth_cleaning") {
+  bookingData.total_price = pkg.price_per_session || 20;
+  bookingData.deposit_paid = pkg.price_per_session || 20;   // ← lies
+}
 ```
 
-Badges:
-- `PAID — Stripe (16 Jul)` (green) when method = stripe
-- `PAID — Cash £X / Card £Y — Oksana (16 Jul)` (green) when method = cash/card/mixed
-- `UNPAID` (red) when balance > 0 and no method
+`BookingPopoverCard.tsx` then evaluates `isFullyPaid = deposit >= total` and prints the "All Paid Online" pill. There is no cross-check against the parent `package_bookings.amount_received` or `payment_method`, so an unpaid package still displays as paid on every session card.
 
-When there is a balance due and the viewer is a groomer or admin, show two buttons:
+This is the same class of bug we fixed for the package details dialog: `total_paid` was treated as "money in" when it was really "price". The session bookings inherited the same mistake, one layer deeper.
 
-- **Send Stripe payment link** — invokes `create-package-checkout` for the outstanding amount, then either emails/SMSes the link to the customer or copies it to the clipboard (matches the ad-hoc payment link pattern already used for bookings).
-- **Record payment in salon** — small dialog matching `CheckoutDialog`'s cash + card split UI. Writes `cash_collected` / `card_collected` / `payment_method` / `paid_by_staff_id` / `paid_at`, sets `amount_received`, updates `stripe_payment_status` to `paid_in_salon`, and logs a `package_payment_audit` entry.
+## Permanent fix
 
-### 3. Fix `CreatePackageBooking.tsx`
+Two changes, both presentation-only for existing rows — no financial write-paths touched.
 
-- Rename "Payment" section into three explicit choices:
-  - **Send Stripe payment link** — now actually calls `create-package-checkout` after inserting the row, stores the returned `payment_intent_id` on `package_bookings`, and shows the link to send/copy. Status starts as `unpaid`.
-  - **Paid in salon now** — opens the cash/card split inputs inline; on save, writes the same fields as (2) above. Status starts as `paid_in_salon`.
-  - **Bill later** — creates the row `unpaid` and surfaces it in a new "Awaiting payment" filter on Package Health.
-- Remove the current behaviour where "Send payment link" silently produces an unpaid package with no link.
+### 1. Stop seeding fake payment on session bookings
 
-### 4. Stripe webhook — mirror payments into the new fields
+In `CreatePackageBooking.tsx`, when inserting each session booking:
 
-Update the `checkout.session.completed` branch of `stripe-webhook` (and `process-package-payment`) so when a package payment completes it also sets:
+- Always set `deposit_paid = 0` at creation.
+- Only set `deposit_paid = price_per_session` **when the package was paid in full up front** — i.e. when `paymentMethod === "salon"` and `receivedNow >= totalPrice`, or (later) when Stripe confirms full payment.
+- Keep `total_price = price_per_session` so the price breakdown still reads correctly.
 
-- `amount_received = amount_paid`
-- `payment_method = 'stripe'`
-- `paid_at = now()`
-- `stripe_payment_status = 'paid'`
+This makes new packages honest: unpaid packages produce unpaid session bookings.
 
-This keeps the two data paths (Stripe vs in-salon) writing to the same fields, so the UI stays consistent.
+### 2. Make the session card read from the package, not itself
 
-### 5. Package Health page — payment column
+In `BookingPopoverCard.tsx`, when the booking is part of a package (we can detect this via `booking_source = "package"` and/or by joining to `package_sessions` to find the parent `package_booking_id`), derive the paid/unpaid pill from the parent `package_bookings` row instead of from `deposit_paid`:
 
-Add a "Payment" column to the list on `/admin/packages/health` showing the same badge as the dialog, plus a filter for "Awaiting payment" so admins can see at a glance which packages are unpaid. Groomer-facing `ActivePackages.tsx` also gets a small `UNPAID` chip so groomers never wonder mid-appointment.
+- `amount_received >= total_paid` → green **"Package Paid"** pill (with method: Stripe / Salon).
+- `0 < amount_received < total_paid` → amber **"Package Part-Paid — £X due"**.
+- `amount_received = 0` → red **"Package Unpaid — send link"** with a shortcut that opens the existing `PackagePaymentPanel` action.
 
-### 6. Repair Gurmit's record
+Also suppress the "Customer paid in full online — nothing to charge on the day" callout for package sessions unless the parent package is actually fully paid.
 
-Once (1)–(5) ship, ask Oksana whether Gurmit paid. Then either:
-- send a Stripe link via the new button, or
-- record it as paid in salon with the correct cash/card split.
+### 3. Repair the five existing Gurmit sessions
 
-No silent auto-fix — the confusion is the data, and the data needs a human answer.
+One targeted migration/backfill for **package bookings whose parent has `amount_received = 0`**:
 
-## Technical notes
+```sql
+UPDATE bookings b
+SET deposit_paid = 0
+FROM package_sessions ps
+JOIN package_bookings pb ON pb.id = ps.package_booking_id
+WHERE ps.booking_id = b.id
+  AND pb.amount_received = 0
+  AND b.stripe_payment_id IS NULL
+  AND b.cash_collected = 0
+  AND b.card_collected = 0;
+```
 
-- `create-package-checkout` already exists; the only change is exposing it from the dialog for post-creation top-ups.
-- `package_payment_audit` already logs status changes; the new "recorded in salon" and "link sent" events fit that table.
-- `stripe_payment_status` is kept for backward compat but becomes derived from `payment_method` + `amount_received`.
-- No changes to `record-payment` or `cancel-booking-with-refund` (financial integrity rule).
+This clears the false "paid" state on every session inherited from an unpaid package (Gurmit's five, plus any other unpaid packages in the same shape). It only touches rows with zero real money attached — no risk to genuinely paid bookings.
+
+After the fix Oksana will see the five Gurmit sessions correctly as unpaid, and the existing **"Send Stripe payment link"** button on the package details dialog is the one-click way to collect from him.
+
+## Files touched
+
+- `src/components/packages/CreatePackageBooking.tsx` — don't seed `deposit_paid` unless money was actually taken.
+- `src/components/booking-calendar/BookingPopoverCard.tsx` — package-aware payment badge and callout.
+- New migration — backfill `deposit_paid = 0` on session bookings whose parent package is unpaid.
+
+No changes to `record-payment`, `stripe-webhook`, `cancel-booking-with-refund`, or any financial write path.
