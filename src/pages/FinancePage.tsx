@@ -47,6 +47,11 @@ const FinancePage = () => {
   const [amendOpen, setAmendOpen] = useState(false);
   const [amendCommission, setAmendCommission] = useState<any>(null);
   const [amendCharge, setAmendCharge] = useState(0);
+  const [editPayout, setEditPayout] = useState<any>(null);
+  const [editAmount, setEditAmount] = useState(0);
+  const [editMethod, setEditMethod] = useState("bank_transfer");
+  const [editNotes, setEditNotes] = useState("");
+  const [undoPayout, setUndoPayout] = useState<any>(null);
 
   const now = new Date();
   const periodStart = useMemo(() => {
@@ -189,7 +194,7 @@ const FinancePage = () => {
     mutationFn: async () => {
       if (!selectedStaffId || !user) throw new Error("Missing data");
       const groomerName = selectedSummary?.name || "";
-      const { error } = await supabase.from("payout_records").insert({
+      const { data: inserted, error } = await supabase.from("payout_records").insert({
         staff_id: selectedStaffId,
         amount: payoutAmount,
         payment_method: payoutMethod,
@@ -197,7 +202,7 @@ const FinancePage = () => {
         period_end: periodEndStr,
         notes: payoutNotes || null,
         processed_by: user.id,
-      });
+      }).select("id").single();
       if (error) throw error;
 
       // Save to groomer_payout_history
@@ -207,6 +212,7 @@ const FinancePage = () => {
       await supabase.from("groomer_payout_history").insert({
         groomer_name: groomerName,
         groomer_id: selectedStaffId,
+        payout_record_id: inserted?.id ?? null,
         period_start: periodStartStr,
         period_end: periodEndStr,
         total_revenue: selectedSummary?.totalRevenue || 0,
@@ -234,6 +240,60 @@ const FinancePage = () => {
       queryClient.invalidateQueries({ queryKey: ["payout-records"] });
       queryClient.invalidateQueries({ queryKey: ["audit-logs"] });
       queryClient.invalidateQueries({ queryKey: ["groomer-payout-history"] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const editPayoutMutation = useMutation({
+    mutationFn: async () => {
+      if (!editPayout) throw new Error("No payout selected");
+      const { error } = await supabase
+        .from("payout_records")
+        .update({ amount: editAmount, payment_method: editMethod, notes: editNotes || null })
+        .eq("id", editPayout.id);
+      if (error) throw error;
+
+      const { error: histErr } = await supabase
+        .from("groomer_payout_history")
+        .update({ payout_amount: editAmount, payment_method: editMethod, notes: editNotes || null } as any)
+        .eq("payout_record_id", editPayout.id);
+      if (histErr) throw histErr;
+
+      logAudit({
+        staffId: editPayout.staff_id,
+        action: "PAYOUT_EDITED",
+        details: `Payout amended from £${Number(editPayout.amount).toFixed(2)} to £${editAmount.toFixed(2)} (${editMethod}) for period ${editPayout.period_start} to ${editPayout.period_end}`,
+      });
+    },
+    onSuccess: () => {
+      toast.success("Payout updated");
+      setEditPayout(null);
+      queryClient.invalidateQueries({ queryKey: ["payout-records"] });
+      queryClient.invalidateQueries({ queryKey: ["groomer-payout-history"] });
+      queryClient.invalidateQueries({ queryKey: ["audit-logs"] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const undoPayoutMutation = useMutation({
+    mutationFn: async () => {
+      if (!undoPayout) throw new Error("No payout selected");
+      await supabase.from("groomer_payout_history").delete().eq("payout_record_id", undoPayout.id);
+      const { error } = await supabase.from("payout_records").delete().eq("id", undoPayout.id);
+      if (error) throw error;
+
+      logAudit({
+        staffId: undoPayout.staff_id,
+        action: "PAYOUT_REVERSED",
+        details: `Payout of £${Number(undoPayout.amount).toFixed(2)} for period ${undoPayout.period_start} to ${undoPayout.period_end} was undone`,
+      });
+    },
+    onSuccess: () => {
+      toast.success("Payout undone — this period is unmarked again");
+      setUndoPayout(null);
+      queryClient.invalidateQueries({ queryKey: ["payout-records"] });
+      queryClient.invalidateQueries({ queryKey: ["groomer-payout-history"] });
+      queryClient.invalidateQueries({ queryKey: ["audit-logs"] });
     },
     onError: (e: any) => toast.error(e.message),
   });
