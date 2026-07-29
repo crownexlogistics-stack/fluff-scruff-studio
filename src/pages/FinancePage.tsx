@@ -717,6 +717,62 @@ const FinancePage = () => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Edit Payout Dialog */}
+        <Dialog open={!!editPayout} onOpenChange={(o) => !o && setEditPayout(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader><DialogTitle>Edit Payout</DialogTitle></DialogHeader>
+            {editPayout && (
+              <div className="space-y-4">
+                <p className="text-xs text-muted-foreground">
+                  Recorded {format(new Date(editPayout.created_at), "dd MMM yyyy, HH:mm")} for period{" "}
+                  {format(new Date(editPayout.period_start + "T00:00:00"), "dd MMM")} – {format(new Date(editPayout.period_end + "T00:00:00"), "dd MMM yyyy")}.
+                  Changes also update the Payout History tab.
+                </p>
+                <div><Label>Amount (£)</Label><NumericInput value={editAmount} onValueChange={setEditAmount} /></div>
+                <div>
+                  <Label>Payment Method</Label>
+                  <Select value={editMethod} onValueChange={setEditMethod}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                      <SelectItem value="cash">Cash</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div><Label>Notes (optional)</Label><Textarea value={editNotes} onChange={e => setEditNotes(e.target.value)} /></div>
+              </div>
+            )}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditPayout(null)}>Cancel</Button>
+              <Button onClick={() => editPayoutMutation.mutate()} disabled={editAmount <= 0 || editPayoutMutation.isPending}>
+                {editPayoutMutation.isPending ? "Saving…" : "Save Changes"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Undo Payout Confirm */}
+        <AlertDialog open={!!undoPayout} onOpenChange={(o) => !o && setUndoPayout(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Undo this payout?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This removes the £{Number(undoPayout?.amount || 0).toFixed(2)} payout and its Payout History entry, putting this period back to "not paid" so you can re-mark it. This action is logged.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                style={{ backgroundColor: "#FF6B35" }}
+                onClick={(e) => { e.preventDefault(); undoPayoutMutation.mutate(); }}
+                disabled={undoPayoutMutation.isPending}
+              >
+                {undoPayoutMutation.isPending ? "Undoing…" : "Yes, undo payout"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </AppLayout>
     );
   }
