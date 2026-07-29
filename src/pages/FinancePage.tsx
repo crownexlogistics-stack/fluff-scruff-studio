@@ -47,6 +47,11 @@ const FinancePage = () => {
   const [amendOpen, setAmendOpen] = useState(false);
   const [amendCommission, setAmendCommission] = useState<any>(null);
   const [amendCharge, setAmendCharge] = useState(0);
+  const [editPayout, setEditPayout] = useState<any>(null);
+  const [editAmount, setEditAmount] = useState(0);
+  const [editMethod, setEditMethod] = useState("bank_transfer");
+  const [editNotes, setEditNotes] = useState("");
+  const [undoPayout, setUndoPayout] = useState<any>(null);
 
   const now = new Date();
   const periodStart = useMemo(() => {
@@ -189,7 +194,7 @@ const FinancePage = () => {
     mutationFn: async () => {
       if (!selectedStaffId || !user) throw new Error("Missing data");
       const groomerName = selectedSummary?.name || "";
-      const { error } = await supabase.from("payout_records").insert({
+      const { data: inserted, error } = await supabase.from("payout_records").insert({
         staff_id: selectedStaffId,
         amount: payoutAmount,
         payment_method: payoutMethod,
@@ -197,7 +202,7 @@ const FinancePage = () => {
         period_end: periodEndStr,
         notes: payoutNotes || null,
         processed_by: user.id,
-      });
+      }).select("id").single();
       if (error) throw error;
 
       // Save to groomer_payout_history
@@ -207,6 +212,7 @@ const FinancePage = () => {
       await supabase.from("groomer_payout_history").insert({
         groomer_name: groomerName,
         groomer_id: selectedStaffId,
+        payout_record_id: inserted?.id ?? null,
         period_start: periodStartStr,
         period_end: periodEndStr,
         total_revenue: selectedSummary?.totalRevenue || 0,
@@ -234,6 +240,60 @@ const FinancePage = () => {
       queryClient.invalidateQueries({ queryKey: ["payout-records"] });
       queryClient.invalidateQueries({ queryKey: ["audit-logs"] });
       queryClient.invalidateQueries({ queryKey: ["groomer-payout-history"] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const editPayoutMutation = useMutation({
+    mutationFn: async () => {
+      if (!editPayout) throw new Error("No payout selected");
+      const { error } = await supabase
+        .from("payout_records")
+        .update({ amount: editAmount, payment_method: editMethod, notes: editNotes || null })
+        .eq("id", editPayout.id);
+      if (error) throw error;
+
+      const { error: histErr } = await supabase
+        .from("groomer_payout_history")
+        .update({ payout_amount: editAmount, payment_method: editMethod, notes: editNotes || null } as any)
+        .eq("payout_record_id", editPayout.id);
+      if (histErr) throw histErr;
+
+      logAudit({
+        staffId: editPayout.staff_id,
+        action: "PAYOUT_EDITED",
+        details: `Payout amended from £${Number(editPayout.amount).toFixed(2)} to £${editAmount.toFixed(2)} (${editMethod}) for period ${editPayout.period_start} to ${editPayout.period_end}`,
+      });
+    },
+    onSuccess: () => {
+      toast.success("Payout updated");
+      setEditPayout(null);
+      queryClient.invalidateQueries({ queryKey: ["payout-records"] });
+      queryClient.invalidateQueries({ queryKey: ["groomer-payout-history"] });
+      queryClient.invalidateQueries({ queryKey: ["audit-logs"] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const undoPayoutMutation = useMutation({
+    mutationFn: async () => {
+      if (!undoPayout) throw new Error("No payout selected");
+      await supabase.from("groomer_payout_history").delete().eq("payout_record_id", undoPayout.id);
+      const { error } = await supabase.from("payout_records").delete().eq("id", undoPayout.id);
+      if (error) throw error;
+
+      logAudit({
+        staffId: undoPayout.staff_id,
+        action: "PAYOUT_REVERSED",
+        details: `Payout of £${Number(undoPayout.amount).toFixed(2)} for period ${undoPayout.period_start} to ${undoPayout.period_end} was undone`,
+      });
+    },
+    onSuccess: () => {
+      toast.success("Payout undone — this period is unmarked again");
+      setUndoPayout(null);
+      queryClient.invalidateQueries({ queryKey: ["payout-records"] });
+      queryClient.invalidateQueries({ queryKey: ["groomer-payout-history"] });
+      queryClient.invalidateQueries({ queryKey: ["audit-logs"] });
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -501,7 +561,7 @@ const FinancePage = () => {
               <CardHeader className="pb-3"><CardTitle className="text-base">Payout History</CardTitle></CardHeader>
               <CardContent className="p-0">
                 <Table>
-                  <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Amount</TableHead><TableHead>Method</TableHead><TableHead>Notes</TableHead></TableRow></TableHeader>
+                  <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Amount</TableHead><TableHead>Method</TableHead><TableHead>Notes</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
                   <TableBody>
                     {selectedPayouts.map((p: any) => (
                       <TableRow key={p.id}>
@@ -509,6 +569,29 @@ const FinancePage = () => {
                         <TableCell className="text-sm font-medium">£{Number(p.amount).toFixed(2)}</TableCell>
                         <TableCell><Badge variant="outline" className="text-xs">{p.payment_method === "cash" ? "Cash" : "Bank Transfer"}</Badge></TableCell>
                         <TableCell className="text-sm text-muted-foreground">{p.notes || "—"}</TableCell>
+                        <TableCell className="text-right whitespace-nowrap">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 text-xs"
+                            onClick={() => {
+                              setEditPayout(p);
+                              setEditAmount(Number(p.amount));
+                              setEditMethod(p.payment_method || "bank_transfer");
+                              setEditNotes(p.notes || "");
+                            }}
+                          >
+                            <Pencil className="h-3.5 w-3.5 mr-1" /> Edit
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 text-xs text-destructive hover:text-destructive"
+                            onClick={() => setUndoPayout(p)}
+                          >
+                            Undo
+                          </Button>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -634,6 +717,62 @@ const FinancePage = () => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Edit Payout Dialog */}
+        <Dialog open={!!editPayout} onOpenChange={(o) => !o && setEditPayout(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader><DialogTitle>Edit Payout</DialogTitle></DialogHeader>
+            {editPayout && (
+              <div className="space-y-4">
+                <p className="text-xs text-muted-foreground">
+                  Recorded {format(new Date(editPayout.created_at), "dd MMM yyyy, HH:mm")} for period{" "}
+                  {format(new Date(editPayout.period_start + "T00:00:00"), "dd MMM")} – {format(new Date(editPayout.period_end + "T00:00:00"), "dd MMM yyyy")}.
+                  Changes also update the Payout History tab.
+                </p>
+                <div><Label>Amount (£)</Label><NumericInput value={editAmount} onValueChange={setEditAmount} /></div>
+                <div>
+                  <Label>Payment Method</Label>
+                  <Select value={editMethod} onValueChange={setEditMethod}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                      <SelectItem value="cash">Cash</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div><Label>Notes (optional)</Label><Textarea value={editNotes} onChange={e => setEditNotes(e.target.value)} /></div>
+              </div>
+            )}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditPayout(null)}>Cancel</Button>
+              <Button onClick={() => editPayoutMutation.mutate()} disabled={editAmount <= 0 || editPayoutMutation.isPending}>
+                {editPayoutMutation.isPending ? "Saving…" : "Save Changes"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Undo Payout Confirm */}
+        <AlertDialog open={!!undoPayout} onOpenChange={(o) => !o && setUndoPayout(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Undo this payout?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This removes the £{Number(undoPayout?.amount || 0).toFixed(2)} payout and its Payout History entry, putting this period back to "not paid" so you can re-mark it. This action is logged.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                style={{ backgroundColor: "#FF6B35" }}
+                onClick={(e) => { e.preventDefault(); undoPayoutMutation.mutate(); }}
+                disabled={undoPayoutMutation.isPending}
+              >
+                {undoPayoutMutation.isPending ? "Undoing…" : "Yes, undo payout"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </AppLayout>
     );
   }
