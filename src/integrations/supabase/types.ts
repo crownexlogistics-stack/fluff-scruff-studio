@@ -1851,6 +1851,7 @@ export type Database = {
           paid_by: string
           payment_method: string | null
           payout_amount: number
+          payout_record_id: string | null
           period_end: string
           period_start: string
           total_revenue: number
@@ -1867,6 +1868,7 @@ export type Database = {
           paid_by: string
           payment_method?: string | null
           payout_amount: number
+          payout_record_id?: string | null
           period_end: string
           period_start: string
           total_revenue: number
@@ -1883,6 +1885,7 @@ export type Database = {
           paid_by?: string
           payment_method?: string | null
           payout_amount?: number
+          payout_record_id?: string | null
           period_end?: string
           period_start?: string
           total_revenue?: number
@@ -1893,6 +1896,13 @@ export type Database = {
             columns: ["groomer_id"]
             isOneToOne: false
             referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "groomer_payout_history_payout_record_id_fkey"
+            columns: ["payout_record_id"]
+            isOneToOne: false
+            referencedRelation: "payout_records"
             referencedColumns: ["id"]
           },
         ]
