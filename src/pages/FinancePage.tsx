@@ -649,7 +649,6 @@ const FinancePage = () => {
         </Dialog>
 
         <AlertDialog open={anomalyWarningOpen} onOpenChange={setAnomalyWarningOpen}>
-        
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>⚠️ Unreviewed Anomalies</AlertDialogTitle>
