@@ -561,7 +561,7 @@ const FinancePage = () => {
               <CardHeader className="pb-3"><CardTitle className="text-base">Payout History</CardTitle></CardHeader>
               <CardContent className="p-0">
                 <Table>
-                  <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Amount</TableHead><TableHead>Method</TableHead><TableHead>Notes</TableHead></TableRow></TableHeader>
+                  <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Amount</TableHead><TableHead>Method</TableHead><TableHead>Notes</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
                   <TableBody>
                     {selectedPayouts.map((p: any) => (
                       <TableRow key={p.id}>
@@ -569,6 +569,29 @@ const FinancePage = () => {
                         <TableCell className="text-sm font-medium">£{Number(p.amount).toFixed(2)}</TableCell>
                         <TableCell><Badge variant="outline" className="text-xs">{p.payment_method === "cash" ? "Cash" : "Bank Transfer"}</Badge></TableCell>
                         <TableCell className="text-sm text-muted-foreground">{p.notes || "—"}</TableCell>
+                        <TableCell className="text-right whitespace-nowrap">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 text-xs"
+                            onClick={() => {
+                              setEditPayout(p);
+                              setEditAmount(Number(p.amount));
+                              setEditMethod(p.payment_method || "bank_transfer");
+                              setEditNotes(p.notes || "");
+                            }}
+                          >
+                            <Pencil className="h-3.5 w-3.5 mr-1" /> Edit
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 text-xs text-destructive hover:text-destructive"
+                            onClick={() => setUndoPayout(p)}
+                          >
+                            Undo
+                          </Button>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -626,6 +649,7 @@ const FinancePage = () => {
         </Dialog>
 
         <AlertDialog open={anomalyWarningOpen} onOpenChange={setAnomalyWarningOpen}>
+        
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>⚠️ Unreviewed Anomalies</AlertDialogTitle>
