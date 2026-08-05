@@ -648,7 +648,6 @@ export function PackageDetailDialog({ packageBookingId, open, onClose }: Props) 
 
       <PasswordVerifyDialog
         open={passwordOpen}
-        open={passwordOpen}
         onOpenChange={setPasswordOpen}
         onConfirmed={() => {
           setPasswordOpen(false);
