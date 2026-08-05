@@ -482,6 +482,7 @@ export function PackageDetailDialog({ packageBookingId, open, onClose }: Props) 
                     <TableHead>Time</TableHead>
                     <TableHead>Service</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -494,6 +495,27 @@ export function PackageDetailDialog({ packageBookingId, open, onClose }: Props) 
                       <TableCell>{s.scheduled_time || "—"}</TableCell>
                       <TableCell className="capitalize">{s.service_type?.replace("_", " ") || "—"}</TableCell>
                       <TableCell>{sessionStatusBadge(s.status)}</TableCell>
+                      <TableCell className="text-right">
+                        {s.status === "cancelled" && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setSessionAction({ session: s as PackageSessionRow, mode: "reinstate" })}
+                          >
+                            <RotateCcw className="h-3 w-3 mr-1" /> Reinstate
+                          </Button>
+                        )}
+                        {(s.status === "scheduled" || s.status === "rescheduled") && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-destructive hover:text-destructive"
+                            onClick={() => setSessionAction({ session: s as PackageSessionRow, mode: "cancel" })}
+                          >
+                            Cancel
+                          </Button>
+                        )}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
