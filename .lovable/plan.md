@@ -1,81 +1,47 @@
-## What's actually going on
+# Control session statuses from the Package Details screen
 
-Gurmit has **not paid**. The package record says so plainly:
+Right now the sessions table in Package Details is read-only. If a session gets cancelled and the customer calls back to reinstate it, there is no way to put it back from that screen. This adds status control there for every staff member (admin, manager, groomer).
 
-- `package_bookings` for Gurmit / Rio: `total_paid £100`, `amount_received £0`, `payment_method 'unpaid'`, `stripe_payment_status 'pending'`, no `stripe_payment_intent_id`.
+## What changes
 
-But the five session **bookings** on the calendar each look fully paid:
+**1. Sessions table becomes actionable**
 
-- `total_price £20`, `deposit_paid £20`, `stripe_payment_id NULL`, `payment_method NULL`, `cash_collected 0`, `card_collected 0`.
+Each session row gets an action button next to its status badge:
 
-That is why each session card shows the green **"All Paid Online"** badge and the "Customer paid in full online — nothing to charge on the day" callout. It's the calendar card, not the package, that is wrong.
+- Cancelled session -> "Reinstate"
+- Scheduled session -> "Cancel session"
+- Completed sessions stay read-only (they are financial records).
 
-## Root cause
+**2. Reinstate flow (the pop-up chain)**
 
-`src/components/packages/CreatePackageBooking.tsx` (lines 154–173) seeds every session booking with `deposit_paid = price_per_session` at insert time, regardless of whether the customer actually paid:
+Step 1 — "Reinstate this session?" dialog with two choices:
 
-```ts
-bookingData.total_price = 0;
-bookingData.deposit_paid = 0;
-...
-if (pkg.package_type === "teeth_cleaning") {
-  bookingData.total_price = pkg.price_per_session || 20;
-  bookingData.deposit_paid = pkg.price_per_session || 20;   // ← lies
-}
-```
+- **Keep original date & time** — reinstates immediately at the session's existing date/time. Nothing else changes.
+- **Amend date & time** — goes to step 2.
 
-`BookingPopoverCard.tsx` then evaluates `isFullyPaid = deposit >= total` and prints the "All Paid Online" pill. There is no cross-check against the parent `package_bookings.amount_received` or `payment_method`, so an unpaid package still displays as paid on every session card.
+Step 2 — Warning dialog: "You must amend the appointment on the calendar first. Have you already done this?"
 
-This is the same class of bug we fixed for the package details dialog: `total_paid` was treated as "money in" when it was really "price". The session bookings inherited the same mistake, one layer deeper.
+- **No** — closes the dialogs and takes you to the calendar, opened on that customer's original appointment day, so you can amend it there.
+- **Yes** — opens a date picker + time picker so you record when it was amended to. A **Save** button applies it.
 
-## Permanent fix
+On save (either path) the session flips from Cancelled back to Scheduled with the chosen date/time.
 
-Two changes, both presentation-only for existing rows — no financial write-paths touched.
+**3. Everything stays in sync**
 
-### 1. Stop seeding fake payment on session bookings
+- Reinstating writes to the underlying calendar booking (status back to Confirmed, plus the new date/time when amended). The existing database trigger mirrors that onto the package session, so the calendar and the package screen never disagree.
+- Marking an appointment Completed on the calendar already flows through to Package Details; with realtime already wired on this dialog, every staff member sees it update live.
+- Package counters (Used / Remaining / Total) and package status recalculate automatically from the same trigger.
+- Each action is written to the Activity Timeline on the package screen (who did it, old -> new status, and the date/time change when amended).
 
-In `CreatePackageBooking.tsx`, when inserting each session booking:
+**4. Who can do it**
 
-- Always set `deposit_paid = 0` at creation.
-- Only set `deposit_paid = price_per_session` **when the package was paid in full up front** — i.e. when `paymentMethod === "salon"` and `receivedNow >= totalPrice`, or (later) when Stripe confirms full payment.
-- Keep `total_price = price_per_session` so the price breakdown still reads correctly.
+Admins, managers and groomers can all reinstate and cancel individual sessions. Cancelling the whole package stays admin-only, as today.
 
-This makes new packages honest: unpaid packages produce unpaid session bookings.
+## Technical notes
 
-### 2. Make the session card read from the package, not itself
-
-In `BookingPopoverCard.tsx`, when the booking is part of a package (we can detect this via `booking_source = "package"` and/or by joining to `package_sessions` to find the parent `package_booking_id`), derive the paid/unpaid pill from the parent `package_bookings` row instead of from `deposit_paid`:
-
-- `amount_received >= total_paid` → green **"Package Paid"** pill (with method: Stripe / Salon).
-- `0 < amount_received < total_paid` → amber **"Package Part-Paid — £X due"**.
-- `amount_received = 0` → red **"Package Unpaid — send link"** with a shortcut that opens the existing `PackagePaymentPanel` action.
-
-Also suppress the "Customer paid in full online — nothing to charge on the day" callout for package sessions unless the parent package is actually fully paid.
-
-### 3. Repair the five existing Gurmit sessions
-
-One targeted migration/backfill for **package bookings whose parent has `amount_received = 0`**:
-
-```sql
-UPDATE bookings b
-SET deposit_paid = 0
-FROM package_sessions ps
-JOIN package_bookings pb ON pb.id = ps.package_booking_id
-WHERE ps.booking_id = b.id
-  AND pb.amount_received = 0
-  AND b.stripe_payment_id IS NULL
-  AND b.cash_collected = 0
-  AND b.card_collected = 0;
-```
-
-This clears the false "paid" state on every session inherited from an unpaid package (Gurmit's five, plus any other unpaid packages in the same shape). It only touches rows with zero real money attached — no risk to genuinely paid bookings.
-
-After the fix Oksana will see the five Gurmit sessions correctly as unpaid, and the existing **"Send Stripe payment link"** button on the package details dialog is the one-click way to collect from him.
-
-## Files touched
-
-- `src/components/packages/CreatePackageBooking.tsx` — don't seed `deposit_paid` unless money was actually taken.
-- `src/components/booking-calendar/BookingPopoverCard.tsx` — package-aware payment badge and callout.
-- New migration — backfill `deposit_paid = 0` on session bookings whose parent package is unpaid.
-
-No changes to `record-payment`, `stripe-webhook`, `cancel-booking-with-refund`, or any financial write path.
+- File: `src/components/packages/PackageDetailDialog.tsx` — add an Actions column to the sessions table plus a new `SessionStatusDialog` component (`src/components/packages/SessionStatusDialog.tsx`) holding the choice / warning / date-time steps.
+- Writes go to `bookings` (status, `booking_date`, `booking_time`), not directly to `package_sessions` — `trg_sync_package_session_from_booking` already mirrors status, date/time, counters and audit rows.
+- Sessions with no `booking_id` (rare legacy rows) update `package_sessions` directly as a fallback.
+- Timeline entries use the existing `package_payment_audit` events `session_status_changed` / `session_rescheduled`, which the dialog already renders.
+- "Take me to the calendar" navigates to the bookings calendar for the session's original date; no calendar code changes needed.
+- No schema migration required.
