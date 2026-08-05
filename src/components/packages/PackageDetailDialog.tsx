@@ -17,6 +17,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useCurrentStaff } from "@/hooks/useCurrentStaff";
 import { PackagePaymentPanel } from "./PackagePaymentPanel";
+import { SessionStatusDialog, PackageSessionRow } from "./SessionStatusDialog";
 
 interface Props {
   packageBookingId: string;
@@ -39,6 +40,7 @@ export function PackageDetailDialog({ packageBookingId, open, onClose }: Props) 
   const [manualName, setManualName] = useState("");
   const [savingManual, setSavingManual] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [sessionAction, setSessionAction] = useState<{ session: PackageSessionRow; mode: "reinstate" | "cancel" } | null>(null);
 
   // Realtime: refresh package data whenever a booking, session, or the package
   // itself changes — so completion / reschedule / cancel show up live for every
