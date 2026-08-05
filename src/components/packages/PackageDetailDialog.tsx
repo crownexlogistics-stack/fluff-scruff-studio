@@ -658,6 +658,22 @@ export function PackageDetailDialog({ packageBookingId, open, onClose }: Props) 
         confirmLabel="Cancel Package"
         destructive
       />
+
+      <SessionStatusDialog
+        open={!!sessionAction}
+        onClose={() => setSessionAction(null)}
+        session={sessionAction?.session ?? null}
+        packageBookingId={packageBookingId}
+        mode={sessionAction?.mode ?? "reinstate"}
+        performedBy={currentStaff?.name || (isAdmin ? "Admin" : "Staff")}
+        onDone={() => {
+          queryClient.invalidateQueries({ queryKey: ["package-sessions-detail", packageBookingId] });
+          queryClient.invalidateQueries({ queryKey: ["package-booking-detail", packageBookingId] });
+          queryClient.invalidateQueries({ queryKey: ["package-audit", packageBookingId] });
+          queryClient.invalidateQueries({ queryKey: ["package-bookings"] });
+          queryClient.invalidateQueries({ queryKey: ["bookings"] });
+        }}
+      />
     </>
   );
 }
