@@ -151,6 +151,9 @@ export function PackagePaymentPanel({ pb, currentStaffId, currentStaffName, paid
       qc.invalidateQueries({ queryKey: ["package-booking-detail"] });
       qc.invalidateQueries({ queryKey: ["package-bookings"] });
       qc.invalidateQueries({ queryKey: ["package-audit"] });
+      qc.invalidateQueries({ queryKey: ["bookings"] });
+      qc.invalidateQueries({ queryKey: ["package-payment-for-session"] });
+      qc.invalidateQueries({ queryKey: ["package-sessions"] });
       onChanged?.();
     } catch (err: any) {
       toast.error(err.message || "Failed to save");
