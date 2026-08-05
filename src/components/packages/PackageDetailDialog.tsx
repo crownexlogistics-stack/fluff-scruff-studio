@@ -9,7 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { AlertTriangle, Package, Loader2, FileCheck, Clock, Send, PenLine, FileDown, History, CreditCard, CheckCircle2, XCircle, CalendarClock } from "lucide-react";
+import { AlertTriangle, Package, Loader2, FileCheck, Clock, Send, PenLine, FileDown, History, CreditCard, CheckCircle2, XCircle, CalendarClock, RotateCcw } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { PasswordVerifyDialog } from "@/components/booking-calendar/PasswordVerifyDialog";
@@ -17,6 +17,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useCurrentStaff } from "@/hooks/useCurrentStaff";
 import { PackagePaymentPanel } from "./PackagePaymentPanel";
+import { SessionStatusDialog, PackageSessionRow } from "./SessionStatusDialog";
 
 interface Props {
   packageBookingId: string;
@@ -39,6 +40,7 @@ export function PackageDetailDialog({ packageBookingId, open, onClose }: Props) 
   const [manualName, setManualName] = useState("");
   const [savingManual, setSavingManual] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [sessionAction, setSessionAction] = useState<{ session: PackageSessionRow; mode: "reinstate" | "cancel" } | null>(null);
 
   // Realtime: refresh package data whenever a booking, session, or the package
   // itself changes — so completion / reschedule / cancel show up live for every
@@ -480,6 +482,7 @@ export function PackageDetailDialog({ packageBookingId, open, onClose }: Props) 
                     <TableHead>Time</TableHead>
                     <TableHead>Service</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -492,6 +495,27 @@ export function PackageDetailDialog({ packageBookingId, open, onClose }: Props) 
                       <TableCell>{s.scheduled_time || "—"}</TableCell>
                       <TableCell className="capitalize">{s.service_type?.replace("_", " ") || "—"}</TableCell>
                       <TableCell>{sessionStatusBadge(s.status)}</TableCell>
+                      <TableCell className="text-right">
+                        {s.status === "cancelled" && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setSessionAction({ session: s as PackageSessionRow, mode: "reinstate" })}
+                          >
+                            <RotateCcw className="h-3 w-3 mr-1" /> Reinstate
+                          </Button>
+                        )}
+                        {(s.status === "scheduled" || s.status === "rescheduled") && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-destructive hover:text-destructive"
+                            onClick={() => setSessionAction({ session: s as PackageSessionRow, mode: "cancel" })}
+                          >
+                            Cancel
+                          </Button>
+                        )}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -633,6 +657,22 @@ export function PackageDetailDialog({ packageBookingId, open, onClose }: Props) 
         description={`This will refund £${potentialRefund.toFixed(2)} for ${remaining} unused sessions.`}
         confirmLabel="Cancel Package"
         destructive
+      />
+
+      <SessionStatusDialog
+        open={!!sessionAction}
+        onClose={() => setSessionAction(null)}
+        session={sessionAction?.session ?? null}
+        packageBookingId={packageBookingId}
+        mode={sessionAction?.mode ?? "reinstate"}
+        performedBy={currentStaff?.name || (isAdmin ? "Admin" : "Staff")}
+        onDone={() => {
+          queryClient.invalidateQueries({ queryKey: ["package-sessions-detail", packageBookingId] });
+          queryClient.invalidateQueries({ queryKey: ["package-booking-detail", packageBookingId] });
+          queryClient.invalidateQueries({ queryKey: ["package-audit", packageBookingId] });
+          queryClient.invalidateQueries({ queryKey: ["package-bookings"] });
+          queryClient.invalidateQueries({ queryKey: ["bookings"] });
+        }}
       />
     </>
   );
