@@ -54,23 +54,26 @@ const BREED_SIZES: Record<string, string> = {
   "chow chow": "giant",
 };
 
-function detectBreedSize(text: string): string | null {
+function matchBreed(text: string): string | null {
   const lower = text.toLowerCase();
   // Sort by length descending so multi-word breeds match first
   const sorted = Object.keys(BREED_SIZES).sort((a, b) => b.length - a.length);
   for (const breed of sorted) {
-    if (lower.includes(breed)) return BREED_SIZES[breed];
+    const escaped = breed.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    // Whole-word match only — prevents "availability" matching "lab"
+    const re = new RegExp(`(^|[^a-z])${escaped}(s)?([^a-z]|$)`, "i");
+    if (re.test(lower)) return breed;
   }
   return null;
 }
 
+function detectBreedSize(text: string): string | null {
+  const breed = matchBreed(text);
+  return breed ? BREED_SIZES[breed] : null;
+}
+
 function detectBreedName(text: string): string | null {
-  const lower = text.toLowerCase();
-  const sorted = Object.keys(BREED_SIZES).sort((a, b) => b.length - a.length);
-  for (const breed of sorted) {
-    if (lower.includes(breed)) return breed;
-  }
-  return null;
+  return matchBreed(text);
 }
 
 // ── Helpers ─────────────────────────────────────────────
