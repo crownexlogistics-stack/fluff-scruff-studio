@@ -54,23 +54,26 @@ const BREED_SIZES: Record<string, string> = {
   "chow chow": "giant",
 };
 
-function detectBreedSize(text: string): string | null {
+function matchBreed(text: string): string | null {
   const lower = text.toLowerCase();
   // Sort by length descending so multi-word breeds match first
   const sorted = Object.keys(BREED_SIZES).sort((a, b) => b.length - a.length);
   for (const breed of sorted) {
-    if (lower.includes(breed)) return BREED_SIZES[breed];
+    const escaped = breed.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    // Whole-word match only — prevents "availability" matching "lab"
+    const re = new RegExp(`(^|[^a-z])${escaped}(s)?([^a-z]|$)`, "i");
+    if (re.test(lower)) return breed;
   }
   return null;
 }
 
+function detectBreedSize(text: string): string | null {
+  const breed = matchBreed(text);
+  return breed ? BREED_SIZES[breed] : null;
+}
+
 function detectBreedName(text: string): string | null {
-  const lower = text.toLowerCase();
-  const sorted = Object.keys(BREED_SIZES).sort((a, b) => b.length - a.length);
-  for (const breed of sorted) {
-    if (lower.includes(breed)) return breed;
-  }
-  return null;
+  return matchBreed(text);
 }
 
 // ── Helpers ─────────────────────────────────────────────
@@ -518,16 +521,30 @@ Deno.serve(async (req) => {
 
     // ── Availability check ──────────────────────────────
     const availabilityKeywords = [
-      "available", "availability", "slot", "when can", "next available",
-      "free", "opening", "schedule", "this week", "next week", "tomorrow",
-      "today", "saturday", "tuesday", "wednesday", "thursday", "friday",
-      "next", "any slots", "can i book", "can I get",
+      "available", "availability", "slot", "slots", "when can", "next available",
+      "opening", "openings", "any space", "any room", "book a time", "can i book",
+      "can i get", "appointment",
     ];
-    const isAvailabilityQuestion = availabilityKeywords.some((kw) => lowerMsg.includes(kw));
+    const dateKeywords = [
+      "today", "tomorrow", "tuesday", "wednesday", "thursday", "friday", "saturday",
+      "sunday", "monday", "this week", "next week",
+    ];
+    const explicitDatePattern = /(\d{1,2})(?:st|nd|rd|th)?\s*(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)/i;
+    const hasExplicitDate =
+      dateKeywords.some((kw) => lowerMsg.includes(kw)) || explicitDatePattern.test(lowerMsg);
+    const isAvailabilityQuestion =
+      availabilityKeywords.some((kw) => lowerMsg.includes(kw)) || hasExplicitDate;
 
     let availabilityContext = "";
 
-    if (isAvailabilityQuestion) {
+    if (isAvailabilityQuestion && !hasExplicitDate) {
+      // No date given — never assume today. Ask the customer instead.
+      availabilityContext = `\n\nAVAILABILITY DATA: The customer asked about availability but did NOT say which day, and ${
+        breedName ? `they mentioned a ${breedName}` : "we do NOT know their dog's breed or which service they want"
+      }. Do NOT state or guess any dates, days, breeds or services. Ask them warmly which day (or few days) they have in mind${
+        breedName ? "" : ", plus their dog's breed and the service they'd like"
+      }, then you can check for them. We're open Tuesday to Saturday, 10am-5pm. You may mention they can also book online at fluffandscruff.co.uk/book.`;
+    } else if (isAvailabilityQuestion) {
       try {
         const today = new Date();
         const todayStr = today.toISOString().split("T")[0];
