@@ -633,10 +633,10 @@ Deno.serve(async (req) => {
     }
 
     // ── Call Anthropic ──────────────────────────────────
-    const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
-    if (!anthropicKey) {
+    const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+    if (!lovableKey) {
       return new Response(
-        JSON.stringify({ error: "ANTHROPIC_API_KEY not configured" }),
+        JSON.stringify({ error: "LOVABLE_API_KEY not configured" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -650,32 +650,42 @@ Deno.serve(async (req) => {
     }
     messages.push({ role: "user", content: message });
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": anthropicKey,
-        "anthropic-version": "2023-06-01",
+        "Lovable-API-Key": lovableKey,
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 800,
-        system: BASE_SYSTEM_PROMPT + liveContext + availabilityContext + breedContext + memoryContext,
-        messages,
+        model: "google/gemini-3.6-flash",
+        messages: [
+          {
+            role: "system",
+            content:
+              BASE_SYSTEM_PROMPT + liveContext + availabilityContext + breedContext + memoryContext,
+          },
+          ...messages,
+        ],
       }),
     });
 
     if (!response.ok) {
       const errText = await response.text();
-      console.error("Anthropic error:", errText);
+      console.error("AI gateway error:", response.status, errText);
+      const friendly =
+        response.status === 429
+          ? "Woof! I'm a bit busy right now 🐾 Please try again in a moment."
+          : response.status === 402
+            ? "Sorry, my assistant service is temporarily unavailable. Please call us on 01708 606655."
+            : "AI service error";
       return new Response(
-        JSON.stringify({ error: "AI service error", detail: errText }),
+        JSON.stringify({ error: friendly, detail: errText }),
         { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     const data = await response.json();
-    let reply = data.content?.[0]?.text || "Woof! Something went wrong 🐾";
+    let reply = data.choices?.[0]?.message?.content || "Woof! Something went wrong 🐾";
 
     const responseTimeMs = Date.now() - startTime;
 
