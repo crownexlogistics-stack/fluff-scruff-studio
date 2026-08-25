@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { friendlyError } from "@/lib/friendlyError";
 import { logAudit } from "@/lib/auditLog";
 import { logGroomerActivity } from "@/lib/logGroomerActivity";
 import { Mail, Sparkles } from "lucide-react";
