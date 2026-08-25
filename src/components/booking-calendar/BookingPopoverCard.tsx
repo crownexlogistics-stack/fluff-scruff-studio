@@ -16,6 +16,7 @@ import type { BookingData } from "./BookingEvent";
 import { DogBriefButton } from "./DogBriefButton";
 import { PackageBadge } from "@/components/packages/PackageBadge";
 import { useCustomerProfileLink } from "@/hooks/useCustomerProfileLink";
+import { useCanCheckout } from "@/hooks/useCanCheckout";
 
 interface BookingPopoverCardProps {
   booking: BookingData;
