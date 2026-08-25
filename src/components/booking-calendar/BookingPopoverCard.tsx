@@ -46,6 +46,7 @@ export function BookingPopoverCard({
   onRefundComplete,
 }: BookingPopoverCardProps) {
   const navigate = useNavigate();
+  const canCheckout = useCanCheckout(booking.staff_id);
   const [requestingDeposit, setRequestingDeposit] = useState(false);
   const [processingRefund, setProcessingRefund] = useState(false);
   const isGhost = booking.status === "Cancelled" || booking.status === "No Show" || booking.status === "Refunded";
@@ -751,9 +752,15 @@ export function BookingPopoverCard({
           Book Again
         </Button>
         {booking.status !== "Completed" && booking.status !== "No Show" && booking.status !== "Cancelled" && booking.status !== "Refunded" && (
-          <Button size="sm" onClick={() => onCheckout?.(booking)}>
-            Check Out
-          </Button>
+          canCheckout ? (
+            <Button size="sm" onClick={() => onCheckout?.(booking)}>
+              Check Out
+            </Button>
+          ) : (
+            <span className="text-xs text-muted-foreground italic">
+              Only {booking.staff_name || "the assigned groomer"} or an admin can check this out
+            </span>
+          )
         )}
       </div>
     </div>
