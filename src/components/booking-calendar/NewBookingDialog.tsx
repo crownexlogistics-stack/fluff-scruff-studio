@@ -11,6 +11,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { friendlyError } from "@/lib/friendlyError";
 import { logAudit } from "@/lib/auditLog";
 import { logGroomerActivity } from "@/lib/logGroomerActivity";
 import { CustomerSearchInput, type CustomerResult } from "./CustomerSearchInput";
@@ -458,7 +459,7 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
       if (e.message === "Please enter a name and email or phone number") {
         setNewCustomerError(e.message);
       } else {
-        toast.error(e.message);
+        toast.error(friendlyError(e));
       }
     },
   });

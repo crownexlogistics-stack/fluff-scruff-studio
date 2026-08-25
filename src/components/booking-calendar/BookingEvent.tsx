@@ -19,6 +19,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { PackageBadge } from "@/components/packages/PackageBadge";
 import { useCustomerProfileLink } from "@/hooks/useCustomerProfileLink";
 import { usePermissions } from "@/config/rolePermissions";
+import { useCanCheckout } from "@/hooks/useCanCheckout";
 
 export interface BookingData {
   id: string;
@@ -81,6 +82,7 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
   const [resettingCheckout, setResettingCheckout] = useState(false);
   const queryClient = useQueryClient();
   const { isManagement } = usePermissions();
+  const canCheckout = useCanCheckout(booking.staff_id);
 
   const handleResetCheckout = async () => {
     if (resettingCheckout) return;
@@ -972,9 +974,15 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
               Book Again
             </Button>
             {booking.status !== "Completed" && booking.status !== "No Show" && booking.status !== "Cancelled" && booking.status !== "Refunded" && (
-              <Button size="sm" onClick={() => onCheckout?.(booking)}>
-                Check Out
-              </Button>
+              canCheckout ? (
+                <Button size="sm" onClick={() => onCheckout?.(booking)}>
+                  Check Out
+                </Button>
+              ) : (
+                <span className="text-xs text-muted-foreground italic">
+                  Only {booking.staff_name || "the assigned groomer"} or an admin can check this out
+                </span>
+              )
             )}
           </div>
         </div>
