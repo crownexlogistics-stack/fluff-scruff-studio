@@ -259,7 +259,7 @@ export function EditAppointmentDialog({ open, onOpenChange, booking }: EditAppoi
       queryClient.invalidateQueries({ queryKey: ["booking-addons"] });
       onOpenChange(false);
     },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: any) => toast.error(friendlyError(e)),
   });
 
   const [notifying, setNotifying] = useState(false);

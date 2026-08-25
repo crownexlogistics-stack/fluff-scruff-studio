@@ -458,7 +458,7 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
       if (e.message === "Please enter a name and email or phone number") {
         setNewCustomerError(e.message);
       } else {
-        toast.error(e.message);
+        toast.error(friendlyError(e));
       }
     },
   });
