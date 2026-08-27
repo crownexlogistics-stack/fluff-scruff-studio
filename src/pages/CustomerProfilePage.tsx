@@ -397,7 +397,7 @@ export default function CustomerProfilePage() {
       // Get booking IDs for this customer
       const { data: custBookings } = await supabase
         .from("bookings")
-        .select("id, booking_date, booking_time, dog_name")
+        .select("id, booking_date, booking_time, dog_name, service_name, total_price, staff_id")
         .eq("customer_email", decodedEmail);
       if (!custBookings || custBookings.length === 0) return [];
       const bookingIds = custBookings.map((b) => b.id);
@@ -414,6 +414,28 @@ export default function CustomerProfilePage() {
     enabled: !!decodedEmail && isOwnCustomer,
   });
 
+  // Marketing campaign emails sent to this customer
+  const { data: campaignEmails } = useQuery({
+    queryKey: ["customer-campaign-emails", decodedEmail],
+    queryFn: async () => {
+      const { data: sends, error } = await supabase
+        .from("campaign_send_log")
+        .select("id, campaign_id, status, error_message, sent_at, email")
+        .ilike("email", decodedEmail)
+        .order("sent_at", { ascending: false });
+      if (error) throw error;
+      if (!sends || sends.length === 0) return [];
+      const campaignIds = [...new Set(sends.map((s) => s.campaign_id).filter(Boolean))] as string[];
+      const { data: campaigns } = await supabase
+        .from("email_campaigns")
+        .select("id, subject, html_body")
+        .in("id", campaignIds);
+      const cMap = Object.fromEntries((campaigns || []).map((c) => [c.id, c]));
+      return sends.map((s) => ({ ...s, campaign: s.campaign_id ? cMap[s.campaign_id] : null }));
+    },
+    enabled: !!decodedEmail && isOwnCustomer,
+  });
+
   const emailTypeLabels: Record<string, string> = {
     confirmation: "Booking Confirmation",
     reminder_24h: "24h Reminder",
@@ -422,9 +444,20 @@ export default function CustomerProfilePage() {
     cancellation: "Cancellation",
   };
 
+  const SALON_EMAIL = "info@fluffandscruff.co.uk";
+
   // Combine & sort all emails
   const allEmails = [
-    ...(outboundEmails || []).map((e) => ({ ...e, direction: "outbound" as const, displaySubject: e.subject })),
+    ...(outboundEmails || []).map((e) => ({
+      ...e,
+      direction: "outbound" as const,
+      displaySubject: e.subject || "(No subject)",
+      fromAddress: SALON_EMAIL,
+      toAddress: decodedEmail,
+      channel: "Manual email",
+      html: null as string | null,
+      status: null as string | null,
+    })),
     ...(inboundEmails || []).map((e) => ({
       id: e.id,
       created_at: e.created_at,
@@ -433,17 +466,53 @@ export default function CustomerProfilePage() {
       body: e.body || "",
       from_name: e.from_name,
       sent_by: null as string | null,
+      fromAddress: e.from_email || decodedEmail,
+      toAddress: SALON_EMAIL,
+      channel: "Customer reply",
+      html: null as string | null,
+      status: null as string | null,
     })),
     ...(bookingEmailLogs || []).map((e: any) => ({
       id: `be-${e.id}`,
       created_at: e.sent_at,
       direction: "outbound" as const,
       displaySubject: emailTypeLabels[e.email_type] || e.email_type,
-      body: e.booking ? `${e.booking.dog_name} — ${format(new Date(e.booking.booking_date), "dd MMM yyyy")} at ${e.booking.booking_time?.substring(0, 5)}` : "Automated email",
+      body: e.booking
+        ? [
+            `${e.booking.dog_name || "Dog"} — ${format(new Date(e.booking.booking_date), "dd MMM yyyy")} at ${e.booking.booking_time?.substring(0, 5)}`,
+            e.booking.service_name ? `Service: ${e.booking.service_name}` : null,
+            e.booking.total_price != null ? `Total: £${Number(e.booking.total_price).toFixed(2)}` : null,
+            "",
+            "This is the standard automated template for this email type — the exact wording is generated at send time and is not stored.",
+          ]
+            .filter(Boolean)
+            .join("\n")
+        : "Automated email (booking record no longer available).",
       sent_by: null as string | null,
+      fromAddress: SALON_EMAIL,
+      toAddress: decodedEmail,
+      channel: "Automated",
+      html: null as string | null,
+      status: e.resend_id ? `Delivered (ref ${e.resend_id})` : null,
       _isAutomated: true,
     })),
-  ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    ...(campaignEmails || []).map((e: any) => ({
+      id: `cs-${e.id}`,
+      created_at: e.sent_at,
+      direction: "outbound" as const,
+      displaySubject: e.campaign?.subject || "Marketing campaign",
+      body: e.error_message || "",
+      sent_by: null as string | null,
+      fromAddress: SALON_EMAIL,
+      toAddress: e.email || decodedEmail,
+      channel: "Marketing campaign",
+      html: (e.campaign?.html_body as string) || null,
+      status: e.status || null,
+      _isCampaign: true,
+    })),
+  ]
+    .filter((e) => !!e.created_at)
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
   // Lookup data for edit dialogs
   const { data: allBreeds } = useQuery({
