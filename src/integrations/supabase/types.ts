@@ -681,25 +681,37 @@ export type Database = {
       }
       booking_emails: {
         Row: {
+          body_html: string | null
           booking_id: string
           email_type: string
+          from_email: string | null
           id: string
+          recipient_email: string | null
           resend_id: string | null
           sent_at: string
+          subject: string | null
         }
         Insert: {
+          body_html?: string | null
           booking_id: string
           email_type: string
+          from_email?: string | null
           id?: string
+          recipient_email?: string | null
           resend_id?: string | null
           sent_at?: string
+          subject?: string | null
         }
         Update: {
+          body_html?: string | null
           booking_id?: string
           email_type?: string
+          from_email?: string | null
           id?: string
+          recipient_email?: string | null
           resend_id?: string | null
           sent_at?: string
+          subject?: string | null
         }
         Relationships: [
           {
