@@ -397,7 +397,7 @@ export default function CustomerProfilePage() {
       // Get booking IDs for this customer
       const { data: custBookings } = await supabase
         .from("bookings")
-        .select("id, booking_date, booking_time, dog_name")
+        .select("id, booking_date, booking_time, dog_name, total_price, staff_id")
         .eq("customer_email", decodedEmail);
       if (!custBookings || custBookings.length === 0) return [];
       const bookingIds = custBookings.map((b) => b.id);
@@ -414,6 +414,28 @@ export default function CustomerProfilePage() {
     enabled: !!decodedEmail && isOwnCustomer,
   });
 
+  // Marketing campaign emails sent to this customer
+  const { data: campaignEmails } = useQuery({
+    queryKey: ["customer-campaign-emails", decodedEmail],
+    queryFn: async () => {
+      const { data: sends, error } = await supabase
+        .from("campaign_send_log")
+        .select("id, campaign_id, status, error_message, sent_at, email")
+        .ilike("email", decodedEmail)
+        .order("sent_at", { ascending: false });
+      if (error) throw error;
+      if (!sends || sends.length === 0) return [];
+      const campaignIds = [...new Set(sends.map((s) => s.campaign_id).filter(Boolean))] as string[];
+      const { data: campaigns } = await supabase
+        .from("email_campaigns")
+        .select("id, subject, html_body")
+        .in("id", campaignIds);
+      const cMap = Object.fromEntries((campaigns || []).map((c) => [c.id, c]));
+      return sends.map((s) => ({ ...s, campaign: s.campaign_id ? cMap[s.campaign_id] : null }));
+    },
+    enabled: !!decodedEmail && isOwnCustomer,
+  });
+
   const emailTypeLabels: Record<string, string> = {
     confirmation: "Booking Confirmation",
     reminder_24h: "24h Reminder",
@@ -422,9 +444,21 @@ export default function CustomerProfilePage() {
     cancellation: "Cancellation",
   };
 
+  const SALON_EMAIL = "info@fluffandscruff.co.uk";
+  const [expandedEmailId, setExpandedEmailId] = useState<string | null>(null);
+
   // Combine & sort all emails
   const allEmails = [
-    ...(outboundEmails || []).map((e) => ({ ...e, direction: "outbound" as const, displaySubject: e.subject })),
+    ...(outboundEmails || []).map((e) => ({
+      ...e,
+      direction: "outbound" as const,
+      displaySubject: e.subject || "(No subject)",
+      fromAddress: SALON_EMAIL,
+      toAddress: decodedEmail,
+      channel: "Manual email",
+      html: null as string | null,
+      status: null as string | null,
+    })),
     ...(inboundEmails || []).map((e) => ({
       id: e.id,
       created_at: e.created_at,
@@ -433,17 +467,52 @@ export default function CustomerProfilePage() {
       body: e.body || "",
       from_name: e.from_name,
       sent_by: null as string | null,
+      fromAddress: e.from_email || decodedEmail,
+      toAddress: SALON_EMAIL,
+      channel: "Customer reply",
+      html: null as string | null,
+      status: null as string | null,
     })),
     ...(bookingEmailLogs || []).map((e: any) => ({
       id: `be-${e.id}`,
       created_at: e.sent_at,
       direction: "outbound" as const,
       displaySubject: emailTypeLabels[e.email_type] || e.email_type,
-      body: e.booking ? `${e.booking.dog_name} — ${format(new Date(e.booking.booking_date), "dd MMM yyyy")} at ${e.booking.booking_time?.substring(0, 5)}` : "Automated email",
+      body: e.booking
+        ? [
+            `${e.booking.dog_name || "Dog"} — ${format(new Date(e.booking.booking_date), "dd MMM yyyy")} at ${e.booking.booking_time?.substring(0, 5)}`,
+            e.booking.total_price != null ? `Total: £${Number(e.booking.total_price).toFixed(2)}` : null,
+            "",
+            "This is the standard automated template for this email type — the exact wording is generated at send time and is not stored.",
+          ]
+            .filter(Boolean)
+            .join("\n")
+        : "Automated email (booking record no longer available).",
       sent_by: null as string | null,
+      fromAddress: SALON_EMAIL,
+      toAddress: decodedEmail,
+      channel: "Automated",
+      html: null as string | null,
+      status: e.resend_id ? `Delivered (ref ${e.resend_id})` : null,
       _isAutomated: true,
     })),
-  ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    ...(campaignEmails || []).map((e: any) => ({
+      id: `cs-${e.id}`,
+      created_at: e.sent_at,
+      direction: "outbound" as const,
+      displaySubject: e.campaign?.subject || "Marketing campaign",
+      body: e.error_message || "",
+      sent_by: null as string | null,
+      fromAddress: SALON_EMAIL,
+      toAddress: e.email || decodedEmail,
+      channel: "Marketing campaign",
+      html: (e.campaign?.html_body as string) || null,
+      status: e.status || null,
+      _isCampaign: true,
+    })),
+  ]
+    .filter((e) => !!e.created_at)
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
   // Lookup data for edit dialogs
   const { data: allBreeds } = useQuery({
@@ -1656,32 +1725,106 @@ export default function CustomerProfilePage() {
                     </div>
                   )}
                   <Separator />
-                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Email History</h4>
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    Email History {allEmails.length > 0 && <span className="normal-case font-normal">({allEmails.length})</span>}
+                  </h4>
                   {allEmails.length > 0 ? (
                     <div className="space-y-2">
-                      {allEmails.map((em) => (
-                        <div key={em.id} className="p-3 rounded-lg border bg-muted/30">
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-1">
-                            <div className="flex items-center gap-2 min-w-0">
-                              <Badge variant={em.direction === "inbound" ? "default" : "outline"} className="text-[10px] px-1.5 py-0 shrink-0">
-                                {em.direction === "inbound" ? "Received" : "Sent"}
-                              </Badge>
-                              {(em as any)._isAutomated && (
-                                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 shrink-0">⚡ Auto</Badge>
+                      {allEmails.map((em) => {
+                        const anyEm = em as any;
+                        const isOpen = expandedEmailId === String(em.id);
+                        return (
+                          <div key={em.id} className="rounded-lg border bg-muted/30 overflow-hidden">
+                            <button
+                              type="button"
+                              onClick={() => setExpandedEmailId(isOpen ? null : String(em.id))}
+                              className="w-full text-left p-3 hover:bg-muted/50 transition-colors"
+                            >
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <Badge variant={em.direction === "inbound" ? "default" : "outline"} className="text-[10px] px-1.5 py-0 shrink-0">
+                                    {em.direction === "inbound" ? "Received" : "Sent"}
+                                  </Badge>
+                                  {anyEm._isAutomated && (
+                                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0 shrink-0">⚡ Auto</Badge>
+                                  )}
+                                  {anyEm._isCampaign && (
+                                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0 shrink-0">📣 Campaign</Badge>
+                                  )}
+                                  <p className="text-sm font-medium truncate">{em.displaySubject}</p>
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                  <span className="text-xs text-muted-foreground">
+                                    {format(new Date(em.created_at), "dd MMM yyyy, HH:mm")}
+                                  </span>
+                                  <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${isOpen ? "rotate-180" : ""}`} />
+                                </div>
+                              </div>
+                              {!isOpen && (
+                                <p className="text-xs text-muted-foreground mt-1 truncate">
+                                  From {anyEm.fromAddress} → To {anyEm.toAddress}
+                                </p>
                               )}
-                              <p className="text-sm font-medium truncate">{em.displaySubject}</p>
-                            </div>
-                            <span className="text-xs text-muted-foreground shrink-0">{format(new Date(em.created_at), "dd MMM yyyy, HH:mm")}</span>
+                            </button>
+
+                            {isOpen && (
+                              <div className="border-t bg-background/60 p-3 space-y-3">
+                                <div className="grid gap-1 text-xs">
+                                  <div className="flex gap-2">
+                                    <span className="w-16 shrink-0 text-muted-foreground">From</span>
+                                    <span className="font-medium break-all">
+                                      {anyEm.from_name ? `${anyEm.from_name} <${anyEm.fromAddress}>` : anyEm.fromAddress}
+                                    </span>
+                                  </div>
+                                  <div className="flex gap-2">
+                                    <span className="w-16 shrink-0 text-muted-foreground">To</span>
+                                    <span className="font-medium break-all">{anyEm.toAddress}</span>
+                                  </div>
+                                  <div className="flex gap-2">
+                                    <span className="w-16 shrink-0 text-muted-foreground">Subject</span>
+                                    <span className="font-medium break-words">{em.displaySubject}</span>
+                                  </div>
+                                  <div className="flex gap-2">
+                                    <span className="w-16 shrink-0 text-muted-foreground">Sent</span>
+                                    <span className="font-medium">
+                                      {format(new Date(em.created_at), "EEEE dd MMM yyyy 'at' HH:mm")}
+                                    </span>
+                                  </div>
+                                  <div className="flex gap-2">
+                                    <span className="w-16 shrink-0 text-muted-foreground">Type</span>
+                                    <span className="font-medium">{anyEm.channel}</span>
+                                  </div>
+                                  {anyEm.status && (
+                                    <div className="flex gap-2">
+                                      <span className="w-16 shrink-0 text-muted-foreground">Status</span>
+                                      <span className="font-medium break-all">{anyEm.status}</span>
+                                    </div>
+                                  )}
+                                  {em.direction === "outbound" && em.sent_by && (
+                                    <div className="flex gap-2">
+                                      <span className="w-16 shrink-0 text-muted-foreground">Sent by</span>
+                                      <span className="font-medium">{getStaffName(em.sent_by)}</span>
+                                    </div>
+                                  )}
+                                </div>
+
+                                <Separator />
+
+                                {anyEm.html ? (
+                                  <div
+                                    className="text-sm [&_img]:max-w-full [&_a]:text-primary [&_a]:underline overflow-x-auto"
+                                    dangerouslySetInnerHTML={{ __html: anyEm.html }}
+                                  />
+                                ) : em.body ? (
+                                  <p className="text-sm whitespace-pre-wrap break-words">{em.body}</p>
+                                ) : (
+                                  <p className="text-sm italic text-muted-foreground">No message content stored for this email.</p>
+                                )}
+                              </div>
+                            )}
                           </div>
-                          <p className="text-sm text-muted-foreground whitespace-pre-wrap line-clamp-3">{em.body}</p>
-                          {em.direction === "inbound" && (em as any).from_name && (
-                            <p className="text-xs text-muted-foreground mt-1">From: {(em as any).from_name}</p>
-                          )}
-                          {em.direction === "outbound" && em.sent_by && (
-                            <p className="text-xs text-muted-foreground mt-1">Sent by {getStaffName(em.sent_by)}</p>
-                          )}
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   ) : (
                     <div className="text-center py-8">
