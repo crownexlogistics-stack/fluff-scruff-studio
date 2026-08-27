@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { buildBookingEmailHtml, buildBookingEmailSubject } from "@/lib/bookingEmailTemplates";
+
 import { AppLayout } from "@/components/AppLayout";
 import { GroomerLayout } from "@/components/GroomerLayout";
 import { Card, CardContent } from "@/components/ui/card";
@@ -397,7 +399,7 @@ export default function CustomerProfilePage() {
       // Get booking IDs for this customer
       const { data: custBookings } = await supabase
         .from("bookings")
-        .select("id, booking_date, booking_time, dog_name, total_price, staff_id")
+        .select("id, booking_date, booking_time, dog_name, total_price, staff_id, customer_name, services(name), breeds(name)")
         .eq("customer_email", decodedEmail);
       if (!custBookings || custBookings.length === 0) return [];
       const bookingIds = custBookings.map((b) => b.id);
@@ -411,6 +413,7 @@ export default function CustomerProfilePage() {
       const bookingMap = Object.fromEntries(custBookings.map((b) => [b.id, b]));
       return (data || []).map((e) => ({ ...e, booking: bookingMap[e.booking_id] }));
     },
+
     enabled: !!decodedEmail && isOwnCustomer,
   });
 
@@ -473,29 +476,42 @@ export default function CustomerProfilePage() {
       html: null as string | null,
       status: null as string | null,
     })),
-    ...(bookingEmailLogs || []).map((e: any) => ({
-      id: `be-${e.id}`,
-      created_at: e.sent_at,
-      direction: "outbound" as const,
-      displaySubject: emailTypeLabels[e.email_type] || e.email_type,
-      body: e.booking
-        ? [
-            `${e.booking.dog_name || "Dog"} — ${format(new Date(e.booking.booking_date), "dd MMM yyyy")} at ${e.booking.booking_time?.substring(0, 5)}`,
-            e.booking.total_price != null ? `Total: £${Number(e.booking.total_price).toFixed(2)}` : null,
-            "",
-            "This is the standard automated template for this email type — the exact wording is generated at send time and is not stored.",
-          ]
-            .filter(Boolean)
-            .join("\n")
-        : "Automated email (booking record no longer available).",
-      sent_by: null as string | null,
-      fromAddress: SALON_EMAIL,
-      toAddress: decodedEmail,
-      channel: "Automated",
-      html: null as string | null,
-      status: e.resend_id ? `Delivered (ref ${e.resend_id})` : null,
-      _isAutomated: true,
-    })),
+    ...(bookingEmailLogs || []).map((e: any) => {
+      const ctx = e.booking
+        ? {
+            customer_name: e.booking.customer_name,
+            dog_name: e.booking.dog_name,
+            breed_name: e.booking.breeds?.name,
+            service_name: e.booking.services?.name,
+            booking_date: e.booking.booking_date,
+            booking_time: e.booking.booking_time,
+            total_price: e.booking.total_price,
+          }
+        : null;
+      const reconstructedHtml = ctx ? buildBookingEmailHtml(e.email_type, ctx) : null;
+      const html = e.body_html || reconstructedHtml;
+      const subject =
+        e.subject || (ctx ? buildBookingEmailSubject(e.email_type, ctx) : null) || emailTypeLabels[e.email_type] || e.email_type;
+      return {
+        id: `be-${e.id}`,
+        created_at: e.sent_at,
+        direction: "outbound" as const,
+        displaySubject: subject,
+        body: html
+          ? ""
+          : "Automated email (booking record no longer available, content could not be reconstructed).",
+        sent_by: null as string | null,
+        fromAddress: e.from_email || SALON_EMAIL,
+        toAddress: e.recipient_email || decodedEmail,
+        channel: "Automated",
+        html,
+        status: e.resend_id ? `Delivered (ref ${e.resend_id})` : null,
+        _isAutomated: true,
+        _isReconstructed: !e.body_html && !!reconstructedHtml,
+        _emailTypeLabel: emailTypeLabels[e.email_type] || e.email_type,
+      };
+    }),
+
     ...(campaignEmails || []).map((e: any) => ({
       id: `cs-${e.id}`,
       created_at: e.sent_at,
@@ -1811,15 +1827,23 @@ export default function CustomerProfilePage() {
                                 <Separator />
 
                                 {anyEm.html ? (
-                                  <div
-                                    className="text-sm [&_img]:max-w-full [&_a]:text-primary [&_a]:underline overflow-x-auto"
-                                    dangerouslySetInnerHTML={{ __html: anyEm.html }}
-                                  />
+                                  <>
+                                    <div
+                                      className="text-sm [&_img]:max-w-full [&_a]:text-primary [&_a]:underline overflow-x-auto"
+                                      dangerouslySetInnerHTML={{ __html: anyEm.html }}
+                                    />
+                                    {anyEm._isReconstructed && (
+                                      <p className="text-[11px] italic text-muted-foreground">
+                                        Rendered from the {anyEm._emailTypeLabel} template that was in use when this email was sent — this is the exact wording the customer received.
+                                      </p>
+                                    )}
+                                  </>
                                 ) : em.body ? (
                                   <p className="text-sm whitespace-pre-wrap break-words">{em.body}</p>
                                 ) : (
                                   <p className="text-sm italic text-muted-foreground">No message content stored for this email.</p>
                                 )}
+
                               </div>
                             )}
                           </div>
