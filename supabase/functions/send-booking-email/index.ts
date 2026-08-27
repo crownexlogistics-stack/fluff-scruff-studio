@@ -234,12 +234,25 @@ serve(async (req) => {
       throw new Error(`Resend error: ${errData}`);
     }
 
-    // Record in booking_emails
+    let resendId: string | null = null;
+    try {
+      const sendJson = await res.clone().json();
+      resendId = sendJson?.id ?? null;
+    } catch (_) {
+      resendId = null;
+    }
+
+    // Record in booking_emails (store the exact content sent, for audit/dispute proof)
     await supabase.from("booking_emails").insert({
       booking_id,
       email_type,
-      resend_id: null,
+      resend_id: resendId,
+      subject,
+      body_html: bodyHtml,
+      recipient_email: booking.customer_email,
+      from_email: "info@fluffandscruff.co.uk",
     });
+
 
     return new Response(JSON.stringify({ success: true }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
