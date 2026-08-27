@@ -1827,15 +1827,23 @@ export default function CustomerProfilePage() {
                                 <Separator />
 
                                 {anyEm.html ? (
-                                  <div
-                                    className="text-sm [&_img]:max-w-full [&_a]:text-primary [&_a]:underline overflow-x-auto"
-                                    dangerouslySetInnerHTML={{ __html: anyEm.html }}
-                                  />
+                                  <>
+                                    <div
+                                      className="text-sm [&_img]:max-w-full [&_a]:text-primary [&_a]:underline overflow-x-auto"
+                                      dangerouslySetInnerHTML={{ __html: anyEm.html }}
+                                    />
+                                    {anyEm._isReconstructed && (
+                                      <p className="text-[11px] italic text-muted-foreground">
+                                        Rendered from the {anyEm._emailTypeLabel} template that was in use when this email was sent — this is the exact wording the customer received.
+                                      </p>
+                                    )}
+                                  </>
                                 ) : em.body ? (
                                   <p className="text-sm whitespace-pre-wrap break-words">{em.body}</p>
                                 ) : (
                                   <p className="text-sm italic text-muted-foreground">No message content stored for this email.</p>
                                 )}
+
                               </div>
                             )}
                           </div>
