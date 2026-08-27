@@ -397,7 +397,7 @@ export default function CustomerProfilePage() {
       // Get booking IDs for this customer
       const { data: custBookings } = await supabase
         .from("bookings")
-        .select("id, booking_date, booking_time, dog_name, total_price, staff_id")
+        .select("id, booking_date, booking_time, dog_name, total_price, staff_id, customer_name, services(name), breeds(name)")
         .eq("customer_email", decodedEmail);
       if (!custBookings || custBookings.length === 0) return [];
       const bookingIds = custBookings.map((b) => b.id);
@@ -411,6 +411,7 @@ export default function CustomerProfilePage() {
       const bookingMap = Object.fromEntries(custBookings.map((b) => [b.id, b]));
       return (data || []).map((e) => ({ ...e, booking: bookingMap[e.booking_id] }));
     },
+
     enabled: !!decodedEmail && isOwnCustomer,
   });
 
