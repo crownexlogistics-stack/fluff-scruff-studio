@@ -397,7 +397,7 @@ export default function CustomerProfilePage() {
       // Get booking IDs for this customer
       const { data: custBookings } = await supabase
         .from("bookings")
-        .select("id, booking_date, booking_time, dog_name, service_name, total_price, staff_id")
+        .select("id, booking_date, booking_time, dog_name, total_price, staff_id")
         .eq("customer_email", decodedEmail);
       if (!custBookings || custBookings.length === 0) return [];
       const bookingIds = custBookings.map((b) => b.id);
@@ -480,7 +480,6 @@ export default function CustomerProfilePage() {
       body: e.booking
         ? [
             `${e.booking.dog_name || "Dog"} — ${format(new Date(e.booking.booking_date), "dd MMM yyyy")} at ${e.booking.booking_time?.substring(0, 5)}`,
-            e.booking.service_name ? `Service: ${e.booking.service_name}` : null,
             e.booking.total_price != null ? `Total: £${Number(e.booking.total_price).toFixed(2)}` : null,
             "",
             "This is the standard automated template for this email type — the exact wording is generated at send time and is not stored.",
