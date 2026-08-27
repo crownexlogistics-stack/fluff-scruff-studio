@@ -445,6 +445,7 @@ export default function CustomerProfilePage() {
   };
 
   const SALON_EMAIL = "info@fluffandscruff.co.uk";
+  const [expandedEmailId, setExpandedEmailId] = useState<string | null>(null);
 
   // Combine & sort all emails
   const allEmails = [
