@@ -1,3 +1,4 @@
+import { safeUuid } from "@/lib/safeUuid";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Send, Phone, Minus, X } from "lucide-react";
@@ -90,7 +91,7 @@ export function AIChatWidget() {
   const inputRef = useRef<HTMLInputElement>(null);
   const prevMessageCount = useRef(messages.length);
 
-  const [sessionId] = useState(() => crypto.randomUUID());
+  const [sessionId] = useState(() => safeUuid());
   const deviceType = /Mobi|Android/i.test(navigator.userAgent) ? "mobile" : "desktop";
 
   const [context, setContext] = useState<ConversationContext>(
@@ -196,7 +197,7 @@ export function AIChatWidget() {
     extractContext(text);
 
     const userMsg: ChatMessage = {
-      id: crypto.randomUUID(),
+      id: safeUuid(),
       role: "user",
       content: text.trim(),
       timestamp: new Date(),
@@ -228,7 +229,7 @@ export function AIChatWidget() {
       }
 
       const assistantMsg: ChatMessage = {
-        id: crypto.randomUUID(),
+        id: safeUuid(),
         role: "assistant",
         content: data.reply,
         timestamp: new Date(),
@@ -242,7 +243,7 @@ export function AIChatWidget() {
       setMessages((prev) => [
         ...prev,
         {
-          id: crypto.randomUUID(),
+          id: safeUuid(),
           role: "assistant",
           content: "Oops, I got a bit tangled up! 🐾 Please try again, or give us a call on 01708 606655.",
           timestamp: new Date(),
