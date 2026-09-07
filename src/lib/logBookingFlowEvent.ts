@@ -1,3 +1,4 @@
+import { safeUuid } from "@/lib/safeUuid";
 import { supabase } from "@/integrations/supabase/client";
 
 const SESSION_KEY = "bookingFlowSessionId";
@@ -6,18 +7,18 @@ export function getBookingFlowSessionId(): string {
   try {
     let id = sessionStorage.getItem(SESSION_KEY);
     if (!id) {
-      id = crypto.randomUUID();
+      id = safeUuid();
       sessionStorage.setItem(SESSION_KEY, id);
     }
     return id;
   } catch {
     // Fallback when sessionStorage unavailable (private mode, SSR)
-    return crypto.randomUUID();
+    return safeUuid();
   }
 }
 
 export function resetBookingFlowSession(): string {
-  const id = crypto.randomUUID();
+  const id = safeUuid();
   try {
     sessionStorage.setItem(SESSION_KEY, id);
   } catch { /* ignore */ }
