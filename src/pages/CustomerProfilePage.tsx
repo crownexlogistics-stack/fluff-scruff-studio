@@ -281,18 +281,60 @@ export default function CustomerProfilePage() {
     enabled: !!decodedEmail,
   });
 
-  const { data: customerPets } = useQuery({
-    queryKey: ["customer-profile-pets", customerUserId],
+  // Resolve who a pet record should be attached to.
+  // get_user_id_by_email can return a migrated_customers.id (not a real auth user),
+  // and customer_pets.user_id has an FK to auth.users — so we must tell them apart.
+  const { data: petOwner } = useQuery<{ kind: "auth" | "migrated"; id: string } | null>({
+    queryKey: ["customer-pet-owner", customerUserId, phoneParam],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("customer_pets")
-        .select("*, breed:breed_id(name, size_category)")
-        .eq("user_id", customerUserId!);
+      if (customerUserId) {
+        const { data: mc } = await supabase
+          .from("migrated_customers")
+          .select("id")
+          .eq("id", customerUserId)
+          .maybeSingle();
+        return mc ? { kind: "migrated" as const, id: mc.id } : { kind: "auth" as const, id: customerUserId };
+      }
+
+      if (phoneParam) {
+        const digits = phoneParam.replace(/\D/g, "");
+        const local = digits.startsWith("44") ? `0${digits.slice(2)}` : digits;
+        const intl = local.startsWith("0") ? `+44${local.slice(1)}` : `+${digits}`;
+        const candidates = Array.from(new Set([phoneParam, digits, local, intl]));
+
+        const { data: existing } = await supabase
+          .from("migrated_customers")
+          .select("id")
+          .in("phone", candidates)
+          .limit(1);
+        if (existing?.[0]) return { kind: "migrated" as const, id: existing[0].id };
+
+        const { data: created } = await supabase
+          .from("migrated_customers")
+          .insert({ full_name: bookings?.[0]?.customer_name || "Customer", phone: phoneParam })
+          .select("id")
+          .single();
+        if (created) return { kind: "migrated" as const, id: created.id };
+      }
+
+      return null;
+    },
+    enabled: !!customerUserId || !!phoneParam,
+  });
+
+  const { data: customerPets } = useQuery({
+    queryKey: ["customer-profile-pets", petOwner?.kind, petOwner?.id],
+    queryFn: async () => {
+      const query = supabase.from("customer_pets").select("*, breed:breed_id(name, size_category)");
+      const { data, error } = petOwner!.kind === "auth"
+        ? await query.eq("user_id", petOwner!.id)
+        : await query.eq("migrated_customer_id", petOwner!.id);
       if (error) return [];
       return data;
     },
-    enabled: !!customerUserId,
+    enabled: !!petOwner,
   });
+
 
   const { data: notes } = useQuery({
     queryKey: ["customer-notes", decodedEmail],
