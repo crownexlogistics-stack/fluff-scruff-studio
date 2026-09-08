@@ -17,6 +17,7 @@ import { DogBriefButton } from "./DogBriefButton";
 import { PackageBadge } from "@/components/packages/PackageBadge";
 import { useCustomerProfileLink } from "@/hooks/useCustomerProfileLink";
 import { useCanCheckout } from "@/hooks/useCanCheckout";
+import { ReinstateBookingButton } from "./ReinstateBookingButton";
 
 interface BookingPopoverCardProps {
   booking: BookingData;
@@ -747,6 +748,8 @@ export function BookingPopoverCard({
         </DropdownMenu>
 
         <div className="flex-1" />
+
+        <ReinstateBookingButton booking={booking as any} onDone={onRefundComplete} />
 
         <Button variant="outline" size="sm" onClick={() => onBookAgain?.(booking)}>
           Book Again

@@ -223,6 +223,7 @@ function OwnBookingPopover({ booking, color, onViewOrder, onEditAppointment, onC
             </DropdownMenuContent>
           </DropdownMenu>
           <div className="flex-1" />
+          <ReinstateBookingButton booking={booking as any} />
           <Button variant="outline" size="sm" onClick={() => onBookAgain?.(booking)}>Book Again</Button>
           {booking.status !== "Completed" && booking.status !== "No Show" && booking.status !== "Cancelled" && (
             <Button size="sm" onClick={() => onCheckout?.(booking)}>Check Out</Button>

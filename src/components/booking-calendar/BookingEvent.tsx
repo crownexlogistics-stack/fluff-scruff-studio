@@ -20,6 +20,7 @@ import { PackageBadge } from "@/components/packages/PackageBadge";
 import { useCustomerProfileLink } from "@/hooks/useCustomerProfileLink";
 import { usePermissions } from "@/config/rolePermissions";
 import { useCanCheckout } from "@/hooks/useCanCheckout";
+import { ReinstateBookingButton } from "./ReinstateBookingButton";
 
 export interface BookingData {
   id: string;
@@ -969,6 +970,8 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
             </DropdownMenu>
 
             <div className="flex-1" />
+
+            <ReinstateBookingButton booking={booking as any} />
 
             <Button variant="outline" size="sm" onClick={() => onBookAgain?.(booking)}>
               Book Again
