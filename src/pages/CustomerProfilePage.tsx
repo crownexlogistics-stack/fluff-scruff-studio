@@ -39,6 +39,8 @@ import { useFullCalendarAccess } from "@/hooks/useFullCalendarAccess";
 import { logAudit } from "@/lib/auditLog";
 import { NewAppointmentDialog } from "@/components/customer-profile/NewAppointmentDialog";
 import { ViewOrderDialog } from "@/components/booking-calendar/ViewOrderDialog";
+import { friendlyError } from "@/lib/friendlyError";
+
 
 export default function CustomerProfilePage() {
   const { email } = useParams<{ email: string }>();
