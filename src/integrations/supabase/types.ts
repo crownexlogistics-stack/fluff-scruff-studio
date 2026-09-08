@@ -1469,9 +1469,10 @@ export type Database = {
           dog_age_months: number | null
           dog_age_years: number | null
           id: string
+          migrated_customer_id: string | null
           notes: string | null
           pet_name: string
-          user_id: string
+          user_id: string | null
         }
         Insert: {
           breed_id?: string | null
@@ -1479,9 +1480,10 @@ export type Database = {
           dog_age_months?: number | null
           dog_age_years?: number | null
           id?: string
+          migrated_customer_id?: string | null
           notes?: string | null
           pet_name: string
-          user_id: string
+          user_id?: string | null
         }
         Update: {
           breed_id?: string | null
@@ -1489,9 +1491,10 @@ export type Database = {
           dog_age_months?: number | null
           dog_age_years?: number | null
           id?: string
+          migrated_customer_id?: string | null
           notes?: string | null
           pet_name?: string
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -1499,6 +1502,13 @@ export type Database = {
             columns: ["breed_id"]
             isOneToOne: false
             referencedRelation: "breeds"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_pets_migrated_customer_id_fkey"
+            columns: ["migrated_customer_id"]
+            isOneToOne: false
+            referencedRelation: "migrated_customers"
             referencedColumns: ["id"]
           },
         ]
