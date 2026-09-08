@@ -2122,7 +2122,8 @@ export default function CustomerProfilePage() {
       )}
 
       {/* ═══ ADD DOG DIALOG ═══ */}
-      {canManageCustomer && customerUserId && (
+      {canManageCustomer && (
+
         <Dialog open={addDogOpen} onOpenChange={setAddDogOpen}>
           <DialogContent className="max-w-md">
             <DialogHeader><DialogTitle>Register New Dog</DialogTitle></DialogHeader>
@@ -2178,13 +2179,18 @@ export default function CustomerProfilePage() {
               <Button
                 disabled={!newDogForm.pet_name.trim()}
                 onClick={async () => {
-                  if (!customerUserId) {
-                    toast({ title: "Unable to link customer profile", description: "Please refresh and try again.", variant: "destructive" });
+                  if (!petOwner) {
+                    toast({
+                      title: "Can't save this dog yet",
+                      description: "We couldn't find a customer record to attach the dog to. Add an email or phone number to this customer first, then try again.",
+                      variant: "destructive",
+                    });
                     return;
                   }
 
                   const { error } = await supabase.from("customer_pets").insert({
-                    user_id: customerUserId,
+                    user_id: petOwner.kind === "auth" ? petOwner.id : null,
+                    migrated_customer_id: petOwner.kind === "migrated" ? petOwner.id : null,
                     pet_name: newDogForm.pet_name.trim(),
                     breed_id: newDogForm.breed_id || null,
                     dog_age_years: newDogForm.dog_age_years || null,
@@ -2192,11 +2198,12 @@ export default function CustomerProfilePage() {
                     notes: newDogForm.notes.trim() || null,
                   });
                   if (error) {
-                    toast({ title: "Error", description: error.message, variant: "destructive" });
+                    toast({ title: "Couldn't register dog", description: friendlyError(error), variant: "destructive" });
                     return;
                   }
                   toast({ title: "Dog registered successfully" });
-                  queryClient.invalidateQueries({ queryKey: ["customer-profile-pets", customerUserId] });
+                  queryClient.invalidateQueries({ queryKey: ["customer-profile-pets"] });
+
                   setAddDogOpen(false);
                 }}
               >
