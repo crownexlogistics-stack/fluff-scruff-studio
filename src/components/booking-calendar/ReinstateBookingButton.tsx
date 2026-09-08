@@ -117,6 +117,30 @@ export function ReinstateBookingButton({
   const handleReinstate = async () => {
     setBusy(true);
     try {
+      const who = staff?.name || "Staff";
+
+      // Wix/migrated appointments live in their own table and have no audit rows
+      if (booking.is_migrated) {
+        const { error: migErr } = await (supabase.from("migrated_bookings") as any)
+          .update({ payment_status: null, is_future_booking: true })
+          .eq("id", booking.id);
+        if (migErr) throw migErr;
+
+        logAudit({
+          staffId: booking.staff_id || undefined,
+          action: "BOOKING_REINSTATED",
+          details: `Reinstated Wix appointment for ${booking.customer_name} (${booking.dog_name}) on ${format(new Date(booking.booking_date), "dd MMM yyyy")} at ${booking.booking_time.slice(0, 5)} by ${who}.`,
+        });
+
+        toast.success("Appointment reinstated");
+        queryClient.invalidateQueries({ queryKey: ["bookings"] });
+        queryClient.invalidateQueries({ queryKey: ["migrated-calendar-bookings"] });
+        queryClient.invalidateQueries({ queryKey: ["groomer-bookings"] });
+        setOpen(false);
+        onDone?.();
+        return;
+      }
+
       // Work out the status the appointment had before it was cancelled
       let restoredStatus: string | null = null;
       const { data: history } = await supabase
@@ -141,13 +165,6 @@ export function ReinstateBookingButton({
         .eq("id", booking.id);
       if (error) throw error;
 
-      if (booking.is_migrated) {
-        await (supabase.from("migrated_bookings") as any)
-          .update({ payment_status: null, is_future_booking: true })
-          .eq("id", booking.id);
-      }
-
-      const who = staff?.name || "Staff";
       const cancelledAt = cancelEntry?.performed_at
         ? format(new Date(cancelEntry.performed_at), "dd MMM yyyy, HH:mm")
         : null;
