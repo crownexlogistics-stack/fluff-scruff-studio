@@ -910,6 +910,7 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
                     created_by_staff: "#FF6B35",
                     rescheduled: "#2D1B0E",
                     cancelled: "#e53935",
+                    reinstated: "#43a047",
                     status_changed: "#9e9e9e",
                     checked_in: "#43a047",
                   };
@@ -920,6 +921,7 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
                   else if (entry.event_type === "created_by_staff") text = `Created by ${entry.performed_by || "staff"}`;
                   else if (entry.event_type === "rescheduled") text = `Rescheduled by ${entry.performed_by || "staff"}: ${entry.old_date} ${entry.old_time?.slice(0, 5) || ""} → ${entry.new_date} ${entry.new_time?.slice(0, 5) || ""}`;
                   else if (entry.event_type === "cancelled") text = `Cancelled by ${entry.performed_by || "staff"}`;
+                  else if (entry.event_type === "reinstated") text = entry.note || `Reinstated by ${entry.performed_by || "staff"}`;
                   else if (entry.event_type === "checked_in") text = `Checked in by ${entry.performed_by || "staff"}`;
                   else if (entry.event_type === "status_changed") text = entry.note || "Status changed";
 

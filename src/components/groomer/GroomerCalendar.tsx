@@ -14,6 +14,7 @@ import { logAudit } from "@/lib/auditLog";
 import { useNavigate } from "react-router-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { ReinstateBookingButton } from "@/components/booking-calendar/ReinstateBookingButton";
 
 interface StaffMember {
   id: string;
