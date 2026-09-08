@@ -14,6 +14,7 @@ import { logAudit } from "@/lib/auditLog";
 import { useNavigate } from "react-router-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { ReinstateBookingButton } from "@/components/booking-calendar/ReinstateBookingButton";
 
 interface StaffMember {
   id: string;
@@ -223,6 +224,7 @@ function OwnBookingPopover({ booking, color, onViewOrder, onEditAppointment, onC
             </DropdownMenuContent>
           </DropdownMenu>
           <div className="flex-1" />
+          <ReinstateBookingButton booking={booking as any} />
           <Button variant="outline" size="sm" onClick={() => onBookAgain?.(booking)}>Book Again</Button>
           {booking.status !== "Completed" && booking.status !== "No Show" && booking.status !== "Cancelled" && (
             <Button size="sm" onClick={() => onCheckout?.(booking)}>Check Out</Button>

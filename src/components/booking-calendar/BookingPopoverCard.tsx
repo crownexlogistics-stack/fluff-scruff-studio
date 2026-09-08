@@ -17,6 +17,7 @@ import { DogBriefButton } from "./DogBriefButton";
 import { PackageBadge } from "@/components/packages/PackageBadge";
 import { useCustomerProfileLink } from "@/hooks/useCustomerProfileLink";
 import { useCanCheckout } from "@/hooks/useCanCheckout";
+import { ReinstateBookingButton } from "./ReinstateBookingButton";
 
 interface BookingPopoverCardProps {
   booking: BookingData;
@@ -688,6 +689,7 @@ export function BookingPopoverCard({
                 created_by_staff: "#FF6B35",
                 rescheduled: "#2D1B0E",
                 cancelled: "#e53935",
+                reinstated: "#43a047",
                 status_changed: "#9e9e9e",
                 checked_in: "#43a047",
                 coupon_applied: "#7c3aed",
@@ -701,6 +703,7 @@ export function BookingPopoverCard({
               else if (entry.event_type === "created_by_staff") text = `Created by ${entry.performed_by || "staff"}`;
               else if (entry.event_type === "rescheduled") text = `Rescheduled by ${entry.performed_by || "staff"}: ${entry.old_date} ${entry.old_time?.slice(0, 5) || ""} → ${entry.new_date} ${entry.new_time?.slice(0, 5) || ""}`;
               else if (entry.event_type === "cancelled") text = `Cancelled by ${entry.performed_by || "staff"}`;
+              else if (entry.event_type === "reinstated") text = entry.note || `Reinstated by ${entry.performed_by || "staff"}`;
               else if (entry.event_type === "checked_in") text = `Checked in by ${entry.performed_by || "staff"}`;
               else if (entry.event_type === "status_changed") text = entry.note || "Status changed";
               else if (entry.event_type === "coupon_applied") text = entry.note || `Coupon applied by ${entry.performed_by || "staff"}`;
@@ -747,6 +750,8 @@ export function BookingPopoverCard({
         </DropdownMenu>
 
         <div className="flex-1" />
+
+        <ReinstateBookingButton booking={booking as any} onDone={onRefundComplete} />
 
         <Button variant="outline" size="sm" onClick={() => onBookAgain?.(booking)}>
           Book Again
