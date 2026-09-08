@@ -565,7 +565,10 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
     },
   });
 
-  const resolvedServiceName = selectedSub ?? service;
+  // When a puppy (6 months or younger) is detected the flow switches to the
+  // "Puppy Special" service — the lookup must follow that switch, otherwise the
+  // service never resolves and every time slot is rejected as unavailable.
+  const resolvedServiceName = puppySwitched ? "Puppy Special" : (selectedSub ?? service);
   const { data: currentServiceRecord, isFetching: isFetchingServiceRecord } = useQuery({
     queryKey: ["current-service-record", resolvedServiceName],
     queryFn: async () => {
