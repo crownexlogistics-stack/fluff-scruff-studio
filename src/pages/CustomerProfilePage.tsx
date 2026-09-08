@@ -1334,11 +1334,12 @@ export default function CustomerProfilePage() {
                             )}
                           </div>
                         </div>
-                        {expandedPetId === pet.id && canManageCustomer && !pet.is_from_booking && customerUserId && (
+                        {expandedPetId === pet.id && canManageCustomer && !pet.is_from_booking && petOwner?.kind === "auth" && (
                           <AdminPetTools
                             petId={pet.id}
                             petName={pet.pet_name}
-                            customerUserId={customerUserId}
+                            customerUserId={petOwner.id}
+
                             customerEmail={decodedEmail}
                             staffId={groomerStaff?.id || null}
                             staffName={groomerStaff?.name || "Staff"}
