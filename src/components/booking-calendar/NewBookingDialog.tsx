@@ -141,7 +141,7 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
   const { data: services } = useQuery({
     queryKey: ["services-list-full"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("services").select("id, name, fixed_price").eq("is_active", true).order("name");
+      const { data, error } = await supabase.from("services").select("id, name, fixed_price, duration_minutes").eq("is_active", true).order("name");
       if (error) throw error;
       return data;
     },
