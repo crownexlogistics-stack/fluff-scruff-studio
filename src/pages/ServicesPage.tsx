@@ -46,6 +46,7 @@ import {
   type ServiceRow,
 } from "@/hooks/useWebsiteServices";
 import { friendlyError } from "@/lib/friendlyError";
+import { safeUuid } from "@/lib/safeUuid";
 
 /** Ten years — the website is public so image links must not expire in practice. */
 const SIGNED_URL_TTL = 60 * 60 * 24 * 365 * 10;
@@ -174,7 +175,7 @@ export default function ServicesPage() {
     setUploading(true);
     try {
       const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
-      const path = `${crypto.randomUUID()}.${ext}`;
+      const path = `${safeUuid()}.${ext}`;
       const { error: upErr } = await supabase.storage
         .from("service-images")
         .upload(path, file, { contentType: file.type, upsert: false });
@@ -269,8 +270,9 @@ export default function ServicesPage() {
         serviceId = data.id;
       }
 
-      await syncGroomers(serviceId!, vals.groomerIds);
-      return serviceId!;
+      if (!serviceId) throw new Error("The service could not be saved");
+      await syncGroomers(serviceId, vals.groomerIds);
+      return serviceId;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-services"] });

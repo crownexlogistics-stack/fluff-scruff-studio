@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { forwardRef, useEffect, useState } from "react";
 import { Star, Heart, Quote } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -18,9 +18,9 @@ interface ReviewsData {
   reviews: Review[];
 }
 
-function StarRating({ rating }: { rating: number }) {
+const StarRating = forwardRef<HTMLDivElement, { rating: number }>(({ rating }, ref) => {
   return (
-    <div className="flex gap-0.5">
+    <div ref={ref} className="flex gap-0.5">
       {[1, 2, 3, 4, 5].map((star) => (
         <Star
           key={star}
@@ -29,7 +29,9 @@ function StarRating({ rating }: { rating: number }) {
       ))}
     </div>
   );
-}
+});
+
+StarRating.displayName = "StarRating";
 
 export function GoogleReviews() {
   const [data, setData] = useState<ReviewsData | null>(null);
