@@ -38,6 +38,8 @@ import {
   Clock,
   PoundSterling,
   Globe,
+  Layers,
+  CornerDownRight,
   EyeOff,
 } from "lucide-react";
 import {
@@ -69,6 +71,9 @@ interface FormState {
   showOnWebsite: boolean;
   sortOrder: string;
   groomerIds: string[];
+  /** "" = stands on its own, otherwise the id of the service it sits inside. */
+  parentId: string;
+  isGroup: boolean;
 }
 
 const emptyForm: FormState = {
@@ -83,6 +88,8 @@ const emptyForm: FormState = {
   showOnWebsite: true,
   sortOrder: "100",
   groomerIds: [],
+  parentId: "",
+  isGroup: false,
 };
 
 export default function ServicesPage() {
@@ -100,7 +107,7 @@ export default function ServicesPage() {
       const { data, error } = await supabase
         .from("services")
         .select(
-          "id, name, description, tagline, image_url, fixed_price, duration_minutes, is_active, show_on_website, sort_order"
+          "id, name, description, tagline, image_url, fixed_price, duration_minutes, is_active, show_on_website, sort_order, parent_service_id, is_group"
         )
         .order("sort_order")
         .order("name");
@@ -167,6 +174,8 @@ export default function ServicesPage() {
       showOnWebsite: s.show_on_website,
       sortOrder: String(s.sort_order ?? 100),
       groomerIds: (groomers || []).filter((g) => canGroomerDo(g.id, s.id)).map((g) => g.id),
+      parentId: s.parent_service_id ?? "",
+      isGroup: !!s.is_group,
     });
     setDialogOpen(true);
   };
@@ -239,10 +248,14 @@ export default function ServicesPage() {
       if (!name) throw new Error("Please give the service a name");
       const price = vals.price.trim() === "" ? null : Number(vals.price);
       const duration = vals.duration.trim() === "" ? null : Math.round(Number(vals.duration));
-      if (price == null || Number.isNaN(price) || price < 0)
-        throw new Error("Please enter a price for this service");
-      if (!duration || Number.isNaN(duration) || duration < 5)
-        throw new Error("Please enter how long the appointment takes (at least 5 minutes)");
+      // Options inside a group (and the group tile itself) may be priced by breed.
+      const pricingOptional = !!vals.parentId || vals.isGroup;
+      if (!pricingOptional) {
+        if (price == null || Number.isNaN(price) || price < 0)
+          throw new Error("Please enter a price for this service");
+        if (!duration || Number.isNaN(duration) || duration < 5)
+          throw new Error("Please enter how long the appointment takes (at least 5 minutes)");
+      }
 
       const payload = {
         name,
@@ -251,9 +264,12 @@ export default function ServicesPage() {
         fixed_price: price,
         duration_minutes: duration,
         image_url: vals.imageUrl,
-        is_active: vals.isActive,
-        show_on_website: vals.showOnWebsite,
+        is_active: vals.isGroup ? false : vals.isActive,
+        // Something that sits inside another service never gets its own tile.
+        show_on_website: vals.parentId ? false : vals.showOnWebsite,
         sort_order: Number(vals.sortOrder) || 100,
+        parent_service_id: vals.parentId || null,
+        is_group: vals.isGroup,
       };
 
       let serviceId = vals.id;
@@ -271,6 +287,16 @@ export default function ServicesPage() {
       }
 
       if (!serviceId) throw new Error("The service could not be saved");
+
+      // Whatever we just put a service inside becomes a group tile.
+      if (vals.parentId) {
+        const { error } = await supabase
+          .from("services")
+          .update({ is_group: true, is_active: false } as any)
+          .eq("id", vals.parentId);
+        if (error) throw error;
+      }
+
       await syncGroomers(serviceId, vals.groomerIds);
       return serviceId;
     },
@@ -347,6 +373,102 @@ export default function ServicesPage() {
   const previewImage =
     form.imageUrl || FALLBACK_SERVICE_IMAGES[form.name]?.image || DEFAULT_SERVICE_IMAGE;
 
+  const renderCard = (s: ServiceRow, isChild: boolean, childCount: number) => {
+    const assigned = groomersForService(s.id);
+    const img = s.image_url || FALLBACK_SERVICE_IMAGES[s.name]?.image || DEFAULT_SERVICE_IMAGE;
+    const isGroup = !!s.is_group || childCount > 0;
+    return (
+      <div
+        key={s.id}
+        className="rounded-2xl border border-border bg-card p-4 flex flex-col sm:flex-row gap-4"
+      >
+        <div
+          className={`${isChild ? "h-14 w-14" : "h-20 w-20"} shrink-0 rounded-xl overflow-hidden bg-muted`}
+        >
+          <img src={img} alt={s.name} className="h-full w-full object-cover" />
+        </div>
+        <div className="flex-1 min-w-0 space-y-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="font-semibold text-foreground">{s.name}</p>
+            {isGroup ? (
+              <Badge variant="outline" className="gap-1">
+                <Layers className="h-3 w-3" /> Main tile — {childCount} option
+                {childCount === 1 ? "" : "s"} inside
+              </Badge>
+            ) : isChild ? (
+              <Badge variant="outline" className="gap-1 text-muted-foreground">
+                <CornerDownRight className="h-3 w-3" /> Option inside another service
+              </Badge>
+            ) : null}
+            {!isGroup && !s.is_active && <Badge variant="secondary">Switched off</Badge>}
+            {!isChild &&
+              (s.show_on_website && (isGroup || s.is_active) ? (
+                <Badge variant="outline" className="gap-1">
+                  <Globe className="h-3 w-3" /> On website
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="gap-1 text-muted-foreground">
+                  <EyeOff className="h-3 w-3" /> Not on website
+                </Badge>
+              ))}
+          </div>
+          <p className="text-sm text-muted-foreground line-clamp-2">
+            {s.tagline || s.description || "No description yet"}
+          </p>
+          <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
+            {!isGroup && (
+              <>
+                <span className="flex items-center gap-1">
+                  <PoundSterling className="h-3.5 w-3.5" />
+                  {s.fixed_price != null ? Number(s.fixed_price).toFixed(2) : "Priced by breed"}
+                </span>
+                <span className="flex items-center gap-1">
+                  <Clock className="h-3.5 w-3.5" />
+                  {s.duration_minutes ? `${s.duration_minutes} min` : "Length from breed"}
+                </span>
+                <span>
+                  {assigned.length === (groomers?.length ?? 0)
+                    ? "All groomers"
+                    : assigned.length === 0
+                      ? "No groomers — customers can't book this"
+                      : assigned.map((g) => g.name).join(", ")}
+                </span>
+              </>
+            )}
+          </div>
+        </div>
+        <div className="flex sm:flex-col items-center gap-3 sm:gap-2">
+          {!isGroup && (
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={s.is_active}
+                onCheckedChange={(v) => toggleActive.mutate({ id: s.id, value: v })}
+              />
+              <span className="text-xs text-muted-foreground">Bookable</span>
+            </div>
+          )}
+          {!isChild && (
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={s.show_on_website}
+                onCheckedChange={(v) => toggleWebsite.mutate({ id: s.id, value: v })}
+              />
+              <span className="text-xs text-muted-foreground">Website</span>
+            </div>
+          )}
+          <div className="flex gap-1">
+            <Button size="icon" variant="ghost" onClick={() => openEdit(s)}>
+              <Pencil className="h-4 w-4" />
+            </Button>
+            <Button size="icon" variant="ghost" onClick={() => setDeleteTarget(s)}>
+              <Trash2 className="h-4 w-4 text-destructive" />
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <AppLayout>
       <div className="p-4 sm:p-6 space-y-6 max-w-6xl mx-auto">
@@ -376,82 +498,28 @@ export default function ServicesPage() {
           </div>
         ) : (
           <div className="space-y-3">
-            {(services || []).map((s) => {
-              const assigned = groomersForService(s.id);
-              const img =
-                s.image_url || FALLBACK_SERVICE_IMAGES[s.name]?.image || DEFAULT_SERVICE_IMAGE;
-              return (
-                <div
-                  key={s.id}
-                  className="rounded-2xl border border-border bg-card p-4 flex flex-col sm:flex-row gap-4"
-                >
-                  <div className="h-20 w-20 shrink-0 rounded-xl overflow-hidden bg-muted">
-                    <img src={img} alt={s.name} className="h-full w-full object-cover" />
+            {(services || [])
+              .filter((s) => !s.parent_service_id)
+              .map((s) => {
+                const children = (services || []).filter((c) => c.parent_service_id === s.id);
+                return (
+                  <div key={s.id} className="space-y-2">
+                    {renderCard(s, false, children.length)}
+                    {children.length > 0 && (
+                      <div className="ml-4 sm:ml-10 space-y-2 border-l-2 border-dashed border-border pl-3 sm:pl-4">
+                        <p className="text-xs text-muted-foreground">
+                          Customers choose one of these after tapping “{s.name}” — they never appear
+                          as their own tile.
+                        </p>
+                        {children.map((c) => renderCard(c, true, 0))}
+                      </div>
+                    )}
                   </div>
-                  <div className="flex-1 min-w-0 space-y-2">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-semibold text-foreground">{s.name}</p>
-                      {!s.is_active && <Badge variant="secondary">Switched off</Badge>}
-                      {s.is_active && s.show_on_website ? (
-                        <Badge variant="outline" className="gap-1">
-                          <Globe className="h-3 w-3" /> On website
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="gap-1 text-muted-foreground">
-                          <EyeOff className="h-3 w-3" /> Not on website
-                        </Badge>
-                      )}
-                    </div>
-                    <p className="text-sm text-muted-foreground line-clamp-2">
-                      {s.tagline || s.description || "No description yet"}
-                    </p>
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
-                      <span className="flex items-center gap-1">
-                        <PoundSterling className="h-3.5 w-3.5" />
-                        {s.fixed_price != null ? Number(s.fixed_price).toFixed(2) : "Priced by breed"}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Clock className="h-3.5 w-3.5" />
-                        {s.duration_minutes ? `${s.duration_minutes} min` : "Length from breed"}
-                      </span>
-                      <span>
-                        {assigned.length === (groomers?.length ?? 0)
-                          ? "All groomers"
-                          : assigned.length === 0
-                            ? "No groomers — customers can't book this"
-                            : assigned.map((g) => g.name).join(", ")}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex sm:flex-col items-center gap-3 sm:gap-2">
-                    <div className="flex items-center gap-2">
-                      <Switch
-                        checked={s.is_active}
-                        onCheckedChange={(v) => toggleActive.mutate({ id: s.id, value: v })}
-                      />
-                      <span className="text-xs text-muted-foreground">Bookable</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Switch
-                        checked={s.show_on_website}
-                        onCheckedChange={(v) => toggleWebsite.mutate({ id: s.id, value: v })}
-                      />
-                      <span className="text-xs text-muted-foreground">Website</span>
-                    </div>
-                    <div className="flex gap-1">
-                      <Button size="icon" variant="ghost" onClick={() => openEdit(s)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button size="icon" variant="ghost" onClick={() => setDeleteTarget(s)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })}
           </div>
         )}
+
       </div>
 
       {/* ── Add / edit dialog ─────────────────────────────────────── */}
@@ -562,6 +630,29 @@ export default function ServicesPage() {
                 </div>
               </div>
 
+              <div>
+                <Label>Is this part of another service?</Label>
+                <select
+                  className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  value={form.parentId}
+                  onChange={(e) => setForm({ ...form, parentId: e.target.value })}
+                >
+                  <option value="">No — it stands on its own</option>
+                  {(services || [])
+                    .filter((p) => p.id !== form.id && !p.parent_service_id)
+                    .map((p) => (
+                      <option key={p.id} value={p.id}>
+                        Inside “{p.name}”
+                      </option>
+                    ))}
+                </select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {form.parentId
+                    ? "Customers won't see this as its own tile — they pick it after choosing the service it sits inside."
+                    : "It gets its own tile on the website (if switched on below)."}
+                </p>
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex items-center justify-between rounded-xl border border-border p-3">
                   <span className="text-sm">Bookable</span>
@@ -571,13 +662,17 @@ export default function ServicesPage() {
                   />
                 </div>
                 <div className="flex items-center justify-between rounded-xl border border-border p-3">
-                  <span className="text-sm">Show on website</span>
+                  <span className="text-sm">
+                    {form.parentId ? "Shown inside its main service" : "Show on website"}
+                  </span>
                   <Switch
-                    checked={form.showOnWebsite}
+                    checked={form.parentId ? true : form.showOnWebsite}
+                    disabled={!!form.parentId}
                     onCheckedChange={(v) => setForm({ ...form, showOnWebsite: v })}
                   />
                 </div>
               </div>
+
 
               <div>
                 <Label>Position on the website (lower shows first)</Label>

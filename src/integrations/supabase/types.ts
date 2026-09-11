@@ -3470,7 +3470,9 @@ export type Database = {
           id: string
           image_url: string | null
           is_active: boolean
+          is_group: boolean
           name: string
+          parent_service_id: string | null
           show_on_website: boolean
           sort_order: number
           tagline: string | null
@@ -3484,7 +3486,9 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_active?: boolean
+          is_group?: boolean
           name: string
+          parent_service_id?: string | null
           show_on_website?: boolean
           sort_order?: number
           tagline?: string | null
@@ -3498,13 +3502,23 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_active?: boolean
+          is_group?: boolean
           name?: string
+          parent_service_id?: string | null
           show_on_website?: boolean
           sort_order?: number
           tagline?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "services_parent_service_id_fkey"
+            columns: ["parent_service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       site_config: {
         Row: {

@@ -47,6 +47,10 @@ export interface ServiceRow {
   is_active: boolean;
   show_on_website: boolean;
   sort_order: number;
+  /** When set, this service is one of the options inside another service. */
+  parent_service_id: string | null;
+  /** A group is a website tile that holds other services (e.g. Grooming). */
+  is_group: boolean;
 }
 
 export function serviceToTile(s: {
@@ -66,8 +70,9 @@ export function serviceToTile(s: {
 
 /**
  * Services shown on the public website / booking entry point.
- * Driven entirely by the services table so anything added in the admin
- * Services page appears for customers as soon as it is active.
+ * A tile is shown when it is set to appear on the website and it is not one of
+ * the options inside another service (those are chosen inside the parent tile).
+ * Group tiles (e.g. Grooming) show as long as one of their options is bookable.
  */
 export function useWebsiteServices() {
   const { data, isLoading } = useQuery({
@@ -75,21 +80,30 @@ export function useWebsiteServices() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("services")
-        .select("id, name, description, tagline, image_url, sort_order, show_on_website, is_active")
-        .eq("is_active", true)
-        .eq("show_on_website", true)
+        .select(
+          "id, name, description, tagline, image_url, sort_order, show_on_website, is_active, parent_service_id, is_group"
+        )
         .order("sort_order")
         .order("name");
       if (error) throw error;
-      return (data || []) as Pick<
-        ServiceRow,
-        "id" | "name" | "description" | "tagline" | "image_url" | "sort_order" | "show_on_website" | "is_active"
-      >[];
+      return (data || []) as unknown as ServiceRow[];
     },
     staleTime: 60_000,
   });
 
-  const services: WebsiteService[] = [GROOMING_TILE, ...(data || []).map(serviceToTile)];
+  const rows = data || [];
+  const hasActiveChild = (id: string) =>
+    rows.some((r) => r.parent_service_id === id && r.is_active);
+
+  const services: WebsiteService[] = rows
+    .filter(
+      (s) =>
+        s.show_on_website &&
+        !s.parent_service_id &&
+        (s.is_group ? hasActiveChild(s.id) : s.is_active)
+    )
+    .map(serviceToTile);
 
   return { services, isLoading };
 }
+
