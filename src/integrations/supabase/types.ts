@@ -3468,8 +3468,13 @@ export type Database = {
           duration_minutes: number | null
           fixed_price: number | null
           id: string
+          image_url: string | null
           is_active: boolean
           name: string
+          show_on_website: boolean
+          sort_order: number
+          tagline: string | null
+          updated_at: string
         }
         Insert: {
           created_at?: string
@@ -3477,8 +3482,13 @@ export type Database = {
           duration_minutes?: number | null
           fixed_price?: number | null
           id?: string
+          image_url?: string | null
           is_active?: boolean
           name: string
+          show_on_website?: boolean
+          sort_order?: number
+          tagline?: string | null
+          updated_at?: string
         }
         Update: {
           created_at?: string
@@ -3486,8 +3496,13 @@ export type Database = {
           duration_minutes?: number | null
           fixed_price?: number | null
           id?: string
+          image_url?: string | null
           is_active?: boolean
           name?: string
+          show_on_website?: boolean
+          sort_order?: number
+          tagline?: string | null
+          updated_at?: string
         }
         Relationships: []
       }
