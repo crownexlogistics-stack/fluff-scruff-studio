@@ -69,6 +69,9 @@ interface FormState {
   showOnWebsite: boolean;
   sortOrder: string;
   groomerIds: string[];
+  /** "" = stands on its own, otherwise the id of the service it sits inside. */
+  parentId: string;
+  isGroup: boolean;
 }
 
 const emptyForm: FormState = {
@@ -83,6 +86,8 @@ const emptyForm: FormState = {
   showOnWebsite: true,
   sortOrder: "100",
   groomerIds: [],
+  parentId: "",
+  isGroup: false,
 };
 
 export default function ServicesPage() {
@@ -100,7 +105,7 @@ export default function ServicesPage() {
       const { data, error } = await supabase
         .from("services")
         .select(
-          "id, name, description, tagline, image_url, fixed_price, duration_minutes, is_active, show_on_website, sort_order"
+          "id, name, description, tagline, image_url, fixed_price, duration_minutes, is_active, show_on_website, sort_order, parent_service_id, is_group"
         )
         .order("sort_order")
         .order("name");
@@ -167,6 +172,8 @@ export default function ServicesPage() {
       showOnWebsite: s.show_on_website,
       sortOrder: String(s.sort_order ?? 100),
       groomerIds: (groomers || []).filter((g) => canGroomerDo(g.id, s.id)).map((g) => g.id),
+      parentId: s.parent_service_id ?? "",
+      isGroup: !!s.is_group,
     });
     setDialogOpen(true);
   };
@@ -239,10 +246,14 @@ export default function ServicesPage() {
       if (!name) throw new Error("Please give the service a name");
       const price = vals.price.trim() === "" ? null : Number(vals.price);
       const duration = vals.duration.trim() === "" ? null : Math.round(Number(vals.duration));
-      if (price == null || Number.isNaN(price) || price < 0)
-        throw new Error("Please enter a price for this service");
-      if (!duration || Number.isNaN(duration) || duration < 5)
-        throw new Error("Please enter how long the appointment takes (at least 5 minutes)");
+      // Options inside a group (and the group tile itself) may be priced by breed.
+      const pricingOptional = !!vals.parentId || vals.isGroup;
+      if (!pricingOptional) {
+        if (price == null || Number.isNaN(price) || price < 0)
+          throw new Error("Please enter a price for this service");
+        if (!duration || Number.isNaN(duration) || duration < 5)
+          throw new Error("Please enter how long the appointment takes (at least 5 minutes)");
+      }
 
       const payload = {
         name,
@@ -251,9 +262,12 @@ export default function ServicesPage() {
         fixed_price: price,
         duration_minutes: duration,
         image_url: vals.imageUrl,
-        is_active: vals.isActive,
-        show_on_website: vals.showOnWebsite,
+        is_active: vals.isGroup ? false : vals.isActive,
+        // Something that sits inside another service never gets its own tile.
+        show_on_website: vals.parentId ? false : vals.showOnWebsite,
         sort_order: Number(vals.sortOrder) || 100,
+        parent_service_id: vals.parentId || null,
+        is_group: vals.isGroup,
       };
 
       let serviceId = vals.id;
@@ -271,6 +285,16 @@ export default function ServicesPage() {
       }
 
       if (!serviceId) throw new Error("The service could not be saved");
+
+      // Whatever we just put a service inside becomes a group tile.
+      if (vals.parentId) {
+        const { error } = await supabase
+          .from("services")
+          .update({ is_group: true, is_active: false } as any)
+          .eq("id", vals.parentId);
+        if (error) throw error;
+      }
+
       await syncGroomers(serviceId, vals.groomerIds);
       return serviceId;
     },
