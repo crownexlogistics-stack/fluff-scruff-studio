@@ -23,6 +23,9 @@ const CustomerHome = () => {
   const navigate = useNavigate();
   const [activeService, setActiveService] = useState<string | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  // Hooks must run before any role-based redirect. Otherwise signing in changes
+  // the number of hooks rendered and React crashes before the admin page opens.
+  const { services } = useWebsiteServices();
 
   const isStaff = role === "manager" || role === "director" || role === "groomer";
 
@@ -39,10 +42,6 @@ const CustomerHome = () => {
     return null;
   };
   const accountLink = getAccountLink();
-
-  // Driven by the Services page in admin — new services appear here automatically.
-  const { services } = useWebsiteServices();
-
 
   return (
     <div className="min-h-screen bg-background text-foreground">
