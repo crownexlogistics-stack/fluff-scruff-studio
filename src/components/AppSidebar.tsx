@@ -3,7 +3,7 @@ import {
   Dog, Users, Calendar, LayoutDashboard, Crown,
   UserPlus, CalendarClock, ChevronDown, Megaphone,
   UsersRound, BarChart3, Mail,
-  LogOut, Sparkles, AlertTriangle, ShieldCheck, BookOpen,
+  LogOut, Sparkles, Scissors, AlertTriangle, ShieldCheck, BookOpen,
   Inbox, FileText, Ticket, PoundSterling, Bug, Activity, ArrowRightLeft,
   PawPrint, Bot, MessageSquare, PhoneForwarded, Settings, Search, Phone,
   BookOpen as HistoryBook, ShoppingCart, Package, HeartPulse,
