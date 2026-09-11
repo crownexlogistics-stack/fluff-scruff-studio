@@ -43,12 +43,9 @@ const CustomerHome = () => {
   };
   const accountLink = getAccountLink();
 
-  const services = [
-    { title: "Grooming", subtitle: "The ultimate pamper session — wash, dry, cut & style. Your pup leaves looking like a supermodel.", image: serviceFullGroom, imagePosition: "50% 43%" },
-    { title: "Puppy Special", subtitle: "A gentle, fun first grooming experience. We go at their pace with loads of treats & cuddles.", image: servicePuppy, imagePosition: "50% 52%" },
-    { title: "Nail Trim & Filing", subtitle: "Quick, painless trim so those tippy-taps stay happy and healthy.", image: serviceNails, imagePosition: "48% 63%" },
-    { title: "Ultrasonic Teeth Cleaning", subtitle: "Fresh gums and pearly whites for your best friend. Say goodbye to bad breath.", image: serviceTeeth },
-  ];
+  // Driven by the Services page in admin — new services appear here automatically.
+  const { services } = useWebsiteServices();
+
 
   return (
     <div className="min-h-screen bg-background text-foreground">
