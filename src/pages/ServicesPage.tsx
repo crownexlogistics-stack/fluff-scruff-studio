@@ -586,6 +586,29 @@ export default function ServicesPage() {
                 </div>
               </div>
 
+              <div>
+                <Label>Is this part of another service?</Label>
+                <select
+                  className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  value={form.parentId}
+                  onChange={(e) => setForm({ ...form, parentId: e.target.value })}
+                >
+                  <option value="">No — it stands on its own</option>
+                  {(services || [])
+                    .filter((p) => p.id !== form.id && !p.parent_service_id)
+                    .map((p) => (
+                      <option key={p.id} value={p.id}>
+                        Inside “{p.name}”
+                      </option>
+                    ))}
+                </select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {form.parentId
+                    ? "Customers won't see this as its own tile — they pick it after choosing the service it sits inside."
+                    : "It gets its own tile on the website (if switched on below)."}
+                </p>
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex items-center justify-between rounded-xl border border-border p-3">
                   <span className="text-sm">Bookable</span>
@@ -595,13 +618,17 @@ export default function ServicesPage() {
                   />
                 </div>
                 <div className="flex items-center justify-between rounded-xl border border-border p-3">
-                  <span className="text-sm">Show on website</span>
+                  <span className="text-sm">
+                    {form.parentId ? "Shown inside its main service" : "Show on website"}
+                  </span>
                   <Switch
-                    checked={form.showOnWebsite}
+                    checked={form.parentId ? true : form.showOnWebsite}
+                    disabled={!!form.parentId}
                     onCheckedChange={(v) => setForm({ ...form, showOnWebsite: v })}
                   />
                 </div>
               </div>
+
 
               <div>
                 <Label>Position on the website (lower shows first)</Label>
