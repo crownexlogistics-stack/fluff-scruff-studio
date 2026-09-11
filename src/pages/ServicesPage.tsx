@@ -400,82 +400,28 @@ export default function ServicesPage() {
           </div>
         ) : (
           <div className="space-y-3">
-            {(services || []).map((s) => {
-              const assigned = groomersForService(s.id);
-              const img =
-                s.image_url || FALLBACK_SERVICE_IMAGES[s.name]?.image || DEFAULT_SERVICE_IMAGE;
-              return (
-                <div
-                  key={s.id}
-                  className="rounded-2xl border border-border bg-card p-4 flex flex-col sm:flex-row gap-4"
-                >
-                  <div className="h-20 w-20 shrink-0 rounded-xl overflow-hidden bg-muted">
-                    <img src={img} alt={s.name} className="h-full w-full object-cover" />
+            {(services || [])
+              .filter((s) => !s.parent_service_id)
+              .map((s) => {
+                const children = (services || []).filter((c) => c.parent_service_id === s.id);
+                return (
+                  <div key={s.id} className="space-y-2">
+                    {renderCard(s, false, children.length)}
+                    {children.length > 0 && (
+                      <div className="ml-4 sm:ml-10 space-y-2 border-l-2 border-dashed border-border pl-3 sm:pl-4">
+                        <p className="text-xs text-muted-foreground">
+                          Customers choose one of these after tapping “{s.name}” — they never appear
+                          as their own tile.
+                        </p>
+                        {children.map((c) => renderCard(c, true, 0))}
+                      </div>
+                    )}
                   </div>
-                  <div className="flex-1 min-w-0 space-y-2">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-semibold text-foreground">{s.name}</p>
-                      {!s.is_active && <Badge variant="secondary">Switched off</Badge>}
-                      {s.is_active && s.show_on_website ? (
-                        <Badge variant="outline" className="gap-1">
-                          <Globe className="h-3 w-3" /> On website
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="gap-1 text-muted-foreground">
-                          <EyeOff className="h-3 w-3" /> Not on website
-                        </Badge>
-                      )}
-                    </div>
-                    <p className="text-sm text-muted-foreground line-clamp-2">
-                      {s.tagline || s.description || "No description yet"}
-                    </p>
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
-                      <span className="flex items-center gap-1">
-                        <PoundSterling className="h-3.5 w-3.5" />
-                        {s.fixed_price != null ? Number(s.fixed_price).toFixed(2) : "Priced by breed"}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Clock className="h-3.5 w-3.5" />
-                        {s.duration_minutes ? `${s.duration_minutes} min` : "Length from breed"}
-                      </span>
-                      <span>
-                        {assigned.length === (groomers?.length ?? 0)
-                          ? "All groomers"
-                          : assigned.length === 0
-                            ? "No groomers — customers can't book this"
-                            : assigned.map((g) => g.name).join(", ")}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex sm:flex-col items-center gap-3 sm:gap-2">
-                    <div className="flex items-center gap-2">
-                      <Switch
-                        checked={s.is_active}
-                        onCheckedChange={(v) => toggleActive.mutate({ id: s.id, value: v })}
-                      />
-                      <span className="text-xs text-muted-foreground">Bookable</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Switch
-                        checked={s.show_on_website}
-                        onCheckedChange={(v) => toggleWebsite.mutate({ id: s.id, value: v })}
-                      />
-                      <span className="text-xs text-muted-foreground">Website</span>
-                    </div>
-                    <div className="flex gap-1">
-                      <Button size="icon" variant="ghost" onClick={() => openEdit(s)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button size="icon" variant="ghost" onClick={() => setDeleteTarget(s)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })}
           </div>
         )}
+
       </div>
 
       {/* ── Add / edit dialog ─────────────────────────────────────── */}
