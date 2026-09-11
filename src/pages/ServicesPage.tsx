@@ -740,7 +740,6 @@ export default function ServicesPage() {
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
-        </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </AppLayout>
