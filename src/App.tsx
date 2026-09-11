@@ -28,6 +28,7 @@ function RouteTracker() {
 import AdminDashboard from "./pages/Index";
 import BreedsPage from "./pages/BreedsPage";
 import AddOnsPage from "./pages/AddOnsPage";
+import ServicesPage from "./pages/ServicesPage";
 
 import StaffPage from "./pages/StaffPage";
 import StaffDetailPage from "./pages/StaffDetailPage";
