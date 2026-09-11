@@ -47,6 +47,7 @@ const mainNavItems = [
   { title: "Messages", url: "/messages", icon: Inbox },
   { title: "Shared Inbox", url: "/admin/inbox", icon: Mail },
   { title: "AI Inbox", url: "/ai-inbox", icon: PhoneForwarded },
+  { title: "Services", url: "/services", icon: Scissors },
   { title: "Add-Ons", url: "/add-ons", icon: Sparkles },
 ];
 
