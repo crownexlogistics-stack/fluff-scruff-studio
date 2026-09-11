@@ -35,6 +35,8 @@ const BookingEntryPage = () => {
   const rebookBreedId = searchParams.get("breedId");
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
+  // Bookable services come from the Services page in admin.
+  const { services: allServices } = useWebsiteServices();
 
   // Auth form state (for inline login)
   const [authMode, setAuthMode] = useState<"choose" | "login" | "forgot">("choose");
