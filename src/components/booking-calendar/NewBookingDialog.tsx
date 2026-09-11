@@ -141,7 +141,7 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
   const { data: services } = useQuery({
     queryKey: ["services-list-full"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("services").select("id, name, fixed_price").eq("is_active", true).order("name");
+      const { data, error } = await supabase.from("services").select("id, name, fixed_price, duration_minutes").eq("is_active", true).order("name");
       if (error) throw error;
       return data;
     },
@@ -220,6 +220,19 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.service_id, staffServices, mode]);
+
+  // Auto-fill the finish time from the service length (staff can still change it)
+  useEffect(() => {
+    if (!form.service_id || !form.booking_time) return;
+    const svc: any = services?.find((s: any) => s.id === form.service_id);
+    const mins = svc?.duration_minutes ? Number(svc.duration_minutes) : null;
+    if (!mins) return;
+    const [h, m] = form.booking_time.split(":").map(Number);
+    const total = h * 60 + m + mins;
+    const end = `${String(Math.floor(total / 60) % 24).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+    setForm(prev => (prev.end_time === end ? prev : { ...prev, end_time: end }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.service_id, form.booking_time, services]);
 
   // Auto-fill price when service or breed changes
   useEffect(() => {

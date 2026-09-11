@@ -14,10 +14,7 @@ import { ServiceJourney } from "@/components/ServiceJourney";
 import logo from "@/assets/logo-transparent.png";
 
 import { AIChatWidget } from "@/components/AIChatWidget";
-import serviceFullGroom from "@/assets/service-full-groom.jpg";
-import servicePuppy from "@/assets/service-puppy.jpg";
-import serviceTeeth from "@/assets/service-teeth.jpg";
-import serviceNails from "@/assets/service-nails.jpg";
+import { useWebsiteServices } from "@/hooks/useWebsiteServices";
 
 interface PetWithBreed {
   id: string;
@@ -38,6 +35,8 @@ const BookingEntryPage = () => {
   const rebookBreedId = searchParams.get("breedId");
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
+  // Bookable services come from the Services page in admin.
+  const { services: allServices } = useWebsiteServices();
 
   // Auth form state (for inline login)
   const [authMode, setAuthMode] = useState<"choose" | "login" | "forgot">("choose");
@@ -263,12 +262,6 @@ const BookingEntryPage = () => {
   }
 
   // New customer flow: service selection then booking
-  const allServices = [
-    { title: "Grooming", subtitle: "The ultimate pamper session — wash, dry, cut & style. Your pup leaves looking like a supermodel.", image: serviceFullGroom, imagePosition: "50% 43%" },
-    { title: "Puppy Special", subtitle: "A gentle, fun first grooming experience. We go at their pace with loads of treats & cuddles.", image: servicePuppy, imagePosition: "50% 52%" },
-    { title: "Ultrasonic Teeth Cleaning", subtitle: "Fresh gums and pearly whites for your best friend. Say goodbye to bad breath.", image: serviceTeeth },
-    { title: "Nail Trim & Filing", subtitle: "Quick, painless trim so those tippy-taps stay happy and healthy.", image: serviceNails, imagePosition: "48% 63%" },
-  ];
 
   if (newCustomerBooking && newCustomerService) {
     return (

@@ -3,7 +3,7 @@ import {
   Dog, Users, Calendar, LayoutDashboard, Crown,
   UserPlus, CalendarClock, ChevronDown, Megaphone,
   UsersRound, BarChart3, Mail,
-  LogOut, Sparkles, AlertTriangle, ShieldCheck, BookOpen,
+  LogOut, Sparkles, Scissors, AlertTriangle, ShieldCheck, BookOpen,
   Inbox, FileText, Ticket, PoundSterling, Bug, Activity, ArrowRightLeft,
   PawPrint, Bot, MessageSquare, PhoneForwarded, Settings, Search, Phone,
   BookOpen as HistoryBook, ShoppingCart, Package, HeartPulse,
@@ -47,6 +47,7 @@ const mainNavItems = [
   { title: "Messages", url: "/messages", icon: Inbox },
   { title: "Shared Inbox", url: "/admin/inbox", icon: Mail },
   { title: "AI Inbox", url: "/ai-inbox", icon: PhoneForwarded },
+  { title: "Services", url: "/services", icon: Scissors },
   { title: "Add-Ons", url: "/add-ons", icon: Sparkles },
 ];
 

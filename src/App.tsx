@@ -28,6 +28,7 @@ function RouteTracker() {
 import AdminDashboard from "./pages/Index";
 import BreedsPage from "./pages/BreedsPage";
 import AddOnsPage from "./pages/AddOnsPage";
+import ServicesPage from "./pages/ServicesPage";
 
 import StaffPage from "./pages/StaffPage";
 import StaffDetailPage from "./pages/StaffDetailPage";
@@ -143,6 +144,7 @@ const App = () => (
           <Route path="/admin/coupons" element={<ProtectedRoute allowedRoles={["director"]}><CouponsPage /></ProtectedRoute>} />
           <Route path="/breeds" element={<ProtectedRoute allowedRoles={["director"]}><BreedsPage /></ProtectedRoute>} />
           <Route path="/add-ons" element={<ProtectedRoute allowedRoles={["manager", "director"]}><AddOnsPage /></ProtectedRoute>} />
+          <Route path="/services" element={<ProtectedRoute allowedRoles={["manager", "director"]}><ServicesPage /></ProtectedRoute>} />
           
           <Route path="/staff" element={<ProtectedRoute allowedRoles={["manager", "director"]}><StaffPage /></ProtectedRoute>} />
           <Route path="/staff/:id" element={<ProtectedRoute allowedRoles={["manager", "director"]}><StaffDetailPage /></ProtectedRoute>} />
