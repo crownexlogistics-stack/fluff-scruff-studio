@@ -38,6 +38,8 @@ import {
   Clock,
   PoundSterling,
   Globe,
+  Layers,
+  CornerDownRight,
   EyeOff,
 } from "lucide-react";
 import {
@@ -370,6 +372,102 @@ export default function ServicesPage() {
 
   const previewImage =
     form.imageUrl || FALLBACK_SERVICE_IMAGES[form.name]?.image || DEFAULT_SERVICE_IMAGE;
+
+  const renderCard = (s: ServiceRow, isChild: boolean, childCount: number) => {
+    const assigned = groomersForService(s.id);
+    const img = s.image_url || FALLBACK_SERVICE_IMAGES[s.name]?.image || DEFAULT_SERVICE_IMAGE;
+    const isGroup = !!s.is_group || childCount > 0;
+    return (
+      <div
+        key={s.id}
+        className="rounded-2xl border border-border bg-card p-4 flex flex-col sm:flex-row gap-4"
+      >
+        <div
+          className={`${isChild ? "h-14 w-14" : "h-20 w-20"} shrink-0 rounded-xl overflow-hidden bg-muted`}
+        >
+          <img src={img} alt={s.name} className="h-full w-full object-cover" />
+        </div>
+        <div className="flex-1 min-w-0 space-y-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="font-semibold text-foreground">{s.name}</p>
+            {isGroup ? (
+              <Badge variant="outline" className="gap-1">
+                <Layers className="h-3 w-3" /> Main tile — {childCount} option
+                {childCount === 1 ? "" : "s"} inside
+              </Badge>
+            ) : isChild ? (
+              <Badge variant="outline" className="gap-1 text-muted-foreground">
+                <CornerDownRight className="h-3 w-3" /> Option inside another service
+              </Badge>
+            ) : null}
+            {!isGroup && !s.is_active && <Badge variant="secondary">Switched off</Badge>}
+            {!isChild &&
+              (s.show_on_website && (isGroup || s.is_active) ? (
+                <Badge variant="outline" className="gap-1">
+                  <Globe className="h-3 w-3" /> On website
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="gap-1 text-muted-foreground">
+                  <EyeOff className="h-3 w-3" /> Not on website
+                </Badge>
+              ))}
+          </div>
+          <p className="text-sm text-muted-foreground line-clamp-2">
+            {s.tagline || s.description || "No description yet"}
+          </p>
+          <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
+            {!isGroup && (
+              <>
+                <span className="flex items-center gap-1">
+                  <PoundSterling className="h-3.5 w-3.5" />
+                  {s.fixed_price != null ? Number(s.fixed_price).toFixed(2) : "Priced by breed"}
+                </span>
+                <span className="flex items-center gap-1">
+                  <Clock className="h-3.5 w-3.5" />
+                  {s.duration_minutes ? `${s.duration_minutes} min` : "Length from breed"}
+                </span>
+                <span>
+                  {assigned.length === (groomers?.length ?? 0)
+                    ? "All groomers"
+                    : assigned.length === 0
+                      ? "No groomers — customers can't book this"
+                      : assigned.map((g) => g.name).join(", ")}
+                </span>
+              </>
+            )}
+          </div>
+        </div>
+        <div className="flex sm:flex-col items-center gap-3 sm:gap-2">
+          {!isGroup && (
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={s.is_active}
+                onCheckedChange={(v) => toggleActive.mutate({ id: s.id, value: v })}
+              />
+              <span className="text-xs text-muted-foreground">Bookable</span>
+            </div>
+          )}
+          {!isChild && (
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={s.show_on_website}
+                onCheckedChange={(v) => toggleWebsite.mutate({ id: s.id, value: v })}
+              />
+              <span className="text-xs text-muted-foreground">Website</span>
+            </div>
+          )}
+          <div className="flex gap-1">
+            <Button size="icon" variant="ghost" onClick={() => openEdit(s)}>
+              <Pencil className="h-4 w-4" />
+            </Button>
+            <Button size="icon" variant="ghost" onClick={() => setDeleteTarget(s)}>
+              <Trash2 className="h-4 w-4 text-destructive" />
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <AppLayout>
