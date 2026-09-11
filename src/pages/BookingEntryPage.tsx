@@ -14,10 +14,7 @@ import { ServiceJourney } from "@/components/ServiceJourney";
 import logo from "@/assets/logo-transparent.png";
 
 import { AIChatWidget } from "@/components/AIChatWidget";
-import serviceFullGroom from "@/assets/service-full-groom.jpg";
-import servicePuppy from "@/assets/service-puppy.jpg";
-import serviceTeeth from "@/assets/service-teeth.jpg";
-import serviceNails from "@/assets/service-nails.jpg";
+import { useWebsiteServices } from "@/hooks/useWebsiteServices";
 
 interface PetWithBreed {
   id: string;
