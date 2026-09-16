@@ -16,6 +16,7 @@ import { logAudit } from "@/lib/auditLog";
 import { CalendarPlus, Send, Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CustomerSearchInput, type CustomerResult } from "@/components/booking-calendar/CustomerSearchInput";
+import { useCurrentStaff } from "@/hooks/useCurrentStaff";
 
 interface Props {
   open: boolean;
@@ -35,6 +36,7 @@ export function NewAppointmentDialog({
   dogName, breedId, serviceId, lastStaffId,
 }: Props) {
   const queryClient = useQueryClient();
+  const { staff: currentStaff } = useCurrentStaff();
   const [showDepositPrompt, setShowDepositPrompt] = useState(false);
   const [createdBookingId, setCreatedBookingId] = useState<string | null>(null);
   const [sendingDeposit, setSendingDeposit] = useState(false);
