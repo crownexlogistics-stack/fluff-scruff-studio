@@ -15,6 +15,7 @@ import { friendlyError } from "@/lib/friendlyError";
 import { logAudit } from "@/lib/auditLog";
 import { logGroomerActivity } from "@/lib/logGroomerActivity";
 import { CustomerSearchInput, type CustomerResult } from "./CustomerSearchInput";
+import { useCurrentStaff } from "@/hooks/useCurrentStaff";
 
 export interface BookAgainData {
   customer_name: string;
@@ -38,6 +39,8 @@ interface NewBookingDialogProps {
 
 export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour, defaultStaffId, mode, bookAgainData }: NewBookingDialogProps) {
   const queryClient = useQueryClient();
+  const { staff: currentStaff } = useCurrentStaff();
+
 
   const dateStr = defaultDate ? format(defaultDate, "yyyy-MM-dd") : "";
   const timeStr = defaultHour != null ? `${String(defaultHour).padStart(2, "0")}:00` : "09:00";
@@ -398,7 +401,14 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
           addOnNames.length > 0 ? `Add-ons: ${addOnNames.join(", ")}` : "",
         ].filter(Boolean).join("\n");
 
+        // Groomer the appointment is assigned to
         const staffName = staff?.find(s => s.id === form.staff_id)?.name || "Unknown";
+        // Person actually making the booking (signed in right now)
+        let creatorName = currentStaff?.name || "";
+        if (!creatorName) {
+          const { data: { user } } = await supabase.auth.getUser();
+          creatorName = user?.email || "Unknown";
+        }
 
         const { data: insertedBooking, error } = await supabase.from("bookings").insert({
           customer_name: form.customer_name,
@@ -415,31 +425,32 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
           notes: notesWithAddOns || null,
           status: "Pending",
           booking_source: "staff",
-          created_by_staff: staffName,
+          created_by_staff: creatorName,
         } as any).select("id").single();
         if (error) throw error;
 
         logAudit({
-          staffId: form.staff_id || undefined,
+          staffId: currentStaff?.id || form.staff_id || undefined,
           action: "BOOKING_CREATED",
-          details: `Booking for ${form.customer_name} (${form.dog_name}) on ${form.booking_date} at ${form.booking_time.slice(0, 5)} with ${staffName}`,
+          details: `Booking for ${form.customer_name} (${form.dog_name}) on ${form.booking_date} at ${form.booking_time.slice(0, 5)} with ${staffName} — created by ${creatorName}`,
         });
 
         if (insertedBooking?.id) {
           supabase.from("booking_audit_log" as any).insert({
             booking_id: insertedBooking.id,
             event_type: "created_by_staff",
-            performed_by: staffName,
-            note: "Booking created manually by staff",
+            performed_by: creatorName,
+            note: `Booking created by ${creatorName} for ${staffName}`,
           } as any).then(() => {});
 
-          // Activity log for groomer
-          if (form.staff_id) {
+          // Activity log goes to whoever made the booking
+          const activityStaffId = currentStaff?.id || form.staff_id;
+          if (activityStaffId) {
             const serviceName = services?.find(s => s.id === form.service_id)?.name || "";
             logGroomerActivity({
-              staffId: form.staff_id,
+              staffId: activityStaffId,
               actionType: "booking_created",
-              actionSummary: `Booked ${form.customer_name} (${form.dog_name}) for ${serviceName || "appointment"} on ${form.booking_date} at ${form.booking_time.slice(0, 5)}`,
+              actionSummary: `Booked ${form.customer_name} (${form.dog_name}) for ${serviceName || "appointment"} with ${staffName} on ${form.booking_date} at ${form.booking_time.slice(0, 5)}`,
               bookingId: insertedBooking.id,
               customerName: form.customer_name,
               dogName: form.dog_name,

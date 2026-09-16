@@ -602,7 +602,7 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
         )}
         {(booking as any).booking_source === "staff" && (
           <Badge className="text-[10px]" style={{ backgroundColor: "#f0f0f0", color: "#2D1B0E" }}>
-            👤 Booked by Staff{(booking as any).created_by_staff ? ` — ${(booking as any).created_by_staff}` : ""}
+            👤 {(booking as any).created_by_staff ? `Booked by ${(booking as any).created_by_staff}` : "Booked by Staff"}
           </Badge>
         )}
         {(booking as any).booking_source === "phone_ai" && (

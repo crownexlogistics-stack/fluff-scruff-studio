@@ -16,6 +16,7 @@ import { logAudit } from "@/lib/auditLog";
 import { CalendarPlus, Send, Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CustomerSearchInput, type CustomerResult } from "@/components/booking-calendar/CustomerSearchInput";
+import { useCurrentStaff } from "@/hooks/useCurrentStaff";
 
 interface Props {
   open: boolean;
@@ -35,6 +36,7 @@ export function NewAppointmentDialog({
   dogName, breedId, serviceId, lastStaffId,
 }: Props) {
   const queryClient = useQueryClient();
+  const { staff: currentStaff } = useCurrentStaff();
   const [showDepositPrompt, setShowDepositPrompt] = useState(false);
   const [createdBookingId, setCreatedBookingId] = useState<string | null>(null);
   const [sendingDeposit, setSendingDeposit] = useState(false);
@@ -231,7 +233,15 @@ export function NewAppointmentDialog({
         addOnNames.length > 0 ? `Add-ons: ${addOnNames.join(", ")}` : "",
       ].filter(Boolean).join("\n");
 
+      // Groomer the appointment is assigned to
       const staffName = staff?.find(s => s.id === form.staff_id)?.name || "Unknown";
+      // Person actually making the booking (signed in right now)
+      let creatorName = currentStaff?.name || "";
+      if (!creatorName) {
+        const { data: { user } } = await supabase.auth.getUser();
+        creatorName = user?.email || "Unknown";
+      }
+
 
       const { data: insertedBooking, error } = await supabase.from("bookings").insert({
         customer_name: form.customer_name,
@@ -248,14 +258,14 @@ export function NewAppointmentDialog({
         notes: notesWithAddOns || null,
         status: "Confirmed",
         booking_source: "staff",
-        created_by_staff: staffName,
+        created_by_staff: creatorName,
       } as any).select("id").single();
       if (error) throw error;
 
       logAudit({
-        staffId: form.staff_id || undefined,
+        staffId: currentStaff?.id || form.staff_id || undefined,
         action: "BOOKING_CREATED",
-        details: `Booking for ${form.customer_name} (${form.dog_name}) on ${form.booking_date} at ${form.booking_time.slice(0, 5)} with ${staffName}`,
+        details: `Booking for ${form.customer_name} (${form.dog_name}) on ${form.booking_date} at ${form.booking_time.slice(0, 5)} with ${staffName} — created by ${creatorName}`,
       });
 
       // Audit trail entry
@@ -263,8 +273,8 @@ export function NewAppointmentDialog({
         supabase.from("booking_audit_log" as any).insert({
           booking_id: insertedBooking.id,
           event_type: "created_by_staff",
-          performed_by: staffName,
-          note: "Booking created manually by staff",
+          performed_by: creatorName,
+          note: `Booking created by ${creatorName} for ${staffName}`,
         } as any).then(() => {});
       }
 
