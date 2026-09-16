@@ -425,31 +425,32 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
           notes: notesWithAddOns || null,
           status: "Pending",
           booking_source: "staff",
-          created_by_staff: staffName,
+          created_by_staff: creatorName,
         } as any).select("id").single();
         if (error) throw error;
 
         logAudit({
-          staffId: form.staff_id || undefined,
+          staffId: currentStaff?.id || form.staff_id || undefined,
           action: "BOOKING_CREATED",
-          details: `Booking for ${form.customer_name} (${form.dog_name}) on ${form.booking_date} at ${form.booking_time.slice(0, 5)} with ${staffName}`,
+          details: `Booking for ${form.customer_name} (${form.dog_name}) on ${form.booking_date} at ${form.booking_time.slice(0, 5)} with ${staffName} — created by ${creatorName}`,
         });
 
         if (insertedBooking?.id) {
           supabase.from("booking_audit_log" as any).insert({
             booking_id: insertedBooking.id,
             event_type: "created_by_staff",
-            performed_by: staffName,
-            note: "Booking created manually by staff",
+            performed_by: creatorName,
+            note: `Booking created by ${creatorName} for ${staffName}`,
           } as any).then(() => {});
 
-          // Activity log for groomer
-          if (form.staff_id) {
+          // Activity log goes to whoever made the booking
+          const activityStaffId = currentStaff?.id || form.staff_id;
+          if (activityStaffId) {
             const serviceName = services?.find(s => s.id === form.service_id)?.name || "";
             logGroomerActivity({
-              staffId: form.staff_id,
+              staffId: activityStaffId,
               actionType: "booking_created",
-              actionSummary: `Booked ${form.customer_name} (${form.dog_name}) for ${serviceName || "appointment"} on ${form.booking_date} at ${form.booking_time.slice(0, 5)}`,
+              actionSummary: `Booked ${form.customer_name} (${form.dog_name}) for ${serviceName || "appointment"} with ${staffName} on ${form.booking_date} at ${form.booking_time.slice(0, 5)}`,
               bookingId: insertedBooking.id,
               customerName: form.customer_name,
               dogName: form.dog_name,
