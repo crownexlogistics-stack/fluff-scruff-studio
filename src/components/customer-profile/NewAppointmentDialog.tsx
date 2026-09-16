@@ -233,7 +233,15 @@ export function NewAppointmentDialog({
         addOnNames.length > 0 ? `Add-ons: ${addOnNames.join(", ")}` : "",
       ].filter(Boolean).join("\n");
 
+      // Groomer the appointment is assigned to
       const staffName = staff?.find(s => s.id === form.staff_id)?.name || "Unknown";
+      // Person actually making the booking (signed in right now)
+      let creatorName = currentStaff?.name || "";
+      if (!creatorName) {
+        const { data: { user } } = await supabase.auth.getUser();
+        creatorName = user?.email || "Unknown";
+      }
+
 
       const { data: insertedBooking, error } = await supabase.from("bookings").insert({
         customer_name: form.customer_name,
