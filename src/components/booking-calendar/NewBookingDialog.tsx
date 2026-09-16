@@ -15,6 +15,7 @@ import { friendlyError } from "@/lib/friendlyError";
 import { logAudit } from "@/lib/auditLog";
 import { logGroomerActivity } from "@/lib/logGroomerActivity";
 import { CustomerSearchInput, type CustomerResult } from "./CustomerSearchInput";
+import { useCurrentStaff } from "@/hooks/useCurrentStaff";
 
 export interface BookAgainData {
   customer_name: string;
@@ -38,6 +39,8 @@ interface NewBookingDialogProps {
 
 export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour, defaultStaffId, mode, bookAgainData }: NewBookingDialogProps) {
   const queryClient = useQueryClient();
+  const { staff: currentStaff } = useCurrentStaff();
+
 
   const dateStr = defaultDate ? format(defaultDate, "yyyy-MM-dd") : "";
   const timeStr = defaultHour != null ? `${String(defaultHour).padStart(2, "0")}:00` : "09:00";
