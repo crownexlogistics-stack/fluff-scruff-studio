@@ -20,6 +20,7 @@ import { AdviceTab } from "@/components/customer-portal/AdviceTab";
 import { PawsitiveGallery } from "@/components/my-account/PawsitiveGallery";
 import { GroomersCorner } from "@/components/my-account/GroomersCorner";
 import { NumericInput } from "@/components/ui/numeric-input";
+import { ConnectionState } from "@/components/ConnectionState";
 
 import { AIChatWidget } from "@/components/AIChatWidget";
 
@@ -58,7 +59,7 @@ const MyPetsPage = () => {
   });
 
   // Fetch pets
-  const { data: pets = [], isLoading: loadingPets } = useQuery({
+  const { data: pets = [], isLoading: loadingPets, isError: petsError, refetch: refetchPets } = useQuery({
     queryKey: ["my-pets", user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -313,7 +314,9 @@ const MyPetsPage = () => {
       <CustomerHeader user={user} signOut={signOut} />
 
       <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
-        {loadingPets ? (
+        {petsError ? (
+          <ConnectionState compact onRetry={() => void refetchPets()} />
+        ) : loadingPets ? (
           <div className="flex justify-center py-8">
             <div className="animate-spin h-6 w-6 border-4 border-accent border-t-transparent rounded-full" />
           </div>

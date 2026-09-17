@@ -84,7 +84,14 @@ const AuthPage = () => {
             return;
           }
         } catch {
-          // If the migrated check fails, fall through to normal error
+          toast({
+            title: "Connection problem",
+            description: "We couldn't check your account just now. Please try again.",
+            variant: "destructive",
+            action: <ToastAction altText="Try again" onClick={() => { void attemptLogin(); }}>Try again</ToastAction>,
+          });
+          setSubmitting(false);
+          return;
         }
 
         // Not a migrated customer — show normal error
