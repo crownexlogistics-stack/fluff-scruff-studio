@@ -16,7 +16,6 @@ import logo from "@/assets/logo-transparent.png";
 
 import { AIChatWidget } from "@/components/AIChatWidget";
 import { useWebsiteServices } from "@/hooks/useWebsiteServices";
-import { ConnectionState } from "@/components/ConnectionState";
 
 interface PetWithBreed {
   id: string;
@@ -35,7 +34,7 @@ const BookingEntryPage = () => {
   const hasSpecificService = searchParams.has("service");
   const rebookDogName = searchParams.get("dogName");
   const rebookBreedId = searchParams.get("breedId");
-  const { user, loading: authLoading, connectionError: authError, retry: retryAuth } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
   // Bookable services come from the Services page in admin.
   const { services: allServices } = useWebsiteServices();
@@ -251,10 +250,6 @@ const BookingEntryPage = () => {
         <div className="animate-spin h-8 w-8 border-4 border-accent border-t-transparent rounded-full" />
       </div>
     );
-  }
-
-  if (authError) {
-    return <ConnectionState onRetry={retryAuth} />;
   }
 
   // If booking flow is active (logged-in user selected a pet + service)
