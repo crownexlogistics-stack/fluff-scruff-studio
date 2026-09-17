@@ -1,5 +1,6 @@
 import React from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
 
 function getBrowserInfo(): string {
   const ua = navigator.userAgent;
@@ -70,51 +71,32 @@ export class ErrorBoundary extends React.Component<
     if (this.state.hasError) {
       return (
         <div
-          className="min-h-screen flex items-center justify-center p-6"
-          style={{ background: "#FFFAF4" }}
+          className="min-h-screen flex items-center justify-center bg-background p-6"
         >
           <div className="text-center max-w-md space-y-5">
             <p className="text-6xl">🐾</p>
             <h1
-              style={{
-                fontFamily: "'Fredoka One', cursive",
-                color: "#2D1B0E",
-                fontSize: "26px",
-              }}
+              className="font-heading text-2xl text-foreground"
             >
               Oops, something went wrong! 🐾
             </h1>
             <p
-              style={{
-                fontFamily: "Nunito, sans-serif",
-                color: "#8B6F5C",
-                fontSize: "15px",
-              }}
+              className="font-body text-sm text-muted-foreground"
             >
-              Don't worry — we've been notified and will fix it right away
+              Your information is safe. Please reload the page and try again.
             </p>
             <div className="flex gap-3 justify-center pt-2">
-              <button
+              <Button
                 onClick={() => window.location.reload()}
-                className="px-6 py-3 text-white font-bold text-sm rounded-full"
-                style={{
-                  background: "#FF6B35",
-                  fontFamily: "Nunito, sans-serif",
-                }}
               >
                 Try Again
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="outline"
                 onClick={() => (window.location.href = "/")}
-                className="px-6 py-3 font-bold text-sm rounded-full border-2"
-                style={{
-                  borderColor: "#FF6B35",
-                  color: "#FF6B35",
-                  fontFamily: "Nunito, sans-serif",
-                }}
               >
                 Go Home
-              </button>
+              </Button>
             </div>
           </div>
         </div>

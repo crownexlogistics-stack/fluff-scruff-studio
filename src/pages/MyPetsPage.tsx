@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Search, Dog, Pencil } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { CustomerHeader } from "@/components/customer-portal/CustomerHeader";
+import { SystemStatusBanner } from "@/components/SystemStatusBanner";
 import { BottomNavDock, type PortalTab } from "@/components/customer-portal/BottomNavDock";
 import { PetStoryIcons } from "@/components/my-account/PetStoryIcons";
 import { UpcomingAppointmentCard } from "@/components/customer-portal/UpcomingAppointmentCard";
@@ -312,6 +313,7 @@ const MyPetsPage = () => {
   return (
     <div className="min-h-screen bg-background pb-20">
       <CustomerHeader user={user} signOut={signOut} />
+      <SystemStatusBanner />
 
       <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
         {petsError ? (
