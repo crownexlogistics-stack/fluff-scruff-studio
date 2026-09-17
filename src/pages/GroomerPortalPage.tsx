@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useQuery } from "@tanstack/react-query";
 import { GroomerLayout } from "@/components/GroomerLayout";
-import { CalendarDays, MessageSquare, Dog, PoundSterling, FileText, ChevronRight, ArrowLeft, ShoppingCart, Package, Sparkles } from "lucide-react";
+import { CalendarDays, MessageSquare, Dog, PoundSterling, FileText, ChevronRight, ArrowLeft, ShoppingCart, Package, Sparkles, WifiOff, RefreshCw } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -207,6 +207,8 @@ const GroomerPortalPage = () => {
   const [staffId, setStaffId] = useState<string | null>(null);
   const [staffName, setStaffName] = useState("");
   const [loading, setLoading] = useState(true);
+  const [connectionError, setConnectionError] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
   const isMobile = useIsMobile();
   const location = useLocation();
   const navigate = useNavigate();
@@ -215,19 +217,39 @@ const GroomerPortalPage = () => {
 
   useEffect(() => {
     if (!user) return;
+    let cancelled = false;
     const fetchStaff = async () => {
       setLoading(true);
-      const { data } = await supabase
-        .from("staff")
-        .select("id, name")
-        .eq("auth_user_id", user.id)
-        .maybeSingle();
-      setStaffId(data?.id ?? null);
-      setStaffName(data?.name ?? "");
+      setConnectionError(false);
+      // Retry transient network/auth blips before concluding "no staff profile"
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const { data, error } = await supabase
+          .from("staff")
+          .select("id, name")
+          .eq("auth_user_id", user.id)
+          .maybeSingle();
+        if (cancelled) return;
+        if (!error) {
+          setStaffId(data?.id ?? null);
+          setStaffName(data?.name ?? "");
+          setLoading(false);
+          return;
+        }
+        if (attempt < 2) {
+          await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
+        }
+      }
+      if (cancelled) return;
+      setStaffId(null);
+      setStaffName("");
+      setConnectionError(true);
       setLoading(false);
     };
     fetchStaff();
-  }, [user]);
+    return () => {
+      cancelled = true;
+    };
+  }, [user, retryKey]);
 
   const { data: nativeCompletedCount = 0 } = useQuery({
     queryKey: ["groomer-portal-career-native", staffId],
@@ -251,6 +273,28 @@ const GroomerPortalPage = () => {
       <GroomerLayout>
         <div className="flex justify-center py-12">
           <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
+        </div>
+      </GroomerLayout>
+    );
+  }
+
+  if (connectionError) {
+    return (
+      <GroomerLayout>
+        <div className="text-center py-16 space-y-4">
+          <WifiOff className="h-12 w-12 text-muted-foreground/40 mx-auto" />
+          <div className="space-y-1">
+            <p className="font-medium text-foreground">Connection problem</p>
+            <p className="text-sm text-muted-foreground">
+              We couldn't reach the studio system just now. Your account is fine — please try again.
+            </p>
+          </div>
+          <button
+            onClick={() => setRetryKey((k) => k + 1)}
+            className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
+          >
+            <RefreshCw className="h-4 w-4" /> Try again
+          </button>
         </div>
       </GroomerLayout>
     );
