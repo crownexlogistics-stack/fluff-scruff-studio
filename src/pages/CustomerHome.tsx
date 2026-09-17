@@ -16,10 +16,11 @@ import { TrustStrip } from "@/components/TrustStrip";
 import { AIChatWidget } from "@/components/AIChatWidget";
 import { PackageDealsSection } from "@/components/PackageDealsSection";
 import InstagramFeed from "@/components/InstagramFeed";
+import { ConnectionState } from "@/components/ConnectionState";
 
 const CustomerHome = () => {
-  const { user, signOut, loading: authLoading } = useAuth();
-  const { role, loading: roleLoading } = useUserRole(user?.id);
+  const { user, signOut, loading: authLoading, connectionError: authError, retry: retryAuth } = useAuth();
+  const { role, loading: roleLoading, connectionError: roleError, retry: retryRole } = useUserRole(user?.id);
   const navigate = useNavigate();
   const [activeService, setActiveService] = useState<string | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -28,6 +29,10 @@ const CustomerHome = () => {
   const { services } = useWebsiteServices();
 
   const isStaff = role === "manager" || role === "director" || role === "groomer";
+
+  if (authError || (user && roleError)) {
+    return <ConnectionState onRetry={() => { retryAuth(); retryRole(); }} />;
+  }
 
   if (!authLoading && !roleLoading && user && isStaff) {
     if (role === "manager" || role === "director") return <Navigate to="/admin" replace />;

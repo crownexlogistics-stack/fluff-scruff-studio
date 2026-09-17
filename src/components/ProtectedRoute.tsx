@@ -3,6 +3,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useUserRole, type AppRole } from "@/hooks/useUserRole";
 import { useStaffBlockCheck } from "@/hooks/useStaffBlockCheck";
 import { useFullCalendarAccess } from "@/hooks/useFullCalendarAccess";
+import { ConnectionState } from "@/components/ConnectionState";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -16,8 +17,8 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children, allowedRoles, allowFullCalendarGroomer = false }: ProtectedRouteProps) {
-  const { user, loading: authLoading } = useAuth();
-  const { role, loading: roleLoading } = useUserRole(user?.id);
+  const { user, loading: authLoading, connectionError: authError, retry: retryAuth } = useAuth();
+  const { role, loading: roleLoading, connectionError: roleError, retry: retryRole } = useUserRole(user?.id);
   const isBlocked = useStaffBlockCheck(user?.id);
   const { hasFullCalendarAccess, loading: fcaLoading } = useFullCalendarAccess(user?.id);
 
@@ -27,6 +28,10 @@ export function ProtectedRoute({ children, allowedRoles, allowFullCalendarGroome
         <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
       </div>
     );
+  }
+
+  if (authError || roleError) {
+    return <ConnectionState onRetry={() => { retryAuth(); retryRole(); }} />;
   }
 
   if (!user || isBlocked) {

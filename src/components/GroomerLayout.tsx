@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useUnassignedInboxCount } from "@/hooks/useUnassignedInboxCount";
 import { InboxBellButton } from "@/components/ai-inbox/InboxBellButton";
+import { SystemStatusBanner } from "@/components/SystemStatusBanner";
 
 interface GroomerLayoutProps {
   children: React.ReactNode;
@@ -113,9 +114,10 @@ export function GroomerLayout({ children }: GroomerLayoutProps) {
       </div>
 
       {/* Main content */}
-      <main className="flex-1 p-4 md:p-6 overflow-auto md:mt-0 mt-12">
-        {children}
-      </main>
+      <div className="flex-1 min-w-0 md:mt-0 mt-12">
+        <SystemStatusBanner />
+        <main className="p-4 md:p-6 overflow-auto">{children}</main>
+      </div>
     </div>
   );
 }
