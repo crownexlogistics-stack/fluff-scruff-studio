@@ -88,7 +88,17 @@ import AIReceptionistPage from "./pages/AIReceptionistPage";
 import AIInboxPage from "./pages/AIInboxPage";
 import PlacementsPage from "./pages/PlacementsPage";
 import PlacementProfilePage from "./pages/PlacementProfilePage";
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // Survive brief backend/network blips instead of showing empty screens
+      retry: 3,
+      retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 8000),
+      refetchOnWindowFocus: true,
+      refetchOnReconnect: true,
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
