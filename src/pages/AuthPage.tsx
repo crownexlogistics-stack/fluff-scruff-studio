@@ -2,10 +2,12 @@ import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { logAudit } from "@/lib/auditLog";
+import { signInWithRetry } from "@/lib/resilientSignIn";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { ToastAction } from "@/components/ui/toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole, type AppRole } from "@/hooks/useUserRole";
 import { Navigate } from "react-router-dom";
@@ -59,15 +61,14 @@ const AuthPage = () => {
     } catch {}
   };
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const attemptLogin = async () => {
     setSubmitting(true);
     setMigratedPrompt({ show: false });
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    
-    if (error) {
-      if (error.message?.includes("Invalid login credentials")) {
+    const result = await signInWithRetry(email, password);
+
+    if (!result.ok) {
+      if (result.kind === "invalid_credentials") {
         // Check if this is a migrated customer without an auth account
         try {
           const { data: migratedRecord } = await supabase
@@ -89,16 +90,33 @@ const AuthPage = () => {
         // Not a migrated customer — show normal error
         toast({ title: "Login failed", description: "Incorrect email or password. Please try again or register below.", variant: "destructive" });
         logLoginEvent("LOGIN_FAILED", "Customer entered incorrect password");
-      } else if (error.message?.includes("too many requests") || error.message?.includes("rate limit")) {
-        toast({ title: "Login failed", description: error.message, variant: "destructive" });
+      } else if (result.kind === "rate_limited") {
+        toast({ title: "Login failed", description: result.friendlyMessage, variant: "destructive" });
         logLoginEvent("ACCOUNT_LOCKED", "Customer account locked after multiple failed attempts", "medium");
+      } else if (result.kind === "network") {
+        toast({
+          title: "Connection problem",
+          description: result.friendlyMessage,
+          variant: "destructive",
+          action: (
+            <ToastAction altText="Try again" onClick={() => { void attemptLogin(); }}>
+              Try again
+            </ToastAction>
+          ),
+        });
+        logLoginEvent("LOGIN_UNAVAILABLE", `Sign-in service unreachable${result.rawMessage ? `: ${result.rawMessage}` : ""}`, "medium");
       } else {
-        toast({ title: "Login failed", description: error.message, variant: "destructive" });
+        toast({ title: "Login failed", description: result.friendlyMessage, variant: "destructive" });
       }
     } else {
       logAudit({ action: "LOGIN", details: `Logged in via email: ${email}` });
     }
     setSubmitting(false);
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await attemptLogin();
   };
 
   const handleSendSetupEmail = async () => {

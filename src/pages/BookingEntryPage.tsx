@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { signInWithRetry } from "@/lib/resilientSignIn";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -129,10 +130,14 @@ const BookingEntryPage = () => {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const result = await signInWithRetry(email, password);
     setSubmitting(false);
-    if (error) {
-      toast({ title: "Login failed", description: error.message, variant: "destructive" });
+    if (!result.ok) {
+      toast({
+        title: result.kind === "network" ? "Connection problem" : "Login failed",
+        description: result.friendlyMessage,
+        variant: "destructive",
+      });
     }
   };
 
