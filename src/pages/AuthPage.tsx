@@ -13,6 +13,7 @@ import { useUserRole, type AppRole } from "@/hooks/useUserRole";
 import { Navigate } from "react-router-dom";
 import logo from "@/assets/logo-transparent.png";
 import { ArrowLeft } from "lucide-react";
+import { ConnectionState } from "@/components/ConnectionState";
 
 function getRoleRedirect(role: AppRole | null): string {
   if (role === "manager" || role === "director") return "/admin";
@@ -31,13 +32,25 @@ const AuthPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { user, loading } = useAuth();
-  const { role, loading: roleLoading } = useUserRole(user?.id);
+  const { user, loading, connectionError: authError, retry: retryAuth } = useAuth();
+  const { role, loading: roleLoading, connectionError: roleError, retry: retryRole } = useUserRole(user?.id);
 
   // State for migrated customer detection on failed login
   const [migratedPrompt, setMigratedPrompt] = useState<{ show: boolean; name?: string; emailSent?: boolean }>({ show: false });
 
-  if (loading || (user && roleLoading)) return null;
+  if (authError || (user && roleError)) {
+    return <ConnectionState onRetry={() => { retryAuth(); retryRole(); }} />;
+  }
+  if (loading || (user && roleLoading)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="space-y-3 text-center">
+          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+          <p className="text-sm text-muted-foreground">Connecting to the studio…</p>
+        </div>
+      </div>
+    );
+  }
   if (user) return <Navigate to={getRoleRedirect(role)} replace />;
 
   const maskEmail = (e: string) => {
@@ -84,7 +97,14 @@ const AuthPage = () => {
             return;
           }
         } catch {
-          // If the migrated check fails, fall through to normal error
+          toast({
+            title: "Connection problem",
+            description: "We couldn't check your account just now. Please try again.",
+            variant: "destructive",
+            action: <ToastAction altText="Try again" onClick={() => { void attemptLogin(); }}>Try again</ToastAction>,
+          });
+          setSubmitting(false);
+          return;
         }
 
         // Not a migrated customer — show normal error

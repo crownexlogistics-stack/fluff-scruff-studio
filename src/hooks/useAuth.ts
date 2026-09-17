@@ -2,10 +2,23 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { User, Session } from "@supabase/supabase-js";
 
+const SESSION_TIMEOUT_MS = 10_000;
+
+function withTimeout<T>(promise: PromiseLike<T>, timeoutMs: number): Promise<T> {
+  return Promise.race([
+    Promise.resolve(promise),
+    new Promise<T>((_, reject) =>
+      window.setTimeout(() => reject(new Error("Session check timed out")), timeoutMs),
+    ),
+  ]);
+}
+
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [connectionError, setConnectionError] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
     // Set up auth listener BEFORE checking session
@@ -29,23 +42,47 @@ export function useAuth() {
         }
         setSession(session);
         setUser(session?.user ?? null);
+        setConnectionError(false);
         setLoading(false);
       }
     );
 
     // Then check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+    let cancelled = false;
+    const loadSession = async () => {
+      setLoading(true);
+      setConnectionError(false);
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          const { data, error } = await withTimeout(supabase.auth.getSession(), SESSION_TIMEOUT_MS);
+          if (cancelled) return;
+          if (error) throw error;
+          setSession(data.session);
+          setUser(data.session?.user ?? null);
+          setLoading(false);
+          return;
+        } catch {
+          if (attempt < 2) await new Promise((resolve) => window.setTimeout(resolve, 800 * (attempt + 1)));
+        }
+      }
+      if (!cancelled) {
+        setConnectionError(true);
+        setLoading(false);
+      }
+    };
+    void loadSession();
 
-    return () => subscription.unsubscribe();
-  }, []);
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
+  }, [retryKey]);
 
   const signOut = async () => {
     await supabase.auth.signOut();
   };
 
-  return { user, session, loading, signOut };
+  const retry = () => setRetryKey((key) => key + 1);
+
+  return { user, session, loading, connectionError, retry, signOut };
 }
