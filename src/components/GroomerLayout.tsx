@@ -20,7 +20,7 @@ const groomerNavGroups = [
     { title: "My Day", url: "/portal", icon: Home },
     { title: "Assistant", url: "/portal/assistant", icon: Sparkles },
     { title: "My Bookings", url: "/portal/bookings", icon: CalendarDays },
-    { title: "Customer Messages", url: "/portal/messages", icon: MessageSquare },
+    { title: "Customer Messages", url: "/portal/messages", icon: MessageSquare, badge: "sms" as const },
     { title: "Email Inbox", url: "/portal/inbox", icon: Inbox },
     { title: "Needs Me", url: "/ai-inbox", icon: PhoneForwarded, count: true },
   ]},
