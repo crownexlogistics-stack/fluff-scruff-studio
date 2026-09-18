@@ -75,10 +75,12 @@ export function GroomerLayout({ children }: GroomerLayoutProps) {
             <div className="space-y-1">
               {group.items.map((item) => {
                 const active = isActive(item.url);
-                return <Link key={item.url} to={item.url} className={`relative flex min-h-10 items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${active ? "bg-primary/15 text-sidebar-primary-foreground font-bold before:absolute before:left-0 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-primary" : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-primary-foreground"}`}>
+                const badgeKind = "badge" in item ? item.badge : undefined;
+                const badgeCount = badgeKind === "ai" ? aiInboxUnread : badgeKind === "sms" ? totalUnreadSms : 0;
+                return <Link key={item.url} to={item.url} className={`relative flex min-h-10 items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${active ? "bg-primary/25 text-sidebar-primary-foreground font-bold before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-1 before:rounded-full before:bg-primary" : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-primary-foreground"}`}>
                   <item.icon className={`h-4 w-4 ${active ? "text-primary" : ""}`} />
                   <span className="flex-1">{item.title}</span>
-                  {item.count && aiInboxUnread > 0 && <Badge variant="destructive" className="h-5 min-w-5 rounded-full px-1.5 text-[10px] font-bold">{aiInboxUnread > 99 ? "99+" : aiInboxUnread}</Badge>}
+                  {badgeCount > 0 && <Badge variant="destructive" className="h-5 min-w-5 rounded-full px-1.5 text-[10px] font-bold">{badgeCount > 99 ? "99+" : badgeCount}</Badge>}
                 </Link>;
               })}
             </div>
