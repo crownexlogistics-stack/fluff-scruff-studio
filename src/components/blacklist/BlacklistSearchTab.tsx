@@ -43,7 +43,7 @@ export function BlacklistSearchTab({ activeKeys, onBlacklisted }: Props) {
     setSearching(true);
     try {
       const pattern = `%${t}%`;
-      const [bookingsRes, migratedRes, profilesRes] = await Promise.all([
+      const [bookingsRes, migratedRes] = await Promise.all([
         supabase
           .from("bookings")
           .select("customer_name, customer_email, customer_phone")
@@ -54,11 +54,6 @@ export function BlacklistSearchTab({ activeKeys, onBlacklisted }: Props) {
           .from("migrated_customers")
           .select("full_name, email, phone")
           .or(`full_name.ilike.${pattern},email.ilike.${pattern},phone.ilike.${pattern}`)
-          .limit(50),
-        supabase
-          .from("profiles")
-          .select("full_name, phone")
-          .ilike("full_name", pattern)
           .limit(50),
       ]);
 
@@ -74,9 +69,6 @@ export function BlacklistSearchTab({ activeKeys, onBlacklisted }: Props) {
       }
       for (const m of migratedRes.data || []) {
         add({ name: m.full_name || "Unknown", email: m.email, phone: m.phone, source: "Customer record" });
-      }
-      for (const p of (profilesRes.data || []) as any[]) {
-        add({ name: p.full_name || "Unknown", email: null, phone: p.phone ?? null, source: "Account" });
       }
 
       setResults(Array.from(map.values()).slice(0, 25));
