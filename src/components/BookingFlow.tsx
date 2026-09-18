@@ -17,6 +17,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import serviceBathBrush from "@/assets/service-bath-brush.jpg";
 import serviceFullGroomSub from "@/assets/service-full-groom-sub.jpg";
 import { resetBookingFlowSession, logBookingFlowEvent, linkSessionToBooking } from "@/lib/logBookingFlowEvent";
+import { checkBlacklist, BLACKLIST_CUSTOMER_MESSAGE } from "@/lib/blacklist";
 
 const ADJUST_MODE = false;
 
