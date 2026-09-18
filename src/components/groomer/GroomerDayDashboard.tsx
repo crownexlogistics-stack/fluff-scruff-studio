@@ -132,8 +132,9 @@ export function GroomerDayDashboard({ staffId, staffName }: { staffId: string; s
                         <p className="text-sm text-background/65">{next.service_name}{next.breed_name ? ` · ${next.breed_name}` : ""}</p>
                       </div>
                     </div>
-                    <p className="text-lg font-bold">{format(new Date(`${next.booking_date}T${next.booking_time}`), isToday(new Date(`${next.booking_date}T00:00:00`)) ? "HH:mm" : "EEE d MMM · HH:mm")}</p>
-                    <p className="mt-1 text-sm text-background/70">{next.customer_name}</p>
+                    <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-primary">{dayLabel(next.booking_date)}</p>
+                    <p className="mt-1 font-heading text-3xl leading-none text-background">{next.booking_time.slice(0, 5)}</p>
+                    <p className="mt-2 text-sm text-background/70">{next.customer_name}</p>
                     {(next.notes || nextNotes.length > 0) && (
                       <div className="mt-5 border-l-2 border-primary pl-3 text-sm text-background/80">
                         {next.notes && <p>{next.notes}</p>}
