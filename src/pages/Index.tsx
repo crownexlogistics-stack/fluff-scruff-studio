@@ -9,7 +9,7 @@ import { OwnerCapacity, OwnerForward } from "@/components/dashboard/owner/OwnerC
 import { OwnerTeam } from "@/components/dashboard/owner/OwnerTeam";
 import { OwnerActivity } from "@/components/dashboard/owner/OwnerActivity";
 import { OwnerMarketing } from "@/components/dashboard/owner/OwnerMarketing";
-import UnavailableBookingsWarning from "@/components/dashboard/UnavailableBookingsWarning";
+import { UnavailableBookingsWarning } from "@/components/dashboard/UnavailableBookingsWarning";
 import { Skeleton } from "@/components/ui/skeleton";
 
 /**
