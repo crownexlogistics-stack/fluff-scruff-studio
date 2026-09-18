@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { differenceInCalendarDays, format, isToday } from "date-fns";
+import { differenceInCalendarDays, format } from "date-fns";
 import { toast } from "sonner";
 import { AlertCircle, ArrowRight, CalendarDays, Check, ChevronRight, CircleDollarSign, Clock3, Dog, Inbox, MessageSquare, PawPrint, Send, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
