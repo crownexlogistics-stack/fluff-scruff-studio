@@ -26,6 +26,8 @@ import PayoutHistoryTab from "@/components/finance/PayoutHistoryTab";
 import ReconciliationTab from "@/components/finance/ReconciliationTab";
 import MoneyFlowTab from "@/components/finance/MoneyFlowTab";
 import { StripeTransactionsTab } from "@/components/director/StripeTransactionsTab";
+import MonthForecastCard from "@/components/dashboard/MonthForecastCard";
+import CashFlowCard from "@/components/dashboard/CashFlowCard";
 
 type Period = "weekly" | "monthly";
 
@@ -796,6 +798,7 @@ const FinancePage = () => {
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList>
+            <TabsTrigger value="forecast">📈 Month Forecast</TabsTrigger>
             <TabsTrigger value="payouts">Groomer Payouts</TabsTrigger>
             <TabsTrigger value="money-flow">💰 Money Flow</TabsTrigger>
             <TabsTrigger value="expenses">Expenses</TabsTrigger>
@@ -804,6 +807,11 @@ const FinancePage = () => {
             <TabsTrigger value="reconciliation">🏦 Reconciliation</TabsTrigger>
             <TabsTrigger value="stripe-transactions">💳 Stripe Transactions</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="forecast" className="space-y-4 mt-4">
+            <MonthForecastCard />
+            <CashFlowCard />
+          </TabsContent>
 
           <TabsContent value="payouts" className="space-y-4 mt-4">
             {/* Period selector */}

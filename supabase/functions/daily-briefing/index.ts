@@ -219,11 +219,20 @@ serve(async (req) => {
         messages: [
           {
             role: "system",
-            content: `You are a smart business assistant for Fluff & Scruff Studio, a dog grooming salon in Hornchurch. You give the owner a warm, friendly, concise morning briefing. Maximum 4-5 sentences. Be conversational and human. Point out anything that needs attention today. If everything looks good say so. Never use bullet points. Write like a helpful colleague giving a quick update over coffee.`,
+            content: `You are the business assistant for Fluff & Scruff Studio, a dog grooming salon in Hornchurch, briefing the owner.
+
+Reply with ONLY raw JSON, no markdown fences, in this exact shape:
+{"summary":"one sentence","bullets":["...","...","..."]}
+
+Rules:
+- "summary" is ONE short sentence (max 25 words) describing how today looks.
+- "bullets" contains 0 to 3 items. Each is one short, specific, useful observation the owner can act on. Fewer is better — only include a bullet if it genuinely matters.
+- Use ONLY the numbers provided. Never invent a figure, name, trend or comparison that is not in the data.
+- Plain British English, no jargon, no greetings, no sign-off, no emojis.`,
           },
           {
             role: "user",
-            content: `Here is today's business data:\n${JSON.stringify(businessData, null, 2)}\n\nGive me my morning briefing.`,
+            content: `Today's business data:\n${JSON.stringify(businessData, null, 2)}`,
           },
         ],
       }),
@@ -236,10 +245,25 @@ serve(async (req) => {
     }
 
     const aiData = await aiRes.json();
-    const briefingText = aiData.choices?.[0]?.message?.content || "Unable to generate briefing.";
+    const raw = aiData.choices?.[0]?.message?.content || "";
+
+    let summary = "";
+    let bullets: string[] = [];
+    try {
+      const cleaned = raw.replace(/```json/gi, "").replace(/```/g, "").trim();
+      const parsed = JSON.parse(cleaned.slice(cleaned.indexOf("{"), cleaned.lastIndexOf("}") + 1));
+      summary = String(parsed.summary || "").trim();
+      bullets = Array.isArray(parsed.bullets)
+        ? parsed.bullets.filter((b: unknown) => typeof b === "string" && b.trim()).slice(0, 3)
+        : [];
+    } catch (_e) {
+      summary = raw.trim().split("\n")[0].slice(0, 220);
+    }
 
     const result = {
-      text: briefingText,
+      summary,
+      bullets,
+      text: summary,
       generatedAt: new Date().toISOString(),
       data: businessData,
     };

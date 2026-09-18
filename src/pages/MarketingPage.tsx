@@ -4,6 +4,7 @@ import { CustomersSection } from "@/components/marketing/CustomersSection";
 import { EmailMarketingSection } from "@/components/marketing/EmailMarketingSection";
 import { BookingAnalyticsSection } from "@/components/marketing/BookingAnalyticsSection";
 import { SMSSection } from "@/components/marketing/SMSSection";
+import { WebsiteAnalyticsSection } from "@/components/dashboard/WebsiteAnalyticsSection";
 
 export default function MarketingPage() {
   return (
@@ -17,7 +18,15 @@ export default function MarketingPage() {
         <Routes>
           <Route index element={<Navigate to="customers" replace />} />
           <Route path="customers" element={<CustomersSection />} />
-          <Route path="analytics" element={<BookingAnalyticsSection />} />
+          <Route
+            path="analytics"
+            element={
+              <div className="space-y-8">
+                <BookingAnalyticsSection />
+                <WebsiteAnalyticsSection />
+              </div>
+            }
+          />
           <Route path="email" element={<EmailMarketingSection />} />
           <Route path="sms/*" element={<SMSSection />} />
         </Routes>
