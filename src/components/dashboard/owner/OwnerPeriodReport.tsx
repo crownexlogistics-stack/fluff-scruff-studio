@@ -72,6 +72,7 @@ export function OwnerPeriodReport({ range, onPeriod, onCustomStart, onCustomEnd 
                 <>
                   <Row label="Confirmed future bookings in period" value={m.futureBookings.toLocaleString("en-GB")} />
                   <Row label="Scheduled revenue remaining" value={money(m.futureRevenue)} />
+                  <Row label="Amount still expected" hint="Scheduled revenue less payments already received" value={money(m.futureExpected)} />
                 </>
               )}
             </div>

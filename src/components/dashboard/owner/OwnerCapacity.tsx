@@ -82,7 +82,7 @@ export function OwnerForward({ d }: { d: OwnerDashboard }) {
                   <div key={day.date.toISOString()} className="flex items-center justify-between gap-3 py-2 text-xs">
                     <span className="font-semibold">{format(day.date, "EEE d MMM")}</span>
                     <span className="text-muted-foreground">
-                      {day.count > 0 ? `${day.count} appointment${day.count === 1 ? "" : "s"} · ${money(day.revenue)}` : "No bookings"}
+                      {day.count > 0 ? `${day.count} appointment${day.count === 1 ? "" : "s"} · ${money(day.revenue)}` : day.open ? "No bookings" : "Closed"}
                     </span>
                   </div>
                 ))}

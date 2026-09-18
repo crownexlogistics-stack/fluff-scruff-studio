@@ -1,11 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { addMonths, endOfMonth, format, isAfter, isBefore, parseISO, startOfMonth } from "date-fns";
+import { addDays, addMonths, format, isAfter, isBefore, parseISO } from "date-fns";
 
 export type ReportingPeriodKey = "today" | "week" | "month" | "year" | "beginning" | "custom";
 export interface ReportingRange { key: ReportingPeriodKey; start: Date; end: Date; label: string; }
 
 const valueOf = (b: any) => Number(b.final_charge || 0) > 0 ? Number(b.final_charge) : Number(b.total_price || 0);
+const paidOn = (b: any) => Number(b.deposit_paid || 0) + Number(b.cash_collected || 0) + Number(b.card_collected || 0);
 const sum = (rows: any[], fn: (r: any) => number) => rows.reduce((total, row) => total + fn(row), 0);
 
 function recurringExpensesInRange(rows: any[], start: Date, end: Date) {
@@ -20,19 +21,18 @@ function recurringExpensesInRange(rows: any[], start: Date, end: Date) {
     if (isAfter(from, to)) continue;
     const frequency = row.frequency || "monthly";
     if (frequency === "weekly") {
-      total += amount * (Math.floor((to.getTime() - from.getTime()) / 604800000) + 1);
+      let due = activeStart;
+      while (isBefore(due, from)) due = addDays(due, 7);
+      while (!isAfter(due, to)) { total += amount; due = addDays(due, 7); }
     } else if (frequency === "annual") {
       for (let year = from.getFullYear(); year <= to.getFullYear(); year++) {
         const due = new Date(year, activeStart.getMonth(), activeStart.getDate());
         if (!isBefore(due, from) && !isAfter(due, to)) total += amount;
       }
     } else {
-      let cursor = startOfMonth(from);
-      const last = startOfMonth(to);
-      while (!isAfter(cursor, last)) {
-        total += amount;
-        cursor = addMonths(cursor, 1);
-      }
+      let due = activeStart;
+      while (isBefore(due, from)) due = addMonths(due, 1);
+      while (!isAfter(due, to)) { total += amount; due = addMonths(due, 1); }
     }
   }
   return total;
@@ -50,7 +50,7 @@ export function useOwnerReportingPeriod(range: ReportingRange) {
     queryKey: ["owner-report-bookings", startStr, endStr],
     queryFn: async () => {
       const { data, error } = await supabase.from("bookings")
-        .select("id, booking_date, status, total_price, final_charge")
+        .select("id, booking_date, status, total_price, final_charge, deposit_paid, cash_collected, card_collected")
         .gte("booking_date", startStr).lte("booking_date", endStr);
       if (error) throw error;
       return data ?? [];
@@ -107,12 +107,14 @@ export function useOwnerReportingPeriod(range: ReportingRange) {
   const migratedHappened = migrated.filter((b: any) => b.booking_date <= effectiveEndStr);
   const future = bookings.filter((b: any) => b.booking_date > effectiveEndStr && ["Confirmed", "Pending"].includes(b.status));
   const migratedFuture = migrated.filter((b: any) => b.booking_date > effectiveEndStr && b.is_future_booking);
-  const revenueEarned = sum(completed, valueOf) + sum(migratedHappened, (b) => Number(b.total_price || 0));
+  const earnedBookings = happened.filter((b: any) => !["Cancelled", "No Show", "Refunded"].includes(b.status));
+  const revenueEarned = sum(earnedBookings, valueOf) + sum(migratedHappened, (b) => Number(b.total_price || 0));
   const groomerPay = sum(commissionsQ.data ?? [], (c) => Number(c.groomer_pay || 0));
   const expenseRows = expensesQ.data;
   const expenses = expenseRows ? sum(expenseRows.oneOff, (e) => Number(e.amount || 0)) + sum(expenseRows.purchases, (p) => Number(p.total_price || 0)) + recurringExpensesInRange(expenseRows.recurring, range.start, effectiveEnd) : null;
   const profitLoss = expenses === null ? null : revenueEarned - groomerPay - expenses;
   const futureRevenue = sum(future, valueOf) + sum(migratedFuture, (b) => Number(b.total_price || 0));
+  const futureExpected = sum(future, (b) => Math.max(0, valueOf(b) - paidOn(b))) + sum(migratedFuture, (b) => Number(b.total_price || 0));
 
   return {
     isLoading: bookingsQ.isLoading || migratedQ.isLoading || commissionsQ.isLoading || expensesQ.isLoading || cashQ.isLoading,
@@ -129,6 +131,7 @@ export function useOwnerReportingPeriod(range: ReportingRange) {
       profitLoss,
       futureBookings: future.length + migratedFuture.length,
       futureRevenue,
+      futureExpected,
     },
   };
 }

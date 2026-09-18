@@ -333,13 +333,13 @@ export function useOwnerDashboard() {
   });
 
   const overridesQ = useQuery({
-    queryKey: ["owner-overrides", weekStartStr, weekEndStr],
+    queryKey: ["owner-overrides", weekStartStr, monthEndStr],
     queryFn: async () => {
       const { data } = await supabase
         .from("staff_schedule_overrides")
         .select("staff_id, override_date, is_working, start_time, end_time")
         .gte("override_date", weekStartStr)
-        .lte("override_date", weekEndStr);
+        .lte("override_date", monthEndStr);
       return (data ?? []) as any[];
     },
   });
@@ -884,7 +884,8 @@ export function useOwnerDashboard() {
       remainingDays: eachDayOfInterval({ start: tomorrow, end: monthEnd }).map((date) => {
         const dateStr = format(date, "yyyy-MM-dd");
         const bookings = remainingMonth.filter((booking: any) => booking.booking_date === dateStr);
-        return { date, count: bookings.length, revenue: sum(bookings, priceOf) };
+        const workingStaff = staff.filter((person: any) => workingMinutesFor(person.id, date) > 0).length;
+        return { date, count: bookings.length, revenue: sum(bookings, priceOf), open: workingStaff > 0 || bookings.length > 0 };
       }),
       nextMonthName: format(nextMonthStart, "MMMM"),
       nextMonthCount,
