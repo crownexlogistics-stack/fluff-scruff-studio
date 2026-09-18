@@ -4,6 +4,7 @@ import { CustomersSection } from "@/components/marketing/CustomersSection";
 import { EmailMarketingSection } from "@/components/marketing/EmailMarketingSection";
 import { BookingAnalyticsSection } from "@/components/marketing/BookingAnalyticsSection";
 import { SMSSection } from "@/components/marketing/SMSSection";
+import { WebsiteAnalyticsSection } from "@/components/dashboard/WebsiteAnalyticsSection";
 
 export default function MarketingPage() {
   return (

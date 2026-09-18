@@ -57,6 +57,9 @@
     --success: 145 60% 40%;
     --success-foreground: 0 0% 100%;
 
+    --warning: 35 92% 42%;
+    --warning-foreground: 0 0% 100%;
+
     --charcoal: 20 60% 12%;
     --charcoal-light: 20 20% 45%;
     --silver: 30 100% 98%;
