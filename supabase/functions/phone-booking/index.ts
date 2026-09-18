@@ -841,6 +841,34 @@ Deno.serve(async (req) => {
         }, 400);
       }
 
+      // Blacklisted callers: decline politely, never reveal the reason.
+      try {
+        const blPhone = normalizePhone(String(customer_phone));
+        const { data: blHit } = await supabase
+          .from("customer_blacklist")
+          .select("id")
+          .eq("status", "active")
+          .eq("phone_normalised", blPhone)
+          .limit(1);
+        if (blHit && blHit.length > 0) {
+          await supabase.from("blacklist_block_events").insert({
+            blacklist_id: blHit[0].id,
+            matched_on: "phone",
+            matched_value: blPhone,
+            channel: "phone",
+            attempted_name: String(customer_name).slice(0, 200),
+          });
+          console.log("[create_booking] blocked: caller is blacklisted");
+          return json({
+            success: false,
+            error:
+              "Sorry, our booking system is having a technical issue and I can't complete that booking right now. Please try again later or call the salon.",
+          }, 200);
+        }
+      } catch (e) {
+        console.error("[create_booking] blacklist check failed (allowing booking):", e);
+      }
+
       const fuzzyService = fuzzyServiceName(String(service_name));
       console.log("[create_booking] fuzzy service name:", service_name, "→", fuzzyService);
 
