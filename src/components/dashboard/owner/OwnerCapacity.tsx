@@ -72,14 +72,28 @@ export function OwnerForward({ d }: { d: OwnerDashboard }) {
     <Section title="What's coming" action={{ label: "Open calendar", to: "/bookings" }}>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Panel className="p-5">
-          <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Next 30 days</p>
-          <p className="font-heading text-3xl mt-1.5">{f.next30Count}</p>
-          <p className="text-sm text-muted-foreground mt-1">
-            appointments booked, worth {money(f.next30Revenue)} of future work.
-          </p>
+          <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{f.currentMonthName}</p>
+          {f.remainingCount > 0 ? (
+            <>
+              <p className="font-heading text-3xl mt-1.5">{f.remainingCount}</p>
+              <p className="text-sm text-muted-foreground mt-1">appointments remaining · {money(f.remainingRevenue)} scheduled revenue</p>
+              <div className="mt-4 max-h-64 overflow-y-auto divide-y divide-border/60">
+                {f.remainingDays.map((day) => (
+                  <div key={day.date.toISOString()} className="flex items-center justify-between gap-3 py-2 text-xs">
+                    <span className="font-semibold">{format(day.date, "EEE d MMM")}</span>
+                    <span className="text-muted-foreground">
+                      {day.count > 0 ? `${day.count} appointment${day.count === 1 ? "" : "s"} · ${money(day.revenue)}` : day.open ? "No bookings" : "Closed"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground mt-3">No more appointments booked this month.</p>
+          )}
         </Panel>
         <Panel className="p-5">
-          <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{f.nextMonthName}</p>
+          <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Next month · {f.nextMonthName}</p>
           <p className="font-heading text-3xl mt-1.5">{f.nextMonthCount}</p>
           <p className="text-sm text-muted-foreground mt-1">
             booked so far, worth {money(f.nextMonthRevenue)}.
