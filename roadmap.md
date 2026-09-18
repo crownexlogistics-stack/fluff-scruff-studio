@@ -7,8 +7,8 @@
 - [x] Verify all reporting periods, bank persistence/history/latest-balance calculations, and month-bound forward data.
 - [x] Publish the completed dashboard and blacklist changes.
 
-- [ ] Rebuild `/portal` around today’s appointments and the next dog.
-- [ ] Replace low-value overview widgets with Needs Me, Assistant, earnings, performance, and upcoming customers.
-- [ ] Redesign groomer desktop and mobile navigation using only working destinations.
-- [ ] Verify real-data empty states, appointment actions, permissions, mobile layout, and existing routes.
+- [x] Rebuild `/portal` around today’s appointments and the next dog.
+- [x] Replace low-value overview widgets with Needs Me, Assistant, earnings, performance, and upcoming customers.
+- [x] Redesign groomer desktop and mobile navigation using only working destinations.
+- [x] Verify real-data empty states, appointment actions, permissions, mobile layout, and existing routes.
 - [ ] Publish the groomer portal redesign.
