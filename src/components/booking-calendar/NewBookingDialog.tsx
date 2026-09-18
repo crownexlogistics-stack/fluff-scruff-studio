@@ -16,6 +16,7 @@ import { logAudit } from "@/lib/auditLog";
 import { logGroomerActivity } from "@/lib/logGroomerActivity";
 import { CustomerSearchInput, type CustomerResult } from "./CustomerSearchInput";
 import { useCurrentStaff } from "@/hooks/useCurrentStaff";
+import { checkBlacklist } from "@/lib/blacklist";
 
 export interface BookAgainData {
   customer_name: string;
