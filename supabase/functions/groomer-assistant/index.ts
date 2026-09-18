@@ -106,8 +106,8 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-    if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY not configured");
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) throw new Error("AI is not configured");
 
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
@@ -185,34 +185,40 @@ Always refer to money in pounds sterling (£). Use the groomer's name when addre
 Here is the groomer's current live data:
 ${JSON.stringify(contextData, null, 2)}`;
 
-    const claudeMessages = messages.map((m: any) => ({
-      role: m.role,
-      content: m.content || "...",
-    }));
+    const chatMessages = [
+      { role: "system", content: systemPrompt },
+      ...messages.map((m: any) => ({ role: m.role, content: m.content || "..." })),
+    ];
 
-    const anthropicRes = await fetch("https://api.anthropic.com/v1/messages", {
+    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
+        "Lovable-API-Key": LOVABLE_API_KEY,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 4096,
-        system: systemPrompt,
-        messages: claudeMessages,
+        model: "openai/gpt-6-astra",
+        reasoning_effort: "low",
+        messages: chatMessages,
         stream: true,
       }),
     });
 
-    if (!anthropicRes.ok) {
-      const errText = await anthropicRes.text();
-      console.error("Anthropic error:", anthropicRes.status, errText);
-      throw new Error("AI unavailable");
+    if (!aiRes.ok) {
+      const errText = await aiRes.text();
+      console.error("AI gateway error:", aiRes.status, errText);
+      const msg = aiRes.status === 429
+        ? "The assistant is busy right now — please try again in a moment."
+        : aiRes.status === 402
+        ? "AI credits have run out. Please ask Sevak to top up the workspace."
+        : "AI unavailable";
+      return new Response(JSON.stringify({ error: msg }), {
+        status: aiRes.status,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    return new Response(anthropicRes.body, {
+    return new Response(aiRes.body, {
       headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
     });
   } catch (error) {

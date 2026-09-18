@@ -126,8 +126,9 @@ export default function GroomerAssistantPage() {
           if (jsonStr === "[DONE]") continue;
           try {
             const parsed = JSON.parse(jsonStr);
-            if (parsed.type === "content_block_delta" && parsed.delta?.text) {
-              assistantContent += parsed.delta.text;
+            const delta = parsed.choices?.[0]?.delta?.content;
+            if (delta) {
+              assistantContent += delta;
               setMessages((prev) => {
                 const updated = [...prev];
                 updated[updated.length - 1] = { ...updated[updated.length - 1], content: assistantContent };
@@ -145,8 +146,9 @@ export default function GroomerAssistantPage() {
           if (jsonStr === "[DONE]") continue;
           try {
             const parsed = JSON.parse(jsonStr);
-            if (parsed.type === "content_block_delta" && parsed.delta?.text) {
-              assistantContent += parsed.delta.text;
+            const delta = parsed.choices?.[0]?.delta?.content;
+            if (delta) {
+              assistantContent += delta;
               setMessages((prev) => {
                 const updated = [...prev];
                 updated[updated.length - 1] = { ...updated[updated.length - 1], content: assistantContent };
