@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useQuery } from "@tanstack/react-query";
 import { GroomerLayout } from "@/components/GroomerLayout";
-import { CalendarDays, MessageSquare, Dog, PoundSterling, FileText, ChevronRight, ArrowLeft, ShoppingCart, Package, Sparkles } from "lucide-react";
+import { CalendarDays, MessageSquare, Dog, PoundSterling, FileText, ArrowLeft, ShoppingCart, Package, Sparkles } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,22 +15,10 @@ import { GroomerMessagesTab } from "@/components/groomer/GroomerMessagesTab";
 import { GroomerBreedsTab } from "@/components/groomer/GroomerBreedsTab";
 import { GroomerDocumentsTab } from "@/components/groomer/GroomerDocumentsTab";
 import { GroomerPurchaseRequestsTab } from "@/components/groomer/GroomerPurchaseRequestsTab";
-import { GroomerDailyBriefing } from "@/components/groomer/GroomerDailyBriefing";
-import { TodayStatsBar } from "@/components/groomer/overview/TodayStatsBar";
-import { TodayPrepNotes } from "@/components/groomer/overview/TodayPrepNotes";
-import { CareerStats } from "@/components/groomer/overview/CareerStats";
-import { EarningsTracker } from "@/components/groomer/overview/EarningsTracker";
-import { MostLoyalCustomers } from "@/components/groomer/overview/MostLoyalCustomers";
-import { CustomerMilestoneCard } from "@/components/groomer/overview/CustomerMilestoneCard";
-import { ReEngagementCard } from "@/components/groomer/overview/ReEngagementCard";
-import { WeatherWidget } from "@/components/groomer/overview/WeatherWidget";
-import { UnpaidDepositsAlert } from "@/components/groomer/overview/UnpaidDepositsAlert";
-import { GoneQuietCard } from "@/components/groomer/overview/GoneQuietCard";
 import { ActivePackages } from "@/components/packages/ActivePackages";
-import { MyDayWidget } from "@/components/groomer/overview/MyDayWidget";
+import { GroomerDayDashboard } from "@/components/groomer/GroomerDayDashboard";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addWeeks, addMonths } from "date-fns";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useMigratedBookings } from "@/hooks/useMigratedBookings";
 import { useFullCalendarAccess } from "@/hooks/useFullCalendarAccess";
 import { ConnectionState } from "@/components/ConnectionState";
 
@@ -252,23 +240,6 @@ const GroomerPortalPage = () => {
     };
   }, [user, retryKey]);
 
-  const { data: nativeCompletedCount = 0 } = useQuery({
-    queryKey: ["groomer-portal-career-native", staffId],
-    queryFn: async () => {
-      if (!staffId) return 0;
-      const { count, error } = await supabase
-        .from("bookings")
-        .select("id", { count: "exact", head: true })
-        .eq("staff_id", staffId)
-        .eq("status", "Completed");
-      if (error) throw error;
-      return count ?? 0;
-    },
-    enabled: !!staffId,
-  });
-  const { data: migratedBookings = [] } = useMigratedBookings(staffId ?? "");
-  const careerTotal = nativeCompletedCount + migratedBookings.length;
-
   if (loading) {
     return (
       <GroomerLayout>
@@ -301,38 +272,7 @@ const GroomerPortalPage = () => {
   const renderSectionContent = (section: Section) => {
     switch (section) {
       case "overview":
-        return (
-          <div className="space-y-6">
-            <GroomerDailyBriefing staffId={staffId} groomerName={staffName} careerTotal={careerTotal} />
-            <UnpaidDepositsAlert staffId={staffId} />
-            <MyDayWidget staffId={staffId} />
-            <TodayStatsBar staffId={staffId} />
-            <CustomerMilestoneCard staffId={staffId} />
-            <TodayPrepNotes staffId={staffId} />
-            <CareerStats staffId={staffId} />
-            <EarningsTracker staffId={staffId} />
-            <MostLoyalCustomers staffId={staffId} />
-            <ReEngagementCard staffId={staffId} />
-            <GoneQuietCard staffId={staffId} />
-            <WeatherWidget />
-            {/* Mobile: show section cards for quick navigation */}
-            {isMobile && (
-              <div className="space-y-3">
-                <h2 className="font-heading font-bold text-base text-foreground">📂 Quick Access</h2>
-                {sectionCards.map((card) => (
-                  <button key={card.id} onClick={() => navigate(sectionToRoute[card.id])} className="w-full text-left rounded-2xl border border-border bg-card p-4 hover:shadow-md transition-all active:scale-[0.98] flex items-center gap-3">
-                    <div className="p-2.5 rounded-xl bg-primary/10 text-primary shrink-0"><card.icon className="h-5 w-5" /></div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-foreground text-sm">{card.title}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">{card.subtitle}</p>
-                    </div>
-                    <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        );
+        return <GroomerDayDashboard staffId={staffId} staffName={staffName} />;
       case "bookings": return <GroomerBookingsTab staffId={staffId} userRole={userRole} elevated={hasFullCalendarAccess} />;
       case "messages": return <GroomerMessagesTab staffId={staffId} elevated={hasFullCalendarAccess} />;
       case "breeds": return <GroomerBreedsTab />;
@@ -344,7 +284,7 @@ const GroomerPortalPage = () => {
   };
 
   const sectionMeta = activeSection === "overview"
-    ? { title: "My Portal", subtitle: "Your schedule, messages & more" }
+    ? { title: "My Day", subtitle: "Your appointments, priorities and earnings" }
     : sectionCards.find(s => s.id === activeSection) || { title: "My Portal", subtitle: "" };
 
   return (
@@ -355,10 +295,10 @@ const GroomerPortalPage = () => {
             <ArrowLeft className="h-4 w-4" /> Back
           </button>
         )}
-        <div>
+        {activeSection !== "overview" && <div>
           <h1 className="text-2xl font-heading text-foreground">{sectionMeta.title}</h1>
           <p className="text-muted-foreground font-body text-sm mt-1">{sectionMeta.subtitle}</p>
-        </div>
+        </div>}
         {renderSectionContent(activeSection)}
       </div>
     </GroomerLayout>
