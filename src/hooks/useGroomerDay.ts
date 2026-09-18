@@ -30,15 +30,16 @@ export function useGroomerDay(staffId: string) {
   const monthStart = format(startOfMonth(now), "yyyy-MM-dd");
   const monthEnd = format(endOfMonth(now), "yyyy-MM-dd");
   const futureEnd = format(addDays(now, 90), "yyyy-MM-dd");
+  const rangeStart = monthStart < weekStart ? monthStart : weekStart;
 
   const bookingsQ = useQuery({
-    queryKey: ["groomer-day-bookings", staffId, weekStart, futureEnd],
+    queryKey: ["groomer-day-bookings", staffId, rangeStart, futureEnd],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("bookings")
         .select("id, customer_name, customer_email, customer_phone, dog_name, booking_date, booking_time, status, notes, total_price, deposit_paid, deposit_link_sent_at, booking_source, services:service_id(name), breeds:breed_id(name)")
         .eq("staff_id", staffId)
-        .gte("booking_date", weekStart)
+        .gte("booking_date", rangeStart)
         .lte("booking_date", futureEnd)
         .order("booking_date")
         .order("booking_time");
