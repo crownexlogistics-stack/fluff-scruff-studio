@@ -7,6 +7,7 @@ import { useStaffIsCustomer } from "@/hooks/useStaffIsCustomer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useUnassignedInboxCount } from "@/hooks/useUnassignedInboxCount";
+import { useUnreadSmsCount } from "@/hooks/useUnreadSmsCount";
 import { InboxBellButton } from "@/components/ai-inbox/InboxBellButton";
 import { SystemStatusBanner } from "@/components/SystemStatusBanner";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
