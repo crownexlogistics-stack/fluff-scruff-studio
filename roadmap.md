@@ -5,4 +5,10 @@
 - [x] Add persistent manual bank balance update dialog and balance history.
 - [x] Replace rolling 30-day view with remainder of current calendar month, plus separate next month.
 - [x] Verify all reporting periods, bank persistence/history/latest-balance calculations, and month-bound forward data.
-- [ ] Publish the completed dashboard and blacklist changes.
+- [x] Publish the completed dashboard and blacklist changes.
+
+- [ ] Rebuild `/portal` around today’s appointments and the next dog.
+- [ ] Replace low-value overview widgets with Needs Me, Assistant, earnings, performance, and upcoming customers.
+- [ ] Redesign groomer desktop and mobile navigation using only working destinations.
+- [ ] Verify real-data empty states, appointment actions, permissions, mobile layout, and existing routes.
+- [ ] Publish the groomer portal redesign.
