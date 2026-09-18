@@ -199,6 +199,11 @@ export function useGroomerDay(staffId: string) {
       month: earningsFor(monthStart, monthEnd),
       all: { amount: commissions.reduce((sum, row) => sum + Number(row.groomer_pay || 0), 0), count: commissions.length },
     },
-    performance: { completedWeek, completedMonth },
+    performance: {
+      completedWeek: weekStats.completed,
+      completedMonth: monthStats.completed,
+      week: weekStats,
+      month: monthStats,
+    },
   };
 }
