@@ -237,8 +237,22 @@ export function GroomerDayDashboard({ staffId, staffName }: { staffId: string; s
             <section className="space-y-3">
               <SectionTitle>My performance</SectionTitle>
               <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-xl bg-muted/60 p-4"><PawPrint className="h-4 w-4 text-primary"/><p className="mt-4 font-heading text-2xl">{data.performance.completedWeek}</p><p className="text-xs text-muted-foreground">Completed this week</p></div>
-                <div className="rounded-xl bg-muted/60 p-4"><Dog className="h-4 w-4 text-primary"/><p className="mt-4 font-heading text-2xl">{data.performance.completedMonth}</p><p className="text-xs text-muted-foreground">Completed this month</p></div>
+                {([
+                  { label: "This week", icon: PawPrint, stats: data.performance.week, earned: data.earnings.week.amount },
+                  { label: "This month", icon: Dog, stats: data.performance.month, earned: data.earnings.month.amount },
+                ] as const).map(({ label, icon: Icon, stats, earned }) => (
+                  <div key={label} className="rounded-xl bg-muted/60 p-4">
+                    <Icon className="h-4 w-4 text-primary" />
+                    <p className="mt-3 text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground">{label}</p>
+                    <p className="mt-1 font-heading text-2xl leading-none">{stats.completed}</p>
+                    <p className="text-xs text-muted-foreground">completed</p>
+                    <p className="mt-3 text-sm font-bold">{money(earned)}</p>
+                    <p className="text-xs text-muted-foreground">earned</p>
+                    {stats.cancellationRate !== null && (
+                      <p className="mt-3 text-xs text-muted-foreground">{stats.cancellationRate.toFixed(0)}% cancelled / no show</p>
+                    )}
+                  </div>
+                ))}
               </div>
             </section>
           )}
