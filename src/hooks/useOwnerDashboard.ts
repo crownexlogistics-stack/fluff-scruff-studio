@@ -527,8 +527,9 @@ export function useOwnerDashboard() {
   const migratedPast = migratedMonth.filter((b: any) => b.booking_date <= todayStr);
   const revenueEarned = sum(pastMonthBookings, priceOf) + sum(migratedPast, priceOf);
 
-  const completedThisMonth = monthBookings.filter((b: any) => b.status === "Completed");
-  const outstandingFromCompleted = sum(completedThisMonth, (b) => Math.max(0, priceOf(b) - paidOn(b)));
+  // Unpaid balances on finished appointments — same list the alert uses, so the
+  // Money panel and "Needs your attention" can never show different totals.
+  const outstandingFromCompleted = sum(unpaidQ.data ?? [], (b) => Math.max(0, priceOf(b) - paidOn(b)));
 
   const futureMonthBookings = monthBookings.filter(
     (b: any) => b.booking_date > todayStr && ["Confirmed", "Pending"].includes(b.status),
