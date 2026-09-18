@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { differenceInCalendarDays, format, isToday } from "date-fns";
+import { differenceInCalendarDays, format } from "date-fns";
 import { toast } from "sonner";
 import { AlertCircle, ArrowRight, CalendarDays, Check, ChevronRight, CircleDollarSign, Clock3, Dog, Inbox, MessageSquare, PawPrint, Send, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,6 +20,15 @@ function profileHref(booking: GroomerDayBooking) {
   if (booking.customer_email) return `/admin/customers/${encodeURIComponent(booking.customer_email)}`;
   if (booking.customer_phone) return `/admin/customers/phone:${encodeURIComponent(booking.customer_phone)}`;
   return null;
+}
+
+function dayLabel(dateStr: string) {
+  const date = new Date(`${dateStr}T00:00:00`);
+  const diff = differenceInCalendarDays(date, new Date());
+  const pretty = format(date, "EEE d MMM");
+  if (diff === 0) return `Today · ${pretty}`;
+  if (diff === 1) return `Tomorrow · ${pretty}`;
+  return pretty;
 }
 
 function statusFor(booking: GroomerDayBooking, nextId?: string) {
@@ -123,8 +132,9 @@ export function GroomerDayDashboard({ staffId, staffName }: { staffId: string; s
                         <p className="text-sm text-background/65">{next.service_name}{next.breed_name ? ` · ${next.breed_name}` : ""}</p>
                       </div>
                     </div>
-                    <p className="text-lg font-bold">{format(new Date(`${next.booking_date}T${next.booking_time}`), isToday(new Date(`${next.booking_date}T00:00:00`)) ? "HH:mm" : "EEE d MMM · HH:mm")}</p>
-                    <p className="mt-1 text-sm text-background/70">{next.customer_name}</p>
+                    <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-primary">{dayLabel(next.booking_date)}</p>
+                    <p className="mt-1 font-heading text-3xl leading-none text-background">{next.booking_time.slice(0, 5)}</p>
+                    <p className="mt-2 text-sm text-background/70">{next.customer_name}</p>
                     {(next.notes || nextNotes.length > 0) && (
                       <div className="mt-5 border-l-2 border-primary pl-3 text-sm text-background/80">
                         {next.notes && <p>{next.notes}</p>}
@@ -170,17 +180,17 @@ export function GroomerDayDashboard({ staffId, staffName }: { staffId: string; s
           </section>
 
           <section className="space-y-3">
-            <SectionTitle action={{ label: "My bookings", to: "/portal/bookings" }}>Coming up</SectionTitle>
+            <SectionTitle action={{ label: "My bookings", to: "/portal/bookings" }}>Upcoming bookings</SectionTitle>
             {data.upcoming.length > 0 ? (
               <div className="grid gap-2 sm:grid-cols-2">
-                {data.upcoming.slice(0, 4).map((booking) => (
+                {data.upcoming.map((booking) => (
                   <Link key={booking.id} to="/portal/bookings" className="flex items-center gap-3 rounded-xl border border-border/70 bg-card p-3 transition-colors hover:bg-muted/50">
                     <div className="min-w-12 text-center"><p className="text-[10px] font-bold uppercase text-muted-foreground">{format(new Date(`${booking.booking_date}T00:00:00`), "EEE")}</p><p className="font-heading text-lg">{format(new Date(`${booking.booking_date}T00:00:00`), "d")}</p></div>
                     <div className="min-w-0"><p className="truncate text-sm font-bold">{booking.booking_time.slice(0,5)} · {booking.dog_name}</p><p className="truncate text-xs text-muted-foreground">{booking.customer_name} · {booking.service_name}</p></div>
                   </Link>
                 ))}
               </div>
-            ) : <p className="text-sm text-muted-foreground">No upcoming bookings in the next 90 days.</p>}
+            ) : <p className="text-sm text-muted-foreground">No bookings scheduled after today in the next 90 days.</p>}
           </section>
         </div>
 
@@ -227,8 +237,22 @@ export function GroomerDayDashboard({ staffId, staffName }: { staffId: string; s
             <section className="space-y-3">
               <SectionTitle>My performance</SectionTitle>
               <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-xl bg-muted/60 p-4"><PawPrint className="h-4 w-4 text-primary"/><p className="mt-4 font-heading text-2xl">{data.performance.completedWeek}</p><p className="text-xs text-muted-foreground">Completed this week</p></div>
-                <div className="rounded-xl bg-muted/60 p-4"><Dog className="h-4 w-4 text-primary"/><p className="mt-4 font-heading text-2xl">{data.performance.completedMonth}</p><p className="text-xs text-muted-foreground">Completed this month</p></div>
+                {([
+                  { label: "This week", icon: PawPrint, stats: data.performance.week, earned: data.earnings.week.amount },
+                  { label: "This month", icon: Dog, stats: data.performance.month, earned: data.earnings.month.amount },
+                ] as const).map(({ label, icon: Icon, stats, earned }) => (
+                  <div key={label} className="rounded-xl bg-muted/60 p-4">
+                    <Icon className="h-4 w-4 text-primary" />
+                    <p className="mt-3 text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground">{label}</p>
+                    <p className="mt-1 font-heading text-2xl leading-none">{stats.completed}</p>
+                    <p className="text-xs text-muted-foreground">completed</p>
+                    <p className="mt-3 text-sm font-bold">{money(earned)}</p>
+                    <p className="text-xs text-muted-foreground">earned</p>
+                    {stats.cancellationRate !== null && (
+                      <p className="mt-3 text-xs text-muted-foreground">{stats.cancellationRate.toFixed(0)}% cancelled / no show</p>
+                    )}
+                  </div>
+                ))}
               </div>
             </section>
           )}

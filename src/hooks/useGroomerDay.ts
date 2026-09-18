@@ -30,15 +30,16 @@ export function useGroomerDay(staffId: string) {
   const monthStart = format(startOfMonth(now), "yyyy-MM-dd");
   const monthEnd = format(endOfMonth(now), "yyyy-MM-dd");
   const futureEnd = format(addDays(now, 90), "yyyy-MM-dd");
+  const rangeStart = monthStart < weekStart ? monthStart : weekStart;
 
   const bookingsQ = useQuery({
-    queryKey: ["groomer-day-bookings", staffId, weekStart, futureEnd],
+    queryKey: ["groomer-day-bookings", staffId, rangeStart, futureEnd],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("bookings")
         .select("id, customer_name, customer_email, customer_phone, dog_name, booking_date, booking_time, status, notes, total_price, deposit_paid, deposit_link_sent_at, booking_source, services:service_id(name), breeds:breed_id(name)")
         .eq("staff_id", staffId)
-        .gte("booking_date", weekStart)
+        .gte("booking_date", rangeStart)
         .lte("booking_date", futureEnd)
         .order("booking_date")
         .order("booking_time");
@@ -166,9 +167,17 @@ export function useGroomerDay(staffId: string) {
     return { amount: rows.reduce((sum, row) => sum + Number(row.groomer_pay || 0), 0), count: rows.length };
   };
 
-  const completedWeek = bookings.filter((booking) => booking.booking_date >= weekStart && booking.booking_date <= weekEnd && booking.status === "Completed").length;
-  const completedMonth = bookings.filter((booking) => booking.booking_date >= monthStart && booking.booking_date <= monthEnd && booking.status === "Completed").length;
-  const upcoming = bookings.filter((booking) => booking.booking_date >= today && ["Confirmed", "Pending"].includes(booking.status)).slice(0, 5);
+  const inRange = (booking: GroomerDayBooking, start: string, end: string) => booking.booking_date >= start && booking.booking_date <= end;
+  const periodStats = (start: string, end: string) => {
+    const rows = bookings.filter((booking) => inRange(booking, start, end));
+    const completed = rows.filter((booking) => booking.status === "Completed").length;
+    const lost = rows.filter((booking) => ["Cancelled", "No Show"].includes(booking.status)).length;
+    const settled = completed + lost;
+    return { completed, lost, cancellationRate: settled > 0 ? (lost / settled) * 100 : null };
+  };
+  const weekStats = periodStats(weekStart, weekEnd);
+  const monthStats = periodStats(monthStart, monthEnd);
+  const upcoming = bookings.filter((booking) => booking.booking_date > today && ["Confirmed", "Pending"].includes(booking.status)).slice(0, 6);
   const missingDeposits = bookings.filter((booking) => booking.booking_date >= today && ["Confirmed", "Pending"].includes(booking.status) && booking.deposit_paid <= 0);
 
   return {
@@ -190,6 +199,11 @@ export function useGroomerDay(staffId: string) {
       month: earningsFor(monthStart, monthEnd),
       all: { amount: commissions.reduce((sum, row) => sum + Number(row.groomer_pay || 0), 0), count: commissions.length },
     },
-    performance: { completedWeek, completedMonth },
+    performance: {
+      completedWeek: weekStats.completed,
+      completedMonth: monthStats.completed,
+      week: weekStats,
+      month: monthStats,
+    },
   };
 }
