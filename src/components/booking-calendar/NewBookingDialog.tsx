@@ -16,6 +16,7 @@ import { logAudit } from "@/lib/auditLog";
 import { logGroomerActivity } from "@/lib/logGroomerActivity";
 import { CustomerSearchInput, type CustomerResult } from "./CustomerSearchInput";
 import { useCurrentStaff } from "@/hooks/useCurrentStaff";
+import { checkBlacklist } from "@/lib/blacklist";
 
 export interface BookAgainData {
   customer_name: string;
@@ -357,6 +358,17 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
           details: `Blocked ${formattedDate} ${form.booking_time.slice(0, 5)}-${form.end_time.slice(0, 5)} for ${staffName}. Reason: ${form.notes.trim()}`,
         });
       } else {
+        // Blacklisted customers cannot be booked in — staff are told why.
+        const blCheck = await checkBlacklist({
+          email: form.customer_email || null,
+          phone: form.customer_phone || null,
+          name: form.customer_name || null,
+          channel: "staff",
+        });
+        if (blCheck.blocked) {
+          throw new Error(`This customer is on the blacklist and cannot be booked in. Reason: ${blCheck.reason || "not recorded"}`);
+        }
+
         // Validate new customer fields
         if (isNewCustomer) {
           if (!form.customer_name.trim() || (!form.customer_email.trim() && !form.customer_phone.trim())) {

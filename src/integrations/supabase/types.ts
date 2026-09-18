@@ -593,6 +593,44 @@ export type Database = {
         }
         Relationships: []
       }
+      blacklist_block_events: {
+        Row: {
+          attempted_name: string | null
+          blacklist_id: string | null
+          channel: string
+          created_at: string
+          id: string
+          matched_on: string
+          matched_value: string | null
+        }
+        Insert: {
+          attempted_name?: string | null
+          blacklist_id?: string | null
+          channel: string
+          created_at?: string
+          id?: string
+          matched_on: string
+          matched_value?: string | null
+        }
+        Update: {
+          attempted_name?: string | null
+          blacklist_id?: string | null
+          channel?: string
+          created_at?: string
+          id?: string
+          matched_on?: string
+          matched_value?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "blacklist_block_events_blacklist_id_fkey"
+            columns: ["blacklist_id"]
+            isOneToOne: false
+            referencedRelation: "customer_blacklist"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       booking_addons: {
         Row: {
           added_at: string | null
@@ -1318,6 +1356,72 @@ export type Database = {
             columns: ["attributed_campaign_id"]
             isOneToOne: false
             referencedRelation: "email_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customer_blacklist: {
+        Row: {
+          blacklisted_by_name: string
+          blacklisted_by_staff_id: string | null
+          created_at: string
+          customer_name: string | null
+          email: string | null
+          id: string
+          phone_normalised: string | null
+          phone_raw: string | null
+          reason: string
+          removed_at: string | null
+          removed_by_name: string | null
+          removed_by_staff_id: string | null
+          removed_reason: string | null
+          status: string
+        }
+        Insert: {
+          blacklisted_by_name: string
+          blacklisted_by_staff_id?: string | null
+          created_at?: string
+          customer_name?: string | null
+          email?: string | null
+          id?: string
+          phone_normalised?: string | null
+          phone_raw?: string | null
+          reason: string
+          removed_at?: string | null
+          removed_by_name?: string | null
+          removed_by_staff_id?: string | null
+          removed_reason?: string | null
+          status?: string
+        }
+        Update: {
+          blacklisted_by_name?: string
+          blacklisted_by_staff_id?: string | null
+          created_at?: string
+          customer_name?: string | null
+          email?: string | null
+          id?: string
+          phone_normalised?: string | null
+          phone_raw?: string | null
+          reason?: string
+          removed_at?: string | null
+          removed_by_name?: string | null
+          removed_by_staff_id?: string | null
+          removed_reason?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_blacklist_blacklisted_by_staff_id_fkey"
+            columns: ["blacklisted_by_staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_blacklist_removed_by_staff_id_fkey"
+            columns: ["removed_by_staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
             referencedColumns: ["id"]
           },
         ]
@@ -4046,6 +4150,7 @@ export type Database = {
         Returns: boolean
       }
       hash_phone_for_sms: { Args: { phone: string }; Returns: string }
+      normalise_phone: { Args: { _phone: string }; Returns: string }
     }
     Enums: {
       app_role:
