@@ -11,4 +11,4 @@
 - [x] Replace low-value overview widgets with Needs Me, Assistant, earnings, performance, and upcoming customers.
 - [x] Redesign groomer desktop and mobile navigation using only working destinations.
 - [x] Verify real-data empty states, appointment actions, permissions, mobile layout, and existing routes.
-- [ ] Publish the groomer portal redesign.
+- [x] Publish the groomer portal redesign.
