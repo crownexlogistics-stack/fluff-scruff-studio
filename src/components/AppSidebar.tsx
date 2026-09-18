@@ -6,7 +6,7 @@ import {
   LogOut, Sparkles, Scissors, AlertTriangle, ShieldCheck, BookOpen,
   Inbox, FileText, Ticket, PoundSterling, Bug, Activity, ArrowRightLeft,
   PawPrint, Bot, MessageSquare, PhoneForwarded, Settings, Search, Phone,
-  BookOpen as HistoryBook, ShoppingCart, Package, HeartPulse,
+  BookOpen as HistoryBook, ShoppingCart, Package, HeartPulse, Ban,
 } from "lucide-react";
 import logo from "@/assets/logo-transparent.png";
 import { useNewErrorReportsCount } from "@/hooks/useNewErrorReportsCount";
@@ -49,6 +49,7 @@ const mainNavItems = [
   { title: "AI Inbox", url: "/ai-inbox", icon: PhoneForwarded },
   { title: "Services", url: "/services", icon: Scissors },
   { title: "Add-Ons", url: "/add-ons", icon: Sparkles },
+  { title: "Blacklist", url: "/blacklist", icon: Ban },
 ];
 
 const directorNavItems = [
