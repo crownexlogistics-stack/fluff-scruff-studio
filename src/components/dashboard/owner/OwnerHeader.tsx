@@ -11,7 +11,7 @@ function greeting() {
 }
 
 export function OwnerHeader({ d }: { d: OwnerDashboard }) {
-  const { today, ownerName, money: m } = d;
+  const { today, ownerName } = d;
 
   const summary = (() => {
     if (today.count === 0) {
@@ -66,16 +66,6 @@ export function OwnerHeader({ d }: { d: OwnerDashboard }) {
           </Link>
         ))}
       </div>
-
-      {m.status !== "green" && (
-        <p className="text-xs text-muted-foreground">
-          {m.monthName} is currently forecast{" "}
-          <span className={m.status === "red" ? "text-destructive font-semibold" : "text-warning font-semibold"}>
-            {money(Math.abs(m.projectedResult))} below break-even
-          </span>
-          .
-        </p>
-      )}
     </header>
   );
 }

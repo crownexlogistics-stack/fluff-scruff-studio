@@ -120,7 +120,7 @@ export function useOwnerReportingPeriod(range: ReportingRange) {
     metrics: {
       revenueEarned,
       cashReceived: cashQ.data ?? null,
-      appointments: happened.length + migratedHappened.length,
+      appointments: bookings.length + migrated.length,
       completed: completed.length + migratedHappened.length,
       cancellations: cancellations.length,
       noShows: noShows.length,
