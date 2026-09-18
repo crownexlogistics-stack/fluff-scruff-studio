@@ -22,7 +22,7 @@ const groomerNavGroups = [
     { title: "My Bookings", url: "/portal/bookings", icon: CalendarDays },
     { title: "Customer Messages", url: "/portal/messages", icon: MessageSquare, badge: "sms" as const },
     { title: "Email Inbox", url: "/portal/inbox", icon: Inbox },
-    { title: "Needs Me", url: "/ai-inbox", icon: PhoneForwarded, count: true },
+    { title: "Needs Me", url: "/ai-inbox", icon: PhoneForwarded, badge: "ai" as const },
   ]},
   { label: "My results", items: [
     { title: "My Earnings", url: "/portal/finance", icon: PoundSterling },
