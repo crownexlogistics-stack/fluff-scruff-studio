@@ -851,6 +851,7 @@ export function useOwnerDashboard() {
     money: {
       bankBalance,
       bankNotedAt: bankQ.data?.noted_at ? new Date(bankQ.data.noted_at) : null,
+      bankNotedBy: bankQ.data?.noted_by || null,
       billsDueThisWeek,
       balanceAfterBills,
       bills7d,
