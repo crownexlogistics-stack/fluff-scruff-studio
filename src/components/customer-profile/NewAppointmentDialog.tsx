@@ -17,6 +17,7 @@ import { CalendarPlus, Send, Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CustomerSearchInput, type CustomerResult } from "@/components/booking-calendar/CustomerSearchInput";
 import { useCurrentStaff } from "@/hooks/useCurrentStaff";
+import { checkBlacklist } from "@/lib/blacklist";
 
 interface Props {
   open: boolean;
@@ -225,6 +226,17 @@ export function NewAppointmentDialog({
       if (!form.dog_name.trim()) throw new Error("Dog name is required");
       if (!form.booking_date) throw new Error("Date is required");
       if (!form.service_id) throw new Error("Service is required");
+
+      // Blacklisted customers cannot be booked in — staff are told why.
+      const blCheck = await checkBlacklist({
+        email: form.customer_email || null,
+        phone: form.customer_phone || null,
+        name: form.customer_name || null,
+        channel: "staff",
+      });
+      if (blCheck.blocked) {
+        throw new Error(`This customer is on the blacklist and cannot be booked in. Reason: ${blCheck.reason || "not recorded"}`);
+      }
 
       // Build notes with add-ons info
       const addOnNames = selectedAddOns.map(id => addOns?.find(a => a.id === id)?.name).filter(Boolean);
