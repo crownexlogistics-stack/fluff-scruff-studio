@@ -10,6 +10,7 @@ import { useUnassignedInboxCount } from "@/hooks/useUnassignedInboxCount";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import type { LucideIcon } from "lucide-react";
 
 function money(value: number) {
   return new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP", minimumFractionDigits: value % 1 ? 2 : 0 }).format(value);
@@ -71,6 +72,12 @@ export function GroomerDayDashboard({ staffId, staffName }: { staffId: string; s
 
   const attentionCount = data.missingDeposits.length + data.unreadMessages + aiInboxCount;
   const nextWeekCount = useMemo(() => data.upcoming.filter((booking) => booking.booking_date > data.today).length, [data.today, data.upcoming]);
+  const summaryStats: { label: string; value: string | number; icon: LucideIcon }[] = [
+    { label: "Today's appointments", value: data.activeToday.length, icon: CalendarDays },
+    { label: "Completed", value: data.completedToday.length, icon: Check },
+    { label: "Remaining", value: data.remainingToday.length, icon: Clock3 },
+    { label: "Scheduled value", value: data.activeToday.length ? money(data.scheduledToday) : "—", icon: CircleDollarSign },
+  ];
 
   if (data.isLoading) {
     return <div className="py-16 text-center text-sm text-muted-foreground">Loading your day…</div>;
@@ -92,13 +99,8 @@ export function GroomerDayDashboard({ staffId, staffName }: { staffId: string; s
       </header>
 
       <div className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-border/70 bg-border/70 md:grid-cols-4">
-        {[
-          ["Today's appointments", data.activeToday.length, CalendarDays],
-          ["Completed", data.completedToday.length, Check],
-          ["Remaining", data.remainingToday.length, Clock3],
-          ["Scheduled value", data.activeToday.length ? money(data.scheduledToday) : "—", CircleDollarSign],
-        ].map(([label, value, Icon]) => (
-          <div key={String(label)} className="bg-card p-4 md:p-5">
+        {summaryStats.map(({ label, value, icon: Icon }) => (
+          <div key={label} className="bg-card p-4 md:p-5">
             <Icon className="mb-4 h-4 w-4 text-primary" />
             <p className="font-heading text-2xl text-foreground">{value}</p>
             <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground">{label}</p>
