@@ -43,6 +43,7 @@ export function GroomerLayout({ children }: GroomerLayoutProps) {
   const location = useLocation();
   const { hasCustomerBookings } = useStaffIsCustomer(user?.email ?? undefined);
   const aiInboxUnread = useUnassignedInboxCount();
+  const { totalUnread: totalUnreadSms } = useUnreadSmsCount();
 
   // Auto sign-out after 5 hours of inactivity (mouse/keyboard/touch/scroll).
   useIdleLogout(5 * 60 * 60 * 1000, () => navigate("/"));
