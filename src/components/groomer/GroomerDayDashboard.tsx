@@ -180,17 +180,17 @@ export function GroomerDayDashboard({ staffId, staffName }: { staffId: string; s
           </section>
 
           <section className="space-y-3">
-            <SectionTitle action={{ label: "My bookings", to: "/portal/bookings" }}>Coming up</SectionTitle>
+            <SectionTitle action={{ label: "My bookings", to: "/portal/bookings" }}>Upcoming bookings</SectionTitle>
             {data.upcoming.length > 0 ? (
               <div className="grid gap-2 sm:grid-cols-2">
-                {data.upcoming.slice(0, 4).map((booking) => (
+                {data.upcoming.map((booking) => (
                   <Link key={booking.id} to="/portal/bookings" className="flex items-center gap-3 rounded-xl border border-border/70 bg-card p-3 transition-colors hover:bg-muted/50">
                     <div className="min-w-12 text-center"><p className="text-[10px] font-bold uppercase text-muted-foreground">{format(new Date(`${booking.booking_date}T00:00:00`), "EEE")}</p><p className="font-heading text-lg">{format(new Date(`${booking.booking_date}T00:00:00`), "d")}</p></div>
                     <div className="min-w-0"><p className="truncate text-sm font-bold">{booking.booking_time.slice(0,5)} · {booking.dog_name}</p><p className="truncate text-xs text-muted-foreground">{booking.customer_name} · {booking.service_name}</p></div>
                   </Link>
                 ))}
               </div>
-            ) : <p className="text-sm text-muted-foreground">No upcoming bookings in the next 90 days.</p>}
+            ) : <p className="text-sm text-muted-foreground">No bookings scheduled after today in the next 90 days.</p>}
           </section>
         </div>
 
