@@ -167,9 +167,17 @@ export function useGroomerDay(staffId: string) {
     return { amount: rows.reduce((sum, row) => sum + Number(row.groomer_pay || 0), 0), count: rows.length };
   };
 
-  const completedWeek = bookings.filter((booking) => booking.booking_date >= weekStart && booking.booking_date <= weekEnd && booking.status === "Completed").length;
-  const completedMonth = bookings.filter((booking) => booking.booking_date >= monthStart && booking.booking_date <= monthEnd && booking.status === "Completed").length;
-  const upcoming = bookings.filter((booking) => booking.booking_date >= today && ["Confirmed", "Pending"].includes(booking.status)).slice(0, 5);
+  const inRange = (booking: GroomerDayBooking, start: string, end: string) => booking.booking_date >= start && booking.booking_date <= end;
+  const periodStats = (start: string, end: string) => {
+    const rows = bookings.filter((booking) => inRange(booking, start, end));
+    const completed = rows.filter((booking) => booking.status === "Completed").length;
+    const lost = rows.filter((booking) => ["Cancelled", "No Show"].includes(booking.status)).length;
+    const settled = completed + lost;
+    return { completed, lost, cancellationRate: settled > 0 ? (lost / settled) * 100 : null };
+  };
+  const weekStats = periodStats(weekStart, weekEnd);
+  const monthStats = periodStats(monthStart, monthEnd);
+  const upcoming = bookings.filter((booking) => booking.booking_date > today && ["Confirmed", "Pending"].includes(booking.status)).slice(0, 6);
   const missingDeposits = bookings.filter((booking) => booking.booking_date >= today && ["Confirmed", "Pending"].includes(booking.status) && booking.deposit_paid <= 0);
 
   return {
