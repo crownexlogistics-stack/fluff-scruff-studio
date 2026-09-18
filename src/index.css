@@ -89,6 +89,8 @@
     --border: 220 10% 22%;
     --input: 220 10% 22%;
     --ring: 18 100% 60%;
+    --warning: 38 95% 58%;
+    --warning-foreground: 20 60% 12%;
     --sidebar-background: 220 12% 7%;
     --sidebar-foreground: 220 5% 85%;
     --sidebar-primary: 18 100% 60%;
