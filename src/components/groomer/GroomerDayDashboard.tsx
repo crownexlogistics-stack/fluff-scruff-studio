@@ -59,7 +59,7 @@ export function GroomerDayDashboard({ staffId, staffName }: { staffId: string; s
       });
       if (error) throw error;
       if (result?.error) throw new Error(result.error);
-      const { error: updateError } = await supabase.from("bookings").update({ deposit_link_sent_at: new Date().toISOString() } as any).eq("id", booking.id);
+      const { error: updateError } = await supabase.from("bookings").update({ deposit_link_sent_at: new Date().toISOString() }).eq("id", booking.id);
       if (updateError) throw updateError;
     },
     onSuccess: () => {

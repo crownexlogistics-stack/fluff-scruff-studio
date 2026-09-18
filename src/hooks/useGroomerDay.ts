@@ -43,7 +43,7 @@ export function useGroomerDay(staffId: string) {
         .order("booking_date")
         .order("booking_time");
       if (error) throw error;
-      return (data || []).map((booking: any): GroomerDayBooking => ({
+      return (data || []).map((booking): GroomerDayBooking => ({
         id: booking.id,
         customer_name: booking.customer_name || "Customer",
         customer_email: booking.customer_email,
