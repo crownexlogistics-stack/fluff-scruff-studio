@@ -1000,6 +1000,27 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
       customerPhone: submitPhone || null,
     });
 
+    // Blocked customers: never reveal why — show a neutral technical message.
+    const blacklistCheck = await checkBlacklist({
+      email: submitEmail || null,
+      phone: submitPhone || null,
+      name: submitName || null,
+      channel: "online",
+    });
+    if (blacklistCheck.blocked) {
+      logBookingFlowEvent({
+        sessionId: sessionIdRef.current,
+        step: "guest-details",
+        action: "submit_blocked",
+        payload: { reason: "blacklisted" },
+        customerEmail: submitEmail || null,
+        customerPhone: submitPhone || null,
+      });
+      setAlertMessage(BLACKLIST_CUSTOMER_MESSAGE);
+      setIsSubmitting(false);
+      return;
+    }
+
     const { data: insertedBooking, error } = await supabase.from("bookings").insert({
       customer_name: submitName,
       customer_phone: submitPhone || null,
