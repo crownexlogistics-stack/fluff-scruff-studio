@@ -112,7 +112,8 @@ export function useOwnerDashboard() {
   const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
   const weekStartStr = format(weekStart, "yyyy-MM-dd");
   const weekEndStr = format(weekEnd, "yyyy-MM-dd");
-  const next30Str = format(addDays(today, 30), "yyyy-MM-dd");
+  const tomorrow = addDays(today, 1);
+  const tomorrowStr = format(tomorrow, "yyyy-MM-dd");
   const nextMonthStart = startOfMonth(addMonths(now, 1));
   const nextMonthStartStr = format(nextMonthStart, "yyyy-MM-dd");
   const nextMonthEndStr = format(endOfMonth(addMonths(now, 1)), "yyyy-MM-dd");
@@ -173,21 +174,22 @@ export function useOwnerDashboard() {
     },
   });
 
-  const next30Q = useQuery({
-    queryKey: ["owner-next30", todayStr, next30Str],
+  const remainingMonthQ = useQuery({
+    queryKey: ["owner-remaining-month", tomorrowStr, monthEndStr],
     queryFn: async () => {
+      if (tomorrowStr > monthEndStr) return [];
       const [liveRes, migratedRes] = await Promise.all([
         supabase
           .from("bookings")
           .select("id, booking_date, total_price, status")
-          .gte("booking_date", todayStr)
-          .lte("booking_date", next30Str)
+          .gte("booking_date", tomorrowStr)
+          .lte("booking_date", monthEndStr)
           .in("status", ["Confirmed", "Pending"]),
         supabase
           .from("migrated_bookings")
           .select("id, booking_date, total_price")
-          .gte("booking_date", todayStr)
-          .lte("booking_date", next30Str)
+          .gte("booking_date", tomorrowStr)
+          .lte("booking_date", monthEndStr)
           .eq("is_future_booking", true),
       ]);
       return [...(liveRes.data ?? []), ...(migratedRes.data ?? [])] as any[];
@@ -297,7 +299,7 @@ export function useOwnerDashboard() {
     queryFn: async () => {
       const { data } = await supabase
         .from("bank_balance_snapshots")
-        .select("balance, noted_at, noted_by")
+        .select("balance, noted_at, noted_by, note")
         .order("noted_at", { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -596,7 +598,7 @@ export function useOwnerDashboard() {
     weekAvailableMinutes > 0 ? Math.round((weekBookedMinutes / weekAvailableMinutes) * 100) : null;
 
   // ── FORWARD ────────────────────────────────────────────────
-  const next30 = next30Q.data ?? [];
+  const remainingMonth = remainingMonthQ.data ?? [];
   const nextMonth = nextMonthQ.data ?? [];
   const baseline = monthlyBaselineQ.data ?? [];
   const baselineMonths = new Set(baseline.map((b: any) => (b.booking_date as string).slice(0, 7)));
@@ -875,8 +877,14 @@ export function useOwnerDashboard() {
       availableHours: Math.max(0, Math.round(((weekAvailableMinutes - weekBookedMinutes) / 60) * 10) / 10),
     },
     forward: {
-      next30Count: next30.length,
-      next30Revenue: sum(next30, priceOf),
+      currentMonthName: format(now, "MMMM"),
+      remainingCount: remainingMonth.length,
+      remainingRevenue: sum(remainingMonth, priceOf),
+      remainingDays: eachDayOfInterval({ start: tomorrow, end: monthEnd }).map((date) => {
+        const dateStr = format(date, "yyyy-MM-dd");
+        const bookings = remainingMonth.filter((booking: any) => booking.booking_date === dateStr);
+        return { date, count: bookings.length, revenue: sum(bookings, priceOf) };
+      }),
       nextMonthName: format(nextMonthStart, "MMMM"),
       nextMonthCount,
       nextMonthRevenue: sum(nextMonth, priceOf),
