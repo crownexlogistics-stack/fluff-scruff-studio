@@ -17,7 +17,15 @@ export default function MarketingPage() {
         <Routes>
           <Route index element={<Navigate to="customers" replace />} />
           <Route path="customers" element={<CustomersSection />} />
-          <Route path="analytics" element={<BookingAnalyticsSection />} />
+          <Route
+            path="analytics"
+            element={
+              <div className="space-y-8">
+                <BookingAnalyticsSection />
+                <WebsiteAnalyticsSection />
+              </div>
+            }
+          />
           <Route path="email" element={<EmailMarketingSection />} />
           <Route path="sms/*" element={<SMSSection />} />
         </Routes>
