@@ -22,6 +22,15 @@ function profileHref(booking: GroomerDayBooking) {
   return null;
 }
 
+function dayLabel(dateStr: string) {
+  const date = new Date(`${dateStr}T00:00:00`);
+  const diff = differenceInCalendarDays(date, new Date());
+  const pretty = format(date, "EEE d MMM");
+  if (diff === 0) return `Today · ${pretty}`;
+  if (diff === 1) return `Tomorrow · ${pretty}`;
+  return pretty;
+}
+
 function statusFor(booking: GroomerDayBooking, nextId?: string) {
   if (booking.status === "Completed") return { label: "Completed", tone: "good" as const };
   if (booking.status === "Cancelled") return { label: "Cancelled", tone: "bad" as const };
