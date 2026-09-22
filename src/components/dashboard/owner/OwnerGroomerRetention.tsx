@@ -43,6 +43,8 @@ function useRetentionData() {
   });
 }
 
+const SALON = "salon";
+
 const pct = (part: number, total: number) => (total > 0 ? Math.round((part / total) * 100) : null);
 const show = (value: number | null) => (value === null ? "—" : `${value}%`);
 
@@ -57,19 +59,28 @@ export function OwnerGroomerRetention() {
     return data.staff.filter((s) => withWork.has(s.id));
   }, [data]);
 
-  const selected = groomerId || groomers[0]?.id || "";
+  const selected = groomerId || SALON;
+
+  const earliest = useMemo(() => {
+    const dates = (data?.bookings ?? []).filter((b) => !EXCLUDED.has(b.status ?? "")).map((b) => b.booking_date);
+    return dates.length ? dates.reduce((a, b) => (b < a ? b : a)) : null;
+  }, [data]);
 
   const range = useMemo(() => {
     const today = format(new Date(), "yyyy-MM-dd");
     if (period === "month") return { start: format(startOfMonth(new Date()), "yyyy-MM-dd"), end: today, label: format(new Date(), "MMMM yyyy") };
     if (period === "3months") return { start: format(startOfMonth(subMonths(new Date(), 2)), "yyyy-MM-dd"), end: today, label: `${format(subMonths(new Date(), 2), "MMM")} – ${format(new Date(), "MMM yyyy")}` };
-    return { start: "0000-01-01", end: today, label: "All time to date" };
-  }, [period]);
+    return {
+      start: "0000-01-01",
+      end: today,
+      label: earliest ? `All time · since ${format(new Date(earliest), "d MMMM yyyy")} (first appointment in this system)` : "All time to date",
+    };
+  }, [period, earliest]);
 
   const stats = useMemo(() => {
     if (!data || !selected) return null;
     const valid = data.bookings.filter((b) => !EXCLUDED.has(b.status ?? "") && b.customer_email);
-    const byGroomer = valid.filter((b) => b.staff_id === selected);
+    const byGroomer = selected === SALON ? valid.filter((b) => b.staff_id) : valid.filter((b) => b.staff_id === selected);
     const inPeriod = byGroomer.filter((b) => b.booking_date >= range.start && b.booking_date <= range.end);
 
     const customers = new Map<string, { first: string; last: string }>();
@@ -123,16 +134,19 @@ export function OwnerGroomerRetention() {
     };
   }, [data, selected, range]);
 
-  const groomerName = groomers.find((g) => g.id === selected)?.name ?? "";
+  const isSalon = selected === SALON;
+  const who = isSalon ? "the salon" : "this groomer";
+  const groomerName = isSalon ? "the salon" : groomers.find((g) => g.id === selected)?.name ?? "";
 
   return (
-    <Section title="Groomer retention" hint={range.label}>
+    <Section title={isSalon ? "Salon retention" : "Groomer retention"} hint={range.label}>
       <div className="flex flex-wrap items-center gap-2">
         <Select value={selected} onValueChange={setGroomerId}>
           <SelectTrigger className="w-56">
             <SelectValue placeholder="Choose a groomer" />
           </SelectTrigger>
           <SelectContent>
+            <SelectItem value={SALON}>Whole salon (everyone)</SelectItem>
             {groomers.map((g) => (
               <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
             ))}
@@ -155,18 +169,18 @@ export function OwnerGroomerRetention() {
             <div>
               <Row label="Appointments" value={stats.appointments.toLocaleString("en-GB")} />
               <Row label="Customers seen" value={stats.totalCustomers.toLocaleString("en-GB")} />
-              <Row label="Repeat visits" hint="Appointments that were not the customer's first with this groomer" value={`${show(stats.repeatPct)} · ${stats.repeatVisits}`} />
+              <Row label="Repeat visits" hint={`Appointments that were not the customer's first with ${who}`} value={`${show(stats.repeatPct)} · ${stats.repeatVisits}`} />
               {period !== "all" && (
                 <>
-                  <Row label="New to this groomer" hint="First time with this groomer" value={`${show(stats.newPct)} · ${stats.newCustomers}`} />
-                  <Row label="Seen this groomer before" value={`${show(stats.returningPct)} · ${stats.returning}`} />
+                  <Row label={isSalon ? "New to the salon" : "New to this groomer"} hint={`First time with ${who}`} value={`${show(stats.newPct)} · ${stats.newCustomers}`} />
+                  <Row label={isSalon ? "Been to the salon before" : "Seen this groomer before"} value={`${show(stats.returningPct)} · ${stats.returning}`} />
                 </>
               )}
             </div>
             <div>
               <Row
                 label="Came back again"
-                hint="Customers who booked this groomer again after that visit, including appointments already in the diary"
+                hint={`Customers who booked ${who} again after that visit, including appointments already in the diary`}
                 value={`${show(stats.cameBackPct)} · ${stats.cameBack}`}
                 tone={stats.cameBackPct !== null && stats.cameBackPct >= 50 ? "good" : stats.cameBackPct !== null && stats.cameBackPct < 25 ? "warn" : "neutral"}
                 strong
