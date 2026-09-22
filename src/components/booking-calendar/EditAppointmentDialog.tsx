@@ -187,7 +187,7 @@ export function EditAppointmentDialog({ open, onOpenChange, booking }: EditAppoi
           booking_time: form.booking_time,
           duration_minutes: form.duration_minutes,
           total_price: form.total_price,
-          deposit_paid: form.deposit_paid,
+          deposit_paid: depositToSave,
           notes: form.notes || null,
           staff_name: staff?.find(s => s.id === form.staff_id)?.name || null,
         }).eq("id", booking.id);
@@ -201,7 +201,7 @@ export function EditAppointmentDialog({ open, onOpenChange, booking }: EditAppoi
           breed_id: form.breed_id || null,
           staff_id: form.staff_id || null,
           total_price: form.total_price,
-          deposit_paid: form.deposit_paid,
+          deposit_paid: depositToSave,
           notes: form.notes || null,
         } as any).eq("id", booking.id);
         if (error) throw error;
