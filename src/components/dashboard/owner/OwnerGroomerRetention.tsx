@@ -43,6 +43,8 @@ function useRetentionData() {
   });
 }
 
+const SALON = "salon";
+
 const pct = (part: number, total: number) => (total > 0 ? Math.round((part / total) * 100) : null);
 const show = (value: number | null) => (value === null ? "—" : `${value}%`);
 
