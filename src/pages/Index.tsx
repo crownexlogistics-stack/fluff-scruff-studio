@@ -7,6 +7,7 @@ import { OwnerToday } from "@/components/dashboard/owner/OwnerToday";
 import { OwnerMoney } from "@/components/dashboard/owner/OwnerMoney";
 import { OwnerCapacity, OwnerForward } from "@/components/dashboard/owner/OwnerCapacity";
 import { OwnerTeam } from "@/components/dashboard/owner/OwnerTeam";
+import { OwnerGroomerRetention } from "@/components/dashboard/owner/OwnerGroomerRetention";
 import { OwnerActivity } from "@/components/dashboard/owner/OwnerActivity";
 import { OwnerMarketing } from "@/components/dashboard/owner/OwnerMarketing";
 import { UnavailableBookingsWarning } from "@/components/dashboard/UnavailableBookingsWarning";
@@ -87,6 +88,7 @@ const AdminDashboard = () => {
 
         {/* 7 — Team */}
         <OwnerTeam d={d} />
+        <OwnerGroomerRetention />
 
         {/* 8 — Recent activity */}
         <OwnerActivity d={d} />
