@@ -166,6 +166,20 @@ export function EditAppointmentDialog({ open, onOpenChange, booking }: EditAppoi
       const dateChanged = form.booking_date !== booking.booking_date;
       const timeChanged = form.booking_time !== booking.booking_time.slice(0, 5);
 
+      // Re-read the deposit at save time. If the staff member did not touch the
+      // deposit field, keep whatever the database now holds — a Stripe payment
+      // may have been recorded after this dialog was opened.
+      const depositTouched = Number(form.deposit_paid) !== Number(loadedDeposit);
+      let depositToSave = Number(form.deposit_paid) || 0;
+      if (!depositTouched) {
+        const { data: fresh } = await supabase
+          .from(booking.is_migrated ? ("migrated_bookings" as any) : "bookings")
+          .select("deposit_paid")
+          .eq("id", booking.id)
+          .maybeSingle();
+        if (fresh) depositToSave = Number((fresh as any).deposit_paid) || 0;
+      }
+
       if (booking.is_migrated) {
         // Update migrated_bookings table
         const { error } = await supabase.from("migrated_bookings").update({
