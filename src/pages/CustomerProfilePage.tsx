@@ -799,6 +799,19 @@ export default function CustomerProfilePage() {
   const updateBookingMutation = useMutation({
     mutationFn: async () => {
       if (!editingBooking) return;
+      // Never overwrite a deposit recorded while this form was open unless the
+      // staff member deliberately changed the deposit field.
+      const depositTouched =
+        Number(bookingForm.deposit_paid) !== Number((editingBooking as any).deposit_paid || 0);
+      let depositToSave = Number(bookingForm.deposit_paid) || 0;
+      if (!depositTouched) {
+        const { data: fresh } = await supabase
+          .from("bookings")
+          .select("deposit_paid")
+          .eq("id", editingBooking.id)
+          .maybeSingle();
+        if (fresh) depositToSave = Number(fresh.deposit_paid) || 0;
+      }
       const { error } = await supabase.from("bookings").update({
         booking_date: bookingForm.booking_date,
         booking_time: bookingForm.booking_time,
@@ -806,7 +819,7 @@ export default function CustomerProfilePage() {
         breed_id: bookingForm.breed_id || null,
         staff_id: bookingForm.staff_id || null,
         total_price: bookingForm.total_price,
-        deposit_paid: bookingForm.deposit_paid,
+        deposit_paid: depositToSave,
         notes: bookingForm.notes || null,
       }).eq("id", editingBooking.id);
       if (error) throw error;
