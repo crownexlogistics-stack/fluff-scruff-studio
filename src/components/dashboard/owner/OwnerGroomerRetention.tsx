@@ -92,12 +92,21 @@ export function OwnerGroomerRetention() {
     });
 
     let returning = 0;
-    let rebookedAfter = 0;
+    let cameBack = 0;
     customers.forEach((visit, email) => {
       const dates = byCustomer.get(email) ?? [];
       if (dates.some((d) => d < visit.first)) returning++;
-      if (dates.some((d) => d > visit.last)) rebookedAfter++;
+      // Came back = another appointment with this groomer after their first visit in the period
+      if (dates.some((d) => d > visit.first)) cameBack++;
     });
+
+    // Repeat visits = appointments in the period that were not that customer's
+    // very first appointment with this groomer.
+    const firstEver = new Map<string, string>();
+    byCustomer.forEach((dates, email) => {
+      firstEver.set(email, dates.reduce((a, b) => (b < a ? b : a)));
+    });
+    const repeatVisits = inPeriod.filter((b) => b.booking_date > (firstEver.get(b.customer_email!.toLowerCase()) ?? b.booking_date)).length;
 
     const totalCustomers = customers.size;
     return {
@@ -107,8 +116,10 @@ export function OwnerGroomerRetention() {
       newCustomers: totalCustomers - returning,
       returningPct: pct(returning, totalCustomers),
       newPct: pct(totalCustomers - returning, totalCustomers),
-      rebookedAfter,
-      rebookedPct: pct(rebookedAfter, totalCustomers),
+      repeatVisits,
+      repeatPct: pct(repeatVisits, inPeriod.length),
+      cameBack,
+      cameBackPct: pct(cameBack, totalCustomers),
     };
   }, [data, selected, range]);
 
@@ -144,19 +155,25 @@ export function OwnerGroomerRetention() {
             <div>
               <Row label="Appointments" value={stats.appointments.toLocaleString("en-GB")} />
               <Row label="Customers seen" value={stats.totalCustomers.toLocaleString("en-GB")} />
-              <Row label="Returning to this groomer" hint="Had seen this groomer before" value={`${show(stats.returningPct)} · ${stats.returning}`} />
-              <Row label="New to this groomer" value={`${show(stats.newPct)} · ${stats.newCustomers}`} />
+              <Row label="Repeat visits" hint="Appointments that were not the customer's first with this groomer" value={`${show(stats.repeatPct)} · ${stats.repeatVisits}`} />
+              {period !== "all" && (
+                <>
+                  <Row label="New to this groomer" hint="First time with this groomer" value={`${show(stats.newPct)} · ${stats.newCustomers}`} />
+                  <Row label="Seen this groomer before" value={`${show(stats.returningPct)} · ${stats.returning}`} />
+                </>
+              )}
             </div>
             <div>
               <Row
-                label="Rebooked after this period"
-                hint="Booked with this groomer again after their visit"
-                value={`${show(stats.rebookedPct)} · ${stats.rebookedAfter}`}
-                tone={stats.rebookedPct !== null && stats.rebookedPct >= 50 ? "good" : stats.rebookedPct !== null && stats.rebookedPct < 25 ? "warn" : "neutral"}
+                label="Came back again"
+                hint="Customers who booked this groomer again after that visit, including appointments already in the diary"
+                value={`${show(stats.cameBackPct)} · ${stats.cameBack}`}
+                tone={stats.cameBackPct !== null && stats.cameBackPct >= 50 ? "good" : stats.cameBackPct !== null && stats.cameBackPct < 25 ? "warn" : "neutral"}
                 strong
               />
               <p className="text-[11px] text-muted-foreground/80 mt-3 leading-snug">
                 Based on appointments in this system only. Visits made before the salon moved over may make some customers look new.
+                {period === "month" && " A recent month will always look low — most of those customers are not due back yet."}
               </p>
             </div>
           </div>
