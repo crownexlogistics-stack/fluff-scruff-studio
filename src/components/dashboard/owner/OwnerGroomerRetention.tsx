@@ -169,18 +169,18 @@ export function OwnerGroomerRetention() {
             <div>
               <Row label="Appointments" value={stats.appointments.toLocaleString("en-GB")} />
               <Row label="Customers seen" value={stats.totalCustomers.toLocaleString("en-GB")} />
-              <Row label="Repeat visits" hint="Appointments that were not the customer's first with this groomer" value={`${show(stats.repeatPct)} · ${stats.repeatVisits}`} />
+              <Row label="Repeat visits" hint={`Appointments that were not the customer's first with ${who}`} value={`${show(stats.repeatPct)} · ${stats.repeatVisits}`} />
               {period !== "all" && (
                 <>
-                  <Row label="New to this groomer" hint="First time with this groomer" value={`${show(stats.newPct)} · ${stats.newCustomers}`} />
-                  <Row label="Seen this groomer before" value={`${show(stats.returningPct)} · ${stats.returning}`} />
+                  <Row label={isSalon ? "New to the salon" : "New to this groomer"} hint={`First time with ${who}`} value={`${show(stats.newPct)} · ${stats.newCustomers}`} />
+                  <Row label={isSalon ? "Been to the salon before" : "Seen this groomer before"} value={`${show(stats.returningPct)} · ${stats.returning}`} />
                 </>
               )}
             </div>
             <div>
               <Row
                 label="Came back again"
-                hint="Customers who booked this groomer again after that visit, including appointments already in the diary"
+                hint={`Customers who booked ${who} again after that visit, including appointments already in the diary`}
                 value={`${show(stats.cameBackPct)} · ${stats.cameBack}`}
                 tone={stats.cameBackPct !== null && stats.cameBackPct >= 50 ? "good" : stats.cameBackPct !== null && stats.cameBackPct < 25 ? "warn" : "neutral"}
                 strong
