@@ -57,19 +57,28 @@ export function OwnerGroomerRetention() {
     return data.staff.filter((s) => withWork.has(s.id));
   }, [data]);
 
-  const selected = groomerId || groomers[0]?.id || "";
+  const selected = groomerId || SALON;
+
+  const earliest = useMemo(() => {
+    const dates = (data?.bookings ?? []).filter((b) => !EXCLUDED.has(b.status ?? "")).map((b) => b.booking_date);
+    return dates.length ? dates.reduce((a, b) => (b < a ? b : a)) : null;
+  }, [data]);
 
   const range = useMemo(() => {
     const today = format(new Date(), "yyyy-MM-dd");
     if (period === "month") return { start: format(startOfMonth(new Date()), "yyyy-MM-dd"), end: today, label: format(new Date(), "MMMM yyyy") };
     if (period === "3months") return { start: format(startOfMonth(subMonths(new Date(), 2)), "yyyy-MM-dd"), end: today, label: `${format(subMonths(new Date(), 2), "MMM")} – ${format(new Date(), "MMM yyyy")}` };
-    return { start: "0000-01-01", end: today, label: "All time to date" };
-  }, [period]);
+    return {
+      start: "0000-01-01",
+      end: today,
+      label: earliest ? `All time · since ${format(new Date(earliest), "d MMMM yyyy")} (first appointment in this system)` : "All time to date",
+    };
+  }, [period, earliest]);
 
   const stats = useMemo(() => {
     if (!data || !selected) return null;
     const valid = data.bookings.filter((b) => !EXCLUDED.has(b.status ?? "") && b.customer_email);
-    const byGroomer = valid.filter((b) => b.staff_id === selected);
+    const byGroomer = selected === SALON ? valid.filter((b) => b.staff_id) : valid.filter((b) => b.staff_id === selected);
     const inPeriod = byGroomer.filter((b) => b.booking_date >= range.start && b.booking_date <= range.end);
 
     const customers = new Map<string, { first: string; last: string }>();
