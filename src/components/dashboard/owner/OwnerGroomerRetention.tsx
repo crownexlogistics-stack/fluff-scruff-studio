@@ -92,12 +92,21 @@ export function OwnerGroomerRetention() {
     });
 
     let returning = 0;
-    let rebookedAfter = 0;
+    let cameBack = 0;
     customers.forEach((visit, email) => {
       const dates = byCustomer.get(email) ?? [];
       if (dates.some((d) => d < visit.first)) returning++;
-      if (dates.some((d) => d > visit.last)) rebookedAfter++;
+      // Came back = another appointment with this groomer after their first visit in the period
+      if (dates.some((d) => d > visit.first)) cameBack++;
     });
+
+    // Repeat visits = appointments in the period that were not that customer's
+    // very first appointment with this groomer.
+    const firstEver = new Map<string, string>();
+    byCustomer.forEach((dates, email) => {
+      firstEver.set(email, dates.reduce((a, b) => (b < a ? b : a)));
+    });
+    const repeatVisits = inPeriod.filter((b) => b.booking_date > (firstEver.get(b.customer_email!.toLowerCase()) ?? b.booking_date)).length;
 
     const totalCustomers = customers.size;
     return {
@@ -107,8 +116,10 @@ export function OwnerGroomerRetention() {
       newCustomers: totalCustomers - returning,
       returningPct: pct(returning, totalCustomers),
       newPct: pct(totalCustomers - returning, totalCustomers),
-      rebookedAfter,
-      rebookedPct: pct(rebookedAfter, totalCustomers),
+      repeatVisits,
+      repeatPct: pct(repeatVisits, inPeriod.length),
+      cameBack,
+      cameBackPct: pct(cameBack, totalCustomers),
     };
   }, [data, selected, range]);
 
