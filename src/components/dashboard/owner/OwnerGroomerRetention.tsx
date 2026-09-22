@@ -134,16 +134,19 @@ export function OwnerGroomerRetention() {
     };
   }, [data, selected, range]);
 
-  const groomerName = groomers.find((g) => g.id === selected)?.name ?? "";
+  const isSalon = selected === SALON;
+  const who = isSalon ? "the salon" : "this groomer";
+  const groomerName = isSalon ? "the salon" : groomers.find((g) => g.id === selected)?.name ?? "";
 
   return (
-    <Section title="Groomer retention" hint={range.label}>
+    <Section title={isSalon ? "Salon retention" : "Groomer retention"} hint={range.label}>
       <div className="flex flex-wrap items-center gap-2">
         <Select value={selected} onValueChange={setGroomerId}>
           <SelectTrigger className="w-56">
             <SelectValue placeholder="Choose a groomer" />
           </SelectTrigger>
           <SelectContent>
+            <SelectItem value={SALON}>Whole salon (everyone)</SelectItem>
             {groomers.map((g) => (
               <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
             ))}
