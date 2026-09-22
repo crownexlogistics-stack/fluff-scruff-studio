@@ -39,6 +39,10 @@ export function EditAppointmentDialog({ open, onOpenChange, booking }: EditAppoi
     notes: "",
   });
 
+  // Deposit value the form was loaded with — used to detect whether the user
+  // actually edited the deposit, so a payment that landed while the dialog was
+  // open is never silently overwritten on save.
+  const [loadedDeposit, setLoadedDeposit] = useState(0);
   const [selectedAddonIds, setSelectedAddonIds] = useState<string[]>([]);
   const [initialAddonIds, setInitialAddonIds] = useState<string[]>([]);
   const [couponApplied, setCouponApplied] = useState(false);
@@ -90,6 +94,7 @@ export function EditAppointmentDialog({ open, onOpenChange, booking }: EditAppoi
         deposit_paid: Number(booking.deposit_paid),
         notes: booking.notes || "",
       });
+      setLoadedDeposit(Number(booking.deposit_paid) || 0);
     }
   }, [open, booking]);
 
@@ -161,6 +166,20 @@ export function EditAppointmentDialog({ open, onOpenChange, booking }: EditAppoi
       const dateChanged = form.booking_date !== booking.booking_date;
       const timeChanged = form.booking_time !== booking.booking_time.slice(0, 5);
 
+      // Re-read the deposit at save time. If the staff member did not touch the
+      // deposit field, keep whatever the database now holds — a Stripe payment
+      // may have been recorded after this dialog was opened.
+      const depositTouched = Number(form.deposit_paid) !== Number(loadedDeposit);
+      let depositToSave = Number(form.deposit_paid) || 0;
+      if (!depositTouched) {
+        const { data: fresh } = await supabase
+          .from(booking.is_migrated ? ("migrated_bookings" as any) : "bookings")
+          .select("deposit_paid")
+          .eq("id", booking.id)
+          .maybeSingle();
+        if (fresh) depositToSave = Number((fresh as any).deposit_paid) || 0;
+      }
+
       if (booking.is_migrated) {
         // Update migrated_bookings table
         const { error } = await supabase.from("migrated_bookings").update({
@@ -168,7 +187,7 @@ export function EditAppointmentDialog({ open, onOpenChange, booking }: EditAppoi
           booking_time: form.booking_time,
           duration_minutes: form.duration_minutes,
           total_price: form.total_price,
-          deposit_paid: form.deposit_paid,
+          deposit_paid: depositToSave,
           notes: form.notes || null,
           staff_name: staff?.find(s => s.id === form.staff_id)?.name || null,
         }).eq("id", booking.id);
@@ -182,7 +201,7 @@ export function EditAppointmentDialog({ open, onOpenChange, booking }: EditAppoi
           breed_id: form.breed_id || null,
           staff_id: form.staff_id || null,
           total_price: form.total_price,
-          deposit_paid: form.deposit_paid,
+          deposit_paid: depositToSave,
           notes: form.notes || null,
         } as any).eq("id", booking.id);
         if (error) throw error;
