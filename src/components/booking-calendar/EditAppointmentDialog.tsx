@@ -39,6 +39,10 @@ export function EditAppointmentDialog({ open, onOpenChange, booking }: EditAppoi
     notes: "",
   });
 
+  // Deposit value the form was loaded with — used to detect whether the user
+  // actually edited the deposit, so a payment that landed while the dialog was
+  // open is never silently overwritten on save.
+  const [loadedDeposit, setLoadedDeposit] = useState(0);
   const [selectedAddonIds, setSelectedAddonIds] = useState<string[]>([]);
   const [initialAddonIds, setInitialAddonIds] = useState<string[]>([]);
   const [couponApplied, setCouponApplied] = useState(false);
@@ -90,6 +94,7 @@ export function EditAppointmentDialog({ open, onOpenChange, booking }: EditAppoi
         deposit_paid: Number(booking.deposit_paid),
         notes: booking.notes || "",
       });
+      setLoadedDeposit(Number(booking.deposit_paid) || 0);
     }
   }, [open, booking]);
 
