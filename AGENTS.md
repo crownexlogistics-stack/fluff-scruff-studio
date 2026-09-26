@@ -1,1 +1,2 @@
 - Campaign email tracking lives only in supabase/functions/_shared/campaignTracking.ts; every campaign send path must call applyCampaignTracking — why: scheduled/A-B sends previously went out untracked.
+- Campaign HTML data images are converted with supabase/functions/_shared/emailInlineImages.ts on every send path — why: inboxes such as Gmail do not reliably render browser-only data URLs.

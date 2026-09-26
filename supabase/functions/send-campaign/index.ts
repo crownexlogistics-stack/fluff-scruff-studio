@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { applyCampaignTracking } from "../_shared/campaignTracking.ts";
+import { prepareInlineEmailImages } from "../_shared/emailInlineImages.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -36,6 +37,7 @@ async function sendOneEmail(
     personalizedHtml = applyCampaignTracking(personalizedHtml, campaignId, email, supabaseUrl);
   }
   personalizedHtml += makeUnsubFooter(email);
+  const preparedEmail = prepareInlineEmailImages(personalizedHtml);
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     try {
@@ -50,7 +52,8 @@ async function sendOneEmail(
           to: [email],
           reply_to: "info@fluffandscruff.co.uk",
           subject: subjectLine,
-          html: personalizedHtml,
+          html: preparedEmail.html,
+          ...(preparedEmail.attachments.length > 0 ? { attachments: preparedEmail.attachments } : {}),
         }),
       });
 

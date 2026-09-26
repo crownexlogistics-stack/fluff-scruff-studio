@@ -537,6 +537,7 @@ export function EmailMarketingSection() {
   const sendTestMutation = useMutation({
     mutationFn: async (email: string) => {
       if (!email.trim()) throw new Error("Please enter a test email");
+      if (!generatedSubject.trim()) throw new Error("Please enter the subject line before sending a test");
       const withTimeout = <T,>(p: Promise<T>, ms: number, msg: string) =>
         Promise.race([p, new Promise<never>((_, rej) => setTimeout(() => rej(new Error(msg)), ms))]);
       const expired = "Your login has expired. Please refresh the page and sign in again, then resend.";
@@ -544,7 +545,7 @@ export function EmailMarketingSection() {
       if (userErr || !userData?.user) throw new Error(expired);
       const { data, error } = await withTimeout(
         supabase.functions.invoke("send-campaign", {
-          body: { emails: [email.trim()], subject: `[TEST] ${generatedSubject}`, htmlBody: generatedHtml },
+          body: { emails: [email.trim()], subject: generatedSubject.trim(), htmlBody: generatedHtml },
         }),
         45000,
         "Sending took too long. Please try again.",
@@ -577,8 +578,9 @@ export function EmailMarketingSection() {
       if (ext === "html" || ext === "htm") {
         // Direct HTML file — load straight into editor
         const text = await file.text();
+        const title = new DOMParser().parseFromString(text, "text/html").querySelector("title")?.textContent?.trim();
         setGeneratedHtml(text);
-        setGeneratedSubject("");
+        setGeneratedSubject(title || file.name.replace(/\.html?$/i, "").replace(/[-_]+/g, " ").trim());
         setPreviewText("");
         setPrompt(`Uploaded: ${file.name}`);
         setShowPreview(true);
