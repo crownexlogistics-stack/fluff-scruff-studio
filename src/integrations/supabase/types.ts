@@ -843,6 +843,8 @@ export type Database = {
           payment_anomaly: boolean | null
           payment_method: string | null
           referral_source: string | null
+          refunded_amount: number
+          refunded_at: string | null
           service_id: string | null
           sms_24h_sent: boolean
           sms_2h_sent: boolean
@@ -882,6 +884,8 @@ export type Database = {
           payment_anomaly?: boolean | null
           payment_method?: string | null
           referral_source?: string | null
+          refunded_amount?: number
+          refunded_at?: string | null
           service_id?: string | null
           sms_24h_sent?: boolean
           sms_2h_sent?: boolean
@@ -921,6 +925,8 @@ export type Database = {
           payment_anomaly?: boolean | null
           payment_method?: string | null
           referral_source?: string | null
+          refunded_amount?: number
+          refunded_at?: string | null
           service_id?: string | null
           sms_24h_sent?: boolean
           sms_2h_sent?: boolean
