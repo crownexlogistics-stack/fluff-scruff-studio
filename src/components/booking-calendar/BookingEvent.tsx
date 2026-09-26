@@ -1,3 +1,4 @@
+import { RefundNotice } from "@/components/booking-calendar/RefundNotice";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
@@ -636,6 +637,8 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
           return <Badge variant="destructive">NOT PAID</Badge>;
         })()}
       </div>
+
+      <RefundNotice booking={booking} />
 
       {/* Paid in full callout */}
       {Number(booking.deposit_paid) >= Number(booking.total_price) && Number(booking.total_price) > 0 && booking.status !== "Refunded" && (
