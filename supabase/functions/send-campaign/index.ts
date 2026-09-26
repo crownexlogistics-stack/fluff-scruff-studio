@@ -288,25 +288,30 @@ serve(async (req) => {
         .eq("campaign_id", campaignId)
         .eq("status", "sent");
 
-      const updateData: any = {
-        status: isABTest && groupRemainder.length > 0 ? "ab_testing" : "sent",
-        emails_sent: actualSentCount || totalSent,
-        sent_at: new Date().toISOString(),
-        variant_a_sent: sentA,
-        variant_b_sent: sentB,
-      };
+      const { count: countA } = isABTest ? await supabase.from("campaign_send_log")
+        .select("*", { count: "exact", head: true }).eq("campaign_id", campaignId).eq("status", "sent") : { count: null };
+      const updateData: any = remainingCount > 0
+        ? { status: "sending", emails_sent: actualSentCount || totalSent }
+        : {
+          status: isABTest && groupRemainder.length > 0 ? "ab_testing" : "sent",
+          emails_sent: actualSentCount || totalSent,
+          sent_at: new Date().toISOString(),
+          ...(isABTest ? {} : { variant_a_sent: countA ?? sentA, variant_b_sent: sentB }),
+        };
 
       await supabase.from("email_campaigns").update(updateData).eq("id", campaignId);
 
-      // Trigger attribution processing asynchronously
-      supabase.functions.invoke("attribute-campaign-bookings").catch(() => {});
+      if (remainingCount === 0) {
+        // Trigger attribution processing asynchronously
+        supabase.functions.invoke("attribute-campaign-bookings").catch(() => {});
 
-      // If A/B test, store remainder emails for later pickup
-      if (isABTest && groupRemainder.length > 0) {
-        await supabase.from("site_config").upsert({
-          key: `ab_remainder_${campaignId}`,
-          value: { emails: groupRemainder, htmlBody },
-        });
+        // If A/B test, store remainder emails for later pickup
+        if (isABTest && groupRemainder.length > 0) {
+          await supabase.from("site_config").upsert({
+            key: `ab_remainder_${campaignId}`,
+            value: { emails: groupRemainder, htmlBody },
+          });
+        }
       }
     }
 
@@ -316,8 +321,9 @@ serve(async (req) => {
       failed: failedCount,
       skipped: skippedCount,
       total: recipientEmails.length,
-      remaining: emailsToSend.length - (totalSent + failedCount),
+      remaining: remainingCount,
       abTest: isABTest ? { sentA, sentB, remainder: groupRemainder.length } : undefined,
+
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
