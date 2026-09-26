@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { applyCampaignTracking } from "../_shared/campaignTracking.ts";
+import { prepareInlineEmailImages } from "../_shared/emailInlineImages.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -72,6 +73,7 @@ serve(async (req) => {
           const unsubUrl = `${unsubscribeBaseUrl}?email=${encodeURIComponent(email)}`;
           let personalizedHtml = htmlBody.replace(/\{\{UNSUBSCRIBE_URL\}\}/g, unsubUrl);
           personalizedHtml = applyCampaignTracking(personalizedHtml, campaign.id, email, supabaseUrl);
+          const preparedEmail = prepareInlineEmailImages(personalizedHtml);
 
           const res = await fetch("https://api.resend.com/emails", {
             method: "POST",
@@ -84,7 +86,8 @@ serve(async (req) => {
               to: [email],
               reply_to: "info@fluffandscruff.co.uk",
               subject: winnerSubject,
-              html: personalizedHtml,
+              html: preparedEmail.html,
+              ...(preparedEmail.attachments.length > 0 ? { attachments: preparedEmail.attachments } : {}),
             }),
           });
 
