@@ -30,13 +30,7 @@ async function sendOneEmail(
 ): Promise<"sent" | "failed"> {
   const unsubUrl = `${supabaseUrl}/functions/v1/handle-unsubscribe?email=${encodeURIComponent(email)}`;
   let personalizedHtml = htmlBody.replace(/\{\{UNSUBSCRIBE_URL\}\}/g, unsubUrl);
-  personalizedHtml = personalizedHtml.replace(
-    /(https?:\/\/[^"']*\/book)(?:\?([^"']*))?/g,
-    (_match: string, base: string, existing: string) => {
-      const sep = existing ? `${base}?${existing}&` : `${base}?`;
-      return `${sep}utm_campaign=${campaignId}`;
-    }
-  );
+  personalizedHtml = applyCampaignTracking(personalizedHtml, campaignId, email, supabaseUrl);
   personalizedHtml += makeUnsubFooter(email);
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {

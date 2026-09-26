@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { applyCampaignTracking } from "../_shared/campaignTracking.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -32,27 +33,7 @@ async function sendOneEmail(
   const unsubUrl = `${supabaseUrl}/functions/v1/handle-unsubscribe?email=${encodeURIComponent(email)}`;
   let personalizedHtml = htmlBody.replace(/\{\{UNSUBSCRIBE_URL\}\}/g, unsubUrl);
   if (campaignId) {
-    // Wrap all links for click tracking
-    personalizedHtml = personalizedHtml.replace(
-      /href="(https?:\/\/[^"]+)"/g,
-      (_match: string, url: string) => {
-        // Don't wrap unsubscribe links or tracking pixels
-        if (url.includes("handle-unsubscribe") || url.includes("email-track")) return _match;
-        const trackUrl = `${supabaseUrl}/functions/v1/email-track?t=click&c=${encodeURIComponent(campaignId)}&e=${encodeURIComponent(email)}&url=${encodeURIComponent(url)}`;
-        return `href="${trackUrl}"`;
-      }
-    );
-    // Add UTM params to booking links (in the destination, not the wrapper)
-    personalizedHtml = personalizedHtml.replace(
-      /(https?:\/\/[^"']*\/book)(?:\?([^"']*))?/g,
-      (_match: string, base: string, existing: string) => {
-        const sep = existing ? `${base}?${existing}&` : `${base}?`;
-        return `${sep}utm_campaign=${campaignId}`;
-      }
-    );
-    // Add tracking pixel for opens
-    const trackPixel = `<img src="${supabaseUrl}/functions/v1/email-track?t=open&c=${encodeURIComponent(campaignId)}&e=${encodeURIComponent(email)}" width="1" height="1" style="display:none" alt="" />`;
-    personalizedHtml += trackPixel;
+    personalizedHtml = applyCampaignTracking(personalizedHtml, campaignId, email, supabaseUrl);
   }
   personalizedHtml += makeUnsubFooter(email);
 
