@@ -237,6 +237,7 @@ export function CampaignROIDashboard() {
           )}
         </CardContent>
       </Card>
+      <CampaignDetailDialog campaignId={selected?.id ?? null} subject={selected?.subject ?? ""} open={!!selected} onOpenChange={(o) => !o && setSelected(null)} />
     </div>
   );
 }
