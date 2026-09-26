@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { applyCampaignTracking } from "../_shared/campaignTracking.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -70,13 +71,7 @@ serve(async (req) => {
         const promises = batch.map(async (email: string) => {
           const unsubUrl = `${unsubscribeBaseUrl}?email=${encodeURIComponent(email)}`;
           let personalizedHtml = htmlBody.replace(/\{\{UNSUBSCRIBE_URL\}\}/g, unsubUrl);
-          personalizedHtml = personalizedHtml.replace(
-            /(https?:\/\/[^"']*\/book)(?:\?([^"']*))?/g,
-            (match: string, base: string, existing: string) => {
-              const sep = existing ? `${base}?${existing}&` : `${base}?`;
-              return `${sep}utm_campaign=${campaign.id}`;
-            }
-          );
+          personalizedHtml = applyCampaignTracking(personalizedHtml, campaign.id, email, supabaseUrl);
 
           const res = await fetch("https://api.resend.com/emails", {
             method: "POST",
