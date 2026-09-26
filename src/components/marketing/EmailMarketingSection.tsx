@@ -1161,7 +1161,7 @@ export function EmailMarketingSection() {
                         {/* Continue Sending — shows when total processed < expected recipients */}
                         {c.emails_sent < effectiveList.length && effectiveList.length > 0 && (stats?.sent || 0) + (stats?.failed || 0) + (stats?.skipped || 0) < effectiveList.length && (
                           <Button variant="outline" size="sm" className="text-xs h-6 gap-1 border-amber-300 text-amber-700 bg-amber-50 hover:bg-amber-100" onClick={() => continueMutation.mutate(c.id)} disabled={continueMutation.isPending}>
-                            {continueMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
+                            {continueMutation.isPending && continueMutation.variables === c.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
                             Continue Sending ({effectiveList.length - (stats?.sent || 0) - (stats?.failed || 0) - (stats?.skipped || 0)} remaining)
                           </Button>
                         )}
