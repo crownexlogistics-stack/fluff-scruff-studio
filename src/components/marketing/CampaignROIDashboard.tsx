@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { CampaignDetailDialog } from "./CampaignDetailDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -26,6 +28,7 @@ interface CampaignWithStats {
 }
 
 export function CampaignROIDashboard() {
+  const [selected, setSelected] = useState<{ id: string; subject: string } | null>(null);
   const { data: campaigns } = useQuery({
     queryKey: ["email-campaigns-sent"],
     queryFn: async () => {
@@ -176,7 +179,9 @@ export function CampaignROIDashboard() {
           ) : (
             <div className="space-y-3">
               {campaignStats.map(c => (
-                <div key={c.id} className="border rounded-lg p-4 space-y-2">
+                <div key={c.id} role="button" tabIndex={0} onClick={() => setSelected({ id: c.id, subject: c.subject })}
+                  onKeyDown={(e) => e.key === "Enter" && setSelected({ id: c.id, subject: c.subject })}
+                  className="border rounded-lg p-4 space-y-2 cursor-pointer transition-colors hover:border-primary hover:bg-muted/30">
                   <div className="flex items-center justify-between gap-4">
                     <div className="min-w-0">
                       <p className="font-medium text-sm truncate">
