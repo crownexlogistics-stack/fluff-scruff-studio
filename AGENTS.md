@@ -1,0 +1,1 @@
+- Campaign email tracking lives only in supabase/functions/_shared/campaignTracking.ts; every campaign send path must call applyCampaignTracking — why: scheduled/A-B sends previously went out untracked.
