@@ -288,15 +288,14 @@ serve(async (req) => {
         .eq("campaign_id", campaignId)
         .eq("status", "sent");
 
-      const { count: countA } = isABTest ? await supabase.from("campaign_send_log")
-        .select("*", { count: "exact", head: true }).eq("campaign_id", campaignId).eq("status", "sent") : { count: null };
       const updateData: any = remainingCount > 0
         ? { status: "sending", emails_sent: actualSentCount || totalSent }
         : {
           status: isABTest && groupRemainder.length > 0 ? "ab_testing" : "sent",
           emails_sent: actualSentCount || totalSent,
           sent_at: new Date().toISOString(),
-          ...(isABTest ? {} : { variant_a_sent: countA ?? sentA, variant_b_sent: sentB }),
+          variant_a_sent: sentA,
+          variant_b_sent: sentB,
         };
 
       await supabase.from("email_campaigns").update(updateData).eq("id", campaignId);
