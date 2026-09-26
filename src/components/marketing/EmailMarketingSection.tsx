@@ -433,24 +433,6 @@ export function EmailMarketingSection() {
     onError: (err: Error) => toast.error(err.message),
   });
 
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["email-campaigns"] });
-      queryClient.invalidateQueries({ queryKey: ["campaign-send-logs"] });
-      const totalProcessed = (data.sent || 0) + (data.failed || 0) + (data.skipped || 0);
-      const totalRecipients = data.total || totalProcessed;
-      const remaining = totalRecipients - totalProcessed;
-      if (remaining > 0) {
-        toast.info(`Sent ${data.sent} so far — ${remaining} remaining. The function timed out. Click "Continue Sending" on the campaign to resume.`);
-      } else {
-        toast.success(`Campaign sent! ${data.sent} delivered, ${data.failed || 0} failed, ${data.skipped || 0} skipped.`);
-      }
-      setActiveTab("campaigns");
-      setActiveFolder("sent");
-    },
-    onError: (err: Error) => toast.error(err.message),
-  });
-
   // Retry failed sends for a campaign
   const retryMutation = useMutation({
     mutationFn: async (campaignId: string) => {
