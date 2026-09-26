@@ -537,11 +537,20 @@ export function EmailMarketingSection() {
   const sendTestMutation = useMutation({
     mutationFn: async (email: string) => {
       if (!email.trim()) throw new Error("Please enter a test email");
-      const { data, error } = await supabase.functions.invoke("send-campaign", {
-        body: { emails: [email.trim()], subject: `[TEST] ${generatedSubject}`, htmlBody: generatedHtml },
-      });
+      const withTimeout = <T,>(p: Promise<T>, ms: number, msg: string) =>
+        Promise.race([p, new Promise<never>((_, rej) => setTimeout(() => rej(new Error(msg)), ms))]);
+      const expired = "Your login has expired. Please refresh the page and sign in again, then resend.";
+      const { data: userData, error: userErr } = await withTimeout(supabase.auth.getUser(), 10000, expired);
+      if (userErr || !userData?.user) throw new Error(expired);
+      const { data, error } = await withTimeout(
+        supabase.functions.invoke("send-campaign", {
+          body: { emails: [email.trim()], subject: `[TEST] ${generatedSubject}`, htmlBody: generatedHtml },
+        }),
+        45000,
+        "Sending took too long. Please try again.",
+      );
       if (error) throw error;
-      if (data.error) throw new Error(data.error);
+      if (data?.error) throw new Error(data.error === "Not authenticated" ? expired : data.error);
       return data;
     },
     onSuccess: () => {
