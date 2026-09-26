@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { applyRefundToBooking } from "../_shared/applyRefund.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -288,6 +289,16 @@ serve(async (req) => {
       }
 
       return new Response(JSON.stringify({ ok: true, expired: bookingId }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (event.type === "charge.refunded" || event.type === "refund.created" || event.type === "refund.updated") {
+      const obj = event.data.object as any;
+      const pi = typeof obj.payment_intent === "string" ? obj.payment_intent : obj.payment_intent?.id;
+      const result = pi ? await applyRefundToBooking(supabase, stripe, pi) : { matched: false };
+      return new Response(JSON.stringify({ ok: true, refund: result }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
