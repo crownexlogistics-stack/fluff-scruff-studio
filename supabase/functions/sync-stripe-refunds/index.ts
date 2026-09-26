@@ -15,9 +15,10 @@ serve(async (req) => {
     const url = Deno.env.get("SUPABASE_URL")!;
     const admin = createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
     const token = (req.headers.get("authorization") || "").replace("Bearer ", "");
-    const { data: u } = await createClient(url, Deno.env.get("SUPABASE_ANON_KEY")!).auth.getUser(token);
-    if (!u?.user) throw new Error("Not authenticated");
-    const { data: roles } = await admin.from("user_roles").select("role").eq("user_id", u.user.id);
+    const { data: c } = await createClient(url, Deno.env.get("SUPABASE_ANON_KEY")!).auth.getClaims(token);
+    const uid = c?.claims?.sub as string | undefined;
+    if (!uid) throw new Error("Not authenticated");
+    const { data: roles } = await admin.from("user_roles").select("role").eq("user_id", uid);
     if (!roles?.some((r: any) => ["director", "manager"].includes(r.role))) throw new Error("Not allowed");
 
     const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY")!, { apiVersion: "2025-08-27.basil" });

@@ -1,3 +1,4 @@
+import { RefundNotice } from "@/components/booking-calendar/RefundNotice";
 import { useState } from "react";
 import { ScrollHintWrapper } from "@/components/ui/scroll-hint-wrapper";
 import { useNavigate } from "react-router-dom";
@@ -389,6 +390,8 @@ export function BookingPopoverCard({
           return <Badge variant="destructive">NOT PAID</Badge>;
         })()}
       </div>
+
+      <RefundNotice booking={booking} />
 
       {/* Paid in full callout */}
       {isFullyPaid && booking.status !== "Refunded" && (
