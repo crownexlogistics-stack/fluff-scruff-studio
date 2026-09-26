@@ -32,8 +32,8 @@ export function CampaignROIDashboard() {
       const { data, error } = await supabase
         .from("email_campaigns")
         .select("id, subject, segment, emails_sent, sent_at, status, opens, unique_opens, clicks, unique_clicks")
-        .eq("status", "sent")
-        .order("sent_at", { ascending: false })
+        .in("status", ["sent", "sending"])
+        .order("created_at", { ascending: false })
         .limit(50);
       if (error) throw error;
       return data;
@@ -179,7 +179,12 @@ export function CampaignROIDashboard() {
                 <div key={c.id} className="border rounded-lg p-4 space-y-2">
                   <div className="flex items-center justify-between gap-4">
                     <div className="min-w-0">
-                      <p className="font-medium text-sm truncate">{c.subject}</p>
+                      <p className="font-medium text-sm truncate">
+                        {c.subject}
+                        {c.status === "sending" && (
+                          <Badge variant="secondary" className="ml-2 text-[10px]">Still sending</Badge>
+                        )}
+                      </p>
                       <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
                         <span>Segment: {c.segment}</span>
                         <span>{c.emails_sent} emails</span>
