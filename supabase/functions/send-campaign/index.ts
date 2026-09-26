@@ -185,28 +185,41 @@ serve(async (req) => {
       }
     }
 
-    // A/B test logic — use emailsToSend (already filtered for resume)
+    // A/B test logic — split deterministically over the FULL valid list so every
+    // resumed call puts each recipient in the same group, then drop already-sent.
     const isABTest = variantBSubject && abTestPercentage && abTestPercentage > 0;
+    const pending = new Set(emailsToSend.map((e: string) => e.toLowerCase().trim()));
+    const keep = (list: string[]) => list.filter((e) => pending.has(e.toLowerCase().trim()));
     let groupA: string[] = emailsToSend;
     let groupB: string[] = [];
     let groupRemainder: string[] = [];
 
     if (isABTest) {
-      const shuffled = [...emailsToSend].sort(() => Math.random() - 0.5);
-      const testSize = Math.floor(shuffled.length * (abTestPercentage / 100));
-      groupA = shuffled.slice(0, testSize);
-      groupB = shuffled.slice(testSize, testSize * 2);
-      groupRemainder = shuffled.slice(testSize * 2);
+      const hash = (s: string) => {
+        let h = 2166136261;
+        for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+        return h >>> 0;
+      };
+      const ordered = [...validEmails].sort((a, b) => hash(`${campaignId}:${a.toLowerCase()}`) - hash(`${campaignId}:${b.toLowerCase()}`));
+      const testSize = Math.floor(ordered.length * (abTestPercentage / 100));
+      groupA = keep(ordered.slice(0, testSize));
+      groupB = keep(ordered.slice(testSize, testSize * 2));
+      groupRemainder = ordered.slice(testSize * 2);
     }
 
     let sentA = 0;
     let sentB = 0;
     let failedCount = 0;
+    // Stop well before the 150s platform limit; the client calls again to resume.
+    const startedAt = Date.now();
+    const TIME_BUDGET_MS = 100_000;
+    let outOfTime = false;
 
     // Sequential send with rate limiting
     const sendBatch = async (emailList: string[], subjectLine: string) => {
       let count = 0;
       for (let i = 0; i < emailList.length; i += BATCH_SIZE) {
+        if (Date.now() - startedAt > TIME_BUDGET_MS) { outOfTime = true; break; }
         const batch = emailList.slice(i, i + BATCH_SIZE);
         // Send sequentially within each batch
         for (const email of batch) {
@@ -232,14 +245,19 @@ serve(async (req) => {
         .eq("status", "failed");
     }
 
-    // Log skipped emails
+    // Log skipped emails (skip ones already logged on an earlier resumed call)
     if (campaignId) {
       const skippedEmails = recipientEmails.filter((e: string) => {
         const lower = e.toLowerCase().trim();
         return !emailRegex.test(lower) || unsubSet.has(lower) || lower.includes("test");
       });
-      if (skippedEmails.length > 0) {
-        const skippedLogs = skippedEmails.map((email: string) => ({
+      const { data: priorSkipped } = await supabase
+        .from("campaign_send_log").select("email")
+        .eq("campaign_id", campaignId).eq("status", "skipped");
+      const priorSet = new Set((priorSkipped || []).map((r: any) => r.email.toLowerCase().trim()));
+      const newSkipped = skippedEmails.filter((e: string) => !priorSet.has(e.toLowerCase().trim()));
+      if (newSkipped.length > 0) {
+        const skippedLogs = newSkipped.map((email: string) => ({
           campaign_id: campaignId,
           email,
           status: "skipped",
@@ -253,11 +271,13 @@ serve(async (req) => {
     sentA = await sendBatch(groupA, subject);
 
     // Send to group B (if A/B test)
-    if (isABTest && groupB.length > 0) {
+    if (isABTest && groupB.length > 0 && !outOfTime) {
       sentB = await sendBatch(groupB, variantBSubject);
     }
 
     const totalSent = sentA + sentB;
+    const remainingCount = Math.max(0, groupA.length + groupB.length - (totalSent + failedCount));
+
 
     // Update campaign record — use actual totals from send log
     if (campaignId) {
