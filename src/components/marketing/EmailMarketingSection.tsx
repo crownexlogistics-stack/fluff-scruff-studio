@@ -465,14 +465,20 @@ export function EmailMarketingSection() {
       const campaign = campaigns?.find(c => c.id === campaignId);
       if (!campaign) throw new Error("Campaign not found");
       const targetEmails = effectiveList.map(c => c.email);
-      const { data, error } = await supabase.functions.invoke("send-campaign", {
-        body: {
-          campaignId, emails: targetEmails, subject: campaign.subject, htmlBody: campaign.html_body,
-        },
-      });
-      if (error) throw error;
-      if (data.error) throw new Error(data.error);
-      return data;
+      const body = { campaignId, emails: targetEmails, subject: campaign.subject, htmlBody: campaign.html_body };
+      const totals = { sent: 0, failed: 0, remaining: 0 };
+      for (let round = 0; round < 50; round++) {
+        const { data, error } = await supabase.functions.invoke("send-campaign", { body });
+        if (error) throw error;
+        if (data.error) throw new Error(data.error);
+        totals.sent += data.sent || 0;
+        totals.failed += data.failed || 0;
+        totals.remaining = data.remaining || 0;
+        queryClient.invalidateQueries({ queryKey: ["campaign-send-logs"] });
+        if (totals.remaining <= 0 || (data.sent || 0) + (data.failed || 0) === 0) break;
+        toast.info(`Sent ${totals.sent} more — ${totals.remaining} still to go…`);
+      }
+      return totals;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["email-campaigns"] });
@@ -1126,7 +1132,7 @@ export function EmailMarketingSection() {
                     </div>
 
                     {/* Send Results Strip */}
-                    {c.status === "sent" && stats && (stats.sent > 0 || stats.failed > 0 || stats.skipped > 0) && (
+                    {(c.status === "sent" || c.status === "sending") && stats && (stats.sent > 0 || stats.failed > 0 || stats.skipped > 0) && (
                       <div className="flex items-center gap-3 flex-wrap pt-2 border-t">
                         <Badge variant="outline" className="gap-1 text-xs bg-green-50 text-green-700 border-green-200">
                           <CheckCircle2 className="h-3 w-3" /> {stats.sent} sent
