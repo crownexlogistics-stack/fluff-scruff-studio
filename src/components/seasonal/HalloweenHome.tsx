@@ -1,14 +1,64 @@
 import { useNavigate } from "react-router-dom";
+import type { ReactNode } from "react";
+
+const SPOOKY_BG = "linear-gradient(90deg, hsl(270 45% 14%), hsl(18 100% 35%), hsl(270 45% 14%))";
 
 export function HalloweenBanner() {
   const navigate = useNavigate();
   return (
     <button
       onClick={() => navigate("/book?halloween=1")}
-      className="w-full bg-foreground text-background font-body text-xs sm:text-sm font-semibold py-2 px-4 text-center hover:opacity-90 transition-opacity"
+      className="relative w-full overflow-hidden text-primary-foreground font-heading text-sm sm:text-lg py-3 px-4 text-center hover:brightness-110 transition-all"
+      style={{ background: SPOOKY_BG }}
     >
-      🎃 Halloween Special all October — scented bath, perfume, bandana &amp; photo for just +£10 <span className="underline ml-1">Book now</span>
+      <span aria-hidden className="absolute left-3 top-1/2 -translate-y-1/2 text-2xl hidden sm:inline animate-bounce">🦇</span>
+      <span aria-hidden className="absolute right-3 top-1/2 -translate-y-1/2 text-2xl hidden sm:inline animate-bounce">🦇</span>
+      🎃 Halloween is here! Spooky Special all October — just +£10 👻{" "}
+      <span className="underline ml-1 font-body font-bold">Book your treat →</span>
     </button>
+  );
+}
+
+/** Layers spooky decoration over the untouched original hero. */
+export function HalloweenHeroWrap({ children }: { children: ReactNode }) {
+  const navigate = useNavigate();
+  const floaters = [
+    ["🦇", "top-[8%] left-[6%] text-4xl", "0s"],
+    ["🦇", "top-[14%] right-[10%] text-3xl", "1.2s"],
+    ["👻", "top-[40%] right-[4%] text-5xl", "0.6s"],
+    ["🕷️", "top-[30%] left-[30%] text-3xl", "1.8s"],
+    ["🎃", "bottom-[8%] left-[3%] text-6xl", "0.3s"],
+    ["🎃", "bottom-[6%] right-[6%] text-5xl", "1.5s"],
+  ];
+  return (
+    <div className="relative">
+      <style>{`@keyframes hw-float{0%,100%{transform:translateY(0) rotate(-6deg)}50%{transform:translateY(-14px) rotate(6deg)}}`}</style>
+      {children}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 z-10"
+        style={{ background: "linear-gradient(180deg, hsl(270 50% 10% / 0.35), transparent 45%, hsl(18 100% 30% / 0.25))" }}
+      />
+      <span aria-hidden className="pointer-events-none absolute top-0 left-0 z-10 text-7xl sm:text-9xl opacity-60 select-none">🕸️</span>
+      <span aria-hidden className="pointer-events-none absolute top-0 right-0 z-10 text-7xl sm:text-9xl opacity-60 select-none -scale-x-100">🕸️</span>
+      {floaters.map(([e, pos, d], i) => (
+        <span
+          key={i}
+          aria-hidden
+          className={`pointer-events-none absolute z-10 select-none drop-shadow-lg ${pos}`}
+          style={{ animation: `hw-float 4s ease-in-out ${d} infinite` }}
+        >
+          {e}
+        </span>
+      ))}
+      <button
+        onClick={() => navigate("/book?halloween=1")}
+        className="absolute z-20 left-1/2 -translate-x-1/2 top-6 sm:top-10 font-heading text-base sm:text-xl text-primary-foreground px-6 sm:px-10 py-3 shadow-2xl hover:scale-105 active:scale-95 transition-transform whitespace-nowrap"
+        style={{ background: SPOOKY_BG, borderRadius: "30px", boxShadow: "0 0 30px hsl(18 100% 55% / 0.6)" }}
+      >
+        🎃 Book the Halloween Special · +£10
+      </button>
+    </div>
   );
 }
 

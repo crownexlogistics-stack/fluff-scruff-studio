@@ -17,7 +17,7 @@ import { AIChatWidget } from "@/components/AIChatWidget";
 import { PackageDealsSection } from "@/components/PackageDealsSection";
 import InstagramFeed from "@/components/InstagramFeed";
 import { useSeasonalTheme } from "@/hooks/useSeasonalTheme";
-import { HalloweenBanner, HalloweenSpotlight } from "@/components/seasonal/HalloweenHome";
+import { HalloweenBanner, HalloweenSpotlight, HalloweenHeroWrap } from "@/components/seasonal/HalloweenHome";
 
 const CustomerHome = () => {
   const { user, signOut, loading: authLoading } = useAuth();
@@ -103,7 +103,13 @@ const CustomerHome = () => {
       </nav>
 
       {/* ══════ HERO ══════ */}
-      <HeroSection onBook={() => navigate("/book")} />
+      {seasonal === "halloween" ? (
+        <HalloweenHeroWrap>
+          <HeroSection onBook={() => navigate("/book")} />
+        </HalloweenHeroWrap>
+      ) : (
+        <HeroSection onBook={() => navigate("/book")} />
+      )}
       {seasonal === "halloween" && <HalloweenSpotlight />}
 
 
