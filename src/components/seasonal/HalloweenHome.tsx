@@ -26,7 +26,7 @@ export function HalloweenHeroWrap({ children }: { children: ReactNode }) {
     ["🦇", "top-[8%] left-[6%] text-4xl", "0s"],
     ["🦇", "top-[14%] right-[10%] text-3xl", "1.2s"],
     ["👻", "top-[40%] right-[4%] text-5xl", "0.6s"],
-    ["🕷️", "top-[4%] left-[45%] text-3xl", "1.8s"],
+    ["🕷️", "top-[30%] left-[30%] text-3xl", "1.8s"],
     ["🎃", "bottom-[8%] left-[3%] text-6xl", "0.3s"],
     ["🎃", "bottom-[6%] right-[6%] text-5xl", "1.5s"],
   ];
@@ -53,7 +53,7 @@ export function HalloweenHeroWrap({ children }: { children: ReactNode }) {
       ))}
       <button
         onClick={() => navigate("/book?halloween=1")}
-        className="absolute z-20 left-1/2 -translate-x-1/2 bottom-4 sm:bottom-8 font-heading text-base sm:text-xl text-primary-foreground px-6 sm:px-10 py-3 shadow-2xl hover:scale-105 active:scale-95 transition-transform whitespace-nowrap"
+        className="absolute z-20 left-1/2 -translate-x-1/2 top-6 sm:top-10 font-heading text-base sm:text-xl text-primary-foreground px-6 sm:px-10 py-3 shadow-2xl hover:scale-105 active:scale-95 transition-transform whitespace-nowrap"
         style={{ background: SPOOKY_BG, borderRadius: "30px", boxShadow: "0 0 30px hsl(18 100% 55% / 0.6)" }}
       >
         🎃 Book the Halloween Special · +£10
