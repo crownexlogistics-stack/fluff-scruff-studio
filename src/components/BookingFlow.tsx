@@ -589,17 +589,33 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
     // Bath & Brush only allows Nail Clipping and Teeth Cleaning extras —
     // other extras are full-groom only.
     const effectiveServiceType = puppySwitched ? "Puppy Special" : (selectedSub ?? service);
-    if (effectiveServiceType === "Bath & Brush") {
-      const n = (addon.name || "").toLowerCase();
+    const n = (addon.name || "").toLowerCase();
+    const isSeasonal = n.includes("halloween");
+    if (effectiveServiceType === "Bath & Brush" && !isSeasonal) {
       const isNail = n.includes("nail");
       const isTeeth = n.includes("teeth");
       if (!isNail && !isTeeth) return false;
     }
     const links = addOnServiceLinks?.filter((l) => l.add_on_id === addon.id) ?? [];
     if (links.length === 0) return true;
-    if (!currentServiceRecord?.id) return true;
+    if (!currentServiceRecord?.id) return !isSeasonal;
     return links.some((l) => l.service_id === currentServiceRecord.id);
+  }).sort((a, b) => {
+    const s = (x: any) => ((x.name || "").toLowerCase().includes("halloween") ? 0 : 1);
+    return s(a) - s(b);
   });
+
+  // Pre-tick the seasonal special when arriving from the homepage spotlight
+  const wantsHalloween = searchParams.get("halloween") === "1";
+  const halloweenAutoRef = useRef(false);
+  useEffect(() => {
+    if (!wantsHalloween || halloweenAutoRef.current) return;
+    const h = filteredAddOns?.find((a) => (a.name || "").toLowerCase().includes("halloween"));
+    if (h && currentServiceRecord?.id) {
+      halloweenAutoRef.current = true;
+      setSelectedAddOns((prev) => (prev.includes(h.id) ? prev : [...prev, h.id]));
+    }
+  }, [wantsHalloween, filteredAddOns, currentServiceRecord?.id]);
 
   const filteredBreeds = breedSearch.length > 0
     ? breeds?.filter((b) => b.name.toLowerCase().includes(breedSearch.toLowerCase()))
@@ -1074,6 +1090,14 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
       });
       // Link every prior event in this session to the new booking row
       void linkSessionToBooking(sessionIdRef.current, insertedBooking.id);
+
+      // Save chosen extras so groomers and receipts see them
+      if (selectedAddOns.length > 0) {
+        await supabase.rpc("attach_online_booking_addons" as any, {
+          _booking_id: insertedBooking.id,
+          _addon_ids: selectedAddOns,
+        });
+      }
     }
 
     if (appliedCoupon && insertedBooking?.id) {

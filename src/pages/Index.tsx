@@ -8,6 +8,7 @@ import { OwnerMoney } from "@/components/dashboard/owner/OwnerMoney";
 import { OwnerCapacity, OwnerForward } from "@/components/dashboard/owner/OwnerCapacity";
 import { OwnerTeam } from "@/components/dashboard/owner/OwnerTeam";
 import { OwnerGroomerRetention } from "@/components/dashboard/owner/OwnerGroomerRetention";
+import { SeasonalThemeToggle } from "@/components/dashboard/owner/SeasonalThemeToggle";
 import { OwnerActivity } from "@/components/dashboard/owner/OwnerActivity";
 import { OwnerMarketing } from "@/components/dashboard/owner/OwnerMarketing";
 import { UnavailableBookingsWarning } from "@/components/dashboard/UnavailableBookingsWarning";
@@ -60,6 +61,7 @@ const AdminDashboard = () => {
       <div className="max-w-[1200px] mx-auto space-y-8 md:space-y-10 pb-10">
         {/* 1 — Daily briefing */}
         <OwnerHeader d={d} />
+        <SeasonalThemeToggle />
         <OwnerPeriodReport
           range={range}
           onPeriod={setPeriod}

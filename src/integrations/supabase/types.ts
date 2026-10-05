@@ -4141,6 +4141,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      attach_online_booking_addons: {
+        Args: { _addon_ids: string[]; _booking_id: string }
+        Returns: number
+      }
       current_staff_id: { Args: never; Returns: string }
       get_user_id_by_email: { Args: { _email: string }; Returns: string }
       groomer_can_access_customer: {
