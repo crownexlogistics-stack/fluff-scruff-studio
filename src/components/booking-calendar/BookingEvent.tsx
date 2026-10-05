@@ -711,6 +711,11 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
                 <span className="font-medium">£{Number(ba.add_ons?.price || 0).toFixed(2)}</span>
               </div>
             ))}
+            {(bookingAddons || []).some((ba: any) => /halloween/i.test(ba.add_ons?.name || "")) && (
+              <div className="rounded-md border border-primary/40 bg-primary/10 px-2 py-1.5 text-[11px] text-foreground">
+                🎃 <strong>Halloween Special:</strong> Halloween shampoo, perfume, bandana &amp; photo
+              </div>
+            )}
 
             {inferredPackageAmount > 0 && inferredAddOns.length > 0 && inferredAddOns.map((addon, i) => (
               <div key={`inferred-${i}`} className="flex justify-between">

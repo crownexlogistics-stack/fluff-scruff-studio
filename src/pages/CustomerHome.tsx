@@ -16,6 +16,8 @@ import { TrustStrip } from "@/components/TrustStrip";
 import { AIChatWidget } from "@/components/AIChatWidget";
 import { PackageDealsSection } from "@/components/PackageDealsSection";
 import InstagramFeed from "@/components/InstagramFeed";
+import { useSeasonalTheme } from "@/hooks/useSeasonalTheme";
+import { HalloweenBanner, HalloweenSpotlight } from "@/components/seasonal/HalloweenHome";
 
 const CustomerHome = () => {
   const { user, signOut, loading: authLoading } = useAuth();
@@ -26,6 +28,7 @@ const CustomerHome = () => {
   // Hooks must run before any role-based redirect. Otherwise signing in changes
   // the number of hooks rendered and React crashes before the admin page opens.
   const { services } = useWebsiteServices();
+  const { data: seasonal } = useSeasonalTheme();
 
   const isStaff = role === "manager" || role === "director" || role === "groomer";
 
@@ -45,6 +48,7 @@ const CustomerHome = () => {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
+      {seasonal === "halloween" && <HalloweenBanner />}
       {/* ══════ NAVBAR ══════ */}
       <nav className="sticky top-0 z-50 bg-background border-b border-border/10">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-center justify-between h-16">
@@ -100,6 +104,8 @@ const CustomerHome = () => {
 
       {/* ══════ HERO ══════ */}
       <HeroSection onBook={() => navigate("/book")} />
+      {seasonal === "halloween" && <HalloweenSpotlight />}
+
 
 
       {/* ══════ SERVICES ══════ */}
