@@ -21,7 +21,6 @@ export function HalloweenBanner() {
 
 /** Layers spooky decoration over the untouched original hero. */
 export function HalloweenHeroWrap({ children }: { children: ReactNode }) {
-  const navigate = useNavigate();
   const floaters = [
     ["🦇", "top-[8%] left-[6%] text-4xl", "0s"],
     ["🦇", "top-[14%] right-[10%] text-3xl", "1.2s"],
@@ -51,13 +50,6 @@ export function HalloweenHeroWrap({ children }: { children: ReactNode }) {
           {e}
         </span>
       ))}
-      <button
-        onClick={() => navigate("/book?halloween=1")}
-        className="absolute z-20 left-1/2 -translate-x-1/2 top-6 sm:top-10 font-heading text-base sm:text-xl text-primary-foreground px-6 sm:px-10 py-3 shadow-2xl hover:scale-105 active:scale-95 transition-transform whitespace-nowrap"
-        style={{ background: SPOOKY_BG, borderRadius: "30px", boxShadow: "0 0 30px hsl(18 100% 55% / 0.6)" }}
-      >
-        🎃 Book the Halloween Special · +£10
-      </button>
     </div>
   );
 }
