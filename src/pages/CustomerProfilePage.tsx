@@ -778,6 +778,25 @@ export default function CustomerProfilePage() {
   // Pet update mutation
   const updatePetMutation = useMutation({
     mutationFn: async (pet: { id: string; pet_name: string; breed_id: string | null; dog_age_years: number | null; dog_age_months: number | null; notes: string | null }) => {
+      if (editingPet?.is_from_booking) {
+        // Dog only existed on bookings: create a proper dog record and fix the name on past bookings.
+        if (!petOwner) throw new Error("No customer record");
+        const { error: insErr } = await supabase.from("customer_pets").insert({
+          pet_name: pet.pet_name,
+          breed_id: pet.breed_id || null,
+          dog_age_years: pet.dog_age_years,
+          dog_age_months: pet.dog_age_months,
+          notes: pet.notes || null,
+          ...(petOwner.kind === "auth" ? { user_id: petOwner.id } : { migrated_customer_id: petOwner.id }),
+        } as any);
+        if (insErr) throw insErr;
+        const oldName = editingPet.pet_name;
+        if (oldName && oldName !== pet.pet_name) {
+          await supabase.from("bookings").update({ dog_name: pet.pet_name }).ilike("customer_email", decodedEmail).eq("dog_name", oldName);
+          queryClient.invalidateQueries({ queryKey: ["customer-profile-bookings", decodedEmail] });
+        }
+        return;
+      }
       const { error } = await supabase.from("customer_pets").update({
         pet_name: pet.pet_name,
         breed_id: pet.breed_id || null,
@@ -1335,7 +1354,7 @@ export default function CustomerProfilePage() {
                             </p>
                           </div>
                           <div className="flex items-center gap-1">
-                            {canManageCustomer && !pet.is_from_booking && (
+                            {(
                               <Button size="icon" variant="ghost" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); openPetEdit(pet); }}>
                                 <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
                               </Button>
@@ -2067,7 +2086,7 @@ export default function CustomerProfilePage() {
       </div>
 
       {/* ═══ EDIT PET DIALOG ═══ */}
-      {canManageCustomer && (
+      {(
         <Dialog open={!!editingPet} onOpenChange={(open) => { if (!open) setEditingPet(null); }}>
           <DialogContent className="max-w-md">
             <DialogHeader><DialogTitle>Edit Dog — {petForm.pet_name}</DialogTitle></DialogHeader>
