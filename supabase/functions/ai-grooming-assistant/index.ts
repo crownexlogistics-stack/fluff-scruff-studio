@@ -96,7 +96,7 @@ function minutesToTime(mins: number): string {
   return `${displayH}:${m.toString().padStart(2, "0")}${suffix}`;
 }
 
-const SALON_OPEN = 10 * 60; // 600 = 10:00am
+const SALON_OPEN = 8 * 60; // 480 = 8:00am
 const SALON_CLOSE = 17 * 60; // 1020 = 5:00pm
 
 // ── Availability checking ───────────────────────────────
@@ -274,7 +274,7 @@ async function sendEscalationEmail(
 
 // ── Fetch live data from database ────────────────────────
 async function fetchLiveData(supabase: any) {
-  const fallbackHours = "Tuesday to Saturday, 10am to 5pm. Closed Sunday and Monday.";
+  const fallbackHours = "Monday to Saturday, 8am to 5pm. Closed Sunday.";
   let openingHoursText = fallbackHours;
   let servicesText = "";
   let breedPricingText = "";
@@ -543,7 +543,7 @@ Deno.serve(async (req) => {
         breedName ? `they mentioned a ${breedName}` : "we do NOT know their dog's breed or which service they want"
       }. Do NOT state or guess any dates, days, breeds or services. Ask them warmly which day (or few days) they have in mind${
         breedName ? "" : ", plus their dog's breed and the service they'd like"
-      }, then you can check for them. We're open Tuesday to Saturday, 10am-5pm. You may mention they can also book online at fluffandscruff.co.uk/book.`;
+      }, then you can check for them. We're open Monday to Saturday, 8am-5pm. You may mention they can also book online at fluffandscruff.co.uk/book.`;
     } else if (isAvailabilityQuestion) {
       try {
         const today = new Date();
@@ -558,9 +558,9 @@ Deno.serve(async (req) => {
           const d = new Date(today);
           d.setDate(d.getDate() + ((6 - d.getDay() + 7) % 7 || 7));
           requestedDate = d.toISOString().split("T")[0];
-        } else if (/next (tuesday|wednesday|thursday|friday|saturday)/i.test(lowerMsg)) {
-          const dayNames: Record<string, number> = { tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6 };
-          const match = lowerMsg.match(/next (tuesday|wednesday|thursday|friday|saturday)/i);
+        } else if (/next (monday|tuesday|wednesday|thursday|friday|saturday)/i.test(lowerMsg)) {
+          const dayNames: Record<string, number> = { monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6 };
+          const match = lowerMsg.match(/next (monday|tuesday|wednesday|thursday|friday|saturday)/i);
           if (match) {
             const targetDay = dayNames[match[1].toLowerCase()];
             const d = new Date(today);
@@ -571,7 +571,7 @@ Deno.serve(async (req) => {
             requestedDate = d.toISOString().split("T")[0];
           }
         } else if (/this (tuesday|wednesday|thursday|friday)/i.test(lowerMsg)) {
-          const dayNames: Record<string, number> = { tuesday: 2, wednesday: 3, thursday: 4, friday: 5 };
+          const dayNames: Record<string, number> = { monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5 };
           const match = lowerMsg.match(/this (tuesday|wednesday|thursday|friday)/i);
           if (match) {
             const targetDay = dayNames[match[1].toLowerCase()];
@@ -596,10 +596,10 @@ Deno.serve(async (req) => {
           }
         }
 
-        // Check if requested date is Sun or Mon
+        // Check if requested date is Sunday (closed)
         const reqDow = new Date(requestedDate + "T12:00:00Z").getDay();
-        if (reqDow === 0 || reqDow === 1) {
-          availabilityContext = `\n\nAVAILABILITY DATA: The customer asked about a date that falls on ${reqDow === 0 ? "Sunday" : "Monday"} — the salon is closed. Suggest the nearest open days (Tuesday-Saturday). Today is ${todayStr}.`;
+        if (reqDow === 0) {
+          availabilityContext = `\n\nAVAILABILITY DATA: The customer asked about a date that falls on Sunday — the salon is closed. Suggest the nearest open days (Monday-Saturday, 8am-5pm). Today is ${todayStr}.`;
         } else {
           const result = await checkDetailedAvailability(supabase, requestedDate, serviceDuration);
           const formattedDate = new Date(requestedDate + "T12:00:00Z").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });

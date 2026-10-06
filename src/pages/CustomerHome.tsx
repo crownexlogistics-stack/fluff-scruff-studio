@@ -242,7 +242,7 @@ const CustomerHome = () => {
               </div>
               <div>
                 <h3 className="font-heading text-sm text-foreground mb-1">🕐 Opening Hours</h3>
-                <p className="text-sm text-muted-foreground font-body leading-relaxed">Tue – Sat · 10:00am – 5:00pm</p>
+                <p className="text-sm text-muted-foreground font-body leading-relaxed">Mon – Sat · 8:00am – 5:00pm</p>
               </div>
             </div>
           </div>

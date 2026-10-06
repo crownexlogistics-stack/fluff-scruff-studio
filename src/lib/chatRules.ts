@@ -230,7 +230,7 @@ const RULES: Rule[] = [
   {
     keywords: ["open", "hours", "where", "address", "location", "find", "directions", "when do you", "close"],
     handler: () => ({
-      reply: "We're open Tuesday to Saturday, 10am to 5pm, at 138 Hillview Avenue, Hornchurch RM11 2DL. You can find us on Google Maps! 🐾",
+      reply: "We're open Monday to Saturday, 8am to 5pm, at 138 Hillview Avenue, Hornchurch RM11 2DL. You can find us on Google Maps! 🐾",
       show_whatsapp_button: true,
       nav_links: [{ label: "Get Directions 📍", url: "https://maps.google.com/?q=138+Hillview+Avenue+Hornchurch+RM11+2DL", external: true }],
     }),
@@ -336,7 +336,7 @@ const RULES: Rule[] = [
   {
     keywords: ["speak", "talk", "human", "person", "call", "phone", "contact", "email", "problem", "issue", "help"],
     handler: () => ({
-      reply: "Of course! You can reach us on 01708 606655, WhatsApp us on +44 7476 452782, or email info@fluffandscruff.co.uk. We're here Tuesday to Saturday 10am-5pm 🐾",
+      reply: "Of course! You can reach us on 01708 606655, WhatsApp us on +44 7476 452782, or email info@fluffandscruff.co.uk. We're here Monday to Saturday 8am-5pm 🐾",
       show_call_button: true,
       show_whatsapp_button: true,
     }),
