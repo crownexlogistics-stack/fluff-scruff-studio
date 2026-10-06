@@ -1,0 +1,1 @@
+update public.ai_receptionist_hours set is_open=true, open_time='08:00', close_time='17:00' where day_of_week between 1 and 6;

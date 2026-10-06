@@ -596,10 +596,10 @@ Deno.serve(async (req) => {
           }
         }
 
-        // Check if requested date is Sun or Mon
+        // Check if requested date is Sunday (closed)
         const reqDow = new Date(requestedDate + "T12:00:00Z").getDay();
-        if (reqDow === 0 || reqDow === 1) {
-          availabilityContext = `\n\nAVAILABILITY DATA: The customer asked about a date that falls on ${reqDow === 0 ? "Sunday" : "Monday"} — the salon is closed. Suggest the nearest open days (Tuesday-Saturday). Today is ${todayStr}.`;
+        if (reqDow === 0) {
+          availabilityContext = `\n\nAVAILABILITY DATA: The customer asked about a date that falls on Sunday — the salon is closed. Suggest the nearest open days (Monday-Saturday, 8am-5pm). Today is ${todayStr}.`;
         } else {
           const result = await checkDetailedAvailability(supabase, requestedDate, serviceDuration);
           const formattedDate = new Date(requestedDate + "T12:00:00Z").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
