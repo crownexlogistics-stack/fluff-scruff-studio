@@ -67,6 +67,14 @@ serve(async (req) => {
       .eq("booking_id", booking_id)
       .maybeSingle();
 
+    const _voucherAmt = Number((booking as any).voucher_amount || 0);
+    const _cardPaid = Math.max(0, Number(booking.deposit_paid || 0) - _voucherAmt);
+    const _balance = Math.max(0, Number(booking.total_price || 0) - Number(booking.deposit_paid || 0));
+    const voucherHtml = (booking as any).voucher_code && _voucherAmt > 0
+      ? `<tr><td style="padding: 8px 0; color: #666;">🎁 Gift voucher</td><td style="padding: 8px 0; font-weight: bold;">${(booking as any).voucher_code} · −£${_voucherAmt.toFixed(2)}</td></tr>
+         <tr><td style="padding: 8px 0; color: #666;">Paid by card</td><td style="padding: 8px 0; font-weight: bold;">£${_cardPaid.toFixed(2)}</td></tr>
+         <tr><td style="padding: 8px 0; color: #666;">Balance at salon</td><td style="padding: 8px 0; font-weight: bold;">£${_balance.toFixed(2)}</td></tr>`
+      : "";
     let discountHtml = "";
     if (couponUsage?.coupons) {
       const discountType = couponUsage.coupons.discount_type;
@@ -116,6 +124,7 @@ serve(async (req) => {
             <tr><td style="padding: 8px 0; color: #666;">Date</td><td style="padding: 8px 0; font-weight: bold;">${dateFormatted}</td></tr>
             <tr><td style="padding: 8px 0; color: #666;">Time</td><td style="padding: 8px 0; font-weight: bold;">${timeFormatted}</td></tr>
             ${discountHtml || `<tr><td style="padding: 8px 0; color: #666;">Price</td><td style="padding: 8px 0; font-weight: bold;">£${Number(booking.total_price).toFixed(2)}</td></tr>`}
+            ${voucherHtml}
           </table>
           <p style="background: #f8f8f8; padding: 16px; border-radius: 8px; margin: 16px 0;">
             📍 <strong>Fluff & Scruff Studio</strong><br/>
@@ -178,6 +187,7 @@ serve(async (req) => {
             <tr><td style="padding: 8px 0; color: #666;">Date</td><td style="padding: 8px 0; font-weight: bold;">${dateFormatted}</td></tr>
             <tr><td style="padding: 8px 0; color: #666;">Time</td><td style="padding: 8px 0; font-weight: bold;">${timeFormatted}</td></tr>
             ${discountHtml || `<tr><td style="padding: 8px 0; color: #666;">Price</td><td style="padding: 8px 0; font-weight: bold;">£${Number(booking.total_price).toFixed(2)}</td></tr>`}
+            ${voucherHtml}
           </table>
           <p style="background: #f8f8f8; padding: 16px; border-radius: 8px; margin: 16px 0;">
             📍 <strong>Fluff & Scruff Studio</strong><br/>

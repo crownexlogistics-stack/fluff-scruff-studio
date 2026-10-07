@@ -852,6 +852,8 @@ export type Database = {
           status: string
           stripe_payment_id: string | null
           total_price: number
+          voucher_amount: number
+          voucher_code: string | null
         }
         Insert: {
           anomaly_review_note?: string | null
@@ -893,6 +895,8 @@ export type Database = {
           status?: string
           stripe_payment_id?: string | null
           total_price?: number
+          voucher_amount?: number
+          voucher_code?: string | null
         }
         Update: {
           anomaly_review_note?: string | null
@@ -934,6 +938,8 @@ export type Database = {
           status?: string
           stripe_payment_id?: string | null
           total_price?: number
+          voucher_amount?: number
+          voucher_code?: string | null
         }
         Relationships: [
           {
@@ -1907,6 +1913,182 @@ export type Database = {
           notes?: string | null
           recurring_end_date?: string | null
           recurring_start_date?: string | null
+        }
+        Relationships: []
+      }
+      gift_voucher_attempts: {
+        Row: {
+          client_key: string
+          created_at: string
+          id: string
+          success: boolean
+        }
+        Insert: {
+          client_key: string
+          created_at?: string
+          id?: string
+          success?: boolean
+        }
+        Update: {
+          client_key?: string
+          created_at?: string
+          id?: string
+          success?: boolean
+        }
+        Relationships: []
+      }
+      gift_voucher_events: {
+        Row: {
+          booking_id: string | null
+          created_at: string
+          event_type: string
+          id: string
+          note: string | null
+          performed_by: string | null
+          voucher_id: string
+        }
+        Insert: {
+          booking_id?: string | null
+          created_at?: string
+          event_type: string
+          id?: string
+          note?: string | null
+          performed_by?: string | null
+          voucher_id: string
+        }
+        Update: {
+          booking_id?: string | null
+          created_at?: string
+          event_type?: string
+          id?: string
+          note?: string | null
+          performed_by?: string | null
+          voucher_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gift_voucher_events_voucher_id_fkey"
+            columns: ["voucher_id"]
+            isOneToOne: false
+            referencedRelation: "gift_vouchers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gift_vouchers: {
+        Row: {
+          amount: number
+          amount_applied: number | null
+          amount_paid: number | null
+          code: string
+          copy_to_purchaser: boolean
+          created_at: string
+          delivery_method: string
+          description: string | null
+          expires_at: string | null
+          gift_message: string | null
+          id: string
+          is_complimentary: boolean
+          issued_by: string | null
+          last_sent_at: string | null
+          occasion: string
+          purchased_at: string | null
+          purchaser_email: string
+          purchaser_name: string
+          purchaser_notified_at: string | null
+          purchaser_phone: string | null
+          recipient_email: string | null
+          recipient_name: string | null
+          recipient_phone: string | null
+          redeemed_at: string | null
+          redeemed_booking_id: string | null
+          redeemed_by: string | null
+          redeemed_channel: string | null
+          reserved_at: string | null
+          reserved_booking_id: string | null
+          send_count: number
+          send_to: string
+          status: string
+          stripe_payment_intent_id: string | null
+          stripe_session_id: string | null
+          updated_at: string
+          view_token: string
+        }
+        Insert: {
+          amount: number
+          amount_applied?: number | null
+          amount_paid?: number | null
+          code: string
+          copy_to_purchaser?: boolean
+          created_at?: string
+          delivery_method?: string
+          description?: string | null
+          expires_at?: string | null
+          gift_message?: string | null
+          id?: string
+          is_complimentary?: boolean
+          issued_by?: string | null
+          last_sent_at?: string | null
+          occasion?: string
+          purchased_at?: string | null
+          purchaser_email: string
+          purchaser_name: string
+          purchaser_notified_at?: string | null
+          purchaser_phone?: string | null
+          recipient_email?: string | null
+          recipient_name?: string | null
+          recipient_phone?: string | null
+          redeemed_at?: string | null
+          redeemed_booking_id?: string | null
+          redeemed_by?: string | null
+          redeemed_channel?: string | null
+          reserved_at?: string | null
+          reserved_booking_id?: string | null
+          send_count?: number
+          send_to?: string
+          status?: string
+          stripe_payment_intent_id?: string | null
+          stripe_session_id?: string | null
+          updated_at?: string
+          view_token?: string
+        }
+        Update: {
+          amount?: number
+          amount_applied?: number | null
+          amount_paid?: number | null
+          code?: string
+          copy_to_purchaser?: boolean
+          created_at?: string
+          delivery_method?: string
+          description?: string | null
+          expires_at?: string | null
+          gift_message?: string | null
+          id?: string
+          is_complimentary?: boolean
+          issued_by?: string | null
+          last_sent_at?: string | null
+          occasion?: string
+          purchased_at?: string | null
+          purchaser_email?: string
+          purchaser_name?: string
+          purchaser_notified_at?: string | null
+          purchaser_phone?: string | null
+          recipient_email?: string | null
+          recipient_name?: string | null
+          recipient_phone?: string | null
+          redeemed_at?: string | null
+          redeemed_booking_id?: string | null
+          redeemed_by?: string | null
+          redeemed_channel?: string | null
+          reserved_at?: string | null
+          reserved_booking_id?: string | null
+          send_count?: number
+          send_to?: string
+          status?: string
+          stripe_payment_intent_id?: string | null
+          stripe_session_id?: string | null
+          updated_at?: string
+          view_token?: string
         }
         Relationships: []
       }
@@ -4161,6 +4343,107 @@ export type Database = {
       }
       hash_phone_for_sms: { Args: { phone: string }; Returns: string }
       normalise_phone: { Args: { _phone: string }; Returns: string }
+      redeem_gift_voucher: {
+        Args: {
+          _amount_applied: number
+          _booking_id: string
+          _by: string
+          _channel: string
+          _code: string
+          _from_reserved?: boolean
+        }
+        Returns: {
+          amount: number
+          amount_applied: number | null
+          amount_paid: number | null
+          code: string
+          copy_to_purchaser: boolean
+          created_at: string
+          delivery_method: string
+          description: string | null
+          expires_at: string | null
+          gift_message: string | null
+          id: string
+          is_complimentary: boolean
+          issued_by: string | null
+          last_sent_at: string | null
+          occasion: string
+          purchased_at: string | null
+          purchaser_email: string
+          purchaser_name: string
+          purchaser_notified_at: string | null
+          purchaser_phone: string | null
+          recipient_email: string | null
+          recipient_name: string | null
+          recipient_phone: string | null
+          redeemed_at: string | null
+          redeemed_booking_id: string | null
+          redeemed_by: string | null
+          redeemed_channel: string | null
+          reserved_at: string | null
+          reserved_booking_id: string | null
+          send_count: number
+          send_to: string
+          status: string
+          stripe_payment_intent_id: string | null
+          stripe_session_id: string | null
+          updated_at: string
+          view_token: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "gift_vouchers"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      reserve_gift_voucher: {
+        Args: { _booking_id: string; _code: string }
+        Returns: {
+          amount: number
+          amount_applied: number | null
+          amount_paid: number | null
+          code: string
+          copy_to_purchaser: boolean
+          created_at: string
+          delivery_method: string
+          description: string | null
+          expires_at: string | null
+          gift_message: string | null
+          id: string
+          is_complimentary: boolean
+          issued_by: string | null
+          last_sent_at: string | null
+          occasion: string
+          purchased_at: string | null
+          purchaser_email: string
+          purchaser_name: string
+          purchaser_notified_at: string | null
+          purchaser_phone: string | null
+          recipient_email: string | null
+          recipient_name: string | null
+          recipient_phone: string | null
+          redeemed_at: string | null
+          redeemed_booking_id: string | null
+          redeemed_by: string | null
+          redeemed_channel: string | null
+          reserved_at: string | null
+          reserved_booking_id: string | null
+          send_count: number
+          send_to: string
+          status: string
+          stripe_payment_intent_id: string | null
+          stripe_session_id: string | null
+          updated_at: string
+          view_token: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "gift_vouchers"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
     }
     Enums: {
       app_role:

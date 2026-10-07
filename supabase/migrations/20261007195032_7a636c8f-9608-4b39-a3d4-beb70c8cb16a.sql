@@ -1,0 +1,2 @@
+REVOKE ALL ON FUNCTION public.handle_voucher_on_booking_cancel() FROM PUBLIC, anon, authenticated;
+CREATE POLICY "No direct access to voucher attempts" ON public.gift_voucher_attempts FOR SELECT TO authenticated USING (false);
