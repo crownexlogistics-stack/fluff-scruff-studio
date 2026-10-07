@@ -16,6 +16,9 @@
     --popover-foreground: 20 60% 12%;
 
     --primary: 18 100% 60%;
+    --voucher-ink: 30 100% 97%;
+    --voucher-gold: 42 70% 66%;
+    --voucher-shadow: 20 30% 8%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 30 30% 90%;
@@ -138,4 +141,11 @@
   .touch-target {
     min-height: 48px;
   }
+}
+
+@layer components {
+  .voucher-classic { background: radial-gradient(120% 140% at 0% 0%, hsl(20 14% 24%), hsl(20 18% 11%)); }
+  .voucher-birthday { background: radial-gradient(120% 140% at 0% 0%, hsl(275 30% 34%), hsl(280 35% 16%)); }
+  .voucher-halloween { background: radial-gradient(120% 140% at 100% 0%, hsl(24 90% 30%), hsl(270 35% 10%) 65%); }
+  .voucher-christmas { background: radial-gradient(120% 140% at 0% 0%, hsl(150 40% 24%), hsl(152 50% 9%)); }
 }

@@ -18,6 +18,11 @@ export default {
         body: ["'Nunito'", "sans-serif"],
       },
       colors: {
+        voucher: {
+          ink: "hsl(var(--voucher-ink))",
+          gold: "hsl(var(--voucher-gold))",
+          shadow: "hsl(var(--voucher-shadow))",
+        },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",

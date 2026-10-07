@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { applyRefundToBooking } from "../_shared/applyRefund.ts";
+import { activateFromSession, notifyPurchaserRedeemed } from "../_shared/giftVouchers.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -53,6 +54,15 @@ serve(async (req) => {
   try {
     if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
+
+      // Gift voucher purchase: activate + deliver (idempotent)
+      if (session.metadata?.type === "gift_voucher") {
+        const r = await activateFromSession(supabase, session);
+        return new Response(JSON.stringify({ ok: true, gift_voucher: r }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
 
       // Package payments: route to process-package-payment (idempotent)
       if (session.metadata?.type === "package_booking") {
@@ -172,10 +182,13 @@ serve(async (req) => {
 
       const isFirstPayment = !booking.stripe_payment_id;
       const newDeposit = Number(booking.deposit_paid || 0) + amountPaid;
+      // Gift voucher held for this booking: card + voucher together make the deposit
+      const voucherCode = session.metadata?.voucher_code || null;
+      const voucherAmount = voucherCode ? Number(session.metadata?.voucher_amount || 0) : 0;
 
       const update: Record<string, unknown> = {
         status: "Confirmed",
-        deposit_paid: isFirstPayment ? amountPaid : newDeposit,
+        deposit_paid: isFirstPayment ? Math.round((amountPaid + voucherAmount) * 100) / 100 : newDeposit,
       };
       if (isFirstPayment) {
         update.stripe_payment_id = paymentIntentId;
@@ -184,6 +197,15 @@ serve(async (req) => {
       }
 
       await supabase.from("bookings").update(update).eq("id", bookingId);
+
+      if (voucherCode && isFirstPayment) {
+        const { data: red } = await supabase.rpc("redeem_gift_voucher", {
+          _code: voucherCode, _booking_id: bookingId, _amount_applied: voucherAmount,
+          _channel: "online", _by: "Customer (online)", _from_reserved: true,
+        });
+        if (red?.id) await notifyPurchaserRedeemed(supabase, red);
+        else console.error("stripe-webhook: held voucher could not be redeemed", voucherCode, bookingId);
+      }
 
       await supabase.from("booking_audit_log").insert({
         booking_id: bookingId,
