@@ -194,6 +194,11 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
   const [appliedCoupon, setAppliedCoupon] = useState<{ id: string; code: string; discount_type: string; discount_value: number } | null>(null);
   const [couponError, setCouponError] = useState("");
   const [couponLoading, setCouponLoading] = useState(false);
+  // Gift voucher: checked by the server; the server decides the final charge.
+  const [voucherInput, setVoucherInput] = useState("");
+  const [appliedVoucher, setAppliedVoucher] = useState<{ code: string; amount: number } | null>(null);
+  const [voucherError, setVoucherError] = useState("");
+  const [voucherLoading, setVoucherLoading] = useState(false);
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [paymentType, setPaymentType] = useState<"deposit" | "full">("full");
@@ -649,6 +654,30 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
   const totalPrice = Math.max(0, subtotal - couponDiscount);
   const depositAmount = Math.round(totalPrice * 0.6 * 100) / 100;
   const remainingAmount = Math.round((totalPrice - depositAmount) * 100) / 100;
+  const voucherApplied = appliedVoucher ? Math.round(Math.min(appliedVoucher.amount, totalPrice) * 100) / 100 : 0;
+  const dueNowFor = (type: "deposit" | "full") => {
+    const target = type === "full" ? totalPrice : depositAmount;
+    const c = Math.round(Math.max(0, target - voucherApplied) * 100) / 100;
+    return c > 0 && c < 0.3 ? 0 : c;
+  };
+  const balanceAfter = (type: "deposit" | "full") =>
+    Math.round(Math.max(0, totalPrice - voucherApplied - dueNowFor(type)) * 100) / 100;
+
+  const applyVoucher = async () => {
+    if (!voucherInput.trim()) return;
+    setVoucherError("");
+    setVoucherLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("gift-voucher", { body: { action: "validate", code: voucherInput.trim() } });
+      if (error || !data) { setVoucherError("Couldn't check the voucher — please try again."); return; }
+      if (!data.valid) { setVoucherError(data.message || "That voucher code isn't valid."); return; }
+      setAppliedVoucher({ code: data.code, amount: Number(data.amount) });
+      setVoucherInput("");
+      toast.success(`Gift voucher applied: £${Number(data.amount).toFixed(2)}`);
+    } finally {
+      setVoucherLoading(false);
+    }
+  };
 
   const applyCoupon = async () => {
     if (!couponCode.trim()) return;
@@ -1128,15 +1157,29 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
           total_price: totalPrice,
           booking_id: insertedBooking.id,
           payment_type: selectedPaymentType,
+          voucher_code: appliedVoucher?.code ?? null,
         },
       });
 
       if (checkoutError || !checkoutData?.url) {
-        throw new Error(checkoutData?.error || "Failed to create payment session");
+        let serverMsg: any = checkoutData;
+        try { serverMsg = serverMsg ?? (await (checkoutError as any)?.context?.json?.()); } catch { /* ignore */ }
+        if (appliedVoucher && serverMsg?.voucher_error) {
+          // Voucher failed on the server → no booking, back to normal card payment
+          await supabase.from("bookings").delete().eq("id", insertedBooking.id);
+          setAppliedVoucher(null);
+          setVoucherError(serverMsg.error || "That voucher couldn't be used.");
+          setAlertMessage(`${serverMsg.error || "That voucher couldn't be used."} You can pay by card instead.`);
+          setIsSubmitting(false);
+          return;
+        }
+        throw new Error(serverMsg?.error || "Failed to create payment session");
       }
 
-      const paidAmount = selectedPaymentType === "full" ? totalPrice : depositAmount;
-      await supabase.from("bookings").update({ deposit_paid: paidAmount }).eq("id", insertedBooking.id);
+      if (!appliedVoucher) {
+        const paidAmount = selectedPaymentType === "full" ? totalPrice : depositAmount;
+        await supabase.from("bookings").update({ deposit_paid: paidAmount }).eq("id", insertedBooking.id);
+      }
 
       window.location.href = checkoutData.url;
       return;
@@ -2206,6 +2249,12 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
                   {selectedAddOns.length > 0 && (
                     <p className="text-xs text-muted-foreground">+ {selectedAddOns.map(id => dbAddOns?.find(a => a.id === id)?.name).filter(Boolean).join(", ")}</p>
                   )}
+                  {appliedVoucher && (
+                    <div className="flex justify-between items-center text-sm font-semibold text-primary">
+                      <span>🎁 Gift voucher ({appliedVoucher.code})</span>
+                      <span>-£{voucherApplied.toFixed(2)}</span>
+                    </div>
+                  )}
                   {appliedCoupon && couponDiscount > 0 && (
                     <div className="flex justify-between items-center text-sm text-accent">
                       <span>Coupon ({appliedCoupon.code})</span>
@@ -2475,6 +2524,38 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
                     {couponError && <p className="text-xs text-destructive">{couponError}</p>}
                   </div>
 
+                  {/* Gift Voucher */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Have a gift voucher?</Label>
+                    {appliedVoucher ? (
+                      <div className="flex items-center gap-2 rounded-xl border-2 border-primary/40 bg-primary/5 p-3">
+                        <span className="text-lg">🎁</span>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-foreground"><code className="font-mono">{appliedVoucher.code}</code></p>
+                          <p className="text-xs text-primary">£{voucherApplied.toFixed(2)} will be taken off{appliedVoucher.amount > totalPrice ? ` (voucher value £${appliedVoucher.amount.toFixed(2)} — single use, the rest isn't kept)` : ""}</p>
+                        </div>
+                        <button onClick={() => setAppliedVoucher(null)} className="text-muted-foreground hover:text-foreground p-1" aria-label="Remove voucher">
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex gap-2">
+                        <Input
+                          value={voucherInput}
+                          onChange={(e) => { setVoucherInput(e.target.value.toUpperCase()); setVoucherError(""); }}
+                          placeholder="FS-XXXX-XXXX-XXXX"
+                          className="h-12 rounded-xl font-mono uppercase flex-1"
+                          maxLength={20}
+                          onKeyDown={(e) => e.key === "Enter" && applyVoucher()}
+                        />
+                        <Button variant="outline" onClick={applyVoucher} disabled={voucherLoading || !voucherInput.trim()} className="h-12 rounded-xl px-6">
+                          {voucherLoading ? "..." : "Apply"}
+                        </Button>
+                      </div>
+                    )}
+                    {voucherError && <p className="text-xs text-destructive">{voucherError}</p>}
+                  </div>
+
                   <label className="flex items-start gap-3 cursor-pointer group">
                     <input
                       type="checkbox"
@@ -2514,7 +2595,11 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
                           <TailWagSpinner size={20} /> Processing…
                         </span>
                       ) : (
-                        `Pay Full Amount £${totalPrice.toFixed(2)}`
+                        appliedVoucher
+                          ? dueNowFor("full") === 0
+                            ? "Confirm booking with gift voucher"
+                            : `Pay Full Amount £${dueNowFor("full").toFixed(2)} (after voucher)`
+                          : `Pay Full Amount £${totalPrice.toFixed(2)}`
                       )}
                     </Button>
                     <Button
@@ -2529,10 +2614,18 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
                           <TailWagSpinner size={20} /> Processing…
                         </span>
                       ) : (
-                        `Pay 60% Deposit £${depositAmount.toFixed(2)}`
+                        appliedVoucher
+                          ? dueNowFor("deposit") === 0
+                            ? `Use voucher for deposit · £${balanceAfter("deposit").toFixed(2)} at salon`
+                            : `Pay Deposit £${dueNowFor("deposit").toFixed(2)} (after voucher)`
+                          : `Pay 60% Deposit £${depositAmount.toFixed(2)}`
                       )}
                     </Button>
-                    <p className="text-xs text-center text-muted-foreground">Remaining balance of £{remainingAmount.toFixed(2)} due after your appointment</p>
+                    <p className="text-xs text-center text-muted-foreground">
+                      {appliedVoucher
+                        ? `Deposit option: £${balanceAfter("deposit").toFixed(2)} left to pay after your appointment`
+                        : `Remaining balance of £${remainingAmount.toFixed(2)} due after your appointment`}
+                    </p>
                   </div>
                 </div>
               </div>
