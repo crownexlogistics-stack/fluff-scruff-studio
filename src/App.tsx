@@ -29,6 +29,10 @@ import AdminDashboard from "./pages/Index";
 import BreedsPage from "./pages/BreedsPage";
 import AddOnsPage from "./pages/AddOnsPage";
 import BlacklistPage from "./pages/BlacklistPage";
+import VouchersPage from "./pages/VouchersPage";
+import VoucherSuccessPage from "./pages/VoucherSuccessPage";
+import VoucherViewPage from "./pages/VoucherViewPage";
+import GiftVouchersAdminPage from "./pages/GiftVouchersAdminPage";
 import ServicesPage from "./pages/ServicesPage";
 
 import StaffPage from "./pages/StaffPage";
@@ -117,6 +121,9 @@ const App = () => (
           <Route path="/contract/sign/:staffId" element={<ContractSignPage />} />
           <Route path="/book" element={<BookingEntryPage />} />
           <Route path="/terms" element={<TermsPage />} />
+          <Route path="/vouchers" element={<VouchersPage />} />
+          <Route path="/vouchers/success" element={<VoucherSuccessPage />} />
+          <Route path="/v/:token" element={<VoucherViewPage />} />
           <Route path="/hs/sign/:staffId" element={<HealthAndSafetySignPage />} />
           <Route path="/booking-success" element={<BookingSuccessPage />} />
           <Route path="/welcome" element={<WelcomePage />} />
@@ -155,6 +162,7 @@ const App = () => (
           <Route path="/admin/coupons" element={<ProtectedRoute allowedRoles={["director"]}><CouponsPage /></ProtectedRoute>} />
           <Route path="/breeds" element={<ProtectedRoute allowedRoles={["director"]}><BreedsPage /></ProtectedRoute>} />
           <Route path="/add-ons" element={<ProtectedRoute allowedRoles={["manager", "director"]}><AddOnsPage /></ProtectedRoute>} />
+          <Route path="/gift-vouchers" element={<ProtectedRoute allowedRoles={["manager", "director"]}><GiftVouchersAdminPage /></ProtectedRoute>} />
           <Route path="/blacklist" element={<ProtectedRoute allowedRoles={["manager", "director", "groomer"]}><BlacklistPage /></ProtectedRoute>} />
           <Route path="/services" element={<ProtectedRoute allowedRoles={["manager", "director"]}><ServicesPage /></ProtectedRoute>} />
           
