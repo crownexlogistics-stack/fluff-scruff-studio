@@ -1,3 +1,4 @@
+import { BookingVoucherPanel } from "@/components/vouchers/BookingVoucherPanel";
 import { RefundNotice } from "@/components/booking-calendar/RefundNotice";
 import { useState } from "react";
 import { ScrollHintWrapper } from "@/components/ui/scroll-hint-wrapper";
@@ -426,6 +427,8 @@ export function BookingPopoverCard({
           Stripe: {(booking as any).stripe_payment_id}
         </div>
       )}
+
+      <BookingVoucherPanel bookingId={booking.id} cancelled={isGhost} />
 
       {/* SMS Reminder Status */}
       <div className="flex items-center gap-3 text-xs">

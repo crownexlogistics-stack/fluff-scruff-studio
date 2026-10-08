@@ -1,3 +1,4 @@
+import { BookingVoucherPanel } from "@/components/vouchers/BookingVoucherPanel";
 import { RefundNotice } from "@/components/booking-calendar/RefundNotice";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -716,6 +717,8 @@ export function BookingEvent({ booking, staffIndex, startHour, durationHours = 1
                 🎃 <strong>Halloween Special:</strong> Halloween shampoo, perfume, bandana &amp; photo
               </div>
             )}
+
+            <BookingVoucherPanel bookingId={booking.id} cancelled={["Cancelled", "No Show", "Refunded"].includes(booking.status)} />
 
             {inferredPackageAmount > 0 && inferredAddOns.length > 0 && inferredAddOns.map((addon, i) => (
               <div key={`inferred-${i}`} className="flex justify-between">
