@@ -83,6 +83,7 @@ const CustomerHome = () => {
             <a href="#about" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2.5 rounded-2xl text-sm font-semibold font-body text-foreground/80 hover:bg-muted/50 transition-colors">About</a>
             <a href="#contact" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2.5 rounded-2xl text-sm font-semibold font-body text-foreground/80 hover:bg-muted/50 transition-colors">Contact</a>
             <Link to="/packages" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2.5 rounded-2xl text-sm font-semibold font-body text-accent hover:bg-accent/10 transition-colors">📦 Package Deals</Link>
+            <Link to="/vouchers" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2.5 rounded-2xl text-sm font-semibold font-body text-accent hover:bg-accent/10 transition-colors">🎁 Gift Vouchers</Link>
             <Link to="/academy" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2.5 rounded-2xl text-sm font-semibold font-body text-foreground/80 hover:bg-muted/50 transition-colors">🎓 Academy</Link>
             {accountLink && (
               <Link to={accountLink} onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2.5 rounded-2xl text-sm font-semibold font-body text-foreground/80 hover:bg-muted/50 transition-colors">My Account</Link>
@@ -294,6 +295,8 @@ const CustomerHome = () => {
             </a>
           </div>
           <div className="flex items-center justify-center gap-3 text-xs text-white/40 font-body">
+            <Link to="/vouchers" className="hover:text-white/70 transition-colors underline underline-offset-2">Gift Vouchers</Link>
+            <span>·</span>
             <Link to="/terms" className="hover:text-white/70 transition-colors underline underline-offset-2">T&amp;C's</Link>
             <span>·</span>
             <p>© {new Date().getFullYear()} Fluff &amp; Scruff Studio</p>
