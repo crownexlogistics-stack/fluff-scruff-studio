@@ -31,6 +31,8 @@ import {
   MailX, MailCheck, MessageSquareDashed, Package,
 } from "lucide-react";
 import { AdminPetTools } from "@/components/customer-profile/AdminPetTools";
+import { CustomerVouchersTab } from "@/components/customer-profile/CustomerVouchersTab";
+import { Ticket } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
