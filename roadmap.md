@@ -12,3 +12,6 @@
 - [x] Redesign groomer desktop and mobile navigation using only working destinations.
 - [x] Verify real-data empty states, appointment actions, permissions, mobile layout, and existing routes.
 - [x] Publish the groomer portal redesign.
+
+- [x] Gift vouchers: purchase page, card view, Stripe activation, online/phone/in-salon redemption, admin manager, seasonal control, T&Cs.
+- [ ] Publish gift vouchers (needs the user to press Publish).
