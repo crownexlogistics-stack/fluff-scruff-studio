@@ -31,6 +31,8 @@ import {
   MailX, MailCheck, MessageSquareDashed, Package,
 } from "lucide-react";
 import { AdminPetTools } from "@/components/customer-profile/AdminPetTools";
+import { CustomerVouchersTab } from "@/components/customer-profile/CustomerVouchersTab";
+import { Ticket } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -1181,6 +1183,7 @@ export default function CustomerProfilePage() {
                   <TabsTrigger value="paylinks" className={tabTriggerClass}><CreditCard className="h-3.5 w-3.5 mr-1.5" />Pay Links {payLinks && payLinks.length > 0 && `(${payLinks.length})`}</TabsTrigger>
                 </>
               )}
+              <TabsTrigger value="vouchers" className={tabTriggerClass}><Ticket className="h-3.5 w-3.5 mr-1.5" />Vouchers & Discounts</TabsTrigger>
             </TabsList>
           </div>
 
