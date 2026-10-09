@@ -1939,6 +1939,11 @@ export default function CustomerProfilePage() {
             </TabsContent>
           )}
 
+          {/* ── Vouchers & Discounts ── */}
+          <TabsContent value="vouchers" className="mt-4">
+            <CustomerVouchersTab email={decodedEmail} />
+          </TabsContent>
+
           {/* ── Pay Links ── */}
           {isOwnCustomer && (
             <TabsContent value="paylinks" className="mt-4">
