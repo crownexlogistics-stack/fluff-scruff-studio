@@ -427,13 +427,19 @@ export default function BookingSuccessPage() {
                   <span className="text-muted-foreground">Total Price</span>
                   <span className="font-medium">£{Number(booking.total_price).toFixed(2)}</span>
                 </div>
+                {Number((booking as any).voucher_amount || 0) > 0 && (
+                  <div className="flex justify-between text-sm font-semibold text-primary">
+                    <span>🎁 Gift voucher {(booking as any).voucher_code}</span>
+                    <span>−£{Number((booking as any).voucher_amount).toFixed(2)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">
-                    {paymentType === "full" ? "Paid in full" : "Deposit paid"}
+                    {Number((booking as any).voucher_amount || 0) > 0 ? "Paid by card" : paymentType === "full" ? "Paid in full" : "Deposit paid"}
                   </span>
-                  <span className="font-semibold text-foreground">£{Number(booking.deposit_paid).toFixed(2)}</span>
+                  <span className="font-semibold text-foreground">£{Math.max(0, Number(booking.deposit_paid) - Number((booking as any).voucher_amount || 0)).toFixed(2)}</span>
                 </div>
-                {paymentType !== "full" && (
+                {(paymentType !== "full" || Number(booking.total_price) - Number(booking.deposit_paid) > 0) && (
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Remaining balance</span>
                     <span className="font-medium">£{(Number(booking.total_price) - Number(booking.deposit_paid)).toFixed(2)}</span>
