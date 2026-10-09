@@ -702,13 +702,18 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
         return;
       }
 
-      if (guestForm.email && coupon.max_uses_per_customer) {
-        const { count } = await supabase
-          .from("coupon_usages")
-          .select("*", { count: "exact", head: true })
-          .eq("coupon_id", coupon.id)
-          .eq("customer_email", guestForm.email.toLowerCase());
-        if (count && count >= coupon.max_uses_per_customer) {
+      const checkEmail = (guestForm.email.trim() || user?.email || "").toLowerCase();
+      if (coupon.max_uses_per_customer) {
+        if (!checkEmail) {
+          setCouponError("Please enter your email first, then apply the coupon");
+          return;
+        }
+        const { data: used, error: useErr } = await supabase.rpc("coupon_customer_use_count", {
+          _coupon_id: coupon.id,
+          _email: checkEmail,
+        });
+        if (useErr) throw useErr;
+        if ((used ?? 0) >= coupon.max_uses_per_customer) {
           setCouponError("You've already used this coupon");
           return;
         }
@@ -814,6 +819,25 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
     if (!acceptedTerms) {
       setAlertMessage("Please accept the Terms & Conditions to continue");
       return;
+    }
+
+    // Final per-customer coupon limit check (server-side count, bypasses RLS safely)
+    if (appliedCoupon) {
+      const { data: cpn } = await supabase.from("coupons").select("max_uses_per_customer").eq("id", appliedCoupon.id).maybeSingle();
+      if (cpn?.max_uses_per_customer) {
+        if (!submitEmail) {
+          setAppliedCoupon(null);
+          setAlertMessage("Please enter your email to use a coupon code.");
+          return;
+        }
+        const { data: used } = await supabase.rpc("coupon_customer_use_count", { _coupon_id: appliedCoupon.id, _email: submitEmail });
+        if ((used ?? 0) >= cpn.max_uses_per_customer) {
+          setAppliedCoupon(null);
+          setCouponError("You've already used this coupon");
+          setAlertMessage("This coupon code has already been used with your email, so it has been removed. Please review your total and try again.");
+          return;
+        }
+      }
     }
 
     setIsSubmitting(true);

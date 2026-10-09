@@ -22,6 +22,13 @@
       "when": 1791226127172,
       "tag": "0002_online_booking_addons_rpc",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1791536509198,
+      "tag": "0003_coupon_customer_use_check",
+      "breakpoints": true
     }
   ]
 }
