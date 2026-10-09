@@ -1183,6 +1183,7 @@ export default function CustomerProfilePage() {
                   <TabsTrigger value="paylinks" className={tabTriggerClass}><CreditCard className="h-3.5 w-3.5 mr-1.5" />Pay Links {payLinks && payLinks.length > 0 && `(${payLinks.length})`}</TabsTrigger>
                 </>
               )}
+              <TabsTrigger value="vouchers" className={tabTriggerClass}><Ticket className="h-3.5 w-3.5 mr-1.5" />Vouchers & Discounts</TabsTrigger>
             </TabsList>
           </div>
 
