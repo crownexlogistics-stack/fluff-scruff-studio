@@ -37,9 +37,15 @@ const AuthPage = () => {
 
   // State for migrated customer detection on failed login
   const [migratedPrompt, setMigratedPrompt] = useState<{ show: boolean; name?: string; emailSent?: boolean }>({ show: false });
+  const [outage, setOutage] = useState(false);
 
   if (authError || (user && roleError)) {
     return <ConnectionState onRetry={() => { retryAuth(); retryRole(); }} />;
+  }
+  if (outage && !user) {
+    return (
+      <ConnectionState onRetry={() => setOutage(false)} />
+    );
   }
   if (loading || (user && roleLoading)) {
     return (
@@ -114,16 +120,7 @@ const AuthPage = () => {
         toast({ title: "Login failed", description: result.friendlyMessage, variant: "destructive" });
         logLoginEvent("ACCOUNT_LOCKED", "Customer account locked after multiple failed attempts", "medium");
       } else if (result.kind === "network") {
-        toast({
-          title: "Connection problem",
-          description: result.friendlyMessage,
-          variant: "destructive",
-          action: (
-            <ToastAction altText="Try again" onClick={() => { void attemptLogin(); }}>
-              Try again
-            </ToastAction>
-          ),
-        });
+        setOutage(true);
         logLoginEvent("LOGIN_UNAVAILABLE", `Sign-in service unreachable${result.rawMessage ? `: ${result.rawMessage}` : ""}`, "medium");
       } else {
         toast({ title: "Login failed", description: result.friendlyMessage, variant: "destructive" });

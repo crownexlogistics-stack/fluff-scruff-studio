@@ -63,14 +63,17 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 export async function signInWithRetry(
   email: string,
   password: string,
-  attempts = 3,
+  attempts = 2,
 ): Promise<SignInOutcome> {
   let lastError: any = null;
 
   for (let attempt = 1; attempt <= attempts; attempt++) {
     let error: any = null;
     try {
-      const res = await supabase.auth.signInWithPassword({ email, password });
+      const res: any = await Promise.race([
+        supabase.auth.signInWithPassword({ email, password }),
+        sleep(8000).then(() => ({ error: { message: "timeout", status: 408 } })),
+      ]);
       error = res.error;
     } catch (thrown) {
       error = thrown;
