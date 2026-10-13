@@ -44,13 +44,7 @@ const AuthPage = () => {
   }
   if (outage && !user) {
     return (
-      <ConnectionState
-        retrying={submitting}
-        onRetry={() => {
-          if (email && password) { setOutage(false); void attemptLogin(); }
-          else setOutage(false);
-        }}
-      />
+      <ConnectionState onRetry={() => setOutage(false)} />
     );
   }
   if (loading || (user && roleLoading)) {
