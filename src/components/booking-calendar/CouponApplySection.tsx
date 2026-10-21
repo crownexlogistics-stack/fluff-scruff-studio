@@ -134,12 +134,16 @@ export function CouponApplySection({
     try {
       // Get current user
       const { data: { user } } = await supabase.auth.getUser();
+      // applied_by_staff_id references staff.id, not the login id
+      const { data: staffRow } = user?.id
+        ? await supabase.from("staff").select("id").eq("auth_user_id", user.id).maybeSingle()
+        : { data: null };
 
       // Record coupon usage
       const usageRecord: any = {
         coupon_id: coupon.id,
         customer_email: customerEmail?.toLowerCase() || "unknown",
-        applied_by_staff_id: user?.id || null,
+        applied_by_staff_id: staffRow?.id || null,
         applied_by_staff_name: staffName,
       };
       if (isMigrated) {
@@ -147,7 +151,8 @@ export function CouponApplySection({
       } else {
         usageRecord.booking_id = bookingId;
       }
-      await (supabase.from("coupon_usages") as any).insert(usageRecord);
+      const { error: usageErr } = await (supabase.from("coupon_usages") as any).insert(usageRecord);
+      if (usageErr) throw usageErr;
 
       // Increment times_used
       await supabase
