@@ -16,6 +16,8 @@ import { logAudit } from "@/lib/auditLog";
 import { logGroomerActivity } from "@/lib/logGroomerActivity";
 import { CustomerSearchInput, type CustomerResult } from "./CustomerSearchInput";
 import { useCurrentStaff } from "@/hooks/useCurrentStaff";
+import { StaffDiscountPicker } from "@/components/booking-calendar/StaffDiscountPicker";
+import { applyStaffDiscount, recordStaffDiscount } from "@/lib/staffDiscount";
 import { checkBlacklist } from "@/lib/blacklist";
 
 export interface BookAgainData {
@@ -41,6 +43,8 @@ interface NewBookingDialogProps {
 export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour, defaultStaffId, mode, bookAgainData }: NewBookingDialogProps) {
   const queryClient = useQueryClient();
   const { staff: currentStaff } = useCurrentStaff();
+  const [discountPct, setDiscountPct] = useState(0);
+  useEffect(() => { if (open) setDiscountPct(0); }, [open]);
 
 
   const dateStr = defaultDate ? format(defaultDate, "yyyy-MM-dd") : "";
@@ -432,7 +436,7 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
           staff_id: form.staff_id || null,
           booking_date: form.booking_date,
           booking_time: form.booking_time,
-          total_price: form.total_price,
+          total_price: applyStaffDiscount(form.total_price, discountPct).total,
           deposit_paid: 0,
           notes: notesWithAddOns || null,
           status: "Pending",
@@ -448,6 +452,9 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
         });
 
         if (insertedBooking?.id) {
+          if (discountPct > 0) {
+            await recordStaffDiscount({ bookingId: insertedBooking.id, pct: discountPct, subtotal: form.total_price, customerEmail: form.customer_email, staffId: currentStaff?.id, staffName: currentStaff?.name || creatorName });
+          }
           supabase.from("booking_audit_log" as any).insert({
             booking_id: insertedBooking.id,
             event_type: "created_by_staff",
@@ -775,6 +782,8 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
                       <NumericInput value={form.deposit_paid} onValueChange={(v) => setForm({ ...form, deposit_paid: v })} />
                     </div>
                   </div>
+
+                  <StaffDiscountPicker subtotal={form.total_price} value={discountPct} onChange={setDiscountPct} />
 
                   <div className="space-y-1">
                     <Label>Notes</Label>
