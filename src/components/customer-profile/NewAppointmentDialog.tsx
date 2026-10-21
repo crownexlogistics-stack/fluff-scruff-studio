@@ -191,8 +191,7 @@ export function NewAppointmentDialog({
 
     const totalPrice = price + addOnTotal;
     if (totalPrice > 0) {
-      const deposit = Math.round(totalPrice * 0.6 * 100) / 100;
-      setForm(prev => ({ ...prev, total_price: totalPrice, deposit_paid: deposit }));
+      setForm(prev => ({ ...prev, total_price: totalPrice }));
     }
   }, [form.service_id, form.breed_id, services, breeds, servicePrices, selectedAddOns, addOns]);
 
@@ -559,7 +558,7 @@ export function NewAppointmentDialog({
                 </div>
               </div>
 
-              <StaffDiscountPicker subtotal={form.total_price} value={discountPct} onChange={setDiscountPct} />
+              <StaffDiscountPicker subtotal={form.total_price} value={discountPct} onChange={setDiscountPct} deposit={form.deposit_paid} />
 
               <div className="space-y-1">
                 <Label>Notes for groomer</Label>
