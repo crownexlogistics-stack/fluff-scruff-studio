@@ -861,9 +861,21 @@ export default function CustomerProfilePage() {
   // Cancel booking mutation
   const cancelBookingMutation = useMutation({
     mutationFn: async (bookingId: string) => {
-      const { error } = await supabase.from("bookings").update({ status: "Cancelled" }).eq("id", bookingId);
+      // Single source of truth: 48h+ notice => automatic Stripe deposit refund
+      const { data, error } = await supabase.functions.invoke("cancel-booking-with-refund", {
+        body: { booking_id: bookingId, cancelled_by: "staff" },
+      });
       if (error) throw error;
-      logAudit({ action: "BOOKING_CANCELLED", details: `Cancelled booking ${bookingId}` });
+      if (data?.error) throw new Error(data.error);
+      supabase.from("booking_audit_log" as any).insert({
+        booking_id: bookingId,
+        event_type: "cancelled",
+        performed_by: "Staff",
+        note: data?.refunded
+          ? `Booking cancelled. Deposit £${Number(data.refund_amount).toFixed(2)} refunded automatically (48h+ notice).`
+          : "Booking cancelled",
+      } as any).then(() => {});
+      if (data?.refunded) toast({ title: `Deposit of £${Number(data.refund_amount).toFixed(2)} refunded automatically` });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["customer-profile-bookings", decodedEmail] });

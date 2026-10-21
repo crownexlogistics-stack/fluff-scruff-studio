@@ -540,19 +540,21 @@ export function GroomerBookingsTab({ staffId, userRole, elevated = false }: Groo
         return;
       }
 
-      const { error } = await supabase.from("bookings").update({ status: "Cancelled" }).eq("id", booking.id);
+      // Single source of truth: 48h+ notice => automatic Stripe deposit refund
+      const { data, error } = await supabase.functions.invoke("cancel-booking-with-refund", {
+        body: { booking_id: booking.id, cancelled_by: "staff" },
+      });
       if (error) throw error;
-      logAudit({ action: "BOOKING_CANCELLED", details: `Cancelled booking ${booking.id}` });
-      if (booking.staff_id) {
-        supabase.functions.invoke("notify-groomer", { body: { booking_id: booking.id, notification_type: "booking_cancelled" } }).catch(() => {});
-      }
-      // Audit trail entry for cancellation
+      if (data?.error) throw new Error(data.error);
       supabase.from("booking_audit_log" as any).insert({
         booking_id: booking.id,
         event_type: "cancelled",
         performed_by: booking.staff_name || "Groomer",
-        note: "Booking cancelled",
+        note: data?.refunded
+          ? `Booking cancelled. Deposit £${Number(data.refund_amount).toFixed(2)} refunded automatically (48h+ notice).`
+          : "Booking cancelled",
       } as any).then(() => {});
+      if (data?.refunded) toast.success(`Deposit of £${Number(data.refund_amount).toFixed(2)} refunded to the customer automatically.`);
     },
     onSuccess: () => {
       toast.success("Booking cancelled");
