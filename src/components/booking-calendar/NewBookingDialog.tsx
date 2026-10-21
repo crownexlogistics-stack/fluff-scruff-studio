@@ -275,7 +275,7 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
 
     const totalPrice = price + addOnTotal;
     if (totalPrice > 0) {
-      setForm(prev => ({ ...prev, total_price: totalPrice, deposit_paid: 0 }));
+      setForm(prev => ({ ...prev, total_price: totalPrice }));
     }
   }, [form.service_id, form.breed_id, services, breeds, servicePrices, selectedAddOns, addOns]);
 
@@ -437,7 +437,7 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
           booking_date: form.booking_date,
           booking_time: form.booking_time,
           total_price: applyStaffDiscount(form.total_price, discountPct).total,
-          deposit_paid: 0,
+          deposit_paid: Math.max(0, Math.min(Number(form.deposit_paid) || 0, applyStaffDiscount(form.total_price, discountPct).total)),
           notes: notesWithAddOns || null,
           status: "Pending",
           booking_source: "staff",
@@ -783,7 +783,7 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
                     </div>
                   </div>
 
-                  <StaffDiscountPicker subtotal={form.total_price} value={discountPct} onChange={setDiscountPct} />
+                  <StaffDiscountPicker subtotal={form.total_price} value={discountPct} onChange={setDiscountPct} deposit={form.deposit_paid} />
 
                   <div className="space-y-1">
                     <Label>Notes</Label>
