@@ -29,6 +29,20 @@
       "when": 1791536509198,
       "tag": "0003_coupon_customer_use_check",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793199735704,
+      "tag": "0004_specialty_enquiries",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793199849873,
+      "tag": "0005_specialty_enquiries_realtime",
+      "breakpoints": true
     }
   ]
 }

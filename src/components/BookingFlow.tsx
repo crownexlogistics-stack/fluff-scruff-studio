@@ -1,3 +1,4 @@
+import { SpecialtyEnquiryForm } from "@/components/booking/SpecialtyEnquiryForm";
 import React, { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ArrowLeft, Search, Dog, ChevronRight, PawPrint, Save, Move, Sparkles, Check, ChevronLeft, Calendar, Info, X, Lock, Ticket } from "lucide-react";
@@ -181,6 +182,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
   const [step, setStep] = useState<Step>(null);
   const [direction, setDirection] = useState<"forward" | "back">("forward");
   const [selectedSub, setSelectedSub] = useState<string | null>(null);
+  const [groomChoice, setGroomChoice] = useState<null | "choose" | "specialty">(null);
   const [breedSearch, setBreedsSearch] = useState("");
   const [selectedBreed, setSelectedBreed] = useState<any>(null);
   const [selectedAddOns, setSelectedAddOns] = useState<string[]>([]);
@@ -1714,7 +1716,30 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
             transition={{ type: "spring", stiffness: 300, damping: 25, duration: 0.4 }}
           >
             {/* Sub-service selection */}
-            {step === "sub-service" && (
+            {step === "sub-service" && groomChoice === "specialty" && (
+              <SpecialtyEnquiryForm defaultDogName={guestForm.dogName} onBack={() => setGroomChoice("choose")} onDone={onClose} />
+            )}
+            {step === "sub-service" && groomChoice === "choose" && (
+              <div className="px-4 sm:px-6 py-6 sm:py-10 max-w-lg mx-auto">
+                <button onClick={() => setGroomChoice(null)} className="text-sm text-muted-foreground mb-4">← Back</button>
+                <div className="text-center mb-6">
+                  <p className="text-accent font-body text-xs uppercase tracking-[0.25em] mb-2">🐾 Full Groom 🐾</p>
+                  <h2 className="text-xl sm:text-3xl font-heading text-foreground leading-tight">Which kind of full groom?</h2>
+                </div>
+                <div className="space-y-4">
+                  <button onClick={() => { setGroomChoice(null); handleSubSelect("Full Groom"); }} className="w-full text-left bg-card rounded-3xl p-5 shadow-[0_4px_20px_rgba(0,0,0,0.06)] hover:shadow-lg active:scale-[0.98] transition-all">
+                    <h3 className="font-heading text-lg text-foreground">Standard Pet Groom</h3>
+                    <p className="text-sm text-muted-foreground mt-1">Our everyday full groom: bath, blow-dry, a neat breed-standard pet trim and nail trim. This is the industry-standard pet groom and books straight into the calendar.</p>
+                    <p className="text-xs text-muted-foreground mt-2">Show trims, hand stripping and special styles aren't included in a standard slot.</p>
+                  </button>
+                  <button onClick={() => setGroomChoice("specialty")} className="w-full text-left bg-card rounded-3xl p-5 shadow-[0_4px_20px_rgba(0,0,0,0.06)] hover:shadow-lg active:scale-[0.98] transition-all">
+                    <h3 className="font-heading text-lg text-foreground">Specialty Groom</h3>
+                    <p className="text-sm text-muted-foreground mt-1">Something specific in mind, like a show-style trim, hand stripping or a particular look? Send us the details and photos and a groomer will get back to you about time and price.</p>
+                  </button>
+                </div>
+              </div>
+            )}
+            {step === "sub-service" && !groomChoice && (
               <div className="px-4 sm:px-6 py-6 sm:py-10">
                 {ADJUST_MODE && (
                   <div className="flex items-center gap-2 justify-center mb-4 text-accent text-xs font-mono">
@@ -1733,7 +1758,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
                       ? `${adjustPositions[idx].x}% ${adjustPositions[idx].y}%`
                       : getPosition(opt.label, opt.defaultPosition);
                     return (
-                      <button key={opt.label} onClick={ADJUST_MODE ? undefined : () => handleSubSelect(opt.label)} className="w-full text-left group transition-all duration-300">
+                      <button key={opt.label} onClick={ADJUST_MODE ? undefined : () => (opt.label === "Full Groom" ? setGroomChoice("choose") : handleSubSelect(opt.label))} className="w-full text-left group transition-all duration-300">
                         <div className="flex overflow-hidden bg-card hover:shadow-lg transition-all duration-300 active:scale-[0.98] shadow-[0_4px_20px_rgba(0,0,0,0.06)]" style={{ borderRadius: '24px' }}>
                           <div className="relative w-[110px] shrink-0 overflow-hidden">
                             <img src={opt.image} alt={opt.label} className="w-full h-full object-cover" style={{ objectPosition: pos, minHeight: '120px', cursor: ADJUST_MODE ? 'grab' : undefined, touchAction: ADJUST_MODE ? 'none' : undefined }}
