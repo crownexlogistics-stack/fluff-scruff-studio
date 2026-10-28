@@ -1,47 +1,34 @@
-import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 export type AppRole = "director" | "manager" | "groomer" | "customer" | "volunteer" | "work_placement";
 
 export function useUserRole(userId: string | undefined) {
-  const [role, setRole] = useState<AppRole | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [connectionError, setConnectionError] = useState(false);
-  const [retryKey, setRetryKey] = useState(0);
+  // Route guards and page children must read the same verified role, not start
+  // independent null-role lookups whenever a shared page mounts.
+  const query = useQuery({
+    queryKey: ["authenticated-user-role", userId],
+    enabled: !!userId,
+    gcTime: 0,
+    queryFn: async (): Promise<AppRole> => {
+      if (!userId) throw new Error("A signed-in user is required");
+      const { data, error } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", userId)
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return (data?.role as AppRole) ?? "customer";
+    },
+    retry: 2,
+    retryDelay: (attempt) => 800 * (attempt + 1),
+  });
 
-  useEffect(() => {
-    if (!userId) {
-      setRole(null);
-      setLoading(false);
-      setConnectionError(false);
-      return;
-    }
-
-    const fetchRole = async () => {
-      setLoading(true);
-      setConnectionError(false);
-      for (let attempt = 0; attempt < 3; attempt++) {
-        const { data, error } = await supabase
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", userId)
-          .limit(1)
-          .maybeSingle();
-
-        if (!error) {
-          setRole((data?.role as AppRole) ?? "customer");
-          setLoading(false);
-          return;
-        }
-        console.error("Error fetching role:", error);
-        if (attempt < 2) await new Promise((resolve) => window.setTimeout(resolve, 800 * (attempt + 1)));
-      }
-      setConnectionError(true);
-      setLoading(false);
-    };
-
-    fetchRole();
-  }, [userId, retryKey]);
-
-  return { role, loading, connectionError, retry: () => setRetryKey((key) => key + 1) };
+  return {
+    role: userId && !query.isError ? query.data ?? null : null,
+    loading: !!userId && query.isPending,
+    connectionError: !!userId && query.isError,
+    retry: () => { void query.refetch(); },
+  };
 }
