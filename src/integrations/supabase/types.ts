@@ -3901,6 +3901,74 @@ export type Database = {
           },
         ]
       }
+      specialty_enquiries: {
+        Row: {
+          attachments: Json
+          breed: string | null
+          claimed_at: string | null
+          claimed_by_name: string | null
+          claimed_by_staff_id: string | null
+          created_at: string
+          customer_name: string
+          customer_user_id: string | null
+          dog_name: string | null
+          email: string | null
+          id: string
+          outcome_note: string | null
+          phone: string
+          request_details: string
+          resolved_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          attachments?: Json
+          breed?: string | null
+          claimed_at?: string | null
+          claimed_by_name?: string | null
+          claimed_by_staff_id?: string | null
+          created_at?: string
+          customer_name: string
+          customer_user_id?: string | null
+          dog_name?: string | null
+          email?: string | null
+          id?: string
+          outcome_note?: string | null
+          phone: string
+          request_details: string
+          resolved_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          attachments?: Json
+          breed?: string | null
+          claimed_at?: string | null
+          claimed_by_name?: string | null
+          claimed_by_staff_id?: string | null
+          created_at?: string
+          customer_name?: string
+          customer_user_id?: string | null
+          dog_name?: string | null
+          email?: string | null
+          id?: string
+          outcome_note?: string | null
+          phone?: string
+          request_details?: string
+          resolved_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "specialty_enquiries_claimed_by_staff_id_fkey"
+            columns: ["claimed_by_staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       staff: {
         Row: {
           account_blocked: boolean | null
