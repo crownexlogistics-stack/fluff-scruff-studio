@@ -49,9 +49,15 @@ export function SpecialtyEnquiryForm({ defaultDogName, defaultBreed, onBack, onD
         phone: f.phone || p?.phone || "",
         email: f.email || user.email || "",
       }));
+      if (user.email) {
+        const { data: b } = await supabase.from("bookings").select("customer_name, customer_phone")
+          .ilike("customer_email", user.email).order("created_at", { ascending: false }).limit(1);
+        const last = (b as any[] | null)?.[0];
+        if (last) setForm((f) => ({ ...f, customer_name: f.customer_name || last.customer_name || "", phone: f.phone || last.customer_phone || "" }));
+      }
       const { data: pets } = await supabase.from("customer_pets").select("*").eq("user_id", user.id).limit(1);
       const pet = (pets as any[] | null)?.[0];
-      if (pet) setForm((f) => ({ ...f, dog_name: f.dog_name || pet.name || pet.pet_name || "" }));
+      if (pet) setForm((f) => ({ ...f, dog_name: f.dog_name || pet.pet_name || "" }));
     })();
   }, [user]);
 
