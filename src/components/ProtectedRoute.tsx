@@ -42,7 +42,7 @@ export function ProtectedRoute({ children, allowedRoles, allowFullCalendarGroome
   const elevatedGroomerAllowed =
     allowFullCalendarGroomer && role === "groomer" && hasFullCalendarAccess;
 
-  if (role && !roleAllowed && !elevatedGroomerAllowed) {
+  if (!role || (!roleAllowed && !elevatedGroomerAllowed)) {
     return <Navigate to="/" replace />;
   }
 

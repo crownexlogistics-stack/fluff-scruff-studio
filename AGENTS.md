@@ -2,3 +2,4 @@
 - Campaign HTML data images are converted with supabase/functions/_shared/emailInlineImages.ts on every send path — why: inboxes such as Gmail do not reliably render browser-only data URLs.
 - Gift voucher state changes (validate, reserve, redeem, activate) happen only in edge functions via supabase/functions/_shared/giftVouchers.ts and the redeem_gift_voucher / reserve_gift_voucher SQL functions — why: the browser must never be able to discount a booking or mark a voucher used.
 - Voucher value used on a booking is stored in bookings.voucher_amount AND included in deposit_paid — why: every existing balance-due screen stays correct; card cash = deposit_paid − voucher_amount.
+- Authentication is shared through the app-level AuthProvider; role queries are keyed by user ID and shared by route guards and page children, with unresolved/error roles denied — why: independent page lookups briefly selected the admin layout for groomers during navigation.

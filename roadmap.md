@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] Prevent admin flashes across all shared groomer pages and verify role-loading transitions.
+
 - [x] Add live Today / This Week / This Month / This Year / Since Beginning / Custom reporting periods.
 - [x] Keep today, current alerts, latest bank balance, and forward planning independent of reporting period.
 - [x] Add persistent manual bank balance update dialog and balance history.
