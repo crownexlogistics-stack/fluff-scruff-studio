@@ -173,3 +173,6 @@ verify_jwt = false
 
 [functions.expire-pending-bookings]
 verify_jwt = false
+
+[functions.phone-intake]
+verify_jwt = false

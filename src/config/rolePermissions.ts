@@ -73,6 +73,7 @@ export const rolePermissions: Record<string, Record<string, boolean>> = {
 
     // Portal
     viewGroomerPortal: true,
+    managePhoneIntakes: true,
   },
 
   // ═══════════════════════════════════════
@@ -102,6 +103,8 @@ export const rolePermissions: Record<string, Record<string, boolean>> = {
     viewGroomerPortal: true,
 
     // Manager-level access
+    managePhoneIntakes: true,
+    viewAllPhoneIntakes: true,
     viewAllBookings: true,
     viewAllCustomerProfiles: true,
     viewAllCustomerNotes: true,
@@ -191,6 +194,8 @@ export const rolePermissions: Record<string, Record<string, boolean>> = {
     viewErrorReports: true,
 
     // Director-only
+    managePhoneIntakes: true,
+    viewAllPhoneIntakes: true,
     viewStaffContracts: true,
     viewSalaryDetails: true,
     manageStaffAccounts: true,

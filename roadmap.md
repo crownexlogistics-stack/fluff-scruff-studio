@@ -1,5 +1,9 @@
 # Roadmap
 
+- [ ] Add sidebar Phone Intakes, secure customer links, details/photos and staff history.
+- [ ] Add optional 60-minute calendar holds with safe expiry and booking conversion.
+- [ ] Verify permissions, intake submission, holds and booking conversion end to end.
+
 - [x] Prevent admin flashes across all shared groomer pages and verify role-loading transitions.
 
 - [x] Add live Today / This Week / This Month / This Year / Since Beginning / Custom reporting periods.

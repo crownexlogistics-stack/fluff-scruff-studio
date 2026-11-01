@@ -25,6 +25,7 @@ const groomerNavGroups = [
     { title: "Email Inbox", url: "/portal/inbox", icon: Inbox },
     { title: "Needs Me", url: "/ai-inbox", icon: PhoneForwarded, badge: "ai" as const },
     { title: "Specialty Grooming", url: "/specialty-grooming", icon: Scissors },
+    { title: "Phone Intakes", url: "/phone-intakes", icon: PhoneForwarded },
   ]},
   { label: "My results", items: [
     { title: "My Earnings", url: "/portal/finance", icon: PoundSterling },

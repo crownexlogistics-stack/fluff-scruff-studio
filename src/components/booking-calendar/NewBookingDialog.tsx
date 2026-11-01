@@ -38,9 +38,10 @@ interface NewBookingDialogProps {
   defaultStaffId?: string;
   mode: "appointment" | "block";
   bookAgainData?: BookAgainData | null;
+  intakeData?: (BookAgainData & { id: string; date: string; time: string; staff_id: string; duration_minutes: number }) | null;
 }
 
-export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour, defaultStaffId, mode, bookAgainData }: NewBookingDialogProps) {
+export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour, defaultStaffId, mode, bookAgainData, intakeData }: NewBookingDialogProps) {
   const queryClient = useQueryClient();
   const { staff: currentStaff } = useCurrentStaff();
   const [discountPct, setDiscountPct] = useState(0);
@@ -81,7 +82,12 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
       setNewCustomerError("");
       setSelectedAddOns([]);
 
-      if (bookAgainData) {
+      if (intakeData) {
+        setIsNewCustomer(true);
+        setCustomerSelected(true);
+        setSelectedDogs([{ name: intakeData.dog_name, breed_id: intakeData.breed_id || null }]);
+        setForm({ customer_name: intakeData.customer_name, customer_email: intakeData.customer_email || "", customer_phone: intakeData.customer_phone || "", dog_name: intakeData.dog_name, breed_id: intakeData.breed_id || "", service_id: intakeData.service_id || "", staff_id: intakeData.staff_id, booking_date: intakeData.date, booking_time: intakeData.time, end_time: "", total_price: 0, deposit_paid: 0, notes: intakeData.notes || "" });
+      } else if (bookAgainData) {
         // Pre-fill from existing booking
         setIsNewCustomer(false);
         setCustomerSelected(true);
@@ -442,6 +448,7 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
           status: "Pending",
           booking_source: "staff",
           created_by_staff: creatorName,
+          ...(intakeData ? { phone_intake_id: intakeData.id, duration_minutes: services?.find(s => s.id === form.service_id)?.duration_minutes ?? intakeData.duration_minutes, deposit_paid: 0 } : {}),
         } as any).select("id").single();
         if (error) throw error;
 
@@ -496,6 +503,10 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
       queryClient.invalidateQueries({ queryKey: ["staff-notes"] });
       queryClient.invalidateQueries({ queryKey: ["audit-logs"] });
       queryClient.invalidateQueries({ queryKey: ["customer-search-list"] });
+      if (intakeData) {
+        queryClient.invalidateQueries({ queryKey: ["phone-intakes"] });
+        queryClient.invalidateQueries({ queryKey: ["phone-intake-holds"] });
+      }
       onOpenChange(false);
     },
     onError: (e: any) => {
@@ -611,7 +622,7 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
         }}
       >
         <DialogHeader>
-          <DialogTitle>{bookAgainData ? `Book Again — ${bookAgainData.customer_name}` : "New Appointment"}</DialogTitle>
+          <DialogTitle>{intakeData ? `Phone enquiry — ${intakeData.customer_name}` : bookAgainData ? `Book Again — ${bookAgainData.customer_name}` : "New Appointment"}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -779,7 +790,7 @@ export function NewBookingDialog({ open, onOpenChange, defaultDate, defaultHour,
                     </div>
                     <div className="space-y-1">
                       <Label>Deposit (£)</Label>
-                      <NumericInput value={form.deposit_paid} onValueChange={(v) => setForm({ ...form, deposit_paid: v })} />
+                      <NumericInput disabled={!!intakeData} value={form.deposit_paid} onValueChange={(v) => setForm({ ...form, deposit_paid: v })} />
                     </div>
                   </div>
 

@@ -3,6 +3,9 @@ import { format, addDays, isToday } from "date-fns";
 import { cn } from "@/lib/utils";
 import { BookingEvent, BookingData } from "./BookingEvent";
 import { EmptySlotAction } from "./EmptySlotAction";
+import { usePhoneIntakeHolds } from "@/hooks/usePhoneIntakeHolds";
+import { Link } from "react-router-dom";
+import { Clock } from "lucide-react";
 
 interface StaffMember {
   id: string;
@@ -119,6 +122,7 @@ function computeOverlapLayout(dayBookings: BookingData[]): Map<string, LayoutInf
 
 export function WeeklyCalendar({ weekStart, daysToShow = 7, staff, bookings, staffIndexMap, currentStaffId, onBook, onBlock, onOvertime, onEditBlock, onCancelBlock, onEditOvertime, onCancelOvertime, onViewOrder, onEditAppointment, onCancelBooking, onBookAgain, onCheckout }: WeeklyCalendarProps) {
   const days = useMemo(() => Array.from({ length: daysToShow }, (_, i) => addDays(weekStart, i)), [weekStart, daysToShow]);
+  const { data: holds = [] } = usePhoneIntakeHolds(format(weekStart, "yyyy-MM-dd"), format(addDays(weekStart, daysToShow - 1), "yyyy-MM-dd"));
 
   const bookingsByDate = useMemo(() => {
     const map = new Map<string, BookingData[]>();
@@ -233,6 +237,10 @@ export function WeeklyCalendar({ weekStart, daysToShow = 7, staff, bookings, sta
                         onCheckout={isPrivacyMasked ? undefined : onCheckout}
                       />
                     );
+                })}
+                {holds.filter(h => h.booking_date === dateStr && staff.some(s => s.id === h.staff_id) && Date.parse(h.expires_at) > Date.now()).map(h => {
+                  const [hour, minute] = h.booking_time.split(":").map(Number);
+                  return <Link key={h.id} to="/phone-intakes" className="absolute left-1 right-1 z-30 rounded-lg border-2 border-dashed border-primary bg-accent text-accent-foreground p-2 overflow-hidden" style={{ top: `calc(var(--slot-h) * ${hour - START_HOUR + minute / 60})`, height: `calc(var(--slot-h) * ${h.duration_minutes / 60})` }}><p className="text-xs font-semibold flex items-center gap-1"><Clock className="h-3 w-3 shrink-0" />Phone hold</p><p className="text-xs">{h.booking_time.slice(0, 5)} · {staff.find(s => s.id === h.staff_id)?.name}</p><p className="text-xs">Until {new Date(h.expires_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}</p></Link>;
                 })}
               </div>
             );
