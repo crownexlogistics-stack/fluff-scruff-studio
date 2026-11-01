@@ -842,6 +842,7 @@ export type Database = {
           notes: string | null
           payment_anomaly: boolean | null
           payment_method: string | null
+          phone_intake_id: string | null
           referral_source: string | null
           refunded_amount: number
           refunded_at: string | null
@@ -885,6 +886,7 @@ export type Database = {
           notes?: string | null
           payment_anomaly?: boolean | null
           payment_method?: string | null
+          phone_intake_id?: string | null
           referral_source?: string | null
           refunded_amount?: number
           refunded_at?: string | null
@@ -928,6 +930,7 @@ export type Database = {
           notes?: string | null
           payment_anomaly?: boolean | null
           payment_method?: string | null
+          phone_intake_id?: string | null
           referral_source?: string | null
           refunded_amount?: number
           refunded_at?: string | null
@@ -961,6 +964,13 @@ export type Database = {
             columns: ["campaign_id"]
             isOneToOne: false
             referencedRelation: "email_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookings_phone_intake_id_fkey"
+            columns: ["phone_intake_id"]
+            isOneToOne: false
+            referencedRelation: "phone_intakes"
             referencedColumns: ["id"]
           },
           {
@@ -3180,6 +3190,112 @@ export type Database = {
           },
         ]
       }
+      phone_intakes: {
+        Row: {
+          alternatives: string | null
+          attachments: Json
+          booking_id: string | null
+          breed: string | null
+          created_at: string
+          created_by: string
+          created_by_name: string
+          dog_name: string | null
+          duration_minutes: number
+          email: string | null
+          first_name: string | null
+          hold_expires_at: string | null
+          hold_released_at: string | null
+          id: string
+          notes: string | null
+          phone: string
+          service_id: string | null
+          slot_date: string | null
+          slot_time: string | null
+          staff_id: string | null
+          status: string
+          submitted_at: string | null
+          surname: string | null
+          token: string
+          upload_paths: string[]
+        }
+        Insert: {
+          alternatives?: string | null
+          attachments?: Json
+          booking_id?: string | null
+          breed?: string | null
+          created_at?: string
+          created_by: string
+          created_by_name: string
+          dog_name?: string | null
+          duration_minutes?: number
+          email?: string | null
+          first_name?: string | null
+          hold_expires_at?: string | null
+          hold_released_at?: string | null
+          id?: string
+          notes?: string | null
+          phone: string
+          service_id?: string | null
+          slot_date?: string | null
+          slot_time?: string | null
+          staff_id?: string | null
+          status?: string
+          submitted_at?: string | null
+          surname?: string | null
+          token?: string
+          upload_paths?: string[]
+        }
+        Update: {
+          alternatives?: string | null
+          attachments?: Json
+          booking_id?: string | null
+          breed?: string | null
+          created_at?: string
+          created_by?: string
+          created_by_name?: string
+          dog_name?: string | null
+          duration_minutes?: number
+          email?: string | null
+          first_name?: string | null
+          hold_expires_at?: string | null
+          hold_released_at?: string | null
+          id?: string
+          notes?: string | null
+          phone?: string
+          service_id?: string | null
+          slot_date?: string | null
+          slot_time?: string | null
+          staff_id?: string | null
+          status?: string
+          submitted_at?: string | null
+          surname?: string | null
+          token?: string
+          upload_paths?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "phone_intakes_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "phone_intakes_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "phone_intakes_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       placement_logs: {
         Row: {
           created_at: string
@@ -4391,13 +4507,72 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      active_phone_intake_holds: {
+        Args: { _from: string; _to: string }
+        Returns: {
+          booking_date: string
+          booking_time: string
+          duration_minutes: number
+          expires_at: string
+          id: string
+          staff_id: string
+        }[]
+      }
       attach_online_booking_addons: {
         Args: { _addon_ids: string[]; _booking_id: string }
         Returns: number
       }
+      close_phone_intake: {
+        Args: { _close?: boolean; _id: string }
+        Returns: undefined
+      }
       coupon_customer_use_count: {
         Args: { _coupon_id: string; _email: string }
         Returns: number
+      }
+      create_phone_intake: {
+        Args: {
+          _date?: string
+          _duration?: number
+          _hold?: boolean
+          _phone: string
+          _service?: string
+          _staff?: string
+          _time?: string
+        }
+        Returns: {
+          alternatives: string | null
+          attachments: Json
+          booking_id: string | null
+          breed: string | null
+          created_at: string
+          created_by: string
+          created_by_name: string
+          dog_name: string | null
+          duration_minutes: number
+          email: string | null
+          first_name: string | null
+          hold_expires_at: string | null
+          hold_released_at: string | null
+          id: string
+          notes: string | null
+          phone: string
+          service_id: string | null
+          slot_date: string | null
+          slot_time: string | null
+          staff_id: string | null
+          status: string
+          submitted_at: string | null
+          surname: string | null
+          token: string
+          upload_paths: string[]
+        }
+        SetofOptions: {
+          from: "*"
+          to: "phone_intakes"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       current_staff_id: { Args: never; Returns: string }
       get_user_id_by_email: { Args: { _email: string }; Returns: string }
@@ -4415,6 +4590,16 @@ export type Database = {
       }
       hash_phone_for_sms: { Args: { phone: string }; Returns: string }
       normalise_phone: { Args: { _phone: string }; Returns: string }
+      phone_intake_slot_busy: {
+        Args: {
+          _date: string
+          _duration: number
+          _exclude?: string
+          _staff: string
+          _time: string
+        }
+        Returns: boolean
+      }
       redeem_gift_voucher: {
         Args: {
           _amount_applied: number
@@ -4515,6 +4700,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      submit_phone_intake: {
+        Args: { _attachments: Json; _details: Json; _token: string }
+        Returns: undefined
       }
     }
     Enums: {
