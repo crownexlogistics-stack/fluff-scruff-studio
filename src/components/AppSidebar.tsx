@@ -48,6 +48,7 @@ const mainNavItems = [
   { title: "Shared Inbox", url: "/admin/inbox", icon: Mail },
   { title: "AI Inbox", url: "/ai-inbox", icon: PhoneForwarded },
   { title: "Specialty Grooming", url: "/specialty-grooming", icon: Scissors },
+  { title: "Phone Intakes", url: "/phone-intakes", icon: Phone },
   { title: "Services", url: "/services", icon: Scissors },
   { title: "Add-Ons", url: "/add-ons", icon: Sparkles },
   { title: "Gift Vouchers", url: "/gift-vouchers", icon: Gift },

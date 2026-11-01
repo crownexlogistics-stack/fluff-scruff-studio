@@ -119,12 +119,14 @@ Deno.serve(async (req) => {
         const dateObj = new Date(d + "T00:00:00Z");
         const dbDayOfWeek = (dateObj.getUTCDay() + 6) % 7;
 
-        const [overridesRes, baseRes, bookingsRes, migratedRes] = await Promise.all([
+        const [overridesRes, baseRes, bookingsRes, migratedRes, holdsRes] = await Promise.all([
           supabase.from("staff_schedule_overrides").select("staff_id, start_time, end_time, is_working").eq("override_date", d).in("staff_id", groomerIds),
           supabase.from("staff_availability").select("staff_id, start_time, end_time, is_available").eq("day_of_week", dbDayOfWeek).eq("is_available", true).in("staff_id", groomerIds),
           supabase.from("bookings").select("staff_id, booking_time, duration_minutes, services(duration_minutes), breeds(duration_minutes)").eq("booking_date", d).in("staff_id", groomerIds).not("status", "in", "(Cancelled,No Show,Refunded)"),
           supabase.from("migrated_bookings").select("booking_time, duration_minutes, staff_name").eq("booking_date", d).eq("is_future_booking", true),
+          supabase.from("phone_intakes").select("staff_id,slot_time,duration_minutes").eq("slot_date", d).in("staff_id", groomerIds).in("status", ["awaiting", "submitted"]).is("hold_released_at", null).gt("hold_expires_at", new Date().toISOString()),
         ]);
+        if (holdsRes.error) throw holdsRes.error;
 
         const overridesByStaff = new Map<string, any[]>();
         for (const o of overridesRes.data || []) {
@@ -190,6 +192,11 @@ Deno.serve(async (req) => {
           if (!windows.length) continue;
 
           const intervals: { start: number; end: number }[] = [];
+          for (const hold of holdsRes.data || []) {
+            if (hold.staff_id !== gid) continue;
+            const start = parseTimeToMinutes(hold.slot_time);
+            intervals.push({ start, end: start + hold.duration_minutes });
+          }
           for (const b of bookingsByStaff.get(gid) || []) {
             const s = parseTimeToMinutes(b.booking_time);
             const dur = Number(b.duration_minutes ?? b.services?.duration_minutes ?? b.breeds?.duration_minutes ?? 90);
@@ -257,6 +264,14 @@ Deno.serve(async (req) => {
 
     const slotStart = parseTimeToMinutes(start_time);
     const slotEnd = slotStart + Number(duration_minutes);
+
+    const { data: holds, error: holdsError } = await supabase.from("phone_intakes")
+      .select("slot_time,duration_minutes").eq("staff_id", groomer_id).eq("slot_date", date)
+      .in("status", ["awaiting", "submitted"]).is("hold_released_at", null).gt("hold_expires_at", new Date().toISOString());
+    if (holdsError) throw holdsError;
+    if ((holds || []).some(h => { const start = parseTimeToMinutes(h.slot_time); return slotStart < start + h.duration_minutes && slotEnd > start; })) {
+      return new Response(JSON.stringify({ available: false, reason: "This time is temporarily reserved. Please choose another time." }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
 
     console.log(`[check-availability] Checking groomer=${groomer_id} date=${date} time=${start_time} duration=${duration_minutes}min slot=${slotStart}-${slotEnd}`);
 

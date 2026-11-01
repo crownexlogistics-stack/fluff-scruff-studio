@@ -93,6 +93,8 @@ import GroomerInboxPage from "./pages/GroomerInboxPage";
 import AIReceptionistPage from "./pages/AIReceptionistPage";
 import AIInboxPage from "./pages/AIInboxPage";
 import SpecialtyGroomingPage from "./pages/SpecialtyGroomingPage";
+import PhoneIntakesPage from "./pages/PhoneIntakesPage";
+import PhoneIntakeFormPage from "./pages/PhoneIntakeFormPage";
 import PlacementsPage from "./pages/PlacementsPage";
 import PlacementProfilePage from "./pages/PlacementProfilePage";
 const queryClient = new QueryClient({
@@ -123,6 +125,7 @@ const App = () => (
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/contract/sign/:staffId" element={<ContractSignPage />} />
           <Route path="/book" element={<BookingEntryPage />} />
+          <Route path="/intake/:token" element={<PhoneIntakeFormPage />} />
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/vouchers" element={<VouchersPage />} />
           <Route path="/vouchers/success" element={<VoucherSuccessPage />} />
@@ -200,6 +203,7 @@ const App = () => (
           <Route path="/admin/inbox" element={<ProtectedRoute allowedRoles={["manager", "director"]}><AdminInboxPage /></ProtectedRoute>} />
           <Route path="/admin/ai-receptionist" element={<ProtectedRoute allowedRoles={["director"]}><AIReceptionistPage /></ProtectedRoute>} />
           <Route path="/specialty-grooming" element={<ProtectedRoute allowedRoles={["groomer", "manager", "director"]}><SpecialtyGroomingPage /></ProtectedRoute>} />
+          <Route path="/phone-intakes" element={<ProtectedRoute allowedRoles={["groomer", "manager", "director"]}><PhoneIntakesPage /></ProtectedRoute>} />
           <Route path="/ai-inbox" element={<ProtectedRoute allowedRoles={["groomer", "manager", "director"]}><AIInboxPage /></ProtectedRoute>} />
           <Route path="/placements" element={<ProtectedRoute allowedRoles={["groomer", "manager", "director", "volunteer", "work_placement"]}><PlacementsPage /></ProtectedRoute>} />
           <Route path="/placements/:id" element={<ProtectedRoute allowedRoles={["groomer", "manager", "director", "volunteer", "work_placement"]}><PlacementProfilePage /></ProtectedRoute>} />
