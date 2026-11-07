@@ -23,7 +23,7 @@ serve(async (req) => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-sonnet-4-6",
         max_tokens: 300,
         system: "You are a professional assistant for Fluff & Scruff Studio, a dog grooming salon in Hornchurch, Essex. Rewrite the groomer's rough message into a short, friendly, professional SMS to a customer. Keep it warm and personal. Always sign off as 'Fluff & Scruff Team'. Maximum 4 sentences. No emojis unless the groomer included one. Do not add any information that was not in the original message. Reply with the SMS text only — no explanation, no quotes.",
         messages: [{ role: "user", content: roughMessage.trim() }],

@@ -283,7 +283,7 @@ async function callAnthropic(apiKey: string, dogData: any): Promise<string> {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
+      model: "claude-sonnet-4-6",
       max_tokens: 500,
       system: `You are an expert dog grooming assistant. Give groomers a helpful pre-appointment brief about the dog they are about to groom. Be warm, practical and concise. Maximum 3-4 sentences. Focus on: coat condition expectations, temperament if known from history, what the owner usually prefers, anything to watch out for. Never make up information — only use what is in the data provided. If something is unknown say so briefly.`,
       messages: [
