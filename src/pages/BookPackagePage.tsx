@@ -189,7 +189,7 @@ export default function BookPackagePage() {
   const { data: groomers } = useQuery({
     queryKey: ["groomers-for-pkg-booking"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("staff").select("id, name, booking_priority, is_accepting_bookings, employment_end_date").eq("account_blocked", false).order("name");
+      const { data, error } = await (supabase.from("staff_public" as any) as any).select("id, name, booking_priority, is_accepting_bookings, employment_end_date").eq("account_blocked", false).order("name");
       if (error) throw error;
       return (data || []).filter((s: any) => s.is_accepting_bookings !== false) as Groomer[];
     },

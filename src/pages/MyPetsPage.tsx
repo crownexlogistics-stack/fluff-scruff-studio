@@ -80,7 +80,7 @@ const MyPetsPage = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("bookings")
-        .select("id, dog_name, booking_date, booking_time, status, service_id, breed_id, total_price, deposit_paid, notes, customer_name, customer_email, customer_phone, services(name), staff:staff_id(name)")
+        .select("id, dog_name, booking_date, booking_time, status, service_id, breed_id, total_price, deposit_paid, notes, customer_name, customer_email, customer_phone, services(name), staff:staff_public!staff_id(name)")
         .eq("customer_email", user!.email)
         .order("booking_date", { ascending: false })
         .limit(50);
@@ -157,7 +157,7 @@ const MyPetsPage = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("groomer_recommendations")
-        .select("*, staff:staff_id(name)")
+        .select("*, staff:staff_public!staff_id(name)")
         .eq("pet_id", selectedPetId!)
         .order("created_at", { ascending: false });
       if (error) throw error;

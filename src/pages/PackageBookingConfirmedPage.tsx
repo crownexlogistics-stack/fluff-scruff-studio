@@ -80,7 +80,7 @@ export default function PackageBookingConfirmedPage() {
     queryKey: ["pkg-sessions-confirmed", packageBookingId],
     queryFn: async () => {
       if (!packageBookingId) return [];
-      const { data, error } = await (supabase.from("package_sessions" as any).select("*, bookings(booking_date, booking_time, staff:staff_id(name), service:service_id(name))") as any)
+      const { data, error } = await (supabase.from("package_sessions" as any).select("*, bookings(booking_date, booking_time, staff:staff_public!staff_id(name), service:service_id(name))") as any)
         .eq("package_booking_id", packageBookingId)
         .order("session_number");
       if (error) throw error;

@@ -55,14 +55,12 @@ export default function WelcomePage() {
   useEffect(() => {
     if (passwordSet && user?.email) {
       const activate = async () => {
-        await supabase
-          .from("migrated_customers")
-          .update({
-            status: "activated",
-            activated_at: new Date().toISOString(),
-            supabase_user_id: user.id,
-          })
-          .eq("email", user.email!.toLowerCase());
+        try {
+          await (supabase.rpc as any)("claim_migrated_customer");
+          await supabase.auth.signOut({ scope: "others" });
+        } catch (e) {
+          console.warn("Could not link previous history", e);
+        }
         navigate("/my-pets", { replace: true });
       };
       activate();

@@ -26,9 +26,11 @@ const ContractSignPage = () => {
   const { data: staff, isLoading } = useQuery({
     queryKey: ["staff", staffId],
     queryFn: async () => {
-      const { data, error } = await supabase.from("staff").select("*").eq("id", staffId!).single();
+      const { data, error } = await (supabase.rpc as any)("get_staff_for_signing", { _id: staffId! });
       if (error) throw error;
-      return data;
+      const row = (data as any[])?.[0];
+      if (!row) throw new Error("Not found");
+      return row as any;
     },
     enabled: !!staffId,
   });

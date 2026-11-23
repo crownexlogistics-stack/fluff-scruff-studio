@@ -441,14 +441,14 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
     queryKey: ["groomers-for-booking"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("staff")
+        .from("staff_public")
         .select("id, name, role, booking_priority, is_accepting_bookings, employment_end_date, block_new_bookings")
         .ilike("role", "%groomer%")
         .eq("is_accepting_bookings", true)
         .eq("block_new_bookings", false)
         .order("name");
       if (error) throw error;
-      return data as Groomer[];
+      return data as unknown as Groomer[];
     },
   });
 
@@ -516,7 +516,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
       // Check real bookings first
       const { data: realBooking } = await supabase
         .from("bookings")
-        .select("staff_id, staff:staff_id(name)")
+        .select("staff_id, staff:staff_public!staff_id(name)")
         .eq("customer_email", user.email)
         .eq("status", "Completed")
         .not("staff_id", "is", null)
@@ -918,6 +918,13 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
 
         if (signInError) {
           console.warn("Auto sign-in failed:", signInError.message);
+        }
+
+        if (migratedDetected?.found) {
+          // History links only after the customer opens the emailed link (proves the email is theirs)
+          void supabase.auth.resetPasswordForEmail(guestForm.email.trim(), {
+            redirectTo: `${window.location.origin}/welcome`,
+          });
         }
 
         const userId = signUpData?.user?.id;
@@ -2484,7 +2491,7 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
                         {migratedDetected?.found && (
                           <div className="rounded-xl p-3 mt-1" style={{ backgroundColor: "#FFF3E0" }}>
                             <p className="text-sm text-foreground">
-                              👋 We recognise you{migratedDetected.name ? `, ${migratedDetected.name.split(" ")[0]}` : ""}! You've visited us before. Your booking history will be connected to this booking.
+                              👋 We recognise you{migratedDetected.name ? `, ${migratedDetected.name.split(" ")[0]}` : ""}! You've visited us before. After booking, we'll email you a link to connect your past history.
                             </p>
                           </div>
                         )}

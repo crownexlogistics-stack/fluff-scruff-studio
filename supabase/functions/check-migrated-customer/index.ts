@@ -54,89 +54,12 @@ Deno.serve(async (req) => {
       }
 
       return new Response(
-        JSON.stringify({ found: true, status: "pending", name: migrated.full_name, migrated_id: migrated.id }),
+        JSON.stringify({ found: true, status: "pending", name: migrated.full_name }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Action: "activate" — create auth account and link to migrated customer
-    if (action === "activate") {
-      if (!password || password.length < 6) {
-        return new Response(
-          JSON.stringify({ error: "Password must be at least 6 characters" }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      // Re-check migrated customer
-      const { data: migrated, error: mErr } = await supabase
-        .from("migrated_customers")
-        .select("id, full_name, status, supabase_user_id")
-        .eq("email", normalizedEmail)
-        .maybeSingle();
-
-      if (mErr) throw mErr;
-
-      if (!migrated) {
-        return new Response(
-          JSON.stringify({ error: "No migrated customer found with this email" }),
-          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      if (migrated.supabase_user_id && (migrated.status === "activated" || migrated.status === "self_registered")) {
-        return new Response(
-          JSON.stringify({ error: "already_active", message: "This account is already active. Please sign in instead." }),
-          { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      // Check if auth user already exists with this email (e.g. from invite)
-      const { data: existingUser } = await supabase.rpc("get_user_id_by_email", {
-        _email: normalizedEmail,
-      });
-
-      let userId: string;
-
-      if (existingUser) {
-        // Auth user exists but migrated_customers not linked — update password and link
-        const { error: updateErr } = await supabase.auth.admin.updateUserById(existingUser, {
-          password,
-          email_confirm: true,
-        });
-        if (updateErr) throw updateErr;
-        userId = existingUser;
-      } else {
-        // Create new auth user
-        const { data: newUser, error: createErr } = await supabase.auth.admin.createUser({
-          email: normalizedEmail,
-          password,
-          email_confirm: true,
-          user_metadata: { full_name: full_name || migrated.full_name || "" },
-        });
-        if (createErr) throw createErr;
-        userId = newUser.user.id;
-      }
-
-      // Update migrated_customers record
-      const { error: linkErr } = await supabase
-        .from("migrated_customers")
-        .update({
-          supabase_user_id: userId,
-          status: "self_registered",
-          activated_at: new Date().toISOString(),
-          profile_id: userId,
-        })
-        .eq("id", migrated.id);
-
-      if (linkErr) throw linkErr;
-
-      return new Response(
-        JSON.stringify({ success: true, user_id: userId, name: migrated.full_name }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
+    // "activate" was removed: it let anyone set a password on an account by email.
     return new Response(
       JSON.stringify({ error: "Invalid action" }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }

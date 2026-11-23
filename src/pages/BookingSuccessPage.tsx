@@ -133,7 +133,7 @@ export default function BookingSuccessPage() {
       if (!bookingId) return null;
       const { data, error } = await supabase
         .from("bookings")
-        .select("*, staff:staff_id(name), service:service_id(name), breed:breed_id(name)")
+        .select("*, staff:staff_public!staff_id(name), service:service_id(name), breed:breed_id(name)")
         .eq("id", bookingId)
         .single();
       if (error) throw error;

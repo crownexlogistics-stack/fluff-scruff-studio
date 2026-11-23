@@ -302,6 +302,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "ai_inbox_cases_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "staff_public"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "ai_inbox_cases_booking_id_fkey"
             columns: ["booking_id"]
             isOneToOne: false
@@ -313,6 +320,13 @@ export type Database = {
             columns: ["resolved_by"]
             isOneToOne: false
             referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_inbox_cases_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "staff_public"
             referencedColumns: ["id"]
           },
         ]
@@ -355,6 +369,13 @@ export type Database = {
             columns: ["staff_id"]
             isOneToOne: false
             referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_inbox_notifications_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_public"
             referencedColumns: ["id"]
           },
         ]
@@ -461,6 +482,13 @@ export type Database = {
             referencedRelation: "staff"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "ai_receptionist_settings_system_prompt_updated_by_fkey"
+            columns: ["system_prompt_updated_by"]
+            isOneToOne: false
+            referencedRelation: "staff_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       audit_logs: {
@@ -497,6 +525,13 @@ export type Database = {
             columns: ["staff_id"]
             isOneToOne: false
             referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "audit_logs_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_public"
             referencedColumns: ["id"]
           },
         ]
@@ -987,6 +1022,13 @@ export type Database = {
             referencedRelation: "staff"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "bookings_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       breed_advice_cache: {
@@ -1253,6 +1295,13 @@ export type Database = {
             referencedRelation: "staff"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "commission_records_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       coupon_usages: {
@@ -1292,6 +1341,13 @@ export type Database = {
             columns: ["applied_by_staff_id"]
             isOneToOne: false
             referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coupon_usages_applied_by_staff_id_fkey"
+            columns: ["applied_by_staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_public"
             referencedColumns: ["id"]
           },
           {
@@ -1440,10 +1496,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "customer_blacklist_blacklisted_by_staff_id_fkey"
+            columns: ["blacklisted_by_staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_public"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "customer_blacklist_removed_by_staff_id_fkey"
             columns: ["removed_by_staff_id"]
             isOneToOne: false
             referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_blacklist_removed_by_staff_id_fkey"
+            columns: ["removed_by_staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_public"
             referencedColumns: ["id"]
           },
         ]
@@ -1790,6 +1860,13 @@ export type Database = {
             columns: ["replied_by"]
             isOneToOne: false
             referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_replies_replied_by_fkey"
+            columns: ["replied_by"]
+            isOneToOne: false
+            referencedRelation: "staff_public"
             referencedColumns: ["id"]
           },
         ]
@@ -2160,6 +2237,13 @@ export type Database = {
             referencedRelation: "staff"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "groomer_activity_log_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       groomer_payout_history: {
@@ -2223,6 +2307,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "groomer_payout_history_groomer_id_fkey"
+            columns: ["groomer_id"]
+            isOneToOne: false
+            referencedRelation: "staff_public"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "groomer_payout_history_payout_record_id_fkey"
             columns: ["payout_record_id"]
             isOneToOne: false
@@ -2266,6 +2357,13 @@ export type Database = {
             columns: ["staff_id"]
             isOneToOne: false
             referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "groomer_recommendations_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_public"
             referencedColumns: ["id"]
           },
         ]
@@ -2324,6 +2422,13 @@ export type Database = {
             referencedRelation: "staff"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "hr_documents_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       hr_employment_status: {
@@ -2362,6 +2467,13 @@ export type Database = {
             referencedRelation: "staff"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "hr_employment_status_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: true
+            referencedRelation: "staff_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       hr_events: {
@@ -2398,6 +2510,13 @@ export type Database = {
             columns: ["staff_id"]
             isOneToOne: false
             referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_events_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_public"
             referencedColumns: ["id"]
           },
         ]
@@ -2449,6 +2568,13 @@ export type Database = {
             columns: ["staff_id"]
             isOneToOne: false
             referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "incident_report_recipients_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_public"
             referencedColumns: ["id"]
           },
         ]
@@ -2788,6 +2914,13 @@ export type Database = {
             referencedRelation: "staff"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "package_bookings_paid_by_staff_id_fkey"
+            columns: ["paid_by_staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       package_checkout_pending: {
@@ -3106,6 +3239,13 @@ export type Database = {
             referencedRelation: "staff"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "payout_records_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       pet_photos: {
@@ -3294,6 +3434,13 @@ export type Database = {
             referencedRelation: "staff"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "phone_intakes_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       placement_logs: {
@@ -3334,6 +3481,13 @@ export type Database = {
             columns: ["staff_id"]
             isOneToOne: false
             referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "placement_logs_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_public"
             referencedColumns: ["id"]
           },
         ]
@@ -3413,6 +3567,13 @@ export type Database = {
             referencedRelation: "staff"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "purchase_requests_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "staff_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       purchases: {
@@ -3488,6 +3649,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "purchases_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "staff_public"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "purchases_request_id_fkey"
             columns: ["request_id"]
             isOneToOne: false
@@ -3499,6 +3667,13 @@ export type Database = {
             columns: ["requested_by_groomer"]
             isOneToOne: false
             referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchases_requested_by_groomer_fkey"
+            columns: ["requested_by_groomer"]
+            isOneToOne: false
+            referencedRelation: "staff_public"
             referencedColumns: ["id"]
           },
         ]
@@ -3661,6 +3836,13 @@ export type Database = {
             referencedRelation: "staff"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "salon_emails_assigned_staff_id_fkey"
+            columns: ["assigned_staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       saved_advice: {
@@ -3784,6 +3966,13 @@ export type Database = {
             columns: ["assigned_to"]
             isOneToOne: false
             referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scruff_handoffs_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "staff_public"
             referencedColumns: ["id"]
           },
           {
@@ -4083,6 +4272,13 @@ export type Database = {
             referencedRelation: "staff"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "specialty_enquiries_claimed_by_staff_id_fkey"
+            columns: ["claimed_by_staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       staff: {
@@ -4205,6 +4401,13 @@ export type Database = {
             referencedRelation: "staff"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "staff_availability_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       staff_notes: {
@@ -4235,6 +4438,13 @@ export type Database = {
             columns: ["staff_id"]
             isOneToOne: false
             referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_notes_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_public"
             referencedColumns: ["id"]
           },
         ]
@@ -4278,6 +4488,13 @@ export type Database = {
             referencedRelation: "staff"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "staff_schedule_overrides_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       staff_services: {
@@ -4312,6 +4529,13 @@ export type Database = {
             columns: ["staff_id"]
             isOneToOne: false
             referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_services_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_public"
             referencedColumns: ["id"]
           },
         ]
@@ -4494,17 +4718,66 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "work_placements_added_by_fkey"
+            columns: ["added_by"]
+            isOneToOne: false
+            referencedRelation: "staff_public"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "work_placements_completed_by_fkey"
             columns: ["completed_by"]
             isOneToOne: false
             referencedRelation: "staff"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "work_placements_completed_by_fkey"
+            columns: ["completed_by"]
+            isOneToOne: false
+            referencedRelation: "staff_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
     }
     Views: {
-      [_ in never]: never
+      staff_public: {
+        Row: {
+          account_blocked: boolean | null
+          block_new_bookings: boolean | null
+          booking_priority: number | null
+          description: string | null
+          employment_end_date: string | null
+          id: string | null
+          is_accepting_bookings: boolean | null
+          name: string | null
+          role: string | null
+        }
+        Insert: {
+          account_blocked?: boolean | null
+          block_new_bookings?: boolean | null
+          booking_priority?: number | null
+          description?: string | null
+          employment_end_date?: string | null
+          id?: string | null
+          is_accepting_bookings?: boolean | null
+          name?: string | null
+          role?: string | null
+        }
+        Update: {
+          account_blocked?: boolean | null
+          block_new_bookings?: boolean | null
+          booking_priority?: number | null
+          description?: string | null
+          employment_end_date?: string | null
+          id?: string | null
+          is_accepting_bookings?: boolean | null
+          name?: string | null
+          role?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       active_phone_intake_holds: {
@@ -4522,6 +4795,7 @@ export type Database = {
         Args: { _addon_ids: string[]; _booking_id: string }
         Returns: number
       }
+      claim_migrated_customer: { Args: never; Returns: number }
       close_phone_intake: {
         Args: { _close?: boolean; _id: string }
         Returns: undefined
@@ -4575,6 +4849,20 @@ export type Database = {
         }
       }
       current_staff_id: { Args: never; Returns: string }
+      get_staff_for_signing: {
+        Args: { _id: string }
+        Returns: {
+          contract_status: string
+          hs_signed_at: string
+          hs_status: string
+          id: string
+          is_self_employed: boolean
+          name: string
+          role: string
+          signed_at: string
+          start_date: string
+        }[]
+      }
       get_user_id_by_email: { Args: { _email: string }; Returns: string }
       groomer_can_access_customer: {
         Args: { _customer_user_id: string }
