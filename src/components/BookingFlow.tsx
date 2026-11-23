@@ -917,7 +917,9 @@ export function BookingFlow({ service, onClose, preselectedBreedId, preselectedP
         });
 
         if (signInError) {
-          console.warn("Auto sign-in failed:", signInError.message);
+          // Email confirmation is required: the booking still goes ahead, account activates once they click the email link.
+          console.warn("Sign-in pending email confirmation:", signInError.message);
+          toast.info(`Please confirm your email — we sent a link to ${guestForm.email}. Click it to activate your account and see your bookings.`, { duration: 10000 });
         }
 
         if (migratedDetected?.found) {
